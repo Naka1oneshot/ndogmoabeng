@@ -12,9 +12,12 @@ import { MJBetsTab } from './MJBetsTab';
 import { MJInventoryTab } from './MJInventoryTab';
 import { MJCombatTab } from './MJCombatTab';
 import { MJEventsTab } from './MJEventsTab';
+import { MJMonstersConfigTab } from './MJMonstersConfigTab';
+import { MJItemsShopTab } from './MJItemsShopTab';
 import { 
   ChevronLeft, Loader2, Users, Settings, Swords, 
-  MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package
+  MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
+  Bug, Store
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -208,7 +211,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="players" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
           <TabsTrigger value="players" className="flex items-center gap-1">
             <Users className="h-4 w-4" />
             <span className="hidden md:inline">Joueurs</span>
@@ -220,6 +223,14 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           <TabsTrigger value="phases" className="flex items-center gap-1">
             <Settings className="h-4 w-4" />
             <span className="hidden md:inline">Phases</span>
+          </TabsTrigger>
+          <TabsTrigger value="monsters" className="flex items-center gap-1">
+            <Bug className="h-4 w-4" />
+            <span className="hidden md:inline">Monstres</span>
+          </TabsTrigger>
+          <TabsTrigger value="shop" className="flex items-center gap-1">
+            <Store className="h-4 w-4" />
+            <span className="hidden md:inline">Shop</span>
           </TabsTrigger>
           <TabsTrigger value="inventory" className="flex items-center gap-1">
             <Package className="h-4 w-4" />
@@ -245,6 +256,14 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
         <TabsContent value="phases" className="mt-6">
           <MJPhasesTab game={game} onGameUpdate={fetchGame} />
+        </TabsContent>
+
+        <TabsContent value="monsters" className="mt-6">
+          <MJMonstersConfigTab game={game} />
+        </TabsContent>
+
+        <TabsContent value="shop" className="mt-6">
+          <MJItemsShopTab game={game} />
         </TabsContent>
 
         <TabsContent value="inventory" className="mt-6">
