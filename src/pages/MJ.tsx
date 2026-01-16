@@ -6,18 +6,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { PlayerManagementList } from '@/components/game/PlayerManagementList';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdminBadge } from '@/components/game/AdminBadge';
-import { TreePine, Plus, Play, LogOut, Loader2, ShieldAlert, StopCircle } from 'lucide-react';
+import { TreePine, Plus, Play, LogOut, Loader2, ShieldAlert, StopCircle, Settings, RotateCcw, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Game {
   id: string;
   name: string;
   join_code: string;
-  status: 'LOBBY' | 'IN_GAME' | 'ENDED';
+  status: string;
+  manche_active: number;
+  sens_depart_egalite: string;
+  x_nb_joueurs: number;
 }
 
 function generateJoinCode(): string {
@@ -35,9 +39,13 @@ export default function MJ() {
   const navigate = useNavigate();
   const [game, setGame] = useState<Game | null>(null);
   const [gameName, setGameName] = useState('');
+  const [xNbJoueurs, setXNbJoueurs] = useState(6);
+  const [sensEgalite, setSensEgalite] = useState<'ASC' | 'DESC'>('ASC');
   const [creating, setCreating] = useState(false);
   const [starting, setStarting] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [resettingManche, setResettingManche] = useState(false);
+  const [lockingJoins, setLockingJoins] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -45,7 +53,6 @@ export default function MJ() {
     }
   }, [user, authLoading, navigate]);
 
-  // Redirect non-admins after role is loaded
   useEffect(() => {
     if (!authLoading && !roleLoading && user && !isAdmin) {
       navigate('/login');
@@ -54,25 +61,26 @@ export default function MJ() {
 
   useEffect(() => {
     if (user) {
-      // Check for existing active game
-      const fetchActiveGame = async () => {
-        const { data } = await supabase
-          .from('games')
-          .select('*')
-          .eq('host_user_id', user.id)
-          .in('status', ['LOBBY', 'IN_GAME'])
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (data) {
-          setGame(data as Game);
-        }
-      };
-
       fetchActiveGame();
     }
   }, [user]);
+
+  const fetchActiveGame = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('games')
+      .select('*')
+      .eq('host_user_id', user.id)
+      .neq('status', 'FINISHED')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data) {
+      setGame(data as Game);
+    }
+  };
 
   const handleCreateGame = async () => {
     if (!user) return;
@@ -92,6 +100,9 @@ export default function MJ() {
           name: gameName.trim(),
           join_code: joinCode,
           status: 'LOBBY',
+          manche_active: 1,
+          sens_depart_egalite: sensEgalite,
+          x_nb_joueurs: xNbJoueurs,
         })
         .select()
         .single();
@@ -123,12 +134,12 @@ export default function MJ() {
     try {
       const { error } = await supabase
         .from('games')
-        .update({ status: 'IN_GAME' })
+        .update({ status: 'IN_ROUND' })
         .eq('id', game.id);
 
       if (error) throw error;
 
-      setGame({ ...game, status: 'IN_GAME' });
+      setGame({ ...game, status: 'IN_ROUND' });
       toast.success('La partie commence !');
     } catch (error) {
       console.error('Error starting game:', error);
@@ -145,12 +156,12 @@ export default function MJ() {
     try {
       const { error } = await supabase
         .from('games')
-        .update({ status: 'ENDED' })
+        .update({ status: 'FINISHED' })
         .eq('id', game.id);
 
       if (error) throw error;
 
-      setGame({ ...game, status: 'ENDED' });
+      setGame({ ...game, status: 'FINISHED' });
       toast.success('Partie terminée');
     } catch (error) {
       console.error('Error ending game:', error);
@@ -160,9 +171,56 @@ export default function MJ() {
     }
   };
 
+  const handleResetManche = async () => {
+    if (!game) return;
+    
+    setResettingManche(true);
+    try {
+      const { error } = await supabase
+        .from('games')
+        .update({ manche_active: 1 })
+        .eq('id', game.id);
+
+      if (error) throw error;
+
+      setGame({ ...game, manche_active: 1 });
+      toast.success('Manche réinitialisée à 1');
+    } catch (error) {
+      console.error('Error resetting manche:', error);
+      toast.error('Erreur lors de la réinitialisation');
+    } finally {
+      setResettingManche(false);
+    }
+  };
+
+  const handleLockJoins = async () => {
+    if (!game) return;
+    
+    setLockingJoins(true);
+    try {
+      // Update status to prevent new joins (we'll use IN_ROUND status)
+      const { error } = await supabase
+        .from('games')
+        .update({ status: 'IN_ROUND' })
+        .eq('id', game.id);
+
+      if (error) throw error;
+
+      setGame({ ...game, status: 'IN_ROUND' });
+      toast.success('Liste des joueurs verrouillée');
+    } catch (error) {
+      console.error('Error locking joins:', error);
+      toast.error('Erreur lors du verrouillage');
+    } finally {
+      setLockingJoins(false);
+    }
+  };
+
   const handleNewGame = () => {
     setGame(null);
     setGameName('');
+    setXNbJoueurs(6);
+    setSensEgalite('ASC');
   };
 
   const handleSignOut = async () => {
@@ -178,7 +236,6 @@ export default function MJ() {
     );
   }
 
-  // Show access denied if not admin
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
@@ -194,9 +251,13 @@ export default function MJ() {
     );
   }
 
+  const isLobby = game?.status === 'LOBBY';
+  const isInGame = game?.status === 'IN_ROUND' || game?.status === 'RESOLVING_COMBAT' || game?.status === 'RESOLVING_SHOP';
+  const isFinished = game?.status === 'FINISHED';
+
   return (
     <div className="min-h-screen px-4 py-6">
-      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 max-w-2xl mx-auto">
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 max-w-3xl mx-auto">
         <div className="flex items-center gap-3">
           <TreePine className="h-6 w-6 text-primary" />
           <h1 className="font-display text-xl">Tableau MJ</h1>
@@ -210,10 +271,11 @@ export default function MJ() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto space-y-6">
+      <main className="max-w-3xl mx-auto space-y-6">
         {!game ? (
+          // BLOC: Créer une partie
           <div className="card-gradient rounded-lg border border-border p-6 space-y-4">
-            <h2 className="font-display text-xl text-center mb-4">Créer une nouvelle partie</h2>
+            <h2 className="font-display text-xl text-center mb-4">🌲 Créer une nouvelle partie</h2>
             
             <div className="space-y-2">
               <Label htmlFor="gameName">Nom de la partie</Label>
@@ -223,6 +285,33 @@ export default function MJ() {
                 value={gameName}
                 onChange={(e) => setGameName(e.target.value)}
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="xNbJoueurs">Nombre de joueurs (X)</Label>
+                <Input
+                  id="xNbJoueurs"
+                  type="number"
+                  min={2}
+                  max={20}
+                  value={xNbJoueurs}
+                  onChange={(e) => setXNbJoueurs(parseInt(e.target.value) || 6)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Sens départ égalité</Label>
+                <Select value={sensEgalite} onValueChange={(val) => setSensEgalite(val as 'ASC' | 'DESC')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ASC">Ascendant (ASC)</SelectItem>
+                    <SelectItem value="DESC">Descendant (DESC)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <ForestButton 
@@ -242,33 +331,63 @@ export default function MJ() {
           </div>
         ) : (
           <>
+            {/* BLOC: Info partie + QR */}
             <div className="card-gradient rounded-lg border border-border p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-display text-xl">{game.name}</h2>
                 <GameStatusBadge status={game.status} />
               </div>
+
+              <div className="grid grid-cols-3 gap-4 text-center mb-4 text-sm">
+                <div className="p-3 rounded-md bg-secondary/50">
+                  <div className="text-muted-foreground">Joueurs</div>
+                  <div className="text-lg font-bold text-primary">X = {game.x_nb_joueurs}</div>
+                </div>
+                <div className="p-3 rounded-md bg-secondary/50">
+                  <div className="text-muted-foreground">Égalité</div>
+                  <div className="text-lg font-bold">{game.sens_depart_egalite}</div>
+                </div>
+                <div className="p-3 rounded-md bg-secondary/50">
+                  <div className="text-muted-foreground">Manche</div>
+                  <div className="text-lg font-bold text-forest-gold">{game.manche_active}</div>
+                </div>
+              </div>
               
-              {game.status === 'LOBBY' && (
-                <ForestButton 
-                  className="w-full" 
-                  onClick={handleStartGame}
-                  disabled={starting}
-                >
-                  {starting ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <>
-                      <Play className="h-5 w-5" />
-                      Démarrer la partie
-                    </>
-                  )}
-                </ForestButton>
+              {isLobby && (
+                <div className="flex gap-3">
+                  <ForestButton 
+                    className="flex-1" 
+                    onClick={handleStartGame}
+                    disabled={starting}
+                  >
+                    {starting ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Play className="h-5 w-5" />
+                        Démarrer la partie
+                      </>
+                    )}
+                  </ForestButton>
+                  <ForestButton 
+                    variant="outline" 
+                    onClick={handleLockJoins}
+                    disabled={lockingJoins}
+                    title="Verrouiller la liste des joueurs"
+                  >
+                    {lockingJoins ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Lock className="h-5 w-5" />
+                    )}
+                  </ForestButton>
+                </div>
               )}
 
-              {game.status === 'IN_GAME' && (
+              {isInGame && (
                 <div className="space-y-3">
                   <p className="text-center text-forest-gold font-medium">
-                    🎮 Partie en cours...
+                    🎮 Partie en cours - Manche {game.manche_active}
                   </p>
                   <ForestButton 
                     variant="outline"
@@ -288,7 +407,7 @@ export default function MJ() {
                 </div>
               )}
 
-              {game.status === 'ENDED' && (
+              {isFinished && (
                 <div className="space-y-3">
                   <p className="text-center text-muted-foreground font-medium">
                     🏁 Partie terminée
@@ -304,11 +423,52 @@ export default function MJ() {
               )}
             </div>
 
-            {game.status === 'LOBBY' && (
+            {/* BLOC: QR Code (visible en lobby) */}
+            {isLobby && (
               <QRCodeDisplay joinCode={game.join_code} />
             )}
 
-            <PlayerManagementList gameId={game.id} />
+            {/* BLOC: Joueurs */}
+            <PlayerManagementList gameId={game.id} isLobby={isLobby} />
+
+            {/* BLOC: Paramètres MJ */}
+            <div className="card-gradient rounded-lg border border-border p-6">
+              <h3 className="font-display text-lg mb-4 flex items-center gap-2">
+                <Settings className="h-5 w-5 text-primary" />
+                Paramètres
+              </h3>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-md bg-secondary/50">
+                  <div>
+                    <div className="font-medium">Manche active</div>
+                    <div className="text-sm text-muted-foreground">Actuellement : {game.manche_active}</div>
+                  </div>
+                  <ForestButton 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleResetManche}
+                    disabled={resettingManche}
+                  >
+                    {resettingManche ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <RotateCcw className="h-4 w-4" />
+                        Reset à 1
+                      </>
+                    )}
+                  </ForestButton>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-md bg-secondary/50">
+                  <div>
+                    <div className="font-medium">Code de session</div>
+                    <div className="text-sm font-mono text-primary">{game.join_code}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </>
         )}
       </main>
