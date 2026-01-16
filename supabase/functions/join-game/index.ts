@@ -58,6 +58,23 @@ serve(async (req) => {
       );
     }
 
+    // Check if this player was previously removed (by display_name)
+    const { data: removedPlayer } = await supabase
+      .from("game_players")
+      .select("id, status")
+      .eq("game_id", game.id)
+      .eq("display_name", displayName.trim())
+      .eq("status", "REMOVED")
+      .maybeSingle();
+
+    if (removedPlayer) {
+      console.log("Player was previously removed:", displayName);
+      return new Response(
+        JSON.stringify({ error: "Vous avez été expulsé de cette partie par le MJ" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get existing players to find the next available player number
     const { data: existingPlayers, error: playersError } = await supabase
       .from("game_players")

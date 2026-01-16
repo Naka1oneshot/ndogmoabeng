@@ -11,7 +11,7 @@ import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { PlayerManagementList } from '@/components/game/PlayerManagementList';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdminBadge } from '@/components/game/AdminBadge';
-import { TreePine, Plus, Play, LogOut, Loader2, ShieldAlert, StopCircle, Settings, RotateCcw, Lock } from 'lucide-react';
+import { TreePine, Plus, Play, LogOut, Loader2, ShieldAlert, StopCircle, Settings, RotateCcw, Lock, List } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Game {
@@ -264,6 +264,10 @@ export default function MJ() {
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           <AdminBadge email={user?.email} />
+          <ForestButton variant="outline" size="sm" onClick={() => navigate('/admin/games')}>
+            <List className="h-4 w-4" />
+            <span className="hidden sm:inline">Parties</span>
+          </ForestButton>
           <ForestButton variant="ghost" size="sm" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" />
             <span className="hidden sm:inline">Déconnexion</span>

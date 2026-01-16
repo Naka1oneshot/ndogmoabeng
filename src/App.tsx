@@ -10,6 +10,8 @@ import Login from "./pages/Login";
 import MJ from "./pages/MJ";
 import JoinAnonymous from "./pages/JoinAnonymous";
 import PlayerDashboard from "./pages/PlayerDashboard";
+import AdminGames from "./pages/AdminGames";
+import AdminGameDetails from "./pages/AdminGameDetails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,8 @@ const App = () => (
             <Route path="/mj" element={<MJ />} />
             <Route path="/join/:code" element={<JoinAnonymous />} />
             <Route path="/player/:gameId" element={<PlayerDashboard />} />
+            <Route path="/admin/games" element={<AdminGames />} />
+            <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
