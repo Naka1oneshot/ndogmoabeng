@@ -37,3 +37,9 @@ verify_jwt = false
 
 [functions.start-game]
 verify_jwt = false
+
+[functions.manage-phase]
+verify_jwt = false
+
+[functions.publish-event]
+verify_jwt = false
