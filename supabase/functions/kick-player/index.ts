@@ -94,29 +94,27 @@ serve(async (req) => {
 
     // Step 2: Only renumber if in LOBBY and the player had a number
     if (game.status === "LOBBY" && kickedPlayerNumber !== null) {
-      // Get all ACTIVE players that are PRESENT (last_seen within 60 seconds)
-      const presenceThreshold = new Date(Date.now() - 60 * 1000).toISOString();
-      
-      const { data: activePresentPlayers, error: fetchError } = await supabase
+      // Get ALL ACTIVE players (not filtered by last_seen)
+      // According to requirements: renumber ALL ACTIVE players to 1..N
+      const { data: activePlayers, error: fetchError } = await supabase
         .from("game_players")
-        .select("id, player_number, last_seen")
+        .select("id, player_number")
         .eq("game_id", player.game_id)
         .eq("status", "ACTIVE")
         .eq("is_host", false)
         .not("player_number", "is", null)
-        .gte("last_seen", presenceThreshold)
         .order("player_number", { ascending: true });
 
       if (fetchError) {
         console.error("Error fetching active players:", fetchError);
         // Continue anyway, renumbering is optional
-      } else if (activePresentPlayers && activePresentPlayers.length > 0) {
-        console.log("Renumbering active present players:", activePresentPlayers.length);
+      } else if (activePlayers && activePlayers.length > 0) {
+        console.log("Renumbering all ACTIVE players:", activePlayers.length);
         
         // Renumber from 1 to N in order
-        for (let i = 0; i < activePresentPlayers.length; i++) {
+        for (let i = 0; i < activePlayers.length; i++) {
           const newNumber = i + 1;
-          const p = activePresentPlayers[i];
+          const p = activePlayers[i];
           
           if (p.player_number !== newNumber) {
             const { error: renumberError } = await supabase

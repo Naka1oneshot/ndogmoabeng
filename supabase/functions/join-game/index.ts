@@ -58,10 +58,10 @@ serve(async (req) => {
       );
     }
 
-    // Check if this player was previously removed (by display_name)
+    // Check if this player was previously REMOVED (by display_name)
     const { data: removedPlayer } = await supabase
       .from("game_players")
-      .select("id, status")
+      .select("id, status, removed_reason")
       .eq("game_id", game.id)
       .eq("display_name", displayName.trim())
       .eq("status", "REMOVED")
@@ -70,16 +70,50 @@ serve(async (req) => {
     if (removedPlayer) {
       console.log("Player was previously removed:", displayName);
       return new Response(
-        JSON.stringify({ error: "Vous avez été expulsé de cette partie par le MJ" }),
+        JSON.stringify({ error: removedPlayer.removed_reason || "Vous avez été expulsé de cette partie par le MJ" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get existing players to find the next available player number
-    const { data: existingPlayers, error: playersError } = await supabase
+    // Check if this player already has an ACTIVE entry (reconnection)
+    const { data: existingActive } = await supabase
+      .from("game_players")
+      .select("id, player_number, player_token, clan")
+      .eq("game_id", game.id)
+      .eq("display_name", displayName.trim())
+      .eq("status", "ACTIVE")
+      .maybeSingle();
+
+    if (existingActive) {
+      // Player is reconnecting - return existing data and update last_seen
+      console.log("Player reconnecting:", displayName, "with number", existingActive.player_number);
+      
+      await supabase
+        .from("game_players")
+        .update({ last_seen: new Date().toISOString() })
+        .eq("id", existingActive.id);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          reconnected: true,
+          gameId: game.id,
+          gameName: game.name,
+          playerId: existingActive.id,
+          playerNumber: existingActive.player_number,
+          playerToken: existingActive.player_token,
+          clan: existingActive.clan,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get ACTIVE players to find the next available player number
+    const { data: activePlayers, error: playersError } = await supabase
       .from("game_players")
       .select("player_number")
       .eq("game_id", game.id)
+      .eq("status", "ACTIVE")
       .not("player_number", "is", null)
       .order("player_number", { ascending: true });
 
@@ -87,9 +121,9 @@ serve(async (req) => {
       console.error("Error fetching players:", playersError);
     }
 
-    // Find the smallest available player number (1 to X if X is defined)
-    const maxPlayers = game.x_nb_joueurs || 100; // Default to 100 if not set
-    const usedNumbers = new Set((existingPlayers || []).map((p) => p.player_number));
+    // Find the smallest available player number among ACTIVE players
+    const maxPlayers = game.x_nb_joueurs || 100;
+    const usedNumbers = new Set((activePlayers || []).map((p) => p.player_number));
     
     let playerNumber: number | null = null;
     for (let i = 1; i <= maxPlayers; i++) {
@@ -99,7 +133,6 @@ serve(async (req) => {
       }
     }
 
-    // If no slot available within X, check if we exceeded
     if (playerNumber === null) {
       console.log("No available player slots. Max:", maxPlayers, "Used:", usedNumbers.size);
       return new Response(
@@ -118,7 +151,7 @@ serve(async (req) => {
       clan: clan || null 
     });
 
-    // Insert the new player with presence tracking
+    // Insert the new player
     const { data: newPlayer, error: insertError } = await supabase
       .from("game_players")
       .insert({
