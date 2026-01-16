@@ -165,12 +165,16 @@ export default function JoinAnonymous() {
     try {
       const deviceId = getDeviceId();
       
+      // Check if we have an existing token (for reconnection)
+      const existingToken = localStorage.getItem(`${PLAYER_TOKEN_PREFIX}${game.id}`);
+      
       const { data, error: joinError } = await supabase.functions.invoke('join-game', {
         body: { 
           joinCode: code, 
           displayName: displayName.trim(),
           clan: clan !== 'none' ? clan : null,
           deviceId,
+          reconnectKey: existingToken || undefined,
         },
       });
 
@@ -189,6 +193,14 @@ export default function JoinAnonymous() {
           });
           return;
         }
+        // Check if kicked
+        if (data?.kicked) {
+          setBanReason(data?.reason || 'Ce pseudo a été expulsé de cette partie');
+          toast.error('Accès refusé', {
+            description: data?.reason || 'Ce pseudo a été expulsé',
+          });
+          return;
+        }
         toast.error(data?.error || 'Erreur lors de la connexion');
         return;
       }
@@ -196,7 +208,11 @@ export default function JoinAnonymous() {
       // Store the player token
       localStorage.setItem(`${PLAYER_TOKEN_PREFIX}${data.gameId}`, data.playerToken);
 
-      toast.success(`Bienvenue ${displayName}! Vous êtes le joueur #${data.playerNumber}`);
+      const message = data.reconnected || data.reactivated 
+        ? `Re-bienvenue ${data.displayName || displayName}! Vous êtes le joueur #${data.playerNumber}`
+        : `Bienvenue ${displayName}! Vous êtes le joueur #${data.playerNumber}`;
+      
+      toast.success(message);
       navigate(`/player/${data.gameId}`);
     } catch (error) {
       console.error('Error joining game:', error);
