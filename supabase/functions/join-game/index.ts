@@ -21,7 +21,7 @@ serve(async (req) => {
   }
 
   try {
-    const { joinCode, displayName } = await req.json();
+    const { joinCode, displayName, clan } = await req.json();
 
     if (!joinCode || !displayName) {
       return new Response(
@@ -37,43 +37,69 @@ serve(async (req) => {
     // Find the game by join code
     const { data: game, error: gameError } = await supabase
       .from("games")
-      .select("id, status")
+      .select("id, name, status, x_nb_joueurs")
       .eq("join_code", joinCode.toUpperCase())
       .single();
 
     if (gameError || !game) {
+      console.log("Game not found for code:", joinCode);
       return new Response(
         JSON.stringify({ error: "Partie introuvable" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (game.status !== "LOBBY") {
+    // Allow joining in LOBBY or IN_ROUND status
+    if (game.status !== "LOBBY" && game.status !== "IN_ROUND") {
+      console.log("Game status not valid for joining:", game.status);
       return new Response(
-        JSON.stringify({ error: "Cette partie a déjà commencé" }),
+        JSON.stringify({ error: "Cette partie n'accepte plus de nouveaux joueurs" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Get existing players to find the next available player number
-    const { data: existingPlayers } = await supabase
+    const { data: existingPlayers, error: playersError } = await supabase
       .from("game_players")
       .select("player_number")
       .eq("game_id", game.id)
       .not("player_number", "is", null)
       .order("player_number", { ascending: true });
 
-    // Find the smallest available player number
-    let playerNumber = 1;
-    if (existingPlayers && existingPlayers.length > 0) {
-      const usedNumbers = new Set(existingPlayers.map((p) => p.player_number));
-      while (usedNumbers.has(playerNumber)) {
-        playerNumber++;
+    if (playersError) {
+      console.error("Error fetching players:", playersError);
+    }
+
+    // Find the smallest available player number (1 to X if X is defined)
+    const maxPlayers = game.x_nb_joueurs || 100; // Default to 100 if not set
+    const usedNumbers = new Set((existingPlayers || []).map((p) => p.player_number));
+    
+    let playerNumber: number | null = null;
+    for (let i = 1; i <= maxPlayers; i++) {
+      if (!usedNumbers.has(i)) {
+        playerNumber = i;
+        break;
       }
+    }
+
+    // If no slot available within X, check if we exceeded
+    if (playerNumber === null) {
+      console.log("No available player slots. Max:", maxPlayers, "Used:", usedNumbers.size);
+      return new Response(
+        JSON.stringify({ error: `La partie est complète (${maxPlayers} joueurs max)` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Generate unique player token
     const playerToken = generatePlayerToken();
+
+    console.log("Creating player:", { 
+      gameId: game.id, 
+      displayName: displayName.trim(), 
+      playerNumber, 
+      clan: clan || null 
+    });
 
     // Insert the new player
     const { data: newPlayer, error: insertError } = await supabase
@@ -84,26 +110,34 @@ serve(async (req) => {
         display_name: displayName.trim(),
         player_token: playerToken,
         player_number: playerNumber,
+        clan: clan || null,
         is_host: false,
+        jetons: 0,
+        recompenses: 0,
+        is_alive: true,
       })
-      .select("id, player_number")
+      .select("id, player_number, clan")
       .single();
 
     if (insertError) {
       console.error("Insert error:", insertError);
       return new Response(
-        JSON.stringify({ error: "Erreur lors de l'inscription" }),
+        JSON.stringify({ error: "Erreur lors de l'inscription: " + insertError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log("Player created successfully:", newPlayer);
 
     return new Response(
       JSON.stringify({
         success: true,
         gameId: game.id,
+        gameName: game.name,
         playerId: newPlayer.id,
         playerNumber: newPlayer.player_number,
         playerToken: playerToken,
+        clan: newPlayer.clan,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
