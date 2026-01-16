@@ -173,6 +173,9 @@ export type Database = {
           player_number: number | null
           player_token: string | null
           recompenses: number | null
+          removed_at: string | null
+          removed_by: string | null
+          removed_reason: string | null
           status: string | null
           user_id: string | null
         }
@@ -190,6 +193,9 @@ export type Database = {
           player_number?: number | null
           player_token?: string | null
           recompenses?: number | null
+          removed_at?: string | null
+          removed_by?: string | null
+          removed_reason?: string | null
           status?: string | null
           user_id?: string | null
         }
@@ -207,6 +213,9 @@ export type Database = {
           player_number?: number | null
           player_token?: string | null
           recompenses?: number | null
+          removed_at?: string | null
+          removed_by?: string | null
+          removed_reason?: string | null
           status?: string | null
           user_id?: string | null
         }

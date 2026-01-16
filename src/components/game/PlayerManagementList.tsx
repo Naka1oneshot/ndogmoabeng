@@ -164,7 +164,11 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
     try {
       const { error } = await supabase
         .from('game_players')
-        .update({ status: 'REMOVED' })
+        .update({ 
+          status: 'REMOVED',
+          removed_reason: 'Expulsé par le Maître du Jeu',
+          removed_at: new Date().toISOString(),
+        })
         .eq('id', playerId);
 
       if (error) throw error;

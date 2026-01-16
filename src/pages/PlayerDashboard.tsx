@@ -90,6 +90,14 @@ export default function PlayerDashboard() {
 
       if (validateError || !data?.valid) {
         localStorage.removeItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
+        
+        // Check if player was removed
+        if (data?.removed) {
+          toast.error(data.error || 'Vous avez été expulsé de cette partie');
+          navigate('/');
+          return;
+        }
+        
         redirectToJoin();
         return;
       }
@@ -155,7 +163,7 @@ export default function PlayerDashboard() {
         },
         async (payload) => {
           // Check if current player was removed
-          const updatedPlayer = payload.new as { player_token?: string; status?: string };
+          const updatedPlayer = payload.new as { player_token?: string; status?: string; removed_reason?: string };
           if (playerToken && updatedPlayer.status === 'REMOVED') {
             // Verify it's us by checking token via validate-player
             const { data } = await supabase.functions.invoke('validate-player', {
@@ -164,7 +172,7 @@ export default function PlayerDashboard() {
             
             if (!data?.valid) {
               localStorage.removeItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
-              toast.error('Vous avez été retiré de la partie par le MJ');
+              toast.error(data?.error || 'Vous avez été retiré de la partie par le MJ');
               navigate('/');
             }
           }
