@@ -1,7 +1,21 @@
 project_id = "zupnvqiplubxsubvsxzc"
 
-[functions.create-test-admin]
-verify_jwt = false
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
 
 [functions.join-game]
 verify_jwt = false
@@ -9,8 +23,14 @@ verify_jwt = false
 [functions.validate-player]
 verify_jwt = false
 
+[functions.player-heartbeat]
+verify_jwt = false
+
 [functions.reset-player-token]
 verify_jwt = false
 
-[functions.player-heartbeat]
+[functions.create-test-admin]
+verify_jwt = false
+
+[functions.kick-player]
 verify_jwt = false
