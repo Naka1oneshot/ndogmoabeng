@@ -162,22 +162,22 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
   const handleKickPlayer = async (playerId: string, playerName: string) => {
     setKickingId(playerId);
     try {
-      const { error } = await supabase
-        .from('game_players')
-        .update({ 
-          status: 'REMOVED',
-          removed_reason: 'Expulsé par le Maître du Jeu',
-          removed_at: new Date().toISOString(),
-        })
-        .eq('id', playerId);
+      const { data, error } = await supabase.functions.invoke('kick-player', {
+        body: { 
+          playerId, 
+          reason: 'Expulsé par le Maître du Jeu' 
+        },
+      });
 
-      if (error) throw error;
+      if (error || !data?.success) {
+        throw new Error(data?.error || 'Erreur lors de l\'expulsion');
+      }
 
       toast.success(`${playerName} a été expulsé de la partie`);
       fetchPlayers();
     } catch (err) {
       console.error('Kick error:', err);
-      toast.error('Erreur lors de l\'expulsion');
+      toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'expulsion');
     } finally {
       setKickingId(null);
     }
