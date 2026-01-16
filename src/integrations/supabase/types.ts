@@ -168,10 +168,12 @@ export type Database = {
           is_host: boolean
           jetons: number | null
           joined_at: string
+          last_seen: string | null
           mate_num: number | null
           player_number: number | null
           player_token: string | null
           recompenses: number | null
+          status: string | null
           user_id: string | null
         }
         Insert: {
@@ -183,10 +185,12 @@ export type Database = {
           is_host?: boolean
           jetons?: number | null
           joined_at?: string
+          last_seen?: string | null
           mate_num?: number | null
           player_number?: number | null
           player_token?: string | null
           recompenses?: number | null
+          status?: string | null
           user_id?: string | null
         }
         Update: {
@@ -198,10 +202,12 @@ export type Database = {
           is_host?: boolean
           jetons?: number | null
           joined_at?: string
+          last_seen?: string | null
           mate_num?: number | null
           player_number?: number | null
           player_token?: string | null
           recompenses?: number | null
+          status?: string | null
           user_id?: string | null
         }
         Relationships: [
