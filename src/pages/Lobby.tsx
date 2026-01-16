@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerList } from '@/components/game/PlayerList';
@@ -87,9 +87,9 @@ export default function Lobby() {
   return (
     <div className="min-h-screen px-4 py-6">
       <header className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 mb-4 animate-float">
+        <Link to="/" className="inline-flex items-center justify-center w-16 h-16 mb-4 animate-float">
           <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />
-        </div>
+        </Link>
         <h1 className="font-display text-xl text-glow mb-2">{game.name}</h1>
         <GameStatusBadge status={game.status} />
       </header>

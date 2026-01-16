@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
@@ -68,9 +68,9 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-24 h-24 mb-4 animate-float">
+          <Link to="/" className="inline-flex items-center justify-center w-24 h-24 mb-4 animate-float">
             <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />
-          </div>
+          </Link>
           <h1 className="font-display text-2xl text-glow mb-2">
             La Forêt de Ndogmoabeng
           </h1>

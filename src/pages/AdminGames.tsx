@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -209,7 +209,7 @@ export default function AdminGames() {
     <div className="min-h-screen px-4 py-6">
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 max-w-5xl mx-auto">
         <div className="flex items-center gap-3">
-          <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain" />
+          <Link to="/"><img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain" /></Link>
           <h1 className="font-display text-xl">Gestion des Parties</h1>
         </div>
         <div className="flex items-center gap-3">

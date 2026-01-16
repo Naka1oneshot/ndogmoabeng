@@ -15,7 +15,7 @@ export default function Index() {
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
       <div className="text-center mb-12">
         <div className="inline-flex items-center justify-center w-32 h-32 mb-6 animate-float">
-          <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />
+          <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain cursor-pointer" onClick={() => navigate('/')} />
         </div>
         <h1 className="font-display text-3xl md:text-4xl text-glow mb-4">
           La Forêt de Ndogmoabeng
