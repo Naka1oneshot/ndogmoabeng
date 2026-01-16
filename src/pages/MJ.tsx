@@ -7,10 +7,10 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
-import { PlayerList } from '@/components/game/PlayerList';
+import { PlayerManagementList } from '@/components/game/PlayerManagementList';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdminBadge } from '@/components/game/AdminBadge';
-import { TreePine, Plus, Play, LogOut, Loader2, ShieldAlert } from 'lucide-react';
+import { TreePine, Plus, Play, LogOut, Loader2, ShieldAlert, StopCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Game {
@@ -37,6 +37,7 @@ export default function MJ() {
   const [gameName, setGameName] = useState('');
   const [creating, setCreating] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [ending, setEnding] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -135,6 +136,33 @@ export default function MJ() {
     } finally {
       setStarting(false);
     }
+  };
+
+  const handleEndGame = async () => {
+    if (!game) return;
+    
+    setEnding(true);
+    try {
+      const { error } = await supabase
+        .from('games')
+        .update({ status: 'ENDED' })
+        .eq('id', game.id);
+
+      if (error) throw error;
+
+      setGame({ ...game, status: 'ENDED' });
+      toast.success('Partie terminée');
+    } catch (error) {
+      console.error('Error ending game:', error);
+      toast.error('Erreur lors de la fin de partie');
+    } finally {
+      setEnding(false);
+    }
+  };
+
+  const handleNewGame = () => {
+    setGame(null);
+    setGameName('');
   };
 
   const handleSignOut = async () => {
@@ -238,9 +266,41 @@ export default function MJ() {
               )}
 
               {game.status === 'IN_GAME' && (
-                <p className="text-center text-forest-gold font-medium">
-                  🎮 Partie en cours...
-                </p>
+                <div className="space-y-3">
+                  <p className="text-center text-forest-gold font-medium">
+                    🎮 Partie en cours...
+                  </p>
+                  <ForestButton 
+                    variant="outline"
+                    className="w-full border-destructive/50 text-destructive hover:bg-destructive/10" 
+                    onClick={handleEndGame}
+                    disabled={ending}
+                  >
+                    {ending ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <StopCircle className="h-5 w-5" />
+                        Terminer la partie
+                      </>
+                    )}
+                  </ForestButton>
+                </div>
+              )}
+
+              {game.status === 'ENDED' && (
+                <div className="space-y-3">
+                  <p className="text-center text-muted-foreground font-medium">
+                    🏁 Partie terminée
+                  </p>
+                  <ForestButton 
+                    className="w-full" 
+                    onClick={handleNewGame}
+                  >
+                    <Plus className="h-5 w-5" />
+                    Nouvelle partie
+                  </ForestButton>
+                </div>
               )}
             </div>
 
@@ -248,7 +308,7 @@ export default function MJ() {
               <QRCodeDisplay joinCode={game.join_code} />
             )}
 
-            <PlayerList gameId={game.id} />
+            <PlayerManagementList gameId={game.id} />
           </>
         )}
       </main>

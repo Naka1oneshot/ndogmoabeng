@@ -21,7 +21,9 @@ export type Database = {
           id: string
           is_host: boolean
           joined_at: string
-          user_id: string
+          player_number: number | null
+          player_token: string | null
+          user_id: string | null
         }
         Insert: {
           display_name: string
@@ -29,7 +31,9 @@ export type Database = {
           id?: string
           is_host?: boolean
           joined_at?: string
-          user_id: string
+          player_number?: number | null
+          player_token?: string | null
+          user_id?: string | null
         }
         Update: {
           display_name?: string
@@ -37,7 +41,9 @@ export type Database = {
           id?: string
           is_host?: boolean
           joined_at?: string
-          user_id?: string
+          player_number?: number | null
+          player_token?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {

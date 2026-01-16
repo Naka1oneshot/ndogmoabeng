@@ -12,6 +12,7 @@ const forestButtonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border',
         ghost: 'hover:bg-secondary hover:text-secondary-foreground',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        outline: 'border border-border bg-transparent hover:bg-secondary',
       },
       size: {
         sm: 'h-9 px-4 text-sm',
