@@ -42,23 +42,55 @@ serve(async (req) => {
       );
     }
 
-    // Determine what to update based on action
-    const updateData: { last_seen: string; status?: string } = {
-      last_seen: new Date().toISOString(),
-    };
-
+    // IMPORTANT: Only update last_seen for heartbeat/join actions
+    // We do NOT change status on browser close/disconnect anymore
+    // Status only changes via explicit "leave" button click or admin kick
+    
     if (action === 'leave') {
-      updateData.status = 'LEFT';
-      console.log(`Player ${player.display_name} (${player.id}) is leaving game ${gameId}`);
-    } else if (action === 'join' || action === 'heartbeat') {
-      updateData.status = 'ACTIVE';
-      console.log(`Heartbeat from ${player.display_name} (${player.id}) in game ${gameId}`);
-    }
+      // This is the EXPLICIT leave action from the "Quitter" button
+      // Set status to LEFT and remove player_number
+      console.log(`Player ${player.display_name} (${player.id}) is explicitly leaving game ${gameId}`);
+      
+      const { error: updateError } = await supabase
+        .from('game_players')
+        .update({
+          status: 'LEFT',
+          player_number: null,
+          last_seen: new Date().toISOString(),
+        })
+        .eq('id', player.id);
 
-    // Update presence
+      if (updateError) {
+        console.error('Update error:', updateError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to update presence' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          left: true,
+          player: {
+            id: player.id,
+            displayName: player.display_name,
+            status: 'LEFT',
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // For 'join' or 'heartbeat' actions: only update last_seen
+    // Do NOT touch status - player stays visible even when offline
+    console.log(`Heartbeat from ${player.display_name} (${player.id}) in game ${gameId}, action: ${action}`);
+    
     const { error: updateError } = await supabase
       .from('game_players')
-      .update(updateData)
+      .update({
+        last_seen: new Date().toISOString(),
+      })
       .eq('id', player.id);
 
     if (updateError) {
@@ -76,7 +108,7 @@ serve(async (req) => {
           id: player.id,
           displayName: player.display_name,
           playerNumber: player.player_number,
-          status: updateData.status || player.status,
+          status: player.status,
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

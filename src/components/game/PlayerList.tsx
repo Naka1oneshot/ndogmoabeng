@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Users, Crown } from 'lucide-react';
+import { Users, Crown, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Player {
@@ -10,28 +10,23 @@ interface Player {
   joined_at: string;
   last_seen: string | null;
   status: string | null;
+  player_number: number | null;
 }
 
 interface PlayerListProps {
   gameId: string;
   className?: string;
-  showInactive?: boolean; // For MJ view
+  showInactive?: boolean; // For MJ view - show LEFT/REMOVED players too
 }
 
-// Players are considered active if last_seen within TTL
+// Players are considered online if last_seen within TTL (for badge only)
 const PRESENCE_TTL_SECONDS = 25;
 
 export function PlayerList({ gameId, className, showInactive = false }: PlayerListProps) {
   const [players, setPlayers] = useState<Player[]>([]);
 
-  const isPlayerActive = useCallback((player: Player): boolean => {
-    // Host is always shown
-    if (player.is_host) return true;
-    
-    // Check status
-    if (player.status === 'LEFT') return false;
-    
-    // Check last_seen TTL
+  // Check if player is currently online (for badge display only)
+  const isPlayerOnline = useCallback((player: Player): boolean => {
     if (!player.last_seen) return false;
     
     const lastSeen = new Date(player.last_seen).getTime();
@@ -42,16 +37,23 @@ export function PlayerList({ gameId, className, showInactive = false }: PlayerLi
   }, []);
 
   const fetchPlayers = useCallback(async () => {
-    const { data, error } = await supabase
+    // Always fetch ACTIVE players only (unless showInactive for MJ)
+    let query = supabase
       .from('game_players')
-      .select('id, display_name, is_host, joined_at, last_seen, status')
-      .eq('game_id', gameId)
-      .order('joined_at', { ascending: true });
+      .select('id, display_name, is_host, joined_at, last_seen, status, player_number')
+      .eq('game_id', gameId);
+    
+    if (!showInactive) {
+      // For regular view: only show ACTIVE players
+      query = query.eq('status', 'ACTIVE');
+    }
+    
+    const { data, error } = await query.order('player_number', { ascending: true });
 
     if (!error && data) {
       setPlayers(data);
     }
-  }, [gameId]);
+  }, [gameId, showInactive]);
 
   useEffect(() => {
     fetchPlayers();
@@ -73,9 +75,8 @@ export function PlayerList({ gameId, className, showInactive = false }: PlayerLi
       )
       .subscribe();
 
-    // Also poll every 5 seconds to catch TTL expiry
+    // Poll every 5 seconds to update online badges
     const pollInterval = setInterval(() => {
-      // Force re-render to update TTL-based filtering
       setPlayers(prev => [...prev]);
     }, 5000);
 
@@ -85,18 +86,11 @@ export function PlayerList({ gameId, className, showInactive = false }: PlayerLi
     };
   }, [gameId, fetchPlayers]);
 
-  // Filter active players (use player.id as key to avoid duplicates)
-  const activePlayers = showInactive 
-    ? players 
-    : players.filter(isPlayerActive);
+  // Filter out host for display, show non-host ACTIVE players
+  const displayPlayers = players.filter(p => !p.is_host);
   
-  // Deduplicate by id (should not be needed but safety net)
-  const uniquePlayers = Array.from(
-    new Map(activePlayers.map(p => [p.id, p])).values()
-  );
-
   // Count excludes host
-  const activeCount = uniquePlayers.filter(p => !p.is_host).length;
+  const activeCount = displayPlayers.length;
 
   return (
     <div className={cn('card-gradient rounded-lg border border-border p-4', className)}>
@@ -105,15 +99,15 @@ export function PlayerList({ gameId, className, showInactive = false }: PlayerLi
         <h3 className="font-display text-lg">Joueurs ({activeCount})</h3>
       </div>
 
-      {uniquePlayers.filter(p => !p.is_host).length === 0 ? (
+      {displayPlayers.length === 0 ? (
         <p className="text-muted-foreground text-center py-6">
           En attente de joueurs...
         </p>
       ) : (
         <ul className="space-y-2">
-          {uniquePlayers
-            .filter(p => !p.is_host)
-            .map((player, index, arr) => (
+          {displayPlayers.map((player, index, arr) => {
+            const isOnline = isPlayerOnline(player);
+            return (
               <li
                 key={player.id}
                 className={cn(
@@ -121,15 +115,27 @@ export function PlayerList({ gameId, className, showInactive = false }: PlayerLi
                   index === arr.length - 1 && 'animate-pulse-glow'
                 )}
               >
+                {/* Player number badge */}
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold">
-                  {player.display_name.charAt(0).toUpperCase()}
+                  {player.player_number || player.display_name.charAt(0).toUpperCase()}
                 </div>
                 <span className="flex-1 font-medium">{player.display_name}</span>
+                
+                {/* Online/Offline badge (informative only) */}
+                <span title={isOnline ? "En ligne" : "Hors ligne"}>
+                  {isOnline ? (
+                    <Wifi className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <WifiOff className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </span>
+                
                 {player.is_host && (
                   <Crown className="h-4 w-4 text-forest-gold" />
                 )}
               </li>
-            ))}
+            );
+          })}
         </ul>
       )}
     </div>

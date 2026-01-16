@@ -57,8 +57,8 @@ export function usePlayerPresence({
       clearInterval(intervalRef.current);
     }
 
-    // Send initial join heartbeat
-    sendHeartbeat('join');
+    // Send initial heartbeat (not 'join' to avoid status change)
+    sendHeartbeat('heartbeat');
 
     // Start periodic heartbeat
     intervalRef.current = setInterval(() => {
@@ -78,56 +78,37 @@ export function usePlayerPresence({
     console.log('[Presence] Heartbeat stopped');
   }, []);
 
+  // EXPLICIT leave action - only called when user clicks "Quitter"
   const handleLeave = useCallback(async () => {
     stopHeartbeat();
     await sendHeartbeat('leave');
   }, [stopHeartbeat, sendHeartbeat]);
 
-  // Handle visibility change
+  // Handle visibility change - ONLY for heartbeat timing, NOT for status
   useEffect(() => {
     if (!enabled || !gameId) return;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
         isActiveRef.current = false;
-        // Try to send leave when tab becomes hidden
-        sendHeartbeat('leave');
+        // Do NOT send leave when tab becomes hidden
+        // Player stays in the game even when browser is closed
       } else {
         isActiveRef.current = true;
-        // Resume heartbeat when tab becomes visible
-        sendHeartbeat('join');
+        // Send heartbeat when tab becomes visible again
+        sendHeartbeat('heartbeat');
       }
     };
 
-    const handlePageHide = () => {
-      // Best effort leave on page hide
-      sendHeartbeat('leave');
-    };
-
-    const handleBeforeUnload = () => {
-      // Best effort leave on page unload
-      // Use sendBeacon for reliability
-      const playerToken = getPlayerToken();
-      if (gameId && playerToken) {
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/player-heartbeat`;
-        navigator.sendBeacon(url, JSON.stringify({
-          gameId,
-          playerToken,
-          action: 'leave'
-        }));
-      }
-    };
+    // NO automatic leave on page hide/unload
+    // Players stay in the game until they explicitly click "Quitter"
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pagehide', handlePageHide);
-    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pagehide', handlePageHide);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [enabled, gameId, sendHeartbeat, getPlayerToken]);
+  }, [enabled, gameId, sendHeartbeat]);
 
   // Start/stop heartbeat based on enabled state
   useEffect(() => {
@@ -139,6 +120,7 @@ export function usePlayerPresence({
 
     return () => {
       stopHeartbeat();
+      // Do NOT send leave on unmount - player stays in game
     };
   }, [enabled, gameId, getPlayerToken, startHeartbeat, stopHeartbeat]);
 
