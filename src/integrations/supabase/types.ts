@@ -240,6 +240,8 @@ export type Database = {
           join_code: string
           manche_active: number | null
           name: string
+          phase: string
+          phase_locked: boolean
           sens_depart_egalite: string | null
           starting_tokens: number
           status: string
@@ -252,6 +254,8 @@ export type Database = {
           join_code: string
           manche_active?: number | null
           name?: string
+          phase?: string
+          phase_locked?: boolean
           sens_depart_egalite?: string | null
           starting_tokens?: number
           status?: string
@@ -264,6 +268,8 @@ export type Database = {
           join_code?: string
           manche_active?: number | null
           name?: string
+          phase?: string
+          phase_locked?: boolean
           sens_depart_egalite?: string | null
           starting_tokens?: number
           status?: string
@@ -601,6 +607,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "session_bans_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_events: {
+        Row: {
+          audience: string
+          created_at: string
+          game_id: string
+          id: string
+          message: string
+          payload: Json | null
+          type: string
+        }
+        Insert: {
+          audience?: string
+          created_at?: string
+          game_id: string
+          id?: string
+          message: string
+          payload?: Json | null
+          type?: string
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          game_id?: string
+          id?: string
+          message?: string
+          payload?: Json | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_events_game_id_fkey"
             columns: ["game_id"]
             isOneToOne: false
             referencedRelation: "games"

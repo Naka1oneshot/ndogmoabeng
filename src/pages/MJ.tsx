@@ -38,6 +38,8 @@ interface Game {
   sens_depart_egalite: string;
   x_nb_joueurs: number;
   starting_tokens: number;
+  phase: string;
+  phase_locked: boolean;
   created_at: string;
   active_players?: number;
 }
@@ -225,18 +227,24 @@ export default function MJ() {
     
     setStarting(true);
     try {
-      const { error } = await supabase
-        .from('games')
-        .update({ status: 'IN_ROUND' })
-        .eq('id', selectedGame.id);
+      const { data, error } = await supabase.functions.invoke('start-game', {
+        body: { gameId: selectedGame.id },
+      });
 
-      if (error) throw error;
+      if (error || !data?.success) {
+        throw new Error(data?.error || 'Erreur lors du démarrage');
+      }
 
-      setSelectedGame({ ...selectedGame, status: 'IN_ROUND' });
-      toast.success('La partie commence !');
-    } catch (error) {
+      setSelectedGame({ 
+        ...selectedGame, 
+        status: 'IN_PROGRESS',
+        phase: 'PHASE1_MISES',
+        manche_active: 1,
+      });
+      toast.success(`La partie commence avec ${data.playerCount} joueurs !`);
+    } catch (error: any) {
       console.error('Error starting game:', error);
-      toast.error('Erreur lors du démarrage');
+      toast.error(error.message || 'Erreur lors du démarrage');
     } finally {
       setStarting(false);
     }
@@ -413,8 +421,8 @@ export default function MJ() {
   }
 
   const isLobby = selectedGame?.status === 'LOBBY';
-  const isInGame = selectedGame?.status === 'IN_ROUND' || selectedGame?.status === 'RESOLVING_COMBAT' || selectedGame?.status === 'RESOLVING_SHOP';
-  const isFinished = selectedGame?.status === 'FINISHED';
+  const isInGame = selectedGame?.status === 'IN_PROGRESS' || selectedGame?.status === 'IN_ROUND' || selectedGame?.status === 'RESOLVING_COMBAT' || selectedGame?.status === 'RESOLVING_SHOP';
+  const isFinished = selectedGame?.status === 'FINISHED' || selectedGame?.status === 'ENDED';
 
   return (
     <div className="min-h-screen px-4 py-6">

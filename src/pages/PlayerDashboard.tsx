@@ -13,9 +13,11 @@ import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 interface Game {
   id: string;
   name: string;
-  status: 'LOBBY' | 'IN_GAME' | 'ENDED';
+  status: string;
   join_code: string;
   manche_active: number;
+  phase: string;
+  phase_locked: boolean;
 }
 
 interface Player {
@@ -341,10 +343,13 @@ export default function PlayerDashboard() {
             <p className="text-muted-foreground text-sm">
               En attente du Maître du Jeu pour démarrer la partie...
             </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Vous êtes le joueur #{player.playerNumber}
+            </p>
           </div>
         )}
 
-        {game.status === 'IN_GAME' && (
+        {(game.status === 'IN_PROGRESS' || game.status === 'IN_GAME' || game.status === 'IN_ROUND') && (
           <>
             {/* Section Manche Active */}
             <div className="card-gradient rounded-lg border border-forest-gold/30 p-6">
@@ -444,7 +449,7 @@ export default function PlayerDashboard() {
           </>
         )}
 
-        {game.status === 'ENDED' && (
+        {(game.status === 'ENDED' || game.status === 'FINISHED') && (
           <div className="card-gradient rounded-lg border border-muted p-6 text-center">
             <div className="text-4xl mb-3">🏁</div>
             <h2 className="font-display text-lg mb-2">Partie terminée</h2>

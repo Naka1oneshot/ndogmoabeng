@@ -55,7 +55,7 @@ serve(async (req) => {
     // Get game info
     const { data: game } = await supabase
       .from("games")
-      .select("id, name, status, join_code, manche_active")
+      .select("id, name, status, join_code, manche_active, phase, phase_locked")
       .eq("id", gameId)
       .single();
 
