@@ -241,6 +241,7 @@ export type Database = {
           manche_active: number | null
           name: string
           sens_depart_egalite: string | null
+          starting_tokens: number
           status: string
           x_nb_joueurs: number | null
         }
@@ -252,6 +253,7 @@ export type Database = {
           manche_active?: number | null
           name?: string
           sens_depart_egalite?: string | null
+          starting_tokens?: number
           status?: string
           x_nb_joueurs?: number | null
         }
@@ -263,6 +265,7 @@ export type Database = {
           manche_active?: number | null
           name?: string
           sens_depart_egalite?: string | null
+          starting_tokens?: number
           status?: string
           x_nb_joueurs?: number | null
         }
