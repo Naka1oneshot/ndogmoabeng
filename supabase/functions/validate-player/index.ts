@@ -28,7 +28,7 @@ serve(async (req) => {
     // Find the player by game ID and token
     const { data: player, error } = await supabase
       .from("game_players")
-      .select("id, display_name, player_number, game_id, status, removed_reason")
+      .select("id, display_name, player_number, game_id, status, removed_reason, jetons, recompenses, clan, mate_num")
       .eq("game_id", gameId)
       .eq("player_token", playerToken)
       .single();
@@ -55,7 +55,7 @@ serve(async (req) => {
     // Get game info
     const { data: game } = await supabase
       .from("games")
-      .select("id, name, status, join_code")
+      .select("id, name, status, join_code, manche_active")
       .eq("id", gameId)
       .single();
 
@@ -66,6 +66,10 @@ serve(async (req) => {
           id: player.id,
           displayName: player.display_name,
           playerNumber: player.player_number,
+          jetons: player.jetons,
+          recompenses: player.recompenses,
+          clan: player.clan,
+          mateNum: player.mate_num,
         },
         game: game,
       }),
