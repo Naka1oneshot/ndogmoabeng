@@ -28,7 +28,7 @@ serve(async (req) => {
     // Find the player by game ID and token
     const { data: player, error } = await supabase
       .from("game_players")
-      .select("id, display_name, player_number, game_id")
+      .select("id, display_name, player_number, game_id, status, removed_reason")
       .eq("game_id", gameId)
       .eq("player_token", playerToken)
       .single();
@@ -36,6 +36,18 @@ serve(async (req) => {
     if (error || !player) {
       return new Response(
         JSON.stringify({ valid: false, error: "Joueur non trouvé" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if player was removed
+    if (player.status === "REMOVED") {
+      return new Response(
+        JSON.stringify({ 
+          valid: false, 
+          removed: true,
+          error: player.removed_reason || "Vous avez été expulsé de cette partie" 
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
