@@ -116,11 +116,11 @@ serve(async (req) => {
       }
     }
 
-    // Update game status to IN_PROGRESS with phase
+    // Update game status to IN_GAME with phase
     const { error: gameUpdateError } = await supabase
       .from("games")
       .update({
-        status: "IN_PROGRESS",
+        status: "IN_GAME",
         manche_active: 1,
         phase: "PHASE1_MISES",
         phase_locked: false,
@@ -176,7 +176,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         gameId,
-        status: "IN_PROGRESS",
+        status: "IN_GAME",
         round: 1,
         phase: "PHASE1_MISES",
         playerCount: activePlayers.length,
