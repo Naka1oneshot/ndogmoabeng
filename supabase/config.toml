@@ -1,1 +1,16 @@
 project_id = "zupnvqiplubxsubvsxzc"
+
+[functions.create-test-admin]
+verify_jwt = false
+
+[functions.join-game]
+verify_jwt = false
+
+[functions.validate-player]
+verify_jwt = false
+
+[functions.reset-player-token]
+verify_jwt = false
+
+[functions.player-heartbeat]
+verify_jwt = false

@@ -101,7 +101,7 @@ serve(async (req) => {
       clan: clan || null 
     });
 
-    // Insert the new player
+    // Insert the new player with presence tracking
     const { data: newPlayer, error: insertError } = await supabase
       .from("game_players")
       .insert({
@@ -115,6 +115,8 @@ serve(async (req) => {
         jetons: 0,
         recompenses: 0,
         is_alive: true,
+        last_seen: new Date().toISOString(),
+        status: 'ACTIVE',
       })
       .select("id, player_number, clan")
       .single();
