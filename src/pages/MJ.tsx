@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { PlayerList } from '@/components/game/PlayerList';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
-import { TreePine, Plus, Play, LogOut, Loader2 } from 'lucide-react';
+import { AdminBadge } from '@/components/game/AdminBadge';
+import { TreePine, Plus, Play, LogOut, Loader2, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Game {
@@ -29,6 +31,7 @@ function generateJoinCode(): string {
 
 export default function MJ() {
   const { user, loading: authLoading, signOut } = useAuth();
+  const { isAdmin, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const [game, setGame] = useState<Game | null>(null);
   const [gameName, setGameName] = useState('');
@@ -37,9 +40,16 @@ export default function MJ() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate('/auth');
+      navigate('/login');
     }
   }, [user, authLoading, navigate]);
+
+  // Redirect non-admins after role is loaded
+  useEffect(() => {
+    if (!authLoading && !roleLoading && user && !isAdmin) {
+      navigate('/login');
+    }
+  }, [user, authLoading, roleLoading, isAdmin, navigate]);
 
   useEffect(() => {
     if (user) {
@@ -132,7 +142,7 @@ export default function MJ() {
     navigate('/');
   };
 
-  if (authLoading) {
+  if (authLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -140,17 +150,36 @@ export default function MJ() {
     );
   }
 
+  // Show access denied if not admin
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+        <ShieldAlert className="h-16 w-16 text-destructive" />
+        <h1 className="font-display text-xl text-center">Accès refusé</h1>
+        <p className="text-muted-foreground text-center">
+          Seuls les administrateurs peuvent accéder à cette page.
+        </p>
+        <ForestButton onClick={() => navigate('/login')}>
+          Retour à la connexion
+        </ForestButton>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen px-4 py-6">
-      <header className="flex items-center justify-between mb-8 max-w-2xl mx-auto">
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 max-w-2xl mx-auto">
         <div className="flex items-center gap-3">
           <TreePine className="h-6 w-6 text-primary" />
           <h1 className="font-display text-xl">Tableau MJ</h1>
         </div>
-        <ForestButton variant="ghost" size="sm" onClick={handleSignOut}>
-          <LogOut className="h-4 w-4" />
-          <span className="hidden sm:inline">Déconnexion</span>
-        </ForestButton>
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <AdminBadge email={user?.email} />
+          <ForestButton variant="ghost" size="sm" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Déconnexion</span>
+          </ForestButton>
+        </div>
       </header>
 
       <main className="max-w-2xl mx-auto space-y-6">

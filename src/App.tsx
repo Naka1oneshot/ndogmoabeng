@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Login from "./pages/Login";
 import MJ from "./pages/MJ";
 import Join from "./pages/Join";
 import Lobby from "./pages/Lobby";
@@ -23,6 +24,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/mj" element={<MJ />} />
             <Route path="/join" element={<Join />} />
             <Route path="/lobby" element={<Lobby />} />
