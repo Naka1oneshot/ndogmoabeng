@@ -8,11 +8,13 @@ import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { MJPlayersTab } from './MJPlayersTab';
 import { MJPhasesTab } from './MJPhasesTab';
+import { MJBetsTab } from './MJBetsTab';
+import { MJInventoryTab } from './MJInventoryTab';
 import { MJCombatTab } from './MJCombatTab';
 import { MJEventsTab } from './MJEventsTab';
 import { 
   ChevronLeft, Loader2, Users, Settings, Swords, 
-  MessageSquare, Copy, Check, Edit2, X, Save
+  MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -206,22 +208,30 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="players" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="players" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="players" className="flex items-center gap-1">
             <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Joueurs</span>
+            <span className="hidden md:inline">Joueurs</span>
           </TabsTrigger>
-          <TabsTrigger value="phases" className="flex items-center gap-2">
+          <TabsTrigger value="bets" className="flex items-center gap-1">
+            <Coins className="h-4 w-4" />
+            <span className="hidden md:inline">Mises</span>
+          </TabsTrigger>
+          <TabsTrigger value="phases" className="flex items-center gap-1">
             <Settings className="h-4 w-4" />
-            <span className="hidden sm:inline">Phases</span>
+            <span className="hidden md:inline">Phases</span>
           </TabsTrigger>
-          <TabsTrigger value="combat" className="flex items-center gap-2">
+          <TabsTrigger value="inventory" className="flex items-center gap-1">
+            <Package className="h-4 w-4" />
+            <span className="hidden md:inline">Inventaires</span>
+          </TabsTrigger>
+          <TabsTrigger value="combat" className="flex items-center gap-1">
             <Swords className="h-4 w-4" />
-            <span className="hidden sm:inline">Combat</span>
+            <span className="hidden md:inline">Combat</span>
           </TabsTrigger>
-          <TabsTrigger value="events" className="flex items-center gap-2">
+          <TabsTrigger value="events" className="flex items-center gap-1">
             <MessageSquare className="h-4 w-4" />
-            <span className="hidden sm:inline">Évènements</span>
+            <span className="hidden md:inline">Events</span>
           </TabsTrigger>
         </TabsList>
 
@@ -229,8 +239,16 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           <MJPlayersTab game={game} onGameUpdate={fetchGame} />
         </TabsContent>
 
+        <TabsContent value="bets" className="mt-6">
+          <MJBetsTab game={game} onGameUpdate={fetchGame} />
+        </TabsContent>
+
         <TabsContent value="phases" className="mt-6">
           <MJPhasesTab game={game} onGameUpdate={fetchGame} />
+        </TabsContent>
+
+        <TabsContent value="inventory" className="mt-6">
+          <MJInventoryTab game={game} />
         </TabsContent>
 
         <TabsContent value="combat" className="mt-6">

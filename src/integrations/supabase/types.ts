@@ -544,6 +544,53 @@ export type Database = {
           },
         ]
       }
+      priority_rankings: {
+        Row: {
+          created_at: string | null
+          display_name: string | null
+          game_id: string
+          id: string
+          manche: number
+          mise_effective: number | null
+          num_joueur: number
+          player_id: string
+          rank: number
+          tie_group_id: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_name?: string | null
+          game_id: string
+          id?: string
+          manche: number
+          mise_effective?: number | null
+          num_joueur: number
+          player_id: string
+          rank: number
+          tie_group_id?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          display_name?: string | null
+          game_id?: string
+          id?: string
+          manche?: number
+          mise_effective?: number | null
+          num_joueur?: number
+          player_id?: string
+          rank?: number
+          tie_group_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "priority_rankings_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       round_bets: {
         Row: {
           created_at: string | null
@@ -551,7 +598,12 @@ export type Database = {
           id: string
           manche: number
           mise: number
+          mise_demandee: number | null
+          mise_effective: number | null
+          note: string | null
           num_joueur: number
+          status: string | null
+          submitted_at: string | null
         }
         Insert: {
           created_at?: string | null
@@ -559,7 +611,12 @@ export type Database = {
           id?: string
           manche: number
           mise?: number
+          mise_demandee?: number | null
+          mise_effective?: number | null
+          note?: string | null
           num_joueur: number
+          status?: string | null
+          submitted_at?: string | null
         }
         Update: {
           created_at?: string | null
@@ -567,7 +624,12 @@ export type Database = {
           id?: string
           manche?: number
           mise?: number
+          mise_demandee?: number | null
+          mise_effective?: number | null
+          note?: string | null
           num_joueur?: number
+          status?: string | null
+          submitted_at?: string | null
         }
         Relationships: [
           {

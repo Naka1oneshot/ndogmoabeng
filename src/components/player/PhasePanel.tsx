@@ -148,6 +148,7 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
 
     setSubmitting(true);
     try {
+      // Upsert with new columns
       await supabase
         .from('round_bets')
         .upsert(
@@ -156,12 +157,21 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
             manche: game.manche_active,
             num_joueur: player.playerNumber,
             mise: miseValue,
+            mise_demandee: miseValue,
+            status: 'SUBMITTED',
+            submitted_at: new Date().toISOString(),
           },
           { onConflict: 'game_id,manche,num_joueur' }
         );
 
       setCurrentBet(miseValue);
-      toast.success('Mise enregistrée !');
+      
+      // Warning if bet exceeds tokens
+      if (miseValue > player.jetons) {
+        toast.warning(`Mise enregistrée, mais ${miseValue} > votre solde (${player.jetons}). Elle sera forcée à 0 à la clôture.`);
+      } else {
+        toast.success('Mise enregistrée !');
+      }
     } catch {
       toast.error("Erreur lors de l'enregistrement");
     } finally {
@@ -221,25 +231,50 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
         {/* Phase 1: Mises */}
         {game.phase === 'PHASE1_MISES' && (
           <div className="space-y-4">
+            {/* Current balance */}
+            <div className="p-3 rounded bg-secondary/50 border border-border text-center">
+              <p className="text-xs text-muted-foreground">Votre solde</p>
+              <p className="text-xl font-bold text-yellow-500">{player.jetons} jetons</p>
+            </div>
+
             {currentBet !== null && (
-              <div className="p-3 rounded bg-green-500/10 border border-green-500/20 text-center">
-                <p className="text-sm text-green-400">Mise actuelle</p>
-                <p className="text-2xl font-bold text-green-500">{currentBet} jetons</p>
+              <div className={`p-3 rounded border text-center ${
+                currentBet > player.jetons 
+                  ? 'bg-amber-500/10 border-amber-500/30' 
+                  : 'bg-green-500/10 border-green-500/20'
+              }`}>
+                <p className={`text-sm ${currentBet > player.jetons ? 'text-amber-400' : 'text-green-400'}`}>
+                  Mise soumise
+                </p>
+                <p className={`text-2xl font-bold ${currentBet > player.jetons ? 'text-amber-500' : 'text-green-500'}`}>
+                  {currentBet} jetons
+                </p>
+                {currentBet > player.jetons && (
+                  <p className="text-xs text-amber-400 mt-1">
+                    ⚠️ Supérieure à votre solde - sera forcée à 0
+                  </p>
+                )}
               </div>
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="mise">Votre mise (max: {player.jetons})</Label>
+              <Label htmlFor="mise">Votre mise (max recommandé: {player.jetons})</Label>
               <Input
                 id="mise"
                 type="number"
                 min="0"
-                max={player.jetons}
                 value={mise}
                 onChange={(e) => setMise(e.target.value)}
                 disabled={isLocked}
-                className="bg-background/50"
+                className={`bg-background/50 ${
+                  parseInt(mise) > player.jetons ? 'border-amber-500 focus:border-amber-500' : ''
+                }`}
               />
+              {parseInt(mise) > player.jetons && (
+                <p className="text-xs text-amber-500">
+                  Attention: cette mise dépasse votre solde et sera forcée à 0 à la clôture
+                </p>
+              )}
             </div>
             
             <ForestButton
@@ -256,6 +291,13 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
                 </>
               )}
             </ForestButton>
+
+            {isLocked && (
+              <p className="text-xs text-center text-amber-500">
+                <Lock className="h-3 w-3 inline mr-1" />
+                Phase verrouillée par le MJ
+              </p>
+            )}
           </div>
         )}
 
