@@ -38,6 +38,39 @@ export default function JoinAnonymous() {
     }
   }, [code]);
 
+  // Real-time subscription for player count updates
+  useEffect(() => {
+    if (!game?.id) return;
+
+    const channel = supabase
+      .channel(`join-players-${game.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_players',
+          filter: `game_id=eq.${game.id}`,
+        },
+        async () => {
+          // Refetch player count when any change occurs
+          const { count } = await supabase
+            .from('game_players')
+            .select('*', { count: 'exact', head: true })
+            .eq('game_id', game.id)
+            .eq('status', 'ACTIVE')
+            .not('player_number', 'is', null);
+
+          setPlayerCount(count || 0);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [game?.id]);
+
   const checkGame = async (joinCode: string) => {
     setLoading(true);
     setError('');
@@ -71,11 +104,12 @@ export default function JoinAnonymous() {
 
       setGame(data as Game);
 
-      // Get current player count
+      // Get current player count (only ACTIVE players)
       const { count } = await supabase
         .from('game_players')
         .select('*', { count: 'exact', head: true })
         .eq('game_id', data.id)
+        .eq('status', 'ACTIVE')
         .not('player_number', 'is', null);
 
       setPlayerCount(count || 0);
