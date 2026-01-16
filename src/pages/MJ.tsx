@@ -37,6 +37,7 @@ interface Game {
   manche_active: number;
   sens_depart_egalite: string;
   x_nb_joueurs: number;
+  starting_tokens: number;
   created_at: string;
   active_players?: number;
 }
@@ -66,6 +67,7 @@ export default function MJ() {
   // Create form
   const [gameName, setGameName] = useState('');
   const [xNbJoueurs, setXNbJoueurs] = useState(6);
+  const [startingTokens, setStartingTokens] = useState(50);
   const [sensEgalite, setSensEgalite] = useState<'ASC' | 'DESC'>('ASC');
   const [creating, setCreating] = useState(false);
   
@@ -186,6 +188,7 @@ export default function MJ() {
           manche_active: 1,
           sens_depart_egalite: sensEgalite,
           x_nb_joueurs: xNbJoueurs,
+          starting_tokens: startingTokens,
         })
         .select()
         .single();
@@ -203,6 +206,7 @@ export default function MJ() {
       toast.success('Partie créée !');
       setGameName('');
       setXNbJoueurs(6);
+      setStartingTokens(50);
       setSensEgalite('ASC');
       
       // Go to detail view of the new game
@@ -559,17 +563,29 @@ export default function MJ() {
               </div>
 
               <div className="space-y-2">
-                <Label>Sens départ égalité</Label>
-                <Select value={sensEgalite} onValueChange={(val) => setSensEgalite(val as 'ASC' | 'DESC')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ASC">Ascendant (ASC)</SelectItem>
-                    <SelectItem value="DESC">Descendant (DESC)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="startingTokens">Jetons de départ</Label>
+                <Input
+                  id="startingTokens"
+                  type="number"
+                  min={0}
+                  max={1000}
+                  value={startingTokens}
+                  onChange={(e) => setStartingTokens(Math.max(0, parseInt(e.target.value) || 50))}
+                />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Sens départ égalité</Label>
+              <Select value={sensEgalite} onValueChange={(val) => setSensEgalite(val as 'ASC' | 'DESC')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ASC">Ascendant (ASC)</SelectItem>
+                  <SelectItem value="DESC">Descendant (DESC)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <ForestButton 
@@ -635,10 +651,14 @@ export default function MJ() {
                 <GameStatusBadge status={selectedGame.status} />
               </div>
 
-              <div className="grid grid-cols-3 gap-4 text-center mb-4 text-sm">
+              <div className="grid grid-cols-4 gap-4 text-center mb-4 text-sm">
                 <div className="p-3 rounded-md bg-secondary/50">
                   <div className="text-muted-foreground">Joueurs</div>
                   <div className="text-lg font-bold text-primary">X = {selectedGame.x_nb_joueurs}</div>
+                </div>
+                <div className="p-3 rounded-md bg-secondary/50">
+                  <div className="text-muted-foreground">Jetons</div>
+                  <div className="text-lg font-bold text-forest-gold">{selectedGame.starting_tokens}</div>
                 </div>
                 <div className="p-3 rounded-md bg-secondary/50">
                   <div className="text-muted-foreground">Égalité</div>

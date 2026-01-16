@@ -45,7 +45,7 @@ serve(async (req) => {
     // Find the game by join code
     const { data: game, error: gameError } = await supabase
       .from("games")
-      .select("id, name, status, x_nb_joueurs")
+      .select("id, name, status, x_nb_joueurs, starting_tokens")
       .eq("join_code", joinCode.toUpperCase())
       .maybeSingle();
 
@@ -234,7 +234,8 @@ serve(async (req) => {
     // Generate player token
     const playerToken = generatePlayerToken();
 
-    // Insert new player
+    // Insert new player with starting tokens from game
+    const startingTokens = game.starting_tokens ?? 50;
     const { data: newPlayer, error: insertError } = await supabase
       .from("game_players")
       .insert({
@@ -246,7 +247,7 @@ serve(async (req) => {
         device_id: deviceId,
         status: "ACTIVE",
         is_host: false,
-        jetons: 0,
+        jetons: startingTokens,
         recompenses: 0,
         is_alive: true,
         last_seen: new Date().toISOString(),
