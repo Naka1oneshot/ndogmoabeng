@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -286,7 +286,7 @@ export default function AdminGameDetails() {
           >
             <ArrowLeft className="h-4 w-4" />
           </ForestButton>
-          <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain" />
+          <Link to="/"><img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain" /></Link>
           <h1 className="font-display text-xl">{game.name}</h1>
           <GameStatusBadge status={game.status} />
         </div>
