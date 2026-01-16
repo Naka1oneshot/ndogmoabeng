@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-type GameStatus = 'LOBBY' | 'IN_GAME' | 'IN_ROUND' | 'RESOLVING_COMBAT' | 'RESOLVING_SHOP' | 'ENDED' | 'FINISHED';
+type GameStatus = 'LOBBY' | 'IN_GAME' | 'IN_PROGRESS' | 'IN_ROUND' | 'RESOLVING_COMBAT' | 'RESOLVING_SHOP' | 'ENDED' | 'FINISHED';
 
 interface GameStatusBadgeProps {
   status: GameStatus | string;
@@ -14,6 +14,10 @@ const statusConfig: Record<string, { label: string; className: string }> = {
     className: 'bg-forest-glow/20 text-forest-glow border-forest-glow/30',
   },
   IN_GAME: {
+    label: 'En cours',
+    className: 'bg-forest-gold/20 text-forest-gold border-forest-gold/30',
+  },
+  IN_PROGRESS: {
     label: 'En cours',
     className: 'bg-forest-gold/20 text-forest-gold border-forest-gold/30',
   },

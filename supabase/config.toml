@@ -34,3 +34,6 @@ verify_jwt = false
 
 [functions.kick-player]
 verify_jwt = false
+
+[functions.start-game]
+verify_jwt = false
