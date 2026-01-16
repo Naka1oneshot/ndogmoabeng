@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ForestButton } from '@/components/ui/ForestButton';
+import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { TreePine, Users, Gamepad2 } from 'lucide-react';
 
 export default function Index() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [joinModalOpen, setJoinModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
@@ -35,7 +38,7 @@ export default function Index() {
           variant="secondary" 
           className="w-full" 
           size="lg"
-          onClick={() => navigate('/join')}
+          onClick={() => setJoinModalOpen(true)}
         >
           <Users className="h-5 w-5" />
           Rejoindre une partie
@@ -45,6 +48,11 @@ export default function Index() {
       <footer className="mt-12 text-center text-muted-foreground text-sm">
         <p>Entrez dans la forêt mystique...</p>
       </footer>
+
+      <JoinGameModal 
+        open={joinModalOpen} 
+        onOpenChange={setJoinModalOpen} 
+      />
     </div>
   );
 }
