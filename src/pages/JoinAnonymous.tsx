@@ -5,8 +5,9 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User, AlertCircle, Loader2, Smartphone, Users } from 'lucide-react';
+import { User, AlertCircle, Loader2, Smartphone, Users, Ban } from 'lucide-react';
 import { toast } from 'sonner';
+import { getDeviceId } from '@/hooks/useDeviceId';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
@@ -26,6 +27,7 @@ export default function JoinAnonymous() {
   const [clan, setClan] = useState<string>('none');
   const [game, setGame] = useState<Game | null>(null);
   const [error, setError] = useState('');
+  const [banReason, setBanReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
@@ -75,6 +77,7 @@ export default function JoinAnonymous() {
   const checkGame = async (joinCode: string) => {
     setLoading(true);
     setError('');
+    setBanReason(null);
 
     try {
       const { data, error: fetchError } = await supabase
@@ -104,6 +107,21 @@ export default function JoinAnonymous() {
       }
 
       setGame(data as Game);
+
+      // Check if device is banned
+      const deviceId = getDeviceId();
+      const { data: ban } = await supabase
+        .from('session_bans')
+        .select('reason')
+        .eq('game_id', data.id)
+        .eq('device_id', deviceId)
+        .maybeSingle();
+
+      if (ban) {
+        setBanReason(ban.reason || 'Vous avez été banni de cette partie');
+        setLoading(false);
+        return;
+      }
 
       // Get current player count (only ACTIVE players)
       const { count } = await supabase
@@ -145,11 +163,14 @@ export default function JoinAnonymous() {
 
     setJoining(true);
     try {
+      const deviceId = getDeviceId();
+      
       const { data, error: joinError } = await supabase.functions.invoke('join-game', {
         body: { 
           joinCode: code, 
           displayName: displayName.trim(),
           clan: clan !== 'none' ? clan : null,
+          deviceId,
         },
       });
 
@@ -160,6 +181,14 @@ export default function JoinAnonymous() {
       }
 
       if (!data?.success) {
+        // Check if banned
+        if (data?.banned || data?.error === 'BANNED') {
+          setBanReason(data?.reason || 'Vous avez été banni de cette partie');
+          toast.error('Accès refusé', {
+            description: data?.reason || 'Vous avez été banni de cette partie',
+          });
+          return;
+        }
         toast.error(data?.error || 'Erreur lors de la connexion');
         return;
       }
@@ -210,7 +239,17 @@ export default function JoinAnonymous() {
             </div>
           )}
 
-          {game && (
+          {banReason && (
+            <div className="flex flex-col items-center gap-3 p-4 rounded-md bg-destructive/10 text-destructive border border-destructive/20">
+              <Ban className="h-8 w-8" />
+              <div className="text-center">
+                <p className="font-medium">Accès refusé</p>
+                <p className="text-sm mt-1">{banReason}</p>
+              </div>
+            </div>
+          )}
+
+          {game && !banReason && (
             <>
               <div className="text-center p-4 bg-secondary/50 rounded-md">
                 <p className="text-sm text-muted-foreground mb-1">Partie</p>
@@ -288,7 +327,7 @@ export default function JoinAnonymous() {
             </>
           )}
 
-          {!game && !error && (
+          {!game && !error && !banReason && (
             <p className="text-center text-muted-foreground">
               Recherche de la partie...
             </p>

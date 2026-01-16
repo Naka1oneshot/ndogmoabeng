@@ -12,11 +12,18 @@ serve(async (req) => {
   }
 
   try {
-    const { playerId, reason } = await req.json();
+    const { playerId, reason, withBan } = await req.json();
 
     if (!playerId) {
       return new Response(
         JSON.stringify({ error: "playerId requis" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!reason || !reason.trim()) {
+      return new Response(
+        JSON.stringify({ error: "Raison requise" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -28,7 +35,7 @@ serve(async (req) => {
     // Get the player to kick and their game info
     const { data: player, error: playerError } = await supabase
       .from("game_players")
-      .select("id, game_id, player_number, display_name, status")
+      .select("id, game_id, player_number, display_name, status, device_id")
       .eq("id", playerId)
       .single();
 
@@ -47,10 +54,10 @@ serve(async (req) => {
       );
     }
 
-    // Get the game to check if we're in LOBBY
+    // Get the game to check status
     const { data: game, error: gameError } = await supabase
       .from("games")
-      .select("id, status")
+      .select("id, status, host_user_id")
       .eq("id", player.game_id)
       .single();
 
@@ -62,24 +69,44 @@ serve(async (req) => {
       );
     }
 
-    const kickedPlayerNumber = player.player_number;
-    const removedReason = reason || "Expulsé par le Maître du Jeu";
-
     console.log("Kicking player:", {
       playerId,
       playerName: player.display_name,
-      playerNumber: kickedPlayerNumber,
+      playerNumber: player.player_number,
       gameId: player.game_id,
       gameStatus: game.status,
+      withBan,
+      deviceId: player.device_id,
     });
 
-    // Step 1: Mark the player as REMOVED (set player_number to null)
+    // Step 1: If withBan=true, create a ban record
+    if (withBan && player.device_id) {
+      const { error: banError } = await supabase
+        .from("session_bans")
+        .insert({
+          game_id: player.game_id,
+          device_id: player.device_id,
+          reason: reason.trim(),
+          created_by: game.host_user_id,
+        });
+
+      if (banError) {
+        // If it's a duplicate, ignore it
+        if (!banError.message?.includes('duplicate')) {
+          console.error("Error creating ban:", banError);
+        }
+      } else {
+        console.log("Ban created for device:", player.device_id);
+      }
+    }
+
+    // Step 2: Mark the player as REMOVED
     const { error: updateError } = await supabase
       .from("game_players")
       .update({
         status: "REMOVED",
         player_number: null,
-        removed_reason: removedReason,
+        removed_reason: reason.trim(),
         removed_at: new Date().toISOString(),
       })
       .eq("id", playerId);
@@ -92,52 +119,49 @@ serve(async (req) => {
       );
     }
 
-    // Step 2: Only renumber if in LOBBY and the player had a number
-    if (game.status === "LOBBY" && kickedPlayerNumber !== null) {
-      // Get ALL ACTIVE players (not filtered by last_seen)
-      // According to requirements: renumber ALL ACTIVE players to 1..N
-      const { data: activePlayers, error: fetchError } = await supabase
-        .from("game_players")
-        .select("id, player_number")
-        .eq("game_id", player.game_id)
-        .eq("status", "ACTIVE")
-        .eq("is_host", false)
-        .not("player_number", "is", null)
-        .order("player_number", { ascending: true });
+    // Step 3: Renumber remaining ACTIVE players (1..N without gaps)
+    const { data: activePlayers, error: fetchError } = await supabase
+      .from("game_players")
+      .select("id, player_number")
+      .eq("game_id", player.game_id)
+      .eq("status", "ACTIVE")
+      .eq("is_host", false)
+      .not("player_number", "is", null)
+      .order("player_number", { ascending: true });
 
-      if (fetchError) {
-        console.error("Error fetching active players:", fetchError);
-        // Continue anyway, renumbering is optional
-      } else if (activePlayers && activePlayers.length > 0) {
-        console.log("Renumbering all ACTIVE players:", activePlayers.length);
-        
-        // Renumber from 1 to N in order
-        for (let i = 0; i < activePlayers.length; i++) {
-          const newNumber = i + 1;
-          const p = activePlayers[i];
-          
-          if (p.player_number !== newNumber) {
-            const { error: renumberError } = await supabase
-              .from("game_players")
-              .update({ player_number: newNumber })
-              .eq("id", p.id);
+    if (fetchError) {
+      console.error("Error fetching active players:", fetchError);
+    } else if (activePlayers && activePlayers.length > 0) {
+      console.log("Renumbering all ACTIVE players:", activePlayers.length);
 
-            if (renumberError) {
-              console.error(`Error renumbering player ${p.id}:`, renumberError);
-            } else {
-              console.log(`Renumbered player ${p.id}: ${p.player_number} -> ${newNumber}`);
-            }
+      for (let i = 0; i < activePlayers.length; i++) {
+        const newNumber = i + 1;
+        const p = activePlayers[i];
+
+        if (p.player_number !== newNumber) {
+          const { error: renumberError } = await supabase
+            .from("game_players")
+            .update({ player_number: newNumber })
+            .eq("id", p.id);
+
+          if (renumberError) {
+            console.error(`Error renumbering player ${p.id}:`, renumberError);
+          } else {
+            console.log(`Renumbered player ${p.id}: ${p.player_number} -> ${newNumber}`);
           }
         }
       }
     }
 
-    console.log("Player kicked successfully:", player.display_name);
+    console.log("Player kicked successfully:", player.display_name, withBan ? "(banned)" : "(no ban)");
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `${player.display_name} a été expulsé`,
+        message: withBan 
+          ? `${player.display_name} a été expulsé et bloqué`
+          : `${player.display_name} a été expulsé`,
+        banned: withBan,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
