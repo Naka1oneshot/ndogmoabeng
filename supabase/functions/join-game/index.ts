@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Generate a unique player token
+// Generate a unique player token (reconnect_key)
 function generatePlayerToken(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
@@ -16,13 +16,18 @@ function generatePlayerToken(): string {
   return result;
 }
 
+// Normalize name for matching (trim + lowercase)
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { joinCode, displayName, clan, deviceId } = await req.json();
+    const { joinCode, displayName, clan, deviceId, reconnectKey } = await req.json();
 
     if (!joinCode || !displayName) {
       return new Response(
@@ -96,10 +101,68 @@ serve(async (req) => {
       );
     }
 
-    // Check if participant already exists for this device in this game
+    const nameNormalized = normalizeName(displayName);
+    console.log("Join attempt:", { displayName, nameNormalized, deviceId, hasReconnectKey: !!reconnectKey });
+
+    // Priority 1: Try to reconnect by reconnect_key (player_token) if provided
+    if (reconnectKey) {
+      const { data: tokenPlayer, error: tokenError } = await supabase
+        .from("game_players")
+        .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan")
+        .eq("game_id", game.id)
+        .eq("player_token", reconnectKey)
+        .maybeSingle();
+
+      if (!tokenError && tokenPlayer) {
+        // Check if player is LEFT or REMOVED (KICKED)
+        if (tokenPlayer.status === "LEFT") {
+          console.log("Player previously left, allowing rejoin:", tokenPlayer.display_name);
+          // Will fall through to name-based reconnection or new join
+        } else if (tokenPlayer.status === "REMOVED") {
+          console.log("Player was kicked, rejoin refused:", tokenPlayer.display_name);
+          return new Response(
+            JSON.stringify({ 
+              error: "Vous avez été expulsé de cette partie", 
+              reason: tokenPlayer.removed_reason || "Expulsé par le MJ",
+              kicked: true 
+            }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } else {
+          // ACTIVE player - reconnect
+          console.log("Reconnecting by token:", tokenPlayer.display_name);
+          await supabase
+            .from("game_players")
+            .update({ 
+              last_seen: new Date().toISOString(),
+              device_id: deviceId, // Update device_id in case it changed
+            })
+            .eq("id", tokenPlayer.id);
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              gameId: game.id,
+              gameName: game.name,
+              playerId: tokenPlayer.id,
+              playerToken: tokenPlayer.player_token,
+              playerNumber: tokenPlayer.player_number,
+              displayName: tokenPlayer.display_name,
+              jetons: tokenPlayer.jetons,
+              recompenses: tokenPlayer.recompenses,
+              clan: tokenPlayer.clan,
+              reconnected: true,
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
+    // Priority 2: Check if participant already exists for this device in this game
     const { data: existingPlayer, error: existingError } = await supabase
       .from("game_players")
-      .select("id, status, player_number, player_token, display_name, removed_reason")
+      .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan")
       .eq("game_id", game.id)
       .eq("device_id", deviceId)
       .maybeSingle();
@@ -108,9 +171,9 @@ serve(async (req) => {
       console.error("Existing player lookup error:", existingError);
     }
 
-    // Case 1: ACTIVE player exists -> return existing player
+    // Case 1: ACTIVE player exists for this device -> return existing player
     if (existingPlayer && existingPlayer.status === "ACTIVE") {
-      console.log("Returning existing ACTIVE player:", existingPlayer.display_name);
+      console.log("Returning existing ACTIVE player by device:", existingPlayer.display_name);
       
       // Update last_seen and optionally display_name
       await supabase
@@ -130,15 +193,147 @@ serve(async (req) => {
           playerId: existingPlayer.id,
           playerToken: existingPlayer.player_token,
           playerNumber: existingPlayer.player_number,
+          displayName: existingPlayer.display_name,
+          jetons: existingPlayer.jetons,
+          recompenses: existingPlayer.recompenses,
+          clan: existingPlayer.clan,
           reconnected: true,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Case 2: LEFT/REMOVED player exists -> reactivate
+    // Priority 3: Try to find existing player by normalized name
+    const { data: namePlayer, error: nameError } = await supabase
+      .from("game_players")
+      .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan, device_id")
+      .eq("game_id", game.id)
+      .maybeSingle();
+
+    // We need to manually filter by normalized name since Supabase doesn't have ilike on computed fields
+    const { data: allPlayers } = await supabase
+      .from("game_players")
+      .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan, device_id")
+      .eq("game_id", game.id);
+
+    const matchingPlayerByName = (allPlayers || []).find(
+      p => normalizeName(p.display_name) === nameNormalized
+    );
+
+    if (matchingPlayerByName) {
+      console.log("Found player by name:", matchingPlayerByName.display_name, "status:", matchingPlayerByName.status);
+
+      // If player is REMOVED (kicked), refuse
+      if (matchingPlayerByName.status === "REMOVED") {
+        return new Response(
+          JSON.stringify({ 
+            error: "Ce pseudo a été expulsé de cette partie", 
+            reason: matchingPlayerByName.removed_reason || "Expulsé par le MJ",
+            kicked: true 
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // If player is ACTIVE or LEFT, reconnect them
+      if (matchingPlayerByName.status === "ACTIVE" || matchingPlayerByName.status === "LEFT") {
+        // For LEFT players, we need to reactivate them with a new player_number
+        if (matchingPlayerByName.status === "LEFT") {
+          // Get smallest available player number
+          const { data: activePlayers } = await supabase
+            .from("game_players")
+            .select("player_number")
+            .eq("game_id", game.id)
+            .eq("status", "ACTIVE")
+            .eq("is_host", false)
+            .not("player_number", "is", null);
+
+          const usedNumbers = new Set((activePlayers || []).map(p => p.player_number));
+          let playerNumber = 1;
+          while (usedNumbers.has(playerNumber)) {
+            playerNumber++;
+          }
+
+          // Check max players limit
+          const maxPlayers = game.x_nb_joueurs || 100;
+          if (playerNumber > maxPlayers) {
+            return new Response(
+              JSON.stringify({ error: `La partie est complète (${maxPlayers} joueurs max)` }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+
+          // Generate new token for reactivated player
+          const newToken = generatePlayerToken();
+
+          await supabase
+            .from("game_players")
+            .update({
+              status: "ACTIVE",
+              player_number: playerNumber,
+              player_token: newToken,
+              device_id: deviceId,
+              removed_reason: null,
+              removed_at: null,
+              removed_by: null,
+              last_seen: new Date().toISOString(),
+            })
+            .eq("id", matchingPlayerByName.id);
+
+          console.log("Reactivated LEFT player by name:", matchingPlayerByName.display_name, "as #", playerNumber);
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              gameId: game.id,
+              gameName: game.name,
+              playerId: matchingPlayerByName.id,
+              playerToken: newToken,
+              playerNumber,
+              displayName: matchingPlayerByName.display_name,
+              jetons: matchingPlayerByName.jetons,
+              recompenses: matchingPlayerByName.recompenses,
+              clan: matchingPlayerByName.clan,
+              reactivated: true,
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // ACTIVE player reconnecting by name (different device)
+        console.log("Reconnecting ACTIVE player by name (new device):", matchingPlayerByName.display_name);
+        
+        // Update device_id and last_seen
+        await supabase
+          .from("game_players")
+          .update({ 
+            last_seen: new Date().toISOString(),
+            device_id: deviceId,
+          })
+          .eq("id", matchingPlayerByName.id);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            gameId: game.id,
+            gameName: game.name,
+            playerId: matchingPlayerByName.id,
+            playerToken: matchingPlayerByName.player_token,
+            playerNumber: matchingPlayerByName.player_number,
+            displayName: matchingPlayerByName.display_name,
+            jetons: matchingPlayerByName.jetons,
+            recompenses: matchingPlayerByName.recompenses,
+            clan: matchingPlayerByName.clan,
+            reconnected: true,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Case 2: LEFT/REMOVED player exists for this device -> reactivate
     if (existingPlayer && (existingPlayer.status === "LEFT" || existingPlayer.status === "REMOVED")) {
-      console.log("Reactivating existing player:", existingPlayer.display_name, "status:", existingPlayer.status);
+      console.log("Reactivating existing player by device:", existingPlayer.display_name, "status:", existingPlayer.status);
 
       // Get smallest available player number
       const { data: activePlayers } = await supabase

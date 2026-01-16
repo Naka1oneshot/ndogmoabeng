@@ -245,10 +245,28 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     setKickModalOpen(true);
   };
 
-  const isPlayerOnline = (lastSeen: string | null) => {
-    if (!lastSeen) return false;
+  // Player presence states:
+  // - ONLINE: last_seen within 30s
+  // - DISCONNECTED: last_seen > 90s (visible but marked as disconnected)
+  // - OFFLINE: last_seen between 30-90s (temporarily offline)
+  const getPlayerPresenceState = (lastSeen: string | null): 'online' | 'offline' | 'disconnected' => {
+    if (!lastSeen) return 'disconnected';
     const diff = Date.now() - new Date(lastSeen).getTime();
-    return diff < 30000; // 30 seconds
+    if (diff < 30000) return 'online'; // 30 seconds
+    if (diff < 90000) return 'offline'; // 90 seconds
+    return 'disconnected';
+  };
+
+  const getPresenceBadge = (lastSeen: string | null) => {
+    const state = getPlayerPresenceState(lastSeen);
+    switch (state) {
+      case 'online':
+        return { color: 'bg-green-500', textColor: 'text-green-500', label: 'En ligne' };
+      case 'offline':
+        return { color: 'bg-yellow-500', textColor: 'text-yellow-500', label: 'Hors ligne' };
+      case 'disconnected':
+        return { color: 'bg-red-500', textColor: 'text-red-500', label: 'Déconnecté' };
+    }
   };
 
   if (loading) {
@@ -430,10 +448,15 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
                       {formatDistanceToNow(new Date(player.joined_at), { addSuffix: true, locale: fr })}
                     </div>
                     <div className="col-span-1">
-                      <span className={`inline-flex items-center gap-1 text-xs ${isPlayerOnline(player.last_seen) ? 'text-green-500' : 'text-muted-foreground'}`}>
-                        <span className={`w-2 h-2 rounded-full ${isPlayerOnline(player.last_seen) ? 'bg-green-500' : 'bg-muted-foreground'}`} />
-                        {isPlayerOnline(player.last_seen) ? 'En ligne' : 'Hors ligne'}
-                      </span>
+                      {(() => {
+                        const badge = getPresenceBadge(player.last_seen);
+                        return (
+                          <span className={`inline-flex items-center gap-1 text-xs ${badge.textColor}`}>
+                            <span className={`w-2 h-2 rounded-full ${badge.color}`} />
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="col-span-3 flex items-center justify-end gap-1">
                       <ForestButton
