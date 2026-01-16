@@ -196,6 +196,9 @@ export default function MJ() {
         is_host: true,
       });
 
+      // Initialize game monsters with defaults
+      await supabase.rpc('initialize_game_monsters', { p_game_id: data.id });
+
       toast.success('Partie créée !');
       setGameName('');
       setXNbJoueurs(6);
@@ -230,6 +233,9 @@ export default function MJ() {
         'monsters',
         'combat_config',
         'shop_catalogue',
+        'game_state_monsters',
+        'game_monsters',
+        'priority_rankings',
         'game_players',
       ];
 

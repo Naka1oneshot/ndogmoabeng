@@ -158,6 +158,57 @@ export type Database = {
           },
         ]
       }
+      game_monsters: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          initial_status: Database["public"]["Enums"]["monster_initial_status"]
+          is_enabled: boolean
+          monster_id: number
+          order_index: number
+          pv_max_override: number | null
+          reward_override: number | null
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          initial_status?: Database["public"]["Enums"]["monster_initial_status"]
+          is_enabled?: boolean
+          monster_id: number
+          order_index?: number
+          pv_max_override?: number | null
+          reward_override?: number | null
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          initial_status?: Database["public"]["Enums"]["monster_initial_status"]
+          is_enabled?: boolean
+          monster_id?: number
+          order_index?: number
+          pv_max_override?: number | null
+          reward_override?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_monsters_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_monsters_monster_id_fkey"
+            columns: ["monster_id"]
+            isOneToOne: false
+            referencedRelation: "monster_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_players: {
         Row: {
           clan: string | null
@@ -228,6 +279,54 @@ export type Database = {
             columns: ["game_id"]
             isOneToOne: false
             referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_state_monsters: {
+        Row: {
+          battlefield_slot: number | null
+          created_at: string
+          game_id: string
+          id: string
+          monster_id: number
+          pv_current: number
+          status: Database["public"]["Enums"]["monster_runtime_status"]
+          updated_at: string
+        }
+        Insert: {
+          battlefield_slot?: number | null
+          created_at?: string
+          game_id: string
+          id?: string
+          monster_id: number
+          pv_current: number
+          status?: Database["public"]["Enums"]["monster_runtime_status"]
+          updated_at?: string
+        }
+        Update: {
+          battlefield_slot?: number | null
+          created_at?: string
+          game_id?: string
+          id?: string
+          monster_id?: number
+          pv_current?: number
+          status?: Database["public"]["Enums"]["monster_runtime_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_state_monsters_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_state_monsters_monster_id_fkey"
+            columns: ["monster_id"]
+            isOneToOne: false
+            referencedRelation: "monster_catalog"
             referencedColumns: ["id"]
           },
         ]
@@ -318,6 +417,60 @@ export type Database = {
           },
         ]
       }
+      item_catalog: {
+        Row: {
+          base_damage: number | null
+          base_heal: number | null
+          category: Database["public"]["Enums"]["item_category"]
+          consumable: boolean | null
+          created_at: string
+          id: string
+          ignore_protection: boolean | null
+          name: string
+          notes: string | null
+          persistence: string | null
+          purchasable: boolean | null
+          special_effect: string | null
+          special_value: string | null
+          target: string | null
+          timing: string | null
+        }
+        Insert: {
+          base_damage?: number | null
+          base_heal?: number | null
+          category: Database["public"]["Enums"]["item_category"]
+          consumable?: boolean | null
+          created_at?: string
+          id?: string
+          ignore_protection?: boolean | null
+          name: string
+          notes?: string | null
+          persistence?: string | null
+          purchasable?: boolean | null
+          special_effect?: string | null
+          special_value?: string | null
+          target?: string | null
+          timing?: string | null
+        }
+        Update: {
+          base_damage?: number | null
+          base_heal?: number | null
+          category?: Database["public"]["Enums"]["item_category"]
+          consumable?: boolean | null
+          created_at?: string
+          id?: string
+          ignore_protection?: boolean | null
+          name?: string
+          notes?: string | null
+          persistence?: string | null
+          purchasable?: boolean | null
+          special_effect?: string | null
+          special_value?: string | null
+          target?: string | null
+          timing?: string | null
+        }
+        Relationships: []
+      }
       logs_joueurs: {
         Row: {
           game_id: string
@@ -393,6 +546,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      monster_catalog: {
+        Row: {
+          created_at: string
+          id: number
+          is_default_in_pool: boolean
+          name: string
+          pv_max_default: number
+          reward_default: number
+        }
+        Insert: {
+          created_at?: string
+          id: number
+          is_default_in_pool?: boolean
+          name: string
+          pv_max_default?: number
+          reward_default?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          is_default_in_pool?: boolean
+          name?: string
+          pv_max_default?: number
+          reward_default?: number
+        }
+        Relationships: []
       }
       monsters: {
         Row: {
@@ -761,6 +941,38 @@ export type Database = {
           },
         ]
       }
+      shop_prices: {
+        Row: {
+          cost_akila: number
+          cost_normal: number
+          created_at: string
+          id: string
+          item_name: string
+        }
+        Insert: {
+          cost_akila?: number
+          cost_normal?: number
+          created_at?: string
+          id?: string
+          item_name: string
+        }
+        Update: {
+          cost_akila?: number
+          cost_normal?: number
+          created_at?: string
+          id?: string
+          item_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_prices_item_name_fkey"
+            columns: ["item_name"]
+            isOneToOne: true
+            referencedRelation: "item_catalog"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -798,6 +1010,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      initialize_game_monsters: {
+        Args: { p_game_id: string }
+        Returns: undefined
+      }
+      initialize_game_state_monsters: {
+        Args: { p_game_id: string }
+        Returns: undefined
+      }
       replace_num_by_name: {
         Args: { p_game_id: string; p_message: string }
         Returns: string
@@ -805,6 +1025,9 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      item_category: "ATTAQUE" | "PROTECTION" | "UTILITAIRE"
+      monster_initial_status: "EN_BATAILLE" | "EN_FILE"
+      monster_runtime_status: "EN_BATAILLE" | "EN_FILE" | "MORT"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -933,6 +1156,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      item_category: ["ATTAQUE", "PROTECTION", "UTILITAIRE"],
+      monster_initial_status: ["EN_BATAILLE", "EN_FILE"],
+      monster_runtime_status: ["EN_BATAILLE", "EN_FILE", "MORT"],
     },
   },
 } as const
