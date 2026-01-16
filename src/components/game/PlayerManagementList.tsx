@@ -3,7 +3,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, Lock, Users } from 'lucide-react';
+import { User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, Lock, Users, UserX } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
 interface Player {
@@ -17,6 +28,7 @@ interface Player {
   jetons: number;
   recompenses: number;
   is_alive: boolean;
+  status: string;
 }
 
 interface PlayerManagementListProps {
@@ -32,6 +44,7 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Player>>({});
   const [saving, setSaving] = useState(false);
+  const [kickingId, setKickingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlayers();
@@ -60,7 +73,7 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
   const fetchPlayers = async () => {
     const { data, error } = await supabase
       .from('game_players')
-      .select('id, display_name, player_number, is_host, player_token, clan, mate_num, jetons, recompenses, is_alive')
+      .select('id, display_name, player_number, is_host, player_token, clan, mate_num, jetons, recompenses, is_alive, status')
       .eq('game_id', gameId)
       .order('player_number', { ascending: true, nullsFirst: false });
 
@@ -146,6 +159,26 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
     }
   };
 
+  const handleKickPlayer = async (playerId: string, playerName: string) => {
+    setKickingId(playerId);
+    try {
+      const { error } = await supabase
+        .from('game_players')
+        .update({ status: 'REMOVED' })
+        .eq('id', playerId);
+
+      if (error) throw error;
+
+      toast.success(`${playerName} a été expulsé de la partie`);
+      fetchPlayers();
+    } catch (err) {
+      console.error('Kick error:', err);
+      toast.error('Erreur lors de l\'expulsion');
+    } finally {
+      setKickingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="card-gradient rounded-lg border border-border p-6">
@@ -156,7 +189,7 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
     );
   }
 
-  const anonymousPlayers = players.filter(p => !p.is_host && p.player_token);
+  const anonymousPlayers = players.filter(p => !p.is_host && p.player_token && p.status === 'ACTIVE');
   const availablePlayerNumbers = anonymousPlayers.map(p => p.player_number).filter(Boolean) as number[];
 
   return (
@@ -321,6 +354,40 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
                         <RefreshCw className="h-4 w-4" />
                       )}
                     </ForestButton>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <ForestButton
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          disabled={kickingId === player.id}
+                          title="Expulser le joueur"
+                        >
+                          {kickingId === player.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <UserX className="h-4 w-4" />
+                          )}
+                        </ForestButton>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Expulser {player.display_name} ?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Ce joueur sera retiré de la partie et ne pourra plus la rejoindre.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleKickPlayer(player.id, player.display_name)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Expulser
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               )}
