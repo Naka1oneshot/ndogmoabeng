@@ -3,18 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, Lock, Users, UserX } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, Users, UserX } from 'lucide-react';
+import { KickPlayerModal } from './KickPlayerModal';
 import { toast } from 'sonner';
 
 interface Player {
@@ -44,7 +34,10 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Player>>({});
   const [saving, setSaving] = useState(false);
-  const [kickingId, setKickingId] = useState<string | null>(null);
+  
+  // Kick modal state
+  const [kickModalOpen, setKickModalOpen] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     fetchPlayers();
@@ -159,28 +152,9 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
     }
   };
 
-  const handleKickPlayer = async (playerId: string, playerName: string) => {
-    setKickingId(playerId);
-    try {
-      const { data, error } = await supabase.functions.invoke('kick-player', {
-        body: { 
-          playerId, 
-          reason: 'Expulsé par le Maître du Jeu' 
-        },
-      });
-
-      if (error || !data?.success) {
-        throw new Error(data?.error || 'Erreur lors de l\'expulsion');
-      }
-
-      toast.success(`${playerName} a été expulsé de la partie`);
-      fetchPlayers();
-    } catch (err) {
-      console.error('Kick error:', err);
-      toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'expulsion');
-    } finally {
-      setKickingId(null);
-    }
+  const openKickModal = (playerId: string, playerName: string) => {
+    setSelectedPlayer({ id: playerId, name: playerName });
+    setKickModalOpen(true);
   };
 
   if (loading) {
@@ -197,208 +171,196 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
   const availablePlayerNumbers = anonymousPlayers.map(p => p.player_number).filter(Boolean) as number[];
 
   return (
-    <div className="card-gradient rounded-lg border border-border p-6">
-      <h3 className="font-display text-lg mb-4 flex items-center gap-2">
-        <Users className="h-5 w-5 text-primary" />
-        Joueurs ({anonymousPlayers.length})
-      </h3>
+    <>
+      <div className="card-gradient rounded-lg border border-border p-6">
+        <h3 className="font-display text-lg mb-4 flex items-center gap-2">
+          <Users className="h-5 w-5 text-primary" />
+          Joueurs ({anonymousPlayers.length})
+        </h3>
 
-      {anonymousPlayers.length === 0 ? (
-        <p className="text-muted-foreground text-sm text-center py-4">
-          Aucun joueur n'a encore rejoint la partie
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {/* Header row */}
-          <div className="hidden md:grid grid-cols-12 gap-2 text-xs text-muted-foreground px-3 py-1">
-            <div className="col-span-1">#</div>
-            <div className="col-span-3">Nom</div>
-            <div className="col-span-2">Clan</div>
-            <div className="col-span-1">Mate</div>
-            <div className="col-span-1">Jetons</div>
-            <div className="col-span-1">Récomp.</div>
-            <div className="col-span-3 text-right">Actions</div>
-          </div>
+        {anonymousPlayers.length === 0 ? (
+          <p className="text-muted-foreground text-sm text-center py-4">
+            Aucun joueur n'a encore rejoint la partie
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {/* Header row */}
+            <div className="hidden md:grid grid-cols-12 gap-2 text-xs text-muted-foreground px-3 py-1">
+              <div className="col-span-1">#</div>
+              <div className="col-span-3">Nom</div>
+              <div className="col-span-2">Clan</div>
+              <div className="col-span-1">Mate</div>
+              <div className="col-span-1">Jetons</div>
+              <div className="col-span-1">Récomp.</div>
+              <div className="col-span-3 text-right">Actions</div>
+            </div>
 
-          {anonymousPlayers.map((player) => (
-            <div
-              key={player.id}
-              className={`p-3 rounded-md bg-secondary/50 ${!player.is_alive ? 'opacity-50' : ''}`}
-            >
-              {editingId === player.id ? (
-                // Edit mode
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
-                      <label className="text-xs text-muted-foreground">Nom</label>
-                      <Input
-                        value={editForm.display_name || ''}
-                        onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
-                        className="h-8 text-sm"
-                      />
+            {anonymousPlayers.map((player) => (
+              <div
+                key={player.id}
+                className={`p-3 rounded-md bg-secondary/50 ${!player.is_alive ? 'opacity-50' : ''}`}
+              >
+                {editingId === player.id ? (
+                  // Edit mode
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Nom</label>
+                        <Input
+                          value={editForm.display_name || ''}
+                          onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Clan</label>
+                        <Select
+                          value={editForm.clan || 'none'}
+                          onValueChange={(val) => setEditForm({ ...editForm, clan: val === 'none' ? '' : val })}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Clan" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Aucun</SelectItem>
+                            <SelectItem value="Akila">Akila</SelectItem>
+                            <SelectItem value="Akandé">Akandé</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Coéquipier</label>
+                        <Select
+                          value={editForm.mate_num?.toString() || 'none'}
+                          onValueChange={(val) => setEditForm({ ...editForm, mate_num: val === 'none' ? null : parseInt(val) })}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Mate" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Aucun</SelectItem>
+                            {availablePlayerNumbers
+                              .filter(n => n !== player.player_number)
+                              .map(n => (
+                                <SelectItem key={n} value={n.toString()}>
+                                  Joueur {n}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Jetons</label>
+                        <Input
+                          type="number"
+                          value={editForm.jetons || 0}
+                          onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                          className="h-8 text-sm"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Clan</label>
-                      <Select
-                        value={editForm.clan || 'none'}
-                        onValueChange={(val) => setEditForm({ ...editForm, clan: val === 'none' ? '' : val })}
-                      >
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue placeholder="Clan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Aucun</SelectItem>
-                          <SelectItem value="Akila">Akila</SelectItem>
-                          <SelectItem value="Akandé">Akandé</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Coéquipier</label>
-                      <Select
-                        value={editForm.mate_num?.toString() || 'none'}
-                        onValueChange={(val) => setEditForm({ ...editForm, mate_num: val === 'none' ? null : parseInt(val) })}
-                      >
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue placeholder="Mate" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Aucun</SelectItem>
-                          {availablePlayerNumbers
-                            .filter(n => n !== player.player_number)
-                            .map(n => (
-                              <SelectItem key={n} value={n.toString()}>
-                                Joueur {n}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Jetons</label>
-                      <Input
-                        type="number"
-                        value={editForm.jetons || 0}
-                        onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <ForestButton variant="ghost" size="sm" onClick={cancelEditing}>
-                      <X className="h-4 w-4" />
-                      Annuler
-                    </ForestButton>
-                    <ForestButton size="sm" onClick={() => handleSave(player.id)} disabled={saving}>
-                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                      Sauvegarder
-                    </ForestButton>
-                  </div>
-                </div>
-              ) : (
-                // Display mode
-                <div className="grid grid-cols-12 gap-2 items-center">
-                  <div className="col-span-1">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                      <span className="text-sm font-medium text-primary">
-                        {player.player_number || '?'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="col-span-3 md:col-span-3">
-                    <span className="font-medium text-sm truncate block">{player.display_name}</span>
-                  </div>
-                  <div className="col-span-2 text-sm text-muted-foreground">
-                    {player.clan || '-'}
-                  </div>
-                  <div className="col-span-1 text-sm text-muted-foreground">
-                    {player.mate_num || '-'}
-                  </div>
-                  <div className="col-span-1 text-sm font-medium text-forest-gold">
-                    {player.jetons}
-                  </div>
-                  <div className="col-span-1 text-sm font-medium text-green-500">
-                    {player.recompenses}
-                  </div>
-                  <div className="col-span-3 flex items-center justify-end gap-1">
-                    {isLobby && (
-                      <ForestButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => startEditing(player)}
-                        title="Modifier le joueur"
-                      >
-                        <Pencil className="h-4 w-4" />
+                    <div className="flex justify-end gap-2">
+                      <ForestButton variant="ghost" size="sm" onClick={cancelEditing}>
+                        <X className="h-4 w-4" />
+                        Annuler
                       </ForestButton>
-                    )}
-                    {player.player_token && (
-                      <ForestButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
-                        title="Copier le lien de reconnexion"
-                      >
-                        {copiedId === player.id ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
+                      <ForestButton size="sm" onClick={() => handleSave(player.id)} disabled={saving}>
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Sauvegarder
                       </ForestButton>
-                    )}
-                    <ForestButton
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleResetToken(player.id, player.display_name)}
-                      disabled={resettingId === player.id}
-                      title="Réinitialiser le token"
-                    >
-                      {resettingId === player.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4" />
-                      )}
-                    </ForestButton>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
+                    </div>
+                  </div>
+                ) : (
+                  // Display mode
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-1">
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                        <span className="text-sm font-medium text-primary">
+                          {player.player_number || '?'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="col-span-3 md:col-span-3">
+                      <span className="font-medium text-sm truncate block">{player.display_name}</span>
+                    </div>
+                    <div className="col-span-2 text-sm text-muted-foreground">
+                      {player.clan || '-'}
+                    </div>
+                    <div className="col-span-1 text-sm text-muted-foreground">
+                      {player.mate_num || '-'}
+                    </div>
+                    <div className="col-span-1 text-sm font-medium text-forest-gold">
+                      {player.jetons}
+                    </div>
+                    <div className="col-span-1 text-sm font-medium text-green-500">
+                      {player.recompenses}
+                    </div>
+                    <div className="col-span-3 flex items-center justify-end gap-1">
+                      {isLobby && (
                         <ForestButton
                           variant="ghost"
                           size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          disabled={kickingId === player.id}
-                          title="Expulser le joueur"
+                          onClick={() => startEditing(player)}
+                          title="Modifier le joueur"
                         >
-                          {kickingId === player.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                          <Pencil className="h-4 w-4" />
+                        </ForestButton>
+                      )}
+                      {player.player_token && (
+                        <ForestButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
+                          title="Copier le lien de reconnexion"
+                        >
+                          {copiedId === player.id ? (
+                            <Check className="h-4 w-4 text-green-500" />
                           ) : (
-                            <UserX className="h-4 w-4" />
+                            <Copy className="h-4 w-4" />
                           )}
                         </ForestButton>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Expulser {player.display_name} ?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Ce joueur sera retiré de la partie et ne pourra plus la rejoindre.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Annuler</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleKickPlayer(player.id, player.display_name)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Expulser
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                      )}
+                      <ForestButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleResetToken(player.id, player.display_name)}
+                        disabled={resettingId === player.id}
+                        title="Réinitialiser le token"
+                      >
+                        {resettingId === player.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                      </ForestButton>
+                      <ForestButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openKickModal(player.id, player.display_name)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        title="Expulser le joueur"
+                      >
+                        <UserX className="h-4 w-4" />
+                      </ForestButton>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {selectedPlayer && (
+        <KickPlayerModal
+          open={kickModalOpen}
+          onOpenChange={setKickModalOpen}
+          playerId={selectedPlayer.id}
+          playerName={selectedPlayer.name}
+          gameId={gameId}
+          onSuccess={fetchPlayers}
+        />
       )}
-    </div>
+    </>
   );
 }

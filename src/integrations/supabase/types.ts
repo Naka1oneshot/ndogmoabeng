@@ -161,6 +161,7 @@ export type Database = {
       game_players: {
         Row: {
           clan: string | null
+          device_id: string | null
           display_name: string
           game_id: string
           id: string
@@ -181,6 +182,7 @@ export type Database = {
         }
         Insert: {
           clan?: string | null
+          device_id?: string | null
           display_name: string
           game_id: string
           id?: string
@@ -201,6 +203,7 @@ export type Database = {
         }
         Update: {
           clan?: string | null
+          device_id?: string | null
           display_name?: string
           game_id?: string
           id?: string
@@ -560,6 +563,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "round_bets_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_bans: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          device_id: string
+          game_id: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          device_id: string
+          game_id: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          device_id?: string
+          game_id?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_bans_game_id_fkey"
             columns: ["game_id"]
             isOneToOne: false
             referencedRelation: "games"

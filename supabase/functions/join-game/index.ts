@@ -6,13 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Generate a unique player token
 function generatePlayerToken(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let token = '';
+  let result = '';
   for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return token;
+  return result;
 }
 
 serve(async (req) => {
@@ -21,11 +22,18 @@ serve(async (req) => {
   }
 
   try {
-    const { joinCode, displayName, clan } = await req.json();
+    const { joinCode, displayName, clan, deviceId } = await req.json();
 
     if (!joinCode || !displayName) {
       return new Response(
-        JSON.stringify({ error: "Code et nom requis" }),
+        JSON.stringify({ error: "Code et pseudo requis" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!deviceId) {
+      return new Response(
+        JSON.stringify({ error: "Device ID requis" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -39,147 +47,231 @@ serve(async (req) => {
       .from("games")
       .select("id, name, status, x_nb_joueurs")
       .eq("join_code", joinCode.toUpperCase())
-      .single();
+      .maybeSingle();
 
-    if (gameError || !game) {
-      console.log("Game not found for code:", joinCode);
+    if (gameError) {
+      console.error("Game lookup error:", gameError);
+      return new Response(
+        JSON.stringify({ error: "Erreur lors de la recherche" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!game) {
       return new Response(
         JSON.stringify({ error: "Partie introuvable" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Allow joining in LOBBY or IN_ROUND status
+    // Check if game is joinable
     if (game.status !== "LOBBY" && game.status !== "IN_ROUND") {
-      console.log("Game status not valid for joining:", game.status);
       return new Response(
         JSON.stringify({ error: "Cette partie n'accepte plus de nouveaux joueurs" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check if this player was previously REMOVED (by display_name)
-    const { data: removedPlayer } = await supabase
-      .from("game_players")
-      .select("id, status, removed_reason")
+    // Check if device is banned from this session
+    const { data: ban, error: banError } = await supabase
+      .from("session_bans")
+      .select("id, reason")
       .eq("game_id", game.id)
-      .eq("display_name", displayName.trim())
-      .eq("status", "REMOVED")
+      .eq("device_id", deviceId)
       .maybeSingle();
 
-    if (removedPlayer) {
-      console.log("Player was previously removed:", displayName);
+    if (banError) {
+      console.error("Ban lookup error:", banError);
+    }
+
+    if (ban) {
+      console.log("Device is banned:", deviceId, "Reason:", ban.reason);
       return new Response(
-        JSON.stringify({ error: removedPlayer.removed_reason || "Vous avez été expulsé de cette partie par le MJ" }),
+        JSON.stringify({ 
+          error: "BANNED", 
+          reason: ban.reason || "Vous avez été banni de cette partie",
+          banned: true 
+        }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check if this player already has an ACTIVE entry (reconnection)
-    const { data: existingActive } = await supabase
+    // Check if participant already exists for this device in this game
+    const { data: existingPlayer, error: existingError } = await supabase
       .from("game_players")
-      .select("id, player_number, player_token, clan")
+      .select("id, status, player_number, player_token, display_name, removed_reason")
       .eq("game_id", game.id)
-      .eq("display_name", displayName.trim())
-      .eq("status", "ACTIVE")
+      .eq("device_id", deviceId)
       .maybeSingle();
 
-    if (existingActive) {
-      // Player is reconnecting - return existing data and update last_seen
-      console.log("Player reconnecting:", displayName, "with number", existingActive.player_number);
+    if (existingError) {
+      console.error("Existing player lookup error:", existingError);
+    }
+
+    // Case 1: ACTIVE player exists -> return existing player
+    if (existingPlayer && existingPlayer.status === "ACTIVE") {
+      console.log("Returning existing ACTIVE player:", existingPlayer.display_name);
       
+      // Update last_seen and optionally display_name
       await supabase
         .from("game_players")
-        .update({ last_seen: new Date().toISOString() })
-        .eq("id", existingActive.id);
+        .update({ 
+          last_seen: new Date().toISOString(),
+          display_name: displayName.trim(),
+          clan: clan || null,
+        })
+        .eq("id", existingPlayer.id);
 
       return new Response(
         JSON.stringify({
           success: true,
-          reconnected: true,
           gameId: game.id,
           gameName: game.name,
-          playerId: existingActive.id,
-          playerNumber: existingActive.player_number,
-          playerToken: existingActive.player_token,
-          clan: existingActive.clan,
+          playerId: existingPlayer.id,
+          playerToken: existingPlayer.player_token,
+          playerNumber: existingPlayer.player_number,
+          reconnected: true,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get ACTIVE players to find the next available player number
-    const { data: activePlayers, error: playersError } = await supabase
+    // Case 2: LEFT/REMOVED player exists -> reactivate
+    if (existingPlayer && (existingPlayer.status === "LEFT" || existingPlayer.status === "REMOVED")) {
+      console.log("Reactivating existing player:", existingPlayer.display_name, "status:", existingPlayer.status);
+
+      // Get smallest available player number
+      const { data: activePlayers } = await supabase
+        .from("game_players")
+        .select("player_number")
+        .eq("game_id", game.id)
+        .eq("status", "ACTIVE")
+        .eq("is_host", false)
+        .not("player_number", "is", null);
+
+      const usedNumbers = new Set((activePlayers || []).map(p => p.player_number));
+      let playerNumber = 1;
+      while (usedNumbers.has(playerNumber)) {
+        playerNumber++;
+      }
+
+      // Check max players limit
+      const maxPlayers = game.x_nb_joueurs || 100;
+      if (playerNumber > maxPlayers) {
+        return new Response(
+          JSON.stringify({ error: `La partie est complète (${maxPlayers} joueurs max)` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Generate new token for reactivated player
+      const newToken = generatePlayerToken();
+
+      const { error: updateError } = await supabase
+        .from("game_players")
+        .update({
+          status: "ACTIVE",
+          player_number: playerNumber,
+          player_token: newToken,
+          display_name: displayName.trim(),
+          clan: clan || null,
+          removed_reason: null,
+          removed_at: null,
+          removed_by: null,
+          last_seen: new Date().toISOString(),
+        })
+        .eq("id", existingPlayer.id);
+
+      if (updateError) {
+        console.error("Error reactivating player:", updateError);
+        return new Response(
+          JSON.stringify({ error: "Erreur lors de la réactivation" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("Player reactivated:", displayName, "as player #", playerNumber);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          gameId: game.id,
+          gameName: game.name,
+          playerId: existingPlayer.id,
+          playerToken: newToken,
+          playerNumber,
+          reactivated: true,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Case 3: No existing player -> create new one
+    // Get smallest available player number
+    const { data: activePlayers } = await supabase
       .from("game_players")
       .select("player_number")
       .eq("game_id", game.id)
       .eq("status", "ACTIVE")
-      .not("player_number", "is", null)
-      .order("player_number", { ascending: true });
+      .eq("is_host", false)
+      .not("player_number", "is", null);
 
-    if (playersError) {
-      console.error("Error fetching players:", playersError);
+    const usedNumbers = new Set((activePlayers || []).map(p => p.player_number));
+    let playerNumber = 1;
+    while (usedNumbers.has(playerNumber)) {
+      playerNumber++;
     }
 
-    // Find the smallest available player number among ACTIVE players
+    // Check max players limit
     const maxPlayers = game.x_nb_joueurs || 100;
-    const usedNumbers = new Set((activePlayers || []).map((p) => p.player_number));
-    
-    let playerNumber: number | null = null;
-    for (let i = 1; i <= maxPlayers; i++) {
-      if (!usedNumbers.has(i)) {
-        playerNumber = i;
-        break;
-      }
-    }
-
-    if (playerNumber === null) {
-      console.log("No available player slots. Max:", maxPlayers, "Used:", usedNumbers.size);
+    if (playerNumber > maxPlayers) {
       return new Response(
         JSON.stringify({ error: `La partie est complète (${maxPlayers} joueurs max)` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Generate unique player token
+    // Generate player token
     const playerToken = generatePlayerToken();
 
-    console.log("Creating player:", { 
-      gameId: game.id, 
-      displayName: displayName.trim(), 
-      playerNumber, 
-      clan: clan || null 
-    });
-
-    // Insert the new player
+    // Insert new player
     const { data: newPlayer, error: insertError } = await supabase
       .from("game_players")
       .insert({
         game_id: game.id,
-        user_id: null,
         display_name: displayName.trim(),
-        player_token: playerToken,
-        player_number: playerNumber,
         clan: clan || null,
+        player_number: playerNumber,
+        player_token: playerToken,
+        device_id: deviceId,
+        status: "ACTIVE",
         is_host: false,
         jetons: 0,
         recompenses: 0,
         is_alive: true,
         last_seen: new Date().toISOString(),
-        status: 'ACTIVE',
       })
-      .select("id, player_number, clan")
+      .select("id")
       .single();
 
     if (insertError) {
       console.error("Insert error:", insertError);
+      
+      // Check if it's a unique constraint violation (device already in game)
+      if (insertError.message?.includes('idx_game_players_game_device')) {
+        return new Response(
+          JSON.stringify({ error: "Cet appareil est déjà dans la partie" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ error: "Erreur lors de l'inscription: " + insertError.message }),
+        JSON.stringify({ error: "Erreur lors de l'inscription" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Player created successfully:", newPlayer);
+    console.log("New player joined:", displayName, "as player #", playerNumber, "device:", deviceId);
 
     return new Response(
       JSON.stringify({
@@ -187,9 +279,8 @@ serve(async (req) => {
         gameId: game.id,
         gameName: game.name,
         playerId: newPlayer.id,
-        playerNumber: newPlayer.player_number,
-        playerToken: playerToken,
-        clan: newPlayer.clan,
+        playerToken,
+        playerNumber,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
