@@ -149,7 +149,7 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
     setSubmitting(true);
     try {
       // Upsert with new columns
-      await supabase
+      const { error } = await supabase
         .from('round_bets')
         .upsert(
           {
@@ -164,7 +164,14 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
           { onConflict: 'game_id,manche,num_joueur' }
         );
 
+      if (error) {
+        console.error('[PhasePanel] Bet submission error:', error);
+        toast.error(`Erreur: ${error.message}`);
+        return;
+      }
+
       setCurrentBet(miseValue);
+      console.log(`[PhasePanel] Bet submitted: player=${player.playerNumber}, mise=${miseValue}`);
       
       // Warning if bet exceeds tokens
       if (miseValue > player.jetons) {
@@ -172,7 +179,8 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
       } else {
         toast.success('Mise enregistrée !');
       }
-    } catch {
+    } catch (err) {
+      console.error('[PhasePanel] Unexpected error:', err);
       toast.error("Erreur lors de l'enregistrement");
     } finally {
       setSubmitting(false);
