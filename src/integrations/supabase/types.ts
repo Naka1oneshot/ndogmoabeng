@@ -14,35 +14,194 @@ export type Database = {
   }
   public: {
     Tables: {
+      actions: {
+        Row: {
+          attaque1: string | null
+          attaque2: string | null
+          created_at: string | null
+          game_id: string
+          id: string
+          manche: number
+          num_joueur: number
+          position_souhaitee: number | null
+          protection_objet: string | null
+          slot_attaque: number | null
+          slot_protection: number | null
+        }
+        Insert: {
+          attaque1?: string | null
+          attaque2?: string | null
+          created_at?: string | null
+          game_id: string
+          id?: string
+          manche: number
+          num_joueur: number
+          position_souhaitee?: number | null
+          protection_objet?: string | null
+          slot_attaque?: number | null
+          slot_protection?: number | null
+        }
+        Update: {
+          attaque1?: string | null
+          attaque2?: string | null
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          manche?: number
+          num_joueur?: number
+          position_souhaitee?: number | null
+          protection_objet?: string | null
+          slot_attaque?: number | null
+          slot_protection?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actions_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      battlefield: {
+        Row: {
+          created_at: string | null
+          game_id: string
+          id: string
+          monstre_id_en_place: number | null
+          pv_miroir: number | null
+          slot: number
+        }
+        Insert: {
+          created_at?: string | null
+          game_id: string
+          id?: string
+          monstre_id_en_place?: number | null
+          pv_miroir?: number | null
+          slot: number
+        }
+        Update: {
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          monstre_id_en_place?: number | null
+          pv_miroir?: number | null
+          slot?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battlefield_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      combat_config: {
+        Row: {
+          categorie: string | null
+          cible: string | null
+          conso_objet: boolean | null
+          created_at: string | null
+          degats_base: number | null
+          effet_special: string | null
+          game_id: string | null
+          id: string
+          ignore_protection: boolean | null
+          notes: string | null
+          objet: string
+          persistance: string | null
+          soin_base: number | null
+          timing: string | null
+        }
+        Insert: {
+          categorie?: string | null
+          cible?: string | null
+          conso_objet?: boolean | null
+          created_at?: string | null
+          degats_base?: number | null
+          effet_special?: string | null
+          game_id?: string | null
+          id?: string
+          ignore_protection?: boolean | null
+          notes?: string | null
+          objet: string
+          persistance?: string | null
+          soin_base?: number | null
+          timing?: string | null
+        }
+        Update: {
+          categorie?: string | null
+          cible?: string | null
+          conso_objet?: boolean | null
+          created_at?: string | null
+          degats_base?: number | null
+          effet_special?: string | null
+          game_id?: string | null
+          id?: string
+          ignore_protection?: boolean | null
+          notes?: string | null
+          objet?: string
+          persistance?: string | null
+          soin_base?: number | null
+          timing?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "combat_config_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_players: {
         Row: {
+          clan: string | null
           display_name: string
           game_id: string
           id: string
+          is_alive: boolean | null
           is_host: boolean
+          jetons: number | null
           joined_at: string
+          mate_num: number | null
           player_number: number | null
           player_token: string | null
+          recompenses: number | null
           user_id: string | null
         }
         Insert: {
+          clan?: string | null
           display_name: string
           game_id: string
           id?: string
+          is_alive?: boolean | null
           is_host?: boolean
+          jetons?: number | null
           joined_at?: string
+          mate_num?: number | null
           player_number?: number | null
           player_token?: string | null
+          recompenses?: number | null
           user_id?: string | null
         }
         Update: {
+          clan?: string | null
           display_name?: string
           game_id?: string
           id?: string
+          is_alive?: boolean | null
           is_host?: boolean
+          jetons?: number | null
           joined_at?: string
+          mate_num?: number | null
           player_number?: number | null
           player_token?: string | null
+          recompenses?: number | null
           user_id?: string | null
         }
         Relationships: [
@@ -61,26 +220,384 @@ export type Database = {
           host_user_id: string
           id: string
           join_code: string
+          manche_active: number | null
           name: string
+          sens_depart_egalite: string | null
           status: string
+          x_nb_joueurs: number | null
         }
         Insert: {
           created_at?: string
           host_user_id: string
           id?: string
           join_code: string
+          manche_active?: number | null
           name?: string
+          sens_depart_egalite?: string | null
           status?: string
+          x_nb_joueurs?: number | null
         }
         Update: {
           created_at?: string
           host_user_id?: string
           id?: string
           join_code?: string
+          manche_active?: number | null
           name?: string
+          sens_depart_egalite?: string | null
           status?: string
+          x_nb_joueurs?: number | null
         }
         Relationships: []
+      }
+      inventory: {
+        Row: {
+          created_at: string | null
+          dispo_attaque: boolean | null
+          disponible: boolean | null
+          game_id: string
+          id: string
+          objet: string
+          owner_num: number | null
+          quantite: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          dispo_attaque?: boolean | null
+          disponible?: boolean | null
+          game_id: string
+          id?: string
+          objet: string
+          owner_num?: number | null
+          quantite?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          dispo_attaque?: boolean | null
+          disponible?: boolean | null
+          game_id?: string
+          id?: string
+          objet?: string
+          owner_num?: number | null
+          quantite?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      logs_joueurs: {
+        Row: {
+          game_id: string
+          id: string
+          log_index: number
+          manche: number | null
+          message: string | null
+          timestamp: string | null
+          type: string | null
+        }
+        Insert: {
+          game_id: string
+          id?: string
+          log_index?: number
+          manche?: number | null
+          message?: string | null
+          timestamp?: string | null
+          type?: string | null
+        }
+        Update: {
+          game_id?: string
+          id?: string
+          log_index?: number
+          manche?: number | null
+          message?: string | null
+          timestamp?: string | null
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logs_joueurs_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      logs_mj: {
+        Row: {
+          action: string
+          details: string | null
+          game_id: string
+          id: string
+          manche: number | null
+          num_joueur: number | null
+          timestamp: string | null
+        }
+        Insert: {
+          action: string
+          details?: string | null
+          game_id: string
+          id?: string
+          manche?: number | null
+          num_joueur?: number | null
+          timestamp?: string | null
+        }
+        Update: {
+          action?: string
+          details?: string | null
+          game_id?: string
+          id?: string
+          manche?: number | null
+          num_joueur?: number | null
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logs_mj_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monsters: {
+        Row: {
+          created_at: string | null
+          game_id: string
+          id: string
+          monstre_id: number
+          pv_actuels: number
+          pv_max: number
+          recompense: number | null
+          statut: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          game_id: string
+          id?: string
+          monstre_id: number
+          pv_actuels?: number
+          pv_max?: number
+          recompense?: number | null
+          statut?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          monstre_id?: number
+          pv_actuels?: number
+          pv_max?: number
+          recompense?: number | null
+          statut?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monsters_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pending_effects: {
+        Row: {
+          by_num: number | null
+          created_at: string | null
+          game_id: string
+          id: string
+          manche: number
+          slot: number | null
+          type: string
+          weapon: string | null
+        }
+        Insert: {
+          by_num?: number | null
+          created_at?: string | null
+          game_id: string
+          id?: string
+          manche: number
+          slot?: number | null
+          type: string
+          weapon?: string | null
+        }
+        Update: {
+          by_num?: number | null
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          manche?: number
+          slot?: number | null
+          type?: string
+          weapon?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_effects_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      positions_finales: {
+        Row: {
+          attaque1: string | null
+          attaque2: string | null
+          clan: string | null
+          created_at: string | null
+          game_id: string
+          id: string
+          manche: number
+          mise: number | null
+          nom: string | null
+          num_joueur: number
+          position_finale: number | null
+          position_souhaitee: number | null
+          protection: string | null
+          rang_priorite: number | null
+          slot_attaque: number | null
+          slot_protection: number | null
+        }
+        Insert: {
+          attaque1?: string | null
+          attaque2?: string | null
+          clan?: string | null
+          created_at?: string | null
+          game_id: string
+          id?: string
+          manche: number
+          mise?: number | null
+          nom?: string | null
+          num_joueur: number
+          position_finale?: number | null
+          position_souhaitee?: number | null
+          protection?: string | null
+          rang_priorite?: number | null
+          slot_attaque?: number | null
+          slot_protection?: number | null
+        }
+        Update: {
+          attaque1?: string | null
+          attaque2?: string | null
+          clan?: string | null
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          manche?: number
+          mise?: number | null
+          nom?: string | null
+          num_joueur?: number
+          position_finale?: number | null
+          position_souhaitee?: number | null
+          protection?: string | null
+          rang_priorite?: number | null
+          slot_attaque?: number | null
+          slot_protection?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "positions_finales_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      round_bets: {
+        Row: {
+          created_at: string | null
+          game_id: string
+          id: string
+          manche: number
+          mise: number
+          num_joueur: number
+        }
+        Insert: {
+          created_at?: string | null
+          game_id: string
+          id?: string
+          manche: number
+          mise?: number
+          num_joueur: number
+        }
+        Update: {
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          manche?: number
+          mise?: number
+          num_joueur?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "round_bets_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_catalogue: {
+        Row: {
+          actif: boolean | null
+          categorie: string
+          cout_akila: number
+          cout_normal: number
+          created_at: string | null
+          game_id: string | null
+          id: string
+          is_sniper_akila: boolean | null
+          objet: string
+          restock_apres_achat: boolean | null
+        }
+        Insert: {
+          actif?: boolean | null
+          categorie: string
+          cout_akila?: number
+          cout_normal?: number
+          created_at?: string | null
+          game_id?: string | null
+          id?: string
+          is_sniper_akila?: boolean | null
+          objet: string
+          restock_apres_achat?: boolean | null
+        }
+        Update: {
+          actif?: boolean | null
+          categorie?: string
+          cout_akila?: number
+          cout_normal?: number
+          created_at?: string | null
+          game_id?: string | null
+          id?: string
+          is_sniper_akila?: boolean | null
+          objet?: string
+          restock_apres_achat?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_catalogue_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -118,6 +635,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      replace_num_by_name: {
+        Args: { p_game_id: string; p_message: string }
+        Returns: string
       }
     }
     Enums: {
