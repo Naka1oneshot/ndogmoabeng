@@ -102,22 +102,19 @@ export function ResultsPanel({ gameId, manche, phase, phaseLocked, className }: 
   };
 
   // Show bet rankings after Phase 1 is closed (priority_rankings exists or we're past PHASE1)
-  const showBetRankings = priorityRankings.length > 0 || phase !== 'PHASE1_MISES';
+  const showBetRankings = priorityRankings.length > 0;
   
   // Show positions after Phase 2 is locked or we're past it
   const showPositions = (phase !== 'PHASE1_MISES' && phase !== 'PHASE2_POSITIONS') || 
                         (phase === 'PHASE2_POSITIONS' && phaseLocked);
 
+  // Always show the panel (don't return null)
   if (loading) {
     return (
       <div className={`flex items-center justify-center p-8 ${className}`}>
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!showBetRankings && !showPositions) {
-    return null;
   }
 
   return (
