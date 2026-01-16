@@ -8,8 +8,8 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Login from "./pages/Login";
 import MJ from "./pages/MJ";
-import Join from "./pages/Join";
-import Lobby from "./pages/Lobby";
+import JoinAnonymous from "./pages/JoinAnonymous";
+import PlayerDashboard from "./pages/PlayerDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,8 +26,8 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Login />} />
             <Route path="/mj" element={<MJ />} />
-            <Route path="/join" element={<Join />} />
-            <Route path="/lobby" element={<Lobby />} />
+            <Route path="/join/:code" element={<JoinAnonymous />} />
+            <Route path="/player/:gameId" element={<PlayerDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

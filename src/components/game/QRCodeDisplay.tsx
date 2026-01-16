@@ -11,7 +11,7 @@ interface QRCodeDisplayProps {
 
 export function QRCodeDisplay({ joinCode, className }: QRCodeDisplayProps) {
   const [copied, setCopied] = useState(false);
-  const joinUrl = `${window.location.origin}/join?code=${joinCode}`;
+  const joinUrl = `${window.location.origin}/join/${joinCode}`;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(joinUrl);
