@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerList } from '@/components/game/PlayerList';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
+import { usePlayerPresence } from '@/hooks/usePlayerPresence';
 import { TreePine, Loader2, Clock, User, LogOut } from 'lucide-react';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { toast } from 'sonner';
@@ -31,23 +32,16 @@ export default function PlayerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!gameId) {
-      setError('ID de partie manquant');
-      setLoading(false);
-      return;
-    }
-
-    const playerToken = localStorage.getItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
-    
-    if (!playerToken) {
-      // No token, need to find the join code and redirect
-      redirectToJoin();
-      return;
-    }
-
-    validateAndFetch(playerToken);
-  }, [gameId]);
+  const { handleLeave: presenceLeave } = usePlayerPresence({
+    gameId,
+    enabled: !!player && !!game,
+    onInvalidToken: () => {
+      if (gameId) {
+        localStorage.removeItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
+        redirectToJoin();
+      }
+    },
+  });
 
   const redirectToJoin = async () => {
     if (!gameId) return;
@@ -71,6 +65,23 @@ export default function PlayerDashboard() {
     }
   };
 
+  useEffect(() => {
+    if (!gameId) {
+      setError('ID de partie manquant');
+      setLoading(false);
+      return;
+    }
+
+    const playerToken = localStorage.getItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
+    
+    if (!playerToken) {
+      redirectToJoin();
+      return;
+    }
+
+    validateAndFetch(playerToken);
+  }, [gameId]);
+
   const validateAndFetch = async (playerToken: string) => {
     try {
       const { data, error: validateError } = await supabase.functions.invoke('validate-player', {
@@ -78,7 +89,6 @@ export default function PlayerDashboard() {
       });
 
       if (validateError || !data?.valid) {
-        // Token invalid
         localStorage.removeItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
         redirectToJoin();
         return;
@@ -93,7 +103,6 @@ export default function PlayerDashboard() {
       setGame(data.game as Game);
       setLoading(false);
 
-      // Subscribe to game status changes
       subscribeToGame();
     } catch (err) {
       console.error('Validation error:', err);
@@ -126,8 +135,13 @@ export default function PlayerDashboard() {
     };
   };
 
-  const handleLeave = () => {
+  const handleLeave = async () => {
     if (!gameId) return;
+    
+    // Send leave presence update
+    await presenceLeave();
+    
+    // Remove token and navigate
     localStorage.removeItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
     toast.info('Vous avez quitté la partie');
     navigate('/');
