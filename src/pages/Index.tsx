@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
-import { TreePine, Users, Gamepad2 } from 'lucide-react';
+import { Users, Gamepad2 } from 'lucide-react';
+import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 export default function Index() {
   const navigate = useNavigate();
@@ -13,8 +14,8 @@ export default function Index() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
       <div className="text-center mb-12">
-        <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/20 mb-6 animate-float box-glow">
-          <TreePine className="h-12 w-12 text-primary" />
+        <div className="inline-flex items-center justify-center w-32 h-32 mb-6 animate-float">
+          <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />
         </div>
         <h1 className="font-display text-3xl md:text-4xl text-glow mb-4">
           La Forêt de Ndogmoabeng

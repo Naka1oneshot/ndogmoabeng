@@ -5,8 +5,9 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
-import { TreePine, Loader2, ShieldAlert, Eye, Trash2, LogOut, Users } from 'lucide-react';
+import { Loader2, ShieldAlert, Eye, Trash2, LogOut, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -208,7 +209,7 @@ export default function AdminGames() {
     <div className="min-h-screen px-4 py-6">
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 max-w-5xl mx-auto">
         <div className="flex items-center gap-3">
-          <TreePine className="h-6 w-6 text-primary" />
+          <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain" />
           <h1 className="font-display text-xl">Gestion des Parties</h1>
         </div>
         <div className="flex items-center gap-3">

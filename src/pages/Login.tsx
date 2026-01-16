@@ -4,9 +4,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TreePine, Mail, Lock, AlertCircle, Shield, Loader2 } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Shield, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
+import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 const authSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -93,8 +94,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 mb-4 animate-float">
-            <TreePine className="h-8 w-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-24 h-24 mb-4 animate-float">
+            <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />
           </div>
           <h1 className="font-display text-2xl text-glow mb-2">
             La Forêt de Ndogmoabeng
