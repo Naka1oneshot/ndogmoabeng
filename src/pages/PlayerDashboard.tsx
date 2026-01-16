@@ -4,8 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { PlayerList } from '@/components/game/PlayerList';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
-import { Loader2, Clock, User, LogOut } from 'lucide-react';
+import { Loader2, Clock, User, LogOut, Coins, Trophy, Users, Swords, Check, History } from 'lucide-react';
 import { ForestButton } from '@/components/ui/ForestButton';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
@@ -14,12 +15,24 @@ interface Game {
   name: string;
   status: 'LOBBY' | 'IN_GAME' | 'ENDED';
   join_code: string;
+  manche_active: number;
 }
 
 interface Player {
   id: string;
   displayName: string;
   playerNumber: number;
+  jetons: number;
+  recompenses: number;
+  clan: string | null;
+  mateNum: number | null;
+}
+
+interface RoundBet {
+  id: string;
+  manche: number;
+  mise: number;
+  created_at: string;
 }
 
 const PLAYER_TOKEN_PREFIX = 'ndogmoabeng_player_';
@@ -32,6 +45,12 @@ export default function PlayerDashboard() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Betting state
+  const [mise, setMise] = useState<string>('0');
+  const [submittingBet, setSubmittingBet] = useState(false);
+  const [betHistory, setBetHistory] = useState<RoundBet[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const { handleLeave: presenceLeave } = usePlayerPresence({
     gameId,
@@ -107,10 +126,17 @@ export default function PlayerDashboard() {
         id: data.player.id,
         displayName: data.player.displayName,
         playerNumber: data.player.playerNumber,
+        jetons: data.player.jetons ?? 0,
+        recompenses: data.player.recompenses ?? 0,
+        clan: data.player.clan,
+        mateNum: data.player.mateNum,
       });
 
       setGame(data.game as Game);
       setLoading(false);
+
+      // Fetch bet history
+      fetchBetHistory(data.game.id, data.player.playerNumber);
 
       subscribeToGame();
     } catch (err) {
@@ -186,6 +212,67 @@ export default function PlayerDashboard() {
     };
   };
 
+  const fetchBetHistory = async (gId: string, playerNum: number) => {
+    const { data } = await supabase
+      .from('round_bets')
+      .select('id, manche, mise, created_at')
+      .eq('game_id', gId)
+      .eq('num_joueur', playerNum)
+      .order('manche', { ascending: false });
+    
+    if (data) {
+      setBetHistory(data);
+    }
+  };
+
+  const handleSubmitBet = async () => {
+    if (!game || !player) return;
+    
+    const miseValue = parseInt(mise, 10);
+    if (isNaN(miseValue) || miseValue < 0) {
+      toast.error('La mise doit être un nombre positif ou nul');
+      return;
+    }
+
+    setSubmittingBet(true);
+    try {
+      // Upsert: dernière soumission fait foi
+      const { error: upsertError } = await supabase
+        .from('round_bets')
+        .upsert(
+          {
+            game_id: game.id,
+            manche: game.manche_active,
+            num_joueur: player.playerNumber,
+            mise: miseValue,
+          },
+          { onConflict: 'game_id,manche,num_joueur' }
+        );
+
+      if (upsertError) {
+        // If upsert fails, try insert (in case no unique constraint exists)
+        const { error: insertError } = await supabase
+          .from('round_bets')
+          .insert({
+            game_id: game.id,
+            manche: game.manche_active,
+            num_joueur: player.playerNumber,
+            mise: miseValue,
+          });
+        
+        if (insertError) throw insertError;
+      }
+
+      toast.success('Mise enregistrée !');
+      fetchBetHistory(game.id, player.playerNumber);
+    } catch (err) {
+      console.error('Bet error:', err);
+      toast.error('Erreur lors de l\'enregistrement de la mise');
+    } finally {
+      setSubmittingBet(false);
+    }
+  };
+
   const handleLeave = async () => {
     if (!gameId) return;
     
@@ -258,13 +345,103 @@ export default function PlayerDashboard() {
         )}
 
         {game.status === 'IN_GAME' && (
-          <div className="card-gradient rounded-lg border border-forest-gold/30 p-6 text-center animate-pulse-glow">
-            <div className="text-4xl mb-3">🎮</div>
-            <h2 className="font-display text-lg text-forest-gold mb-2">La partie a commencé !</h2>
-            <p className="text-muted-foreground text-sm">
-              Préparez-vous à explorer la forêt mystique...
-            </p>
-          </div>
+          <>
+            {/* Section Manche Active */}
+            <div className="card-gradient rounded-lg border border-forest-gold/30 p-6">
+              <h2 className="font-display text-lg text-forest-gold mb-4 flex items-center gap-2">
+                <Swords className="h-5 w-5" />
+                Manche {game.manche_active}
+              </h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <Coins className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm">Jetons: <strong>{player.jetons}</strong></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm">Récompenses: <strong>{player.recompenses}</strong></span>
+                </div>
+                {player.clan && (
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    <span className="text-sm">Clan: <strong>{player.clan}</strong></span>
+                  </div>
+                )}
+                {player.mateNum && (
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    <span className="text-sm">Partenaire: <strong>#{player.mateNum}</strong></span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Section Phase 1 — Mise */}
+            <div className="card-gradient rounded-lg border border-primary/30 p-6">
+              <h2 className="font-display text-lg mb-4 flex items-center gap-2">
+                <Coins className="h-5 w-5 text-primary" />
+                Phase 1 — Mise
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="mise" className="text-sm text-muted-foreground mb-2 block">
+                    Votre mise pour la manche {game.manche_active}
+                  </label>
+                  <Input
+                    id="mise"
+                    type="number"
+                    min="0"
+                    value={mise}
+                    onChange={(e) => setMise(e.target.value)}
+                    className="bg-background/50"
+                    placeholder="0"
+                  />
+                </div>
+                <ForestButton 
+                  onClick={handleSubmitBet} 
+                  disabled={submittingBet}
+                  className="w-full"
+                >
+                  {submittingBet ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Valider ma mise
+                    </>
+                  )}
+                </ForestButton>
+              </div>
+
+              {/* Historique des mises */}
+              <div className="mt-4 pt-4 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <History className="h-4 w-4" />
+                  Historique de mes mises
+                </button>
+                {showHistory && betHistory.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {betHistory.map((bet) => (
+                      <div 
+                        key={bet.id} 
+                        className="flex justify-between items-center text-sm p-2 rounded bg-background/30"
+                      >
+                        <span>Manche {bet.manche}</span>
+                        <span className="font-medium">{bet.mise} jetons</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {showHistory && betHistory.length === 0 && (
+                  <p className="mt-3 text-sm text-muted-foreground">Aucune mise enregistrée</p>
+                )}
+              </div>
+            </div>
+          </>
         )}
 
         {game.status === 'ENDED' && (
