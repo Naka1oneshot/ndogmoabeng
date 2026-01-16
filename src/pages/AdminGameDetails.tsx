@@ -6,7 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import {
-  TreePine,
   Loader2,
   ShieldAlert,
   ArrowLeft,
@@ -16,6 +15,7 @@ import {
   Crown,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -286,7 +286,7 @@ export default function AdminGameDetails() {
           >
             <ArrowLeft className="h-4 w-4" />
           </ForestButton>
-          <TreePine className="h-6 w-6 text-primary" />
+          <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain" />
           <h1 className="font-display text-xl">{game.name}</h1>
           <GameStatusBadge status={game.status} />
         </div>

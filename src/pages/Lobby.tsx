@@ -4,7 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerList } from '@/components/game/PlayerList';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
-import { TreePine, Loader2, Clock } from 'lucide-react';
+import { Loader2, Clock } from 'lucide-react';
+import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
   id: string;
@@ -86,8 +87,8 @@ export default function Lobby() {
   return (
     <div className="min-h-screen px-4 py-6">
       <header className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/20 mb-4 animate-float">
-          <TreePine className="h-6 w-6 text-primary" />
+        <div className="inline-flex items-center justify-center w-16 h-16 mb-4 animate-float">
+          <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />
         </div>
         <h1 className="font-display text-xl text-glow mb-2">{game.name}</h1>
         <GameStatusBadge status={game.status} />
