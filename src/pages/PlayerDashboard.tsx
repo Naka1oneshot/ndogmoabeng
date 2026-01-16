@@ -114,6 +114,8 @@ export default function PlayerDashboard() {
   const subscribeToGame = () => {
     if (!gameId) return;
 
+    const playerToken = localStorage.getItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
+
     const channel = supabase
       .channel(`player-game-${gameId}`)
       .on(
@@ -126,6 +128,46 @@ export default function PlayerDashboard() {
         },
         (payload) => {
           setGame((prev) => prev ? { ...prev, ...payload.new } as Game : null);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'games',
+          filter: `id=eq.${gameId}`,
+        },
+        () => {
+          // Game was deleted
+          localStorage.removeItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
+          toast.error('La partie a été supprimée par le MJ');
+          navigate('/');
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'game_players',
+          filter: `game_id=eq.${gameId}`,
+        },
+        async (payload) => {
+          // Check if current player was removed
+          const updatedPlayer = payload.new as { player_token?: string; status?: string };
+          if (playerToken && updatedPlayer.status === 'REMOVED') {
+            // Verify it's us by checking token via validate-player
+            const { data } = await supabase.functions.invoke('validate-player', {
+              body: { gameId, playerToken },
+            });
+            
+            if (!data?.valid) {
+              localStorage.removeItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
+              toast.error('Vous avez été retiré de la partie par le MJ');
+              navigate('/');
+            }
+          }
         }
       )
       .subscribe();
