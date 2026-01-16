@@ -43,3 +43,6 @@ verify_jwt = false
 
 [functions.publish-event]
 verify_jwt = false
+
+[functions.close-phase1-bets]
+verify_jwt = false
