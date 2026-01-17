@@ -17,6 +17,7 @@ import { ResultsPanel } from '@/components/player/ResultsPanel';
 import { PositionsRankingPanel } from '@/components/player/PositionsRankingPanel';
 import { CombatResultsPanel } from '@/components/player/CombatResultsPanel';
 import { PlayerActionTabs } from '@/components/player/PlayerActionTabs';
+import { MancheSelector } from '@/components/player/MancheSelector';
 
 interface Game {
   id: string;
@@ -51,6 +52,14 @@ export default function PlayerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [mobileTab, setMobileTab] = useState('battle');
+  const [selectedManche, setSelectedManche] = useState<number>(1);
+
+  // Auto-reset to current manche when game.manche_active changes
+  useEffect(() => {
+    if (game?.manche_active) {
+      setSelectedManche(game.manche_active);
+    }
+  }, [game?.manche_active]);
 
   const { handleLeave: presenceLeave } = usePlayerPresence({
     gameId,
@@ -330,14 +339,27 @@ export default function PlayerDashboard() {
             {/* Center column: Battlefield + Results */}
             <div className="space-y-4 overflow-auto">
               <BattlefieldView gameId={game.id} />
+              
+              {/* Manche Selector */}
+              <div className="card-gradient rounded-lg border border-border p-3 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Historique</span>
+                <MancheSelector
+                  currentManche={game.manche_active}
+                  selectedManche={selectedManche}
+                  onMancheChange={setSelectedManche}
+                />
+              </div>
+
               <PositionsRankingPanel 
                 game={game} 
-                currentPlayerNumber={player.playerNumber} 
+                currentPlayerNumber={player.playerNumber}
+                selectedManche={selectedManche}
               />
-              <CombatResultsPanel game={game} />
+              <CombatResultsPanel game={game} selectedManche={selectedManche} />
               <ResultsPanel
                 gameId={game.id}
                 manche={game.manche_active}
+                selectedManche={selectedManche}
                 phase={game.phase}
                 phaseLocked={game.phase_locked}
               />
@@ -382,14 +404,26 @@ export default function PlayerDashboard() {
         <Tabs value={mobileTab} onValueChange={setMobileTab} className="h-full">
           <TabsContent value="battle" className="p-4 space-y-4 mt-0">
             <BattlefieldView gameId={game.id} />
+            
+            {/* Manche Selector - Mobile */}
+            <div className="card-gradient rounded-lg border border-border p-3">
+              <MancheSelector
+                currentManche={game.manche_active}
+                selectedManche={selectedManche}
+                onMancheChange={setSelectedManche}
+              />
+            </div>
+
             <PositionsRankingPanel 
               game={game} 
-              currentPlayerNumber={player.playerNumber} 
+              currentPlayerNumber={player.playerNumber}
+              selectedManche={selectedManche}
             />
-            <CombatResultsPanel game={game} />
+            <CombatResultsPanel game={game} selectedManche={selectedManche} />
             <ResultsPanel
               gameId={game.id}
               manche={game.manche_active}
+              selectedManche={selectedManche}
               phase={game.phase}
               phaseLocked={game.phase_locked}
             />

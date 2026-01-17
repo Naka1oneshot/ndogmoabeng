@@ -20,12 +20,14 @@ interface FinalPosition {
 interface ResultsPanelProps {
   gameId: string;
   manche: number;
+  selectedManche?: number;
   phase: string;
   phaseLocked: boolean;
   className?: string;
 }
 
-export function ResultsPanel({ gameId, manche, phase, phaseLocked, className }: ResultsPanelProps) {
+export function ResultsPanel({ gameId, manche, selectedManche, phase, phaseLocked, className }: ResultsPanelProps) {
+  const displayManche = selectedManche ?? manche;
   const [priorityRankings, setPriorityRankings] = useState<PriorityRanking[]>([]);
   const [finalPositions, setFinalPositions] = useState<FinalPosition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ export function ResultsPanel({ gameId, manche, phase, phaseLocked, className }: 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, manche]);
+  }, [gameId, displayManche]);
 
   const fetchResults = async () => {
     // Fetch priority rankings from priority_rankings table (computed at Phase 1 close)
@@ -78,7 +80,7 @@ export function ResultsPanel({ gameId, manche, phase, phaseLocked, className }: 
       .from('priority_rankings')
       .select('num_joueur, display_name, rank, mise_effective')
       .eq('game_id', gameId)
-      .eq('manche', manche)
+      .eq('manche', displayManche)
       .order('rank', { ascending: true });
 
     if (rankings) {
@@ -90,7 +92,7 @@ export function ResultsPanel({ gameId, manche, phase, phaseLocked, className }: 
       .from('positions_finales')
       .select('num_joueur, nom, position_finale, rang_priorite')
       .eq('game_id', gameId)
-      .eq('manche', manche)
+      .eq('manche', displayManche)
       .order('position_finale', { ascending: true });
 
     if (positions) {
@@ -100,11 +102,14 @@ export function ResultsPanel({ gameId, manche, phase, phaseLocked, className }: 
     setLoading(false);
   };
 
+  // For historical views, always show available data
+  const isHistorical = selectedManche !== undefined && selectedManche !== manche;
+
   // Show bet rankings after Phase 1 is closed (priority_rankings exists or we're past PHASE1)
   const showBetRankings = priorityRankings.length > 0;
   
-  // Show positions after Phase 2 is locked or we're past it
-  const showPositions = (phase !== 'PHASE1_MISES' && phase !== 'PHASE2_POSITIONS') || 
+  // Show positions after Phase 2 is locked or we're past it (or if viewing history)
+  const showPositions = isHistorical || (phase !== 'PHASE1_MISES' && phase !== 'PHASE2_POSITIONS') || 
                         (phase === 'PHASE2_POSITIONS' && phaseLocked);
 
   // Always show the panel (don't return null)
@@ -130,7 +135,7 @@ export function ResultsPanel({ gameId, manche, phase, phaseLocked, className }: 
             <div>
               <h4 className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
                 <Trophy className="h-3 w-3" />
-                Classement mise — Phase 1 (Manche {manche})
+                Classement mise — Phase 1 (Manche {displayManche})
               </h4>
               
               {/* Compact text format: "Daryl #1, Maeva #2, ..." */}

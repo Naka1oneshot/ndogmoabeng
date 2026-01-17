@@ -19,10 +19,12 @@ interface PublicPosition {
 interface PositionsRankingPanelProps {
   game: Game;
   currentPlayerNumber?: number;
+  selectedManche?: number;
   className?: string;
 }
 
-export function PositionsRankingPanel({ game, currentPlayerNumber, className }: PositionsRankingPanelProps) {
+export function PositionsRankingPanel({ game, currentPlayerNumber, selectedManche, className }: PositionsRankingPanelProps) {
+  const manche = selectedManche ?? game.manche_active;
   const [positions, setPositions] = useState<PublicPosition[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +39,7 @@ export function PositionsRankingPanel({ game, currentPlayerNumber, className }: 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [game.id, game.manche_active]);
+  }, [game.id, manche]);
 
   const fetchPositions = async () => {
     // Only fetch public fields: position_finale, nom, num_joueur
@@ -46,7 +48,7 @@ export function PositionsRankingPanel({ game, currentPlayerNumber, className }: 
       .from('positions_finales')
       .select('position_finale, nom, num_joueur')
       .eq('game_id', game.id)
-      .eq('manche', game.manche_active)
+      .eq('manche', manche)
       .order('position_finale', { ascending: true });
 
     setPositions(data || []);
