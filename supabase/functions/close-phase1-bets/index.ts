@@ -357,9 +357,11 @@ serve(async (req) => {
     
     const mjLogMessage = `Phase 1 clôturée. Classement priorité (mises effectives) : ${mjLogDetails}`;
 
-    // Player log (simplified, no amounts)
-    const playerLogRanking = rankedPlayers.map(rp => rp.player.display_name).join(' ; ');
-    const playerLogMessage = `Classement des mises : ${playerLogRanking}`;
+    // Player log - NEW FORMAT: "Classement mise Phase 1 : Nom1 #1, Nom2 #2, ..."
+    const playerLogRanking = rankedPlayers.map(rp => 
+      `${rp.player.display_name} #${rp.rank}`
+    ).join(', ');
+    const playerLogMessage = `Classement mise Phase 1 : ${playerLogRanking}`;
 
     // Insert into logs_mj
     await supabase.from('logs_mj').insert({
@@ -369,11 +371,11 @@ serve(async (req) => {
       details: mjLogMessage,
     });
 
-    // Insert into logs_joueurs
+    // Insert into logs_joueurs with new type PRIORITE_MISES
     await supabase.from('logs_joueurs').insert({
       game_id: gameId,
       manche,
-      type: 'PHASE1_RESULT',
+      type: 'PRIORITE_MISES',
       message: playerLogMessage,
     });
 
@@ -382,7 +384,7 @@ serve(async (req) => {
       {
         game_id: gameId,
         audience: 'ALL',
-        type: 'PHASE',
+        type: 'PRIORITE_MISES',
         message: playerLogMessage,
         payload: { 
           phase: 'PHASE1_MISES', 
