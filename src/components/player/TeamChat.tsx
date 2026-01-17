@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, MessageCircle, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -11,6 +10,8 @@ interface TeamChatProps {
   playerNum: number;
   playerName: string;
   mateNum: number | null;
+  onUnreadChange?: (count: number) => void;
+  isVisible?: boolean;
 }
 
 interface Message {
@@ -27,18 +28,43 @@ interface Teammate {
   display_name: string;
 }
 
-const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mateNum }) => {
+const TeamChat: React.FC<TeamChatProps> = ({ 
+  gameId, 
+  playerNum, 
+  playerName, 
+  mateNum,
+  onUnreadChange,
+  isVisible = true
+}) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [teammates, setTeammates] = useState<Teammate[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastReadCount = useRef(0);
 
   // Calculate a consistent mate_group ID from the pair (min of playerNum and mateNum)
-  // This ensures both players in a pair use the same group ID
   const mateGroupId = mateNum ? Math.min(playerNum, mateNum) : null;
 
-  // Fetch teammates (the player whose player_number equals our mateNum)
+  // Scroll to bottom function
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
+
+  // Reset unread when chat becomes visible
+  useEffect(() => {
+    if (isVisible && unreadCount > 0) {
+      setUnreadCount(0);
+      lastReadCount.current = messages.length;
+      onUnreadChange?.(0);
+    }
+  }, [isVisible, unreadCount, messages.length, onUnreadChange]);
+
+  // Fetch teammates
   useEffect(() => {
     if (!mateNum) return;
 
@@ -72,6 +98,9 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
 
       if (!error && data) {
         setMessages(data);
+        lastReadCount.current = data.length;
+        // Scroll after initial load
+        setTimeout(scrollToBottom, 100);
       }
     };
 
@@ -92,6 +121,18 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
           const newMsg = payload.new as Message;
           if (newMsg.mate_group === mateGroupId) {
             setMessages((prev) => [...prev, newMsg]);
+            
+            // If message is from teammate and chat is not visible, increment unread
+            if (newMsg.sender_num !== playerNum && !isVisible) {
+              setUnreadCount((prev) => {
+                const newCount = prev + 1;
+                onUnreadChange?.(newCount);
+                return newCount;
+              });
+            }
+            
+            // Scroll to bottom for new messages
+            setTimeout(scrollToBottom, 100);
           }
         }
       )
@@ -100,14 +141,7 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, mateGroupId]);
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+  }, [gameId, mateGroupId, playerNum, isVisible, onUnreadChange, scrollToBottom]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || !mateGroupId) return;
@@ -126,6 +160,8 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
       toast.error('Erreur lors de l\'envoi du message');
     } else {
       setNewMessage('');
+      // Scroll after sending
+      setTimeout(scrollToBottom, 100);
     }
     setSending(false);
   };
@@ -162,7 +198,10 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-3" ref={scrollRef}>
+      <div 
+        ref={containerRef}
+        className="flex-1 overflow-y-auto p-3"
+      >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
             <MessageCircle className="h-8 w-8 mb-2 opacity-50" />
@@ -192,9 +231,10 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
                 </span>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       {/* Input */}
       <div className="p-3 border-t border-border/50">
