@@ -58,6 +58,7 @@ interface Kill {
   monsterName: string;
   monsterId: number;
   slot: number;
+  reward: number;
 }
 
 interface ConsumedItem {
@@ -436,6 +437,7 @@ serve(async (req) => {
                 monsterName: monster.name || `Monstre ${monster.monster_id}`,
                 monsterId: monster.monster_id,
                 slot: targetSlot,
+                reward: monster.reward || 10,
               });
               
               rewardUpdates.push({ playerNum: pos.num_joueur, reward: monster.reward || 10 });
@@ -661,8 +663,9 @@ serve(async (req) => {
       return `${a.nom} a utilisé ${weaponsStr} inflige ${a.totalDamage} dégâts.`;
     }).join('\n');
 
+    // Kill messages for public log - show slot and reward
     const killMessages = kills.map(k => 
-      `⚔️ COUP DE GRÂCE: ${k.killerName} a éliminé ${k.monsterName}!`
+      `⚔️ ${k.killerName} a éliminé le monstre du Slot ${k.slot}. Récompense ${k.reward}.`
     ).join('\n');
 
     // MJ summary with full details (slots, targets, etc.)
