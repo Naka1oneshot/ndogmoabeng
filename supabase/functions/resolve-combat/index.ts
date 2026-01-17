@@ -1149,6 +1149,16 @@ serve(async (req) => {
       return `#${a.position} ${a.nom} (J${a.num_joueur}) ${slotInfo} — ${weaponsInfo} — ${a.totalDamage} dégâts${killInfo}${dotKillInfo}${protInfo}`;
     }).join('\n');
 
+    // Transition to Phase 3
+    const { error: phaseError } = await supabase
+      .from('games')
+      .update({ phase: 'PHASE3_SHOP', phase_locked: false })
+      .eq('id', gameId);
+
+    if (phaseError) {
+      console.error('[resolve-combat] Error transitioning to Phase 3:', phaseError);
+    }
+
     await Promise.all([
       supabase.from('session_events').insert({
         game_id: gameId,
@@ -1163,6 +1173,13 @@ serve(async (req) => {
           berserkerPenalties: berserkerPenalties.map(p => p.playerNum),
           voilePenalties: voilePenalties.map(p => ({ playerNum: p.playerNum, tokens: p.tokens })),
         },
+      }),
+      supabase.from('session_events').insert({
+        game_id: gameId,
+        audience: 'ALL',
+        type: 'PHASE',
+        message: '🛒 Phase 3 : Le marché est ouvert !',
+        payload: { type: 'PHASE_CHANGE', phase: 'PHASE3_SHOP' },
       }),
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
@@ -1217,6 +1234,12 @@ serve(async (req) => {
         manche: manche,
         type: 'ETAT_FORET',
         message: `🌲 État de la forêt: ${forestState.totalPvRemaining} PV restants (${kills.length} monstre(s) éliminé(s))`,
+      }),
+      supabase.from('logs_joueurs').insert({
+        game_id: gameId,
+        manche: manche,
+        type: 'PHASE',
+        message: '🛒 Phase 3 : Le marché est ouvert !',
       }),
       supabase.from('logs_mj').insert({
         game_id: gameId,
