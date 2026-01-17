@@ -1,40 +1,45 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Shield, Heart, Skull, Swords } from 'lucide-react';
+import { Loader2, Shield, Heart, Skull, Swords, Trophy, Users } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
-interface Monster {
+interface MonsterState {
   id: string;
-  monstre_id: number;
-  type: string;
-  pv_actuels: number;
-  pv_max: number;
-  statut: string;
-  recompense: number;
-}
-
-interface BattlefieldSlot {
-  id: string;
-  slot: number;
-  monstre_id_en_place: number | null;
-  pv_miroir: number;
+  monster_id: number;
+  pv_current: number;
+  status: 'EN_BATAILLE' | 'EN_FILE' | 'MORT';
+  battlefield_slot: number | null;
+  catalog?: {
+    name: string;
+    pv_max_default: number;
+    reward_default: number;
+  };
+  config?: {
+    pv_max_override: number | null;
+    reward_override: number | null;
+  };
 }
 
 interface BattlefieldViewProps {
   gameId: string;
   className?: string;
+  showDetails?: boolean; // For MJ to see extra info
 }
 
 const statusColors: Record<string, string> = {
   EN_BATAILLE: 'text-red-400 bg-red-500/10',
   EN_FILE: 'text-amber-400 bg-amber-500/10',
   MORT: 'text-muted-foreground bg-muted/50',
-  VAINCU: 'text-green-400 bg-green-500/10',
 };
 
-export function BattlefieldView({ gameId, className }: BattlefieldViewProps) {
-  const [battlefield, setBattlefield] = useState<BattlefieldSlot[]>([]);
-  const [monsters, setMonsters] = useState<Monster[]>([]);
+const statusLabels: Record<string, string> = {
+  EN_BATAILLE: 'En combat',
+  EN_FILE: 'En file',
+  MORT: 'Vaincu',
+};
+
+export function BattlefieldView({ gameId, className, showDetails = false }: BattlefieldViewProps) {
+  const [monsters, setMonsters] = useState<MonsterState[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,17 +52,7 @@ export function BattlefieldView({ gameId, className }: BattlefieldViewProps) {
         {
           event: '*',
           schema: 'public',
-          table: 'battlefield',
-          filter: `game_id=eq.${gameId}`,
-        },
-        () => fetchData()
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'monsters',
+          table: 'game_state_monsters',
           filter: `game_id=eq.${gameId}`,
         },
         () => fetchData()
@@ -70,32 +65,78 @@ export function BattlefieldView({ gameId, className }: BattlefieldViewProps) {
   }, [gameId]);
 
   const fetchData = async () => {
-    const [battlefieldRes, monstersRes] = await Promise.all([
+    // Fetch runtime state with catalog and config info
+    const { data: stateData, error: stateError } = await supabase
+      .from('game_state_monsters')
+      .select(`
+        id,
+        monster_id,
+        pv_current,
+        status,
+        battlefield_slot
+      `)
+      .eq('game_id', gameId)
+      .order('battlefield_slot', { ascending: true, nullsFirst: false });
+
+    if (stateError) {
+      console.error('Error fetching monster state:', stateError);
+      setLoading(false);
+      return;
+    }
+
+    if (!stateData || stateData.length === 0) {
+      setMonsters([]);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch catalog info for these monsters
+    const monsterIds = stateData.map(m => m.monster_id);
+    const [catalogRes, configRes] = await Promise.all([
       supabase
-        .from('battlefield')
-        .select('*')
+        .from('monster_catalog')
+        .select('id, name, pv_max_default, reward_default')
+        .in('id', monsterIds),
+      supabase
+        .from('game_monsters')
+        .select('monster_id, pv_max_override, reward_override')
         .eq('game_id', gameId)
-        .order('slot', { ascending: true }),
-      supabase
-        .from('monsters')
-        .select('*')
-        .eq('game_id', gameId),
+        .in('monster_id', monsterIds),
     ]);
 
-    if (battlefieldRes.data) {
-      setBattlefield(battlefieldRes.data);
-    }
-    if (monstersRes.data) {
-      setMonsters(monstersRes.data);
-    }
+    const catalogMap = new Map(
+      (catalogRes.data || []).map(c => [c.id, c])
+    );
+    const configMap = new Map(
+      (configRes.data || []).map(c => [c.monster_id, c])
+    );
+
+    const enrichedMonsters: MonsterState[] = stateData.map(m => ({
+      ...m,
+      status: m.status as 'EN_BATAILLE' | 'EN_FILE' | 'MORT',
+      catalog: catalogMap.get(m.monster_id),
+      config: configMap.get(m.monster_id),
+    }));
+
+    setMonsters(enrichedMonsters);
     setLoading(false);
   };
 
-  const getMonsterForSlot = (slotNum: number): Monster | null => {
-    const slot = battlefield.find((s) => s.slot === slotNum);
-    if (!slot || !slot.monstre_id_en_place) return null;
-    return monsters.find((m) => m.monstre_id === slot.monstre_id_en_place) || null;
+  const getMonsterPvMax = (monster: MonsterState): number => {
+    return monster.config?.pv_max_override ?? monster.catalog?.pv_max_default ?? 10;
   };
+
+  const getMonsterReward = (monster: MonsterState): number => {
+    return monster.config?.reward_override ?? monster.catalog?.reward_default ?? 10;
+  };
+
+  const getMonsterName = (monster: MonsterState): string => {
+    return monster.catalog?.name ?? `Monstre #${monster.monster_id}`;
+  };
+
+  const battlefieldMonsters = monsters.filter(m => m.status === 'EN_BATAILLE' && m.battlefield_slot);
+  const queueMonsters = monsters.filter(m => m.status === 'EN_FILE');
+  const deadMonsters = monsters.filter(m => m.status === 'MORT');
 
   const slots = [1, 2, 3];
 
@@ -107,58 +148,82 @@ export function BattlefieldView({ gameId, className }: BattlefieldViewProps) {
     );
   }
 
+  if (monsters.length === 0) {
+    return (
+      <div className={`card-gradient rounded-lg border border-border ${className}`}>
+        <div className="p-3 border-b border-border flex items-center gap-2">
+          <Swords className="h-4 w-4 text-red-400" />
+          <h3 className="font-display text-sm">Champ de Bataille</h3>
+        </div>
+        <div className="p-8 text-center text-muted-foreground text-sm">
+          Aucun monstre initialisé
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`card-gradient rounded-lg border border-border ${className}`}>
       <div className="p-3 border-b border-border flex items-center gap-2">
         <Swords className="h-4 w-4 text-red-400" />
         <h3 className="font-display text-sm">Champ de Bataille</h3>
+        {showDetails && (
+          <span className="text-xs text-muted-foreground ml-auto">
+            {battlefieldMonsters.length}/3 actifs • {queueMonsters.length} en file
+          </span>
+        )}
       </div>
 
+      {/* Battlefield slots */}
       <div className="p-4 grid grid-cols-3 gap-3">
         {slots.map((slotNum) => {
-          const monster = getMonsterForSlot(slotNum);
-          const slotData = battlefield.find((s) => s.slot === slotNum);
-          
+          const monster = battlefieldMonsters.find(m => m.battlefield_slot === slotNum);
+
           return (
             <div
               key={slotNum}
               className="flex flex-col items-center p-3 rounded-lg bg-secondary/30 border border-border min-h-[140px]"
             >
               <div className="text-xs text-muted-foreground mb-2">Slot {slotNum}</div>
-              
+
               {monster ? (
                 <>
                   <div className="text-2xl mb-1">
-                    {monster.statut === 'MORT' || monster.statut === 'VAINCU' ? (
+                    {monster.status === 'MORT' ? (
                       <Skull className="h-8 w-8 text-muted-foreground" />
                     ) : (
                       '🐉'
                     )}
                   </div>
                   <div className="text-sm font-medium text-center truncate w-full">
-                    {monster.type}
+                    {getMonsterName(monster)}
                   </div>
-                  
-                  <div className="w-full mt-2 space-y-1">
-                    <div className="flex items-center gap-1 text-xs">
-                      <Heart className="h-3 w-3 text-red-400" />
-                      <span>{monster.pv_actuels}/{monster.pv_max}</span>
+
+                  {showDetails && (
+                    <div className="text-xs text-muted-foreground">
+                      ID: {monster.monster_id}
                     </div>
-                    <Progress 
-                      value={(monster.pv_actuels / monster.pv_max) * 100} 
+                  )}
+
+                  <div className="w-full mt-2 space-y-1">
+                    <div className="flex items-center justify-between gap-1 text-xs">
+                      <div className="flex items-center gap-1">
+                        <Heart className="h-3 w-3 text-red-400" />
+                        <span>{monster.pv_current}/{getMonsterPvMax(monster)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-amber-400">
+                        <Trophy className="h-3 w-3" />
+                        <span>{getMonsterReward(monster)}</span>
+                      </div>
+                    </div>
+                    <Progress
+                      value={(monster.pv_current / getMonsterPvMax(monster)) * 100}
                       className="h-1.5"
                     />
                   </div>
 
-                  {slotData?.pv_miroir && slotData.pv_miroir > 0 && (
-                    <div className="flex items-center gap-1 text-xs mt-1 text-cyan-400">
-                      <Shield className="h-3 w-3" />
-                      <span>Miroir: {slotData.pv_miroir}</span>
-                    </div>
-                  )}
-
-                  <div className={`text-xs mt-2 px-2 py-0.5 rounded ${statusColors[monster.statut] || ''}`}>
-                    {monster.statut}
+                  <div className={`text-xs mt-2 px-2 py-0.5 rounded ${statusColors[monster.status] || ''}`}>
+                    {statusLabels[monster.status]}
                   </div>
                 </>
               ) : (
@@ -172,21 +237,51 @@ export function BattlefieldView({ gameId, className }: BattlefieldViewProps) {
       </div>
 
       {/* Monsters in queue */}
-      {monsters.filter(m => m.statut === 'EN_FILE').length > 0 && (
+      {queueMonsters.length > 0 && (
         <div className="px-4 pb-4">
-          <div className="text-xs text-muted-foreground mb-2">File d'attente</div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+            <Users className="h-3 w-3" />
+            <span>File d'attente ({queueMonsters.length})</span>
+          </div>
           <div className="flex flex-wrap gap-2">
-            {monsters
-              .filter((m) => m.statut === 'EN_FILE')
-              .map((monster) => (
-                <div
-                  key={monster.id}
-                  className="flex items-center gap-1 text-xs bg-amber-500/10 text-amber-400 px-2 py-1 rounded"
-                >
-                  <span>🐉</span>
-                  <span>{monster.type}</span>
+            {queueMonsters.map((monster) => (
+              <div
+                key={monster.id}
+                className="flex items-center gap-2 text-xs bg-amber-500/10 text-amber-400 px-3 py-1.5 rounded-lg border border-amber-500/20"
+              >
+                <span>🐉</span>
+                <div className="flex flex-col">
+                  <span className="font-medium">{getMonsterName(monster)}</span>
+                  <span className="text-amber-300/70 text-[10px]">
+                    PV: {getMonsterPvMax(monster)} • 💰{getMonsterReward(monster)}
+                  </span>
                 </div>
-              ))}
+                {showDetails && (
+                  <span className="text-amber-300/50 text-[10px]">#{monster.monster_id}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Dead monsters (collapsed by default, shown if showDetails) */}
+      {showDetails && deadMonsters.length > 0 && (
+        <div className="px-4 pb-4 border-t border-border pt-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+            <Skull className="h-3 w-3" />
+            <span>Vaincus ({deadMonsters.length})</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {deadMonsters.map((monster) => (
+              <div
+                key={monster.id}
+                className="flex items-center gap-1 text-xs bg-muted/30 text-muted-foreground px-2 py-1 rounded"
+              >
+                <span>💀</span>
+                <span>{getMonsterName(monster)}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}

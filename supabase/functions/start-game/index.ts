@@ -166,6 +166,40 @@ serve(async (req) => {
     
     console.log("Player inventories initialized");
 
+    // Initialize game monsters (from game_monsters config -> game_state_monsters runtime)
+    console.log("Initializing game monsters...");
+    
+    // Check if game_monsters already exist, if not initialize from catalog
+    const { data: existingGameMonsters } = await supabase
+      .from("game_monsters")
+      .select("id")
+      .eq("game_id", gameId)
+      .limit(1);
+    
+    if (!existingGameMonsters || existingGameMonsters.length === 0) {
+      // Initialize game_monsters from catalog defaults
+      const { error: initMonsterConfigError } = await supabase.rpc(
+        "initialize_game_monsters",
+        { p_game_id: gameId }
+      );
+      if (initMonsterConfigError) {
+        console.error("Monster config init error:", initMonsterConfigError);
+      } else {
+        console.log("Game monsters config initialized from catalog");
+      }
+    }
+    
+    // Initialize runtime state (game_state_monsters) - idempotent
+    const { error: initMonsterStateError } = await supabase.rpc(
+      "initialize_game_state_monsters",
+      { p_game_id: gameId }
+    );
+    if (initMonsterStateError) {
+      console.error("Monster state init error:", initMonsterStateError);
+    } else {
+      console.log("Game monsters runtime state initialized");
+    }
+
     // Update game status to IN_GAME with phase
     const { error: gameUpdateError } = await supabase
       .from("games")
