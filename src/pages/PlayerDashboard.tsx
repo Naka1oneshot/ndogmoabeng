@@ -14,6 +14,8 @@ import { BattlefieldView } from '@/components/player/BattlefieldView';
 import { PlayerInventory } from '@/components/player/PlayerInventory';
 import { PhasePanel } from '@/components/player/PhasePanel';
 import { ResultsPanel } from '@/components/player/ResultsPanel';
+import { PositionsRankingPanel } from '@/components/player/PositionsRankingPanel';
+import { CombatResultsPanel } from '@/components/player/CombatResultsPanel';
 
 interface Game {
   id: string;
@@ -325,6 +327,11 @@ export default function PlayerDashboard() {
             {/* Center column: Battlefield + Results */}
             <div className="space-y-4 overflow-auto">
               <BattlefieldView gameId={game.id} />
+              <PositionsRankingPanel 
+                game={game} 
+                currentPlayerNumber={player.playerNumber} 
+              />
+              <CombatResultsPanel game={game} />
               <ResultsPanel
                 gameId={game.id}
                 manche={game.manche_active}
@@ -372,6 +379,11 @@ export default function PlayerDashboard() {
         <Tabs value={mobileTab} onValueChange={setMobileTab} className="h-full">
           <TabsContent value="battle" className="p-4 space-y-4 mt-0">
             <BattlefieldView gameId={game.id} />
+            <PositionsRankingPanel 
+              game={game} 
+              currentPlayerNumber={player.playerNumber} 
+            />
+            <CombatResultsPanel game={game} />
             <ResultsPanel
               gameId={game.id}
               manche={game.manche_active}
