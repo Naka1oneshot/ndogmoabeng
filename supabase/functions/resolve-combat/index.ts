@@ -16,6 +16,7 @@ interface ItemCatalog {
   persistence: string;
   ignore_protection: boolean;
   special_effect: string;
+  special_value: string | null;
   consumable: boolean;
 }
 
@@ -50,6 +51,7 @@ interface PublicAction {
   totalHeal: number;
   cancelled: boolean;
   cancelReason?: string;
+  dotDamage?: number; // Extra damage from DOT effects
 }
 
 interface Kill {
@@ -59,6 +61,7 @@ interface Kill {
   monsterId: number;
   slot: number;
   reward: number;
+  fromDot?: boolean; // Kill from DOT effect
 }
 
 interface ConsumedItem {
@@ -84,6 +87,20 @@ interface MJAction {
   cancelled: boolean;
   cancelReason?: string;
   killed?: string;
+  dotDamage?: number;
+  dotKills?: string[];
+}
+
+// Pending effect for DOT/delayed damage
+interface PendingEffect {
+  sourcePlayerNum: number;
+  sourcePlayerName: string;
+  weaponName: string;
+  type: 'DOT' | 'DELAYED';
+  damage: number;
+  targetSlots: number[]; // [1,2,3] for AOE, or [slot] for single
+  triggersAfterPlayers: number; // Number of players that must attack before this triggers
+  remainingTriggers: number; // How many more triggers remain
 }
 
 serve(async (req) => {
@@ -249,6 +266,10 @@ serve(async (req) => {
     // Permanent item that should never be consumed
     const PERMANENT_WEAPON = 'Par défaut (+2 si compagnon Akandé)';
     
+    // Pending DOT/delayed effects
+    const pendingEffects: PendingEffect[] = [];
+    const dotLogs: string[] = [];
+    
     // Helper function to track item consumption
     const trackItemConsumption = (playerNum: number, playerName: string, itemName: string) => {
       if (!itemName || itemName === 'Aucune' || itemName === '' || itemName === PERMANENT_WEAPON) {
@@ -264,10 +285,96 @@ serve(async (req) => {
         wasInInventory: hasItem,
       });
     };
+    
+    // Helper to apply damage to a monster and check for kill
+    const applyDamageToMonster = (
+      slot: number, 
+      damage: number, 
+      attackerNum: number, 
+      attackerName: string,
+      fromDot: boolean = false
+    ): { killed: boolean; monsterName: string | null } => {
+      const monster = monsterBySlot.get(slot);
+      if (!monster || monster.status !== 'EN_BATAILLE') {
+        return { killed: false, monsterName: null };
+      }
+      
+      monster.pv_current = Math.max(0, monster.pv_current - damage);
+      
+      if (monster.pv_current <= 0) {
+        monster.status = 'MORT';
+        
+        kills.push({
+          killerName: attackerName,
+          killerNum: attackerNum,
+          monsterName: monster.name || `Monstre ${monster.monster_id}`,
+          monsterId: monster.monster_id,
+          slot: slot,
+          reward: monster.reward || 10,
+          fromDot,
+        });
+        
+        rewardUpdates.push({ playerNum: attackerNum, reward: monster.reward || 10 });
+        return { killed: true, monsterName: monster.name || null };
+      }
+      
+      return { killed: false, monsterName: monster.name || null };
+    };
+    
+    // Helper to process pending DOT effects after a player's turn
+    const processPendingEffects = (afterPosition: number): string[] => {
+      const effectLogs: string[] = [];
+      
+      for (const effect of pendingEffects) {
+        if (effect.remainingTriggers > 0) {
+          effect.remainingTriggers--;
+          
+          if (effect.remainingTriggers === 0 || effect.type === 'DOT') {
+            // Apply the effect
+            const killedMonsters: string[] = [];
+            
+            for (const slot of effect.targetSlots) {
+              const result = applyDamageToMonster(
+                slot, 
+                effect.damage, 
+                effect.sourcePlayerNum, 
+                effect.sourcePlayerName,
+                true
+              );
+              if (result.killed && result.monsterName) {
+                killedMonsters.push(`${result.monsterName} (Slot ${slot})`);
+              }
+            }
+            
+            const slotsStr = effect.targetSlots.length === 3 ? 'tous les slots' : `slot ${effect.targetSlots.join(', ')}`;
+            let logMsg = `🔥 ${effect.weaponName} de ${effect.sourcePlayerName} inflige ${effect.damage} dégâts sur ${slotsStr}`;
+            
+            if (killedMonsters.length > 0) {
+              logMsg += ` — ⚔️ KILL: ${killedMonsters.join(', ')}`;
+            }
+            
+            effectLogs.push(logMsg);
+            
+            // For DOT effects that continue, reset the trigger counter
+            if (effect.type === 'DOT' && effect.triggersAfterPlayers > 0) {
+              effect.triggersAfterPlayers--;
+              if (effect.triggersAfterPlayers > 0) {
+                effect.remainingTriggers = 1; // Reset for next player
+              }
+            }
+          }
+        }
+      }
+      
+      return effectLogs;
+    };
+    
     const berserkerPlayers: number[] = [];
 
     // Process each player in order of position_finale
-    for (const pos of positions as PositionFinale[]) {
+    for (let i = 0; i < (positions as PositionFinale[]).length; i++) {
+      const pos = (positions as PositionFinale[])[i];
+      
       const mjAction: MJAction = {
         position: pos.position_finale,
         nom: pos.nom,
@@ -282,6 +389,8 @@ serve(async (req) => {
         totalDamage: 0,
         targetMonster: null,
         cancelled: false,
+        dotDamage: 0,
+        dotKills: [],
       };
 
       const publicAction: PublicAction = {
@@ -292,6 +401,7 @@ serve(async (req) => {
         totalDamage: 0,
         totalHeal: 0,
         cancelled: false,
+        dotDamage: 0,
       };
 
       // Process protection first (activates for subsequent attacks)
@@ -329,71 +439,106 @@ serve(async (req) => {
         if (voile && voile.activatedAt < pos.position_finale) {
           attackCancelled = true;
           cancelReason = 'Voile de Brume';
-          // Note: penalty would be applied to jetons but we need damage first
         }
       }
 
       // Process attacks
       let damage1 = 0;
       let damage2 = 0;
+      let aoeImmediate1 = 0;
+      let aoeImmediate2 = 0;
+
+      // Helper to process a single attack
+      const processAttack = (attackName: string | null): { damage: number; isAoe: boolean; aoeDamage: number } => {
+        if (!attackName || attackName === 'Aucune') {
+          return { damage: 0, isAoe: false, aoeDamage: 0 };
+        }
+        
+        const item = itemMap.get(attackName);
+        if (!item) {
+          return { damage: 0, isAoe: false, aoeDamage: 0 };
+        }
+        
+        // Akande clan bonus (only for default weapon)
+        let bonus = 0;
+        if (pos.clan === 'Akandé' && attackName === PERMANENT_WEAPON) {
+          bonus = 2;
+        }
+        
+        const baseDamage = (item.base_damage || 0) + bonus;
+        
+        // Check for special effects
+        if (item.special_effect === 'DOT' && item.target === 'AOE_3') {
+          // Grenade incendiaire: 1 damage to all 3 slots immediately + DOT for 2 next players
+          const numPlayers = parseInt(item.special_value || '2', 10);
+          
+          // Register pending DOT effect
+          pendingEffects.push({
+            sourcePlayerNum: pos.num_joueur,
+            sourcePlayerName: pos.nom,
+            weaponName: attackName,
+            type: 'DOT',
+            damage: baseDamage,
+            targetSlots: [1, 2, 3],
+            triggersAfterPlayers: numPlayers,
+            remainingTriggers: 1, // Trigger after each of the next N players
+          });
+          
+          return { damage: 0, isAoe: true, aoeDamage: baseDamage }; // Immediate AOE damage
+        }
+        
+        if (item.special_effect === 'DEGATS_RETARDES') {
+          // Grenade Frag: delayed damage at end of next player's turn
+          const numPlayers = parseInt(item.special_value || '1', 10);
+          
+          pendingEffects.push({
+            sourcePlayerNum: pos.num_joueur,
+            sourcePlayerName: pos.nom,
+            weaponName: attackName,
+            type: 'DELAYED',
+            damage: baseDamage,
+            targetSlots: targetSlot ? [targetSlot] : [],
+            triggersAfterPlayers: numPlayers,
+            remainingTriggers: numPlayers,
+          });
+          
+          return { damage: 0, isAoe: false, aoeDamage: 0 }; // No immediate damage
+        }
+        
+        // Check if ignore_protection
+        if (item.ignore_protection && targetSlot) {
+          attackCancelled = false;
+          cancelReason = '';
+        }
+        
+        // Track Piqure Berseker
+        if (attackName === 'Piqure Berseker') {
+          berserkerPlayers.push(pos.num_joueur);
+        }
+        
+        return { damage: baseDamage, isAoe: false, aoeDamage: 0 };
+      };
 
       if (pos.attaque1 && pos.attaque1 !== 'Aucune') {
-        const item1 = itemMap.get(pos.attaque1);
-        if (item1) {
-          publicAction.weapons.push(pos.attaque1);
-          
-          // Akande clan bonus (only for default weapon)
-          let bonus = 0;
-          if (pos.clan === 'Akandé' && pos.attaque1 === PERMANENT_WEAPON) {
-            bonus = 2;
-          }
-          
-          damage1 = (item1.base_damage || 0) + bonus;
-          
-          // Check if ignore_protection
-          if (item1.ignore_protection && targetSlot) {
-            // Totem de Rupture ignores shield
-            const shield = shieldBySlot.get(targetSlot);
-            if (!shield || shield.activatedAt >= pos.position_finale) {
-              // Shield not active yet or doesn't apply
-            }
-            // Ignore protection regardless
-            attackCancelled = false;
-            cancelReason = '';
-          }
-          
-          // Track Piqure Berseker
-          if (pos.attaque1 === 'Piqure Berseker') {
-            berserkerPlayers.push(pos.num_joueur);
-          }
-
-          // Track attack item for consumption (ALL attacks except permanent weapon)
-          trackItemConsumption(pos.num_joueur, pos.nom, pos.attaque1);
-        }
+        publicAction.weapons.push(pos.attaque1);
+        const result = processAttack(pos.attaque1);
+        damage1 = result.damage;
+        aoeImmediate1 = result.aoeDamage;
+        trackItemConsumption(pos.num_joueur, pos.nom, pos.attaque1);
       }
 
       if (pos.attaque2 && pos.attaque2 !== 'Aucune') {
-        const item2 = itemMap.get(pos.attaque2);
-        if (item2) {
-          publicAction.weapons.push(pos.attaque2);
-          
-          // Akande clan bonus (only for default weapon)
-          let bonus = 0;
-          if (pos.clan === 'Akandé' && pos.attaque2 === PERMANENT_WEAPON) {
-            bonus = 2;
-          }
-          
-          damage2 = (item2.base_damage || 0) + bonus;
-
-          // Track attack item for consumption (ALL attacks except permanent weapon)
-          trackItemConsumption(pos.num_joueur, pos.nom, pos.attaque2);
-        }
+        publicAction.weapons.push(pos.attaque2);
+        const result = processAttack(pos.attaque2);
+        damage2 = result.damage;
+        aoeImmediate2 = result.aoeDamage;
+        trackItemConsumption(pos.num_joueur, pos.nom, pos.attaque2);
       }
 
       mjAction.damage1 = damage1;
       mjAction.damage2 = damage2;
 
-      // Apply cancellation
+      // Apply cancellation to direct damage only
       if (attackCancelled) {
         mjAction.cancelled = true;
         mjAction.cancelReason = cancelReason;
@@ -403,12 +548,25 @@ serve(async (req) => {
         damage2 = 0;
       }
 
-      const totalDamage = damage1 + damage2;
-      mjAction.totalDamage = totalDamage;
-      publicAction.totalDamage = totalDamage;
+      const totalDirectDamage = damage1 + damage2;
+      
+      // Apply AOE immediate damage (Grenade incendiaire) - not affected by cancellation on single slot
+      const totalAoeDamage = aoeImmediate1 + aoeImmediate2;
+      if (totalAoeDamage > 0) {
+        for (const slot of [1, 2, 3]) {
+          const result = applyDamageToMonster(slot, totalAoeDamage, pos.num_joueur, pos.nom, false);
+          if (result.killed && result.monsterName) {
+            mjAction.killed = (mjAction.killed ? mjAction.killed + ', ' : '') + result.monsterName;
+          }
+        }
+        dotLogs.push(`🔥 ${pos.nom} lance Grenade incendiaire : ${totalAoeDamage} dégâts immédiats sur tous les slots`);
+      }
 
-      // Apply damage to monster
-      if (targetSlot && totalDamage > 0) {
+      mjAction.totalDamage = totalDirectDamage;
+      publicAction.totalDamage = totalDirectDamage + (totalAoeDamage * 3); // Total damage including AOE
+
+      // Apply direct damage to target monster
+      if (targetSlot && totalDirectDamage > 0) {
         const monster = monsterBySlot.get(targetSlot);
         if (monster && monster.status === 'EN_BATAILLE') {
           mjAction.targetMonster = monster.name || null;
@@ -421,26 +579,12 @@ serve(async (req) => {
             mjAction.cancelReason = 'Bouclier Miroir';
             publicAction.cancelled = true;
             publicAction.cancelReason = 'Attaque bloquée';
-            publicAction.totalDamage = 0;
+            publicAction.totalDamage = totalAoeDamage * 3; // Only AOE damage counts
           } else {
             // Apply damage
-            monster.pv_current = Math.max(0, monster.pv_current - totalDamage);
-            
-            // Check kill
-            if (monster.pv_current <= 0) {
-              monster.status = 'MORT';
-              mjAction.killed = monster.name;
-              
-              kills.push({
-                killerName: pos.nom,
-                killerNum: pos.num_joueur,
-                monsterName: monster.name || `Monstre ${monster.monster_id}`,
-                monsterId: monster.monster_id,
-                slot: targetSlot,
-                reward: monster.reward || 10,
-              });
-              
-              rewardUpdates.push({ playerNum: pos.num_joueur, reward: monster.reward || 10 });
+            const result = applyDamageToMonster(targetSlot, totalDirectDamage, pos.num_joueur, pos.nom, false);
+            if (result.killed && result.monsterName) {
+              mjAction.killed = (mjAction.killed ? mjAction.killed + ', ' : '') + result.monsterName;
             }
           }
         }
@@ -448,6 +592,22 @@ serve(async (req) => {
 
       publicActions.push(publicAction);
       mjActions.push(mjAction);
+      
+      // Process pending DOT/delayed effects after this player's turn
+      const effectLogs = processPendingEffects(pos.position_finale);
+      if (effectLogs.length > 0) {
+        dotLogs.push(...effectLogs);
+        // Update the MJ action with DOT kills
+        for (const log of effectLogs) {
+          if (log.includes('KILL:')) {
+            const killMatch = log.match(/KILL: (.+)$/);
+            if (killMatch) {
+              mjAction.dotKills = mjAction.dotKills || [];
+              mjAction.dotKills.push(killMatch[1]);
+            }
+          }
+        }
+      }
     }
 
     // Berserker penalty: -10 jetons if no kill
@@ -664,9 +824,10 @@ serve(async (req) => {
     }).join('\n');
 
     // Kill messages for public log - show slot and reward
-    const killMessages = kills.map(k => 
-      `⚔️ ${k.killerName} a éliminé le monstre du Slot ${k.slot}. Récompense ${k.reward}.`
-    ).join('\n');
+    const killMessages = kills.map(k => {
+      const dotSuffix = k.fromDot ? ' (effet retardé)' : '';
+      return `⚔️ ${k.killerName} a éliminé le monstre du Slot ${k.slot}. Récompense ${k.reward}.${dotSuffix}`;
+    }).join('\n');
 
     // Berseker penalty messages for public log
     const bersekerPenaltyMessages = berserkerPenalties.length > 0 
@@ -675,6 +836,9 @@ serve(async (req) => {
           return `💀 ${playerName} a utilisé Piqure Berseker sans coup de grâce : -10 jetons`;
         }).join('\n')
       : '';
+
+    // DOT effects log for public
+    const dotPublicMessages = dotLogs.length > 0 ? dotLogs.join('\n') : '';
 
     // MJ summary with full details (slots, targets, etc.)
     const mjAttackMessages = mjActions.map(a => {
@@ -687,7 +851,8 @@ serve(async (req) => {
       }
       
       const killInfo = a.killed ? ` — ⚔️ KILL: ${a.killed}` : '';
-      return `#${a.position} ${a.nom} (J${a.num_joueur}) ${slotInfo} — ${weaponsInfo} — ${a.totalDamage} dégâts${killInfo}${protInfo}`;
+      const dotKillInfo = a.dotKills && a.dotKills.length > 0 ? ` — 🔥 DOT KILL: ${a.dotKills.join(', ')}` : '';
+      return `#${a.position} ${a.nom} (J${a.num_joueur}) ${slotInfo} — ${weaponsInfo} — ${a.totalDamage} dégâts${killInfo}${dotKillInfo}${protInfo}`;
     }).join('\n');
 
     await Promise.all([
@@ -700,7 +865,7 @@ serve(async (req) => {
         payload: { 
           type: 'COMBAT_RESOLVED',
           summary: publicSummary,
-          kills: kills.map(k => ({ killer: k.killerName, monster: k.monsterName })),
+          kills: kills.map(k => ({ killer: k.killerName, monster: k.monsterName, fromDot: k.fromDot })),
           forestState,
           berserkerPenalties: berserkerPenalties.map(p => p.playerNum),
         },
@@ -724,6 +889,12 @@ serve(async (req) => {
         type: 'PENALITE_BERSEKER',
         message: bersekerPenaltyMessages,
       }) : Promise.resolve(),
+      dotPublicMessages ? supabase.from('logs_joueurs').insert({
+        game_id: gameId,
+        manche: manche,
+        type: 'EFFETS_RETARDES',
+        message: dotPublicMessages,
+      }) : Promise.resolve(),
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
         manche: manche,
@@ -741,7 +912,7 @@ serve(async (req) => {
         game_id: gameId,
         manche: manche,
         action: 'COMBAT_DATA',
-        details: JSON.stringify({ kills, rewards: rewardUpdates, berserkerPenalties }),
+        details: JSON.stringify({ kills, rewards: rewardUpdates, berserkerPenalties, dotEffects: dotLogs }),
       }),
     ]);
 
@@ -751,15 +922,16 @@ serve(async (req) => {
       .update({ phase: 'PHASE3_SHOP', phase_locked: false })
       .eq('id', gameId);
 
-    console.log(`[resolve-combat] Combat resolved for game ${gameId}, manche ${manche}. Kills: ${kills.length}`);
+    console.log(`[resolve-combat] Combat resolved for game ${gameId}, manche ${manche}. Kills: ${kills.length}, DOT effects: ${dotLogs.length}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Combat résolu',
         publicSummary,
-        kills: kills.map(k => ({ killer: k.killerName, monster: k.monsterName })),
+        kills: kills.map(k => ({ killer: k.killerName, monster: k.monsterName, fromDot: k.fromDot })),
         forestState,
+        dotEffects: dotLogs,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
