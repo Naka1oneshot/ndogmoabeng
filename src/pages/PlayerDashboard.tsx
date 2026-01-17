@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock } from 'lucide-react';
+import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock, ShoppingBag } from 'lucide-react';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ import { PhasePanel } from '@/components/player/PhasePanel';
 import { ResultsPanel } from '@/components/player/ResultsPanel';
 import { PositionsRankingPanel } from '@/components/player/PositionsRankingPanel';
 import { CombatResultsPanel } from '@/components/player/CombatResultsPanel';
+import { ShopPanel } from '@/components/player/ShopPanel';
 
 interface Game {
   id: string;
@@ -35,6 +36,7 @@ interface Player {
   recompenses: number;
   clan: string | null;
   mateNum: number | null;
+  playerToken?: string;
 }
 
 const PLAYER_TOKEN_PREFIX = 'ndogmoabeng_player_';
@@ -127,6 +129,7 @@ export default function PlayerDashboard() {
         recompenses: data.player.recompenses ?? 0,
         clan: data.player.clan,
         mateNum: data.player.mateNum,
+        playerToken,
       });
 
       setGame(data.game as Game);
@@ -351,6 +354,9 @@ export default function PlayerDashboard() {
                 mateNum={player.mateNum}
               />
               <PhasePanel game={game} player={player} />
+              {game.phase === 'PHASE3_SHOP' && (
+                <ShopPanel game={game} player={player} />
+              )}
             </div>
           </div>
         </main>
@@ -407,8 +413,11 @@ export default function PlayerDashboard() {
             />
           </TabsContent>
 
-          <TabsContent value="phase" className="p-4 mt-0">
+          <TabsContent value="phase" className="p-4 mt-0 space-y-4">
             <PhasePanel game={game} player={player} />
+            {game.phase === 'PHASE3_SHOP' && (
+              <ShopPanel game={game} player={player} />
+            )}
           </TabsContent>
 
           {/* Fixed bottom tabs */}

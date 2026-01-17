@@ -14,6 +14,7 @@ import { MJCombatTab } from './MJCombatTab';
 import { MJEventsTab } from './MJEventsTab';
 import { MJMonstersConfigTab } from './MJMonstersConfigTab';
 import { MJItemsShopTab } from './MJItemsShopTab';
+import { MJShopPhaseTab } from './MJShopPhaseTab';
 import { 
   ChevronLeft, Loader2, Users, Settings, Swords, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
@@ -263,7 +264,11 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         </TabsContent>
 
         <TabsContent value="shop" className="mt-6">
-          <MJItemsShopTab game={game} />
+          <div className="space-y-6">
+            <MJShopPhaseTab game={game} />
+            <hr className="border-border" />
+            <MJItemsShopTab game={game} />
+          </div>
         </TabsContent>
 
         <TabsContent value="inventory" className="mt-6">
