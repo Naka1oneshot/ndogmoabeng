@@ -202,6 +202,50 @@ export type Database = {
           },
         ]
       }
+      game_item_purchases: {
+        Row: {
+          cost: number
+          created_at: string
+          game_id: string
+          id: string
+          item_name: string
+          manche: number
+          player_id: string
+          player_num: number
+          purchased_at: string
+        }
+        Insert: {
+          cost: number
+          created_at?: string
+          game_id: string
+          id?: string
+          item_name: string
+          manche: number
+          player_id: string
+          player_num: number
+          purchased_at?: string
+        }
+        Update: {
+          cost?: number
+          created_at?: string
+          game_id?: string
+          id?: string
+          item_name?: string
+          manche?: number
+          player_id?: string
+          player_num?: number
+          purchased_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_item_purchases_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_monsters: {
         Row: {
           created_at: string
@@ -320,6 +364,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "game_players_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_shop_offers: {
+        Row: {
+          created_at: string
+          game_id: string
+          generated_at: string
+          id: string
+          item_ids: string[]
+          locked: boolean
+          manche: number
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          generated_at?: string
+          id?: string
+          item_ids?: string[]
+          locked?: boolean
+          manche: number
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          generated_at?: string
+          id?: string
+          item_ids?: string[]
+          locked?: boolean
+          manche?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_shop_offers_game_id_fkey"
             columns: ["game_id"]
             isOneToOne: false
             referencedRelation: "games"
@@ -474,6 +556,7 @@ export type Database = {
           notes: string | null
           persistence: string | null
           purchasable: boolean | null
+          restockable: boolean
           special_effect: string | null
           special_value: string | null
           target: string | null
@@ -491,6 +574,7 @@ export type Database = {
           notes?: string | null
           persistence?: string | null
           purchasable?: boolean | null
+          restockable?: boolean
           special_effect?: string | null
           special_value?: string | null
           target?: string | null
@@ -508,6 +592,7 @@ export type Database = {
           notes?: string | null
           persistence?: string | null
           purchasable?: boolean | null
+          restockable?: boolean
           special_effect?: string | null
           special_value?: string | null
           target?: string | null
