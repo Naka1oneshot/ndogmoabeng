@@ -205,7 +205,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
 
   if (loading) {
     return (
-      <div className={`card-gradient rounded-lg border border-border p-4 ${className}`}>
+      <div className={`p-4 ${className}`}>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
@@ -215,7 +215,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
 
   if (!isPhase3) {
     return (
-      <div className={`card-gradient rounded-lg border border-border p-4 ${className}`}>
+      <div className={`p-4 ${className}`}>
         <div className="text-center py-6">
           <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
           <p className="text-sm text-muted-foreground">
@@ -231,7 +231,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
 
   if (!shopOffer || shopOffer.item_ids.length === 0) {
     return (
-      <div className={`card-gradient rounded-lg border border-border p-4 ${className}`}>
+      <div className={`p-4 ${className}`}>
         <div className="text-center py-6">
           <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
           <p className="text-sm text-muted-foreground">
@@ -245,11 +245,11 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
   // Show purchases if resolved
   if (isResolved) {
     return (
-      <div className={`card-gradient rounded-lg border border-green-500/30 ${className}`}>
-        <div className="p-3 border-b border-border flex items-center justify-between">
+      <div className={`p-4 ${className}`}>
+        <div className="p-3 mb-3 rounded bg-green-500/10 border border-green-500/30 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShoppingBag className="h-4 w-4 text-green-500" />
-            <h3 className="font-display text-sm">Boutique - Résolu</h3>
+            <span className="font-display text-sm">Boutique - Résolu</span>
           </div>
           <Badge variant="outline" className="text-green-500 border-green-500">
             <Check className="h-3 w-3 mr-1" />
@@ -257,7 +257,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
           </Badge>
         </div>
         
-        <div className="p-4 space-y-3">
+        <div className="space-y-3">
           {myPurchases.length > 0 ? (
             <>
               <p className="text-sm text-green-400">
@@ -285,11 +285,12 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
   }
 
   return (
-    <div className={`card-gradient rounded-lg border border-green-500/30 ${className}`}>
-      <div className="p-3 border-b border-border flex items-center justify-between">
+    <div className={`p-4 ${className}`}>
+      {/* Header with balance */}
+      <div className="p-3 mb-3 rounded bg-secondary/50 border border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShoppingBag className="h-4 w-4 text-green-500" />
-          <h3 className="font-display text-sm">Boutique</h3>
+          <span className="font-display text-sm">Boutique</span>
         </div>
         <div className="flex items-center gap-2">
           <Coins className="h-4 w-4 text-yellow-500" />
@@ -303,16 +304,16 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
       </div>
 
       {/* Important notice */}
-      <div className="p-3 bg-amber-500/10 border-b border-amber-500/30">
+      <div className="p-2 mb-3 rounded bg-amber-500/10 border border-amber-500/30">
         <p className="text-xs text-amber-400 flex items-center gap-1">
           <Clock className="h-3 w-3" />
-          <span>Aucun achat immédiat. Le MJ résout les achats selon l'ordre de priorité.</span>
+          <span>Le MJ résout les achats selon l'ordre de priorité.</span>
         </p>
       </div>
 
       {/* Shop items list */}
-      <div className="p-4 space-y-2">
-        <p className="text-xs text-muted-foreground mb-3">Objets disponibles :</p>
+      <div className="space-y-2 mb-4">
+        <p className="text-xs text-muted-foreground">Objets disponibles :</p>
         {shopOffer.item_ids.map((itemName, index) => {
           const info = getItemInfo(itemName);
           const cost = getCost(itemName);
@@ -350,7 +351,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
       </div>
 
       {/* Request form */}
-      <div className="p-4 border-t border-border space-y-4">
+      <div className="pt-3 border-t border-border space-y-4">
         <div className="flex items-center justify-between">
           <Label htmlFor="want-buy" className="text-sm font-medium">
             Souhaitez-vous acheter ?
