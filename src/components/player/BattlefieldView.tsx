@@ -162,6 +162,11 @@ export function BattlefieldView({ gameId, className, showDetails = false }: Batt
     );
   }
 
+  // Calculate global PV for all monsters (not just battlefield)
+  const totalPvCurrent = monsters.reduce((sum, m) => sum + m.pv_current, 0);
+  const totalPvMax = monsters.reduce((sum, m) => sum + getMonsterPvMax(m), 0);
+  const globalProgress = totalPvMax > 0 ? (totalPvCurrent / totalPvMax) * 100 : 0;
+
   return (
     <div className={`card-gradient rounded-lg border border-border ${className}`}>
       <div className="p-3 border-b border-border flex items-center gap-2">
@@ -173,6 +178,20 @@ export function BattlefieldView({ gameId, className, showDetails = false }: Batt
           </span>
         )}
       </div>
+
+      {/* Global progress bar for players */}
+      {!showDetails && (
+        <div className="px-4 pt-3">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span className="flex items-center gap-1">
+              <Heart className="h-3 w-3 text-red-400" />
+              PV Globaux des Monstres
+            </span>
+            <span className="font-mono">{Math.round(globalProgress)}%</span>
+          </div>
+          <Progress value={globalProgress} className="h-2" />
+        </div>
+      )}
 
       {/* Battlefield slots */}
       <div className="p-4 grid grid-cols-3 gap-3">
