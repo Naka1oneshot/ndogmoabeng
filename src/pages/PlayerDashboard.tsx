@@ -54,6 +54,7 @@ export default function PlayerDashboard() {
   const [error, setError] = useState('');
   const [mobileTab, setMobileTab] = useState('battle');
   const [selectedManche, setSelectedManche] = useState<number>(1);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   // Auto-reset to current manche when game.manche_active changes
   useEffect(() => {
@@ -342,6 +343,7 @@ export default function PlayerDashboard() {
                     playerNum={player.playerNumber}
                     playerName={player.displayName}
                     mateNum={player.mateNum}
+                    isVisible={true}
                   />
                 </div>
               )}
@@ -467,6 +469,8 @@ export default function PlayerDashboard() {
                   playerNum={player.playerNumber}
                   playerName={player.displayName}
                   mateNum={player.mateNum}
+                  onUnreadChange={setUnreadChatCount}
+                  isVisible={mobileTab === 'chat'}
                 />
               </div>
             </TabsContent>
@@ -505,10 +509,15 @@ export default function PlayerDashboard() {
             {player.mateNum && (
               <TabsTrigger
                 value="chat"
-                className="flex flex-col items-center gap-1 data-[state=active]:bg-primary/10"
+                className="flex flex-col items-center gap-1 data-[state=active]:bg-primary/10 relative"
               >
                 <Users className="h-4 w-4" />
                 <span className="text-xs">Chat</span>
+                {unreadChatCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-1">
+                    {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                  </span>
+                )}
               </TabsTrigger>
             )}
           </TabsList>
