@@ -44,18 +44,20 @@ const TeamChat: React.FC<TeamChatProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastReadCount = useRef(0);
+  const shouldScrollRef = useRef(false);
 
   // Calculate a consistent mate_group ID from the pair (min of playerNum and mateNum)
   const mateGroupId = mateNum ? Math.min(playerNum, mateNum) : null;
 
-  // Scroll to bottom function
+  // Scroll to bottom function - only scrolls when shouldScrollRef is true
   const scrollToBottom = useCallback(() => {
-    if (messagesEndRef.current) {
+    if (shouldScrollRef.current && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      shouldScrollRef.current = false;
     }
   }, []);
 
-  // Reset unread when chat becomes visible
+  // Reset unread when chat becomes visible or user interacts with input
   useEffect(() => {
     if (isVisible && unreadCount > 0) {
       setUnreadCount(0);
@@ -100,6 +102,7 @@ const TeamChat: React.FC<TeamChatProps> = ({
         setMessages(data);
         lastReadCount.current = data.length;
         // Scroll after initial load
+        shouldScrollRef.current = true;
         setTimeout(scrollToBottom, 100);
       }
     };
@@ -131,7 +134,8 @@ const TeamChat: React.FC<TeamChatProps> = ({
               });
             }
             
-            // Scroll to bottom for new messages
+            // Scroll to bottom for new messages (both sent and received)
+            shouldScrollRef.current = true;
             setTimeout(scrollToBottom, 100);
           }
         }
@@ -160,10 +164,18 @@ const TeamChat: React.FC<TeamChatProps> = ({
       toast.error('Erreur lors de l\'envoi du message');
     } else {
       setNewMessage('');
-      // Scroll after sending
-      setTimeout(scrollToBottom, 100);
+      // Note: scroll will happen via realtime subscription when message is inserted
     }
     setSending(false);
+  };
+
+  // Reset unread when user focuses on input (interacts with chat)
+  const handleInputFocus = () => {
+    if (unreadCount > 0) {
+      setUnreadCount(0);
+      lastReadCount.current = messages.length;
+      onUnreadChange?.(0);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -244,6 +256,7 @@ const TeamChat: React.FC<TeamChatProps> = ({
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
+            onFocus={handleInputFocus}
             disabled={sending}
             className="flex-1"
           />

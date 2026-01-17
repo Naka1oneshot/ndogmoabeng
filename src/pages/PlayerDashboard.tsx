@@ -337,12 +337,18 @@ export default function PlayerDashboard() {
             <div className="space-y-4 overflow-hidden flex flex-col">
               <EventsFeed gameId={game.id} className="flex-1 min-h-0" />
               {player.mateNum && (
-                <div className="h-64 card-gradient rounded-lg border border-border overflow-hidden">
+                <div className="h-64 card-gradient rounded-lg border border-border overflow-hidden relative">
+                  {unreadChatCount > 0 && (
+                    <div className="absolute top-2 right-2 z-10 bg-destructive text-destructive-foreground text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                      {unreadChatCount} nouveau{unreadChatCount > 1 ? 'x' : ''} message{unreadChatCount > 1 ? 's' : ''}
+                    </div>
+                  )}
                   <TeamChat
                     gameId={game.id}
                     playerNum={player.playerNumber}
                     playerName={player.displayName}
                     mateNum={player.mateNum}
+                    onUnreadChange={setUnreadChatCount}
                     isVisible={true}
                   />
                 </div>
