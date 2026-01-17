@@ -28,16 +28,9 @@ export function MancheSelector({
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
-      <div className="flex items-center gap-1.5">
-        <span className={`text-sm font-medium ${isViewingHistory ? 'text-amber-400' : ''}`}>
-          Manche {selectedManche}
-        </span>
-        {isViewingHistory && (
-          <span className="text-xs text-muted-foreground">
-            (historique)
-          </span>
-        )}
-      </div>
+      <span className={`text-sm font-medium ${isViewingHistory ? 'text-amber-400' : ''}`}>
+        Manche {selectedManche}
+      </span>
 
       <Button
         variant="ghost"
