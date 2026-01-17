@@ -16,7 +16,7 @@ import { PhasePanel } from '@/components/player/PhasePanel';
 import { ResultsPanel } from '@/components/player/ResultsPanel';
 import { PositionsRankingPanel } from '@/components/player/PositionsRankingPanel';
 import { CombatResultsPanel } from '@/components/player/CombatResultsPanel';
-import { ShopPanel } from '@/components/player/ShopPanel';
+import { PlayerActionTabs } from '@/components/player/PlayerActionTabs';
 
 interface Game {
   id: string;
@@ -353,10 +353,7 @@ export default function PlayerDashboard() {
                 clan={player.clan}
                 mateNum={player.mateNum}
               />
-              <PhasePanel game={game} player={player} />
-              {game.phase === 'PHASE3_SHOP' && (
-                <ShopPanel game={game} player={player} />
-              )}
+              <PlayerActionTabs game={game} player={player} />
             </div>
           </div>
         </main>
@@ -414,10 +411,7 @@ export default function PlayerDashboard() {
           </TabsContent>
 
           <TabsContent value="phase" className="p-4 mt-0 space-y-4">
-            <PhasePanel game={game} player={player} />
-            {game.phase === 'PHASE3_SHOP' && (
-              <ShopPanel game={game} player={player} />
-            )}
+            <PlayerActionTabs game={game} player={player} />
           </TabsContent>
 
           {/* Fixed bottom tabs */}
