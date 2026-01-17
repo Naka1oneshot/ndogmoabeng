@@ -217,19 +217,19 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           </TabsTrigger>
           <TabsTrigger value="bets" className="flex items-center gap-1">
             <Coins className="h-4 w-4" />
-            <span className="hidden md:inline">Mise</span>
+            <span className="hidden md:inline">Phase 1</span>
           </TabsTrigger>
           <TabsTrigger value="phase2" className="flex items-center gap-1">
             <Target className="h-4 w-4" />
             <span className="hidden md:inline">Phase 2</span>
           </TabsTrigger>
+          <TabsTrigger value="shop" className="flex items-center gap-1">
+            <Store className="h-4 w-4" />
+            <span className="hidden md:inline">Phase 3</span>
+          </TabsTrigger>
           <TabsTrigger value="monsters" className="flex items-center gap-1">
             <Bug className="h-4 w-4" />
             <span className="hidden md:inline">Monstres</span>
-          </TabsTrigger>
-          <TabsTrigger value="shop" className="flex items-center gap-1">
-            <Store className="h-4 w-4" />
-            <span className="hidden md:inline">Shop</span>
           </TabsTrigger>
           <TabsTrigger value="inventory" className="flex items-center gap-1">
             <Package className="h-4 w-4" />
@@ -257,16 +257,16 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           <MJPhase2Tab game={game} onGameUpdate={fetchGame} />
         </TabsContent>
 
-        <TabsContent value="monsters" className="mt-6">
-          <MJMonstersConfigTab game={game} />
-        </TabsContent>
-
         <TabsContent value="shop" className="mt-6">
           <div className="space-y-6">
             <MJShopPhaseTab game={game} />
             <hr className="border-border" />
             <MJItemsShopTab game={game} />
           </div>
+        </TabsContent>
+
+        <TabsContent value="monsters" className="mt-6">
+          <MJMonstersConfigTab game={game} />
         </TabsContent>
 
         <TabsContent value="inventory" className="mt-6">
