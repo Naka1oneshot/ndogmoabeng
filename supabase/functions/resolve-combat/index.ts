@@ -668,6 +668,14 @@ serve(async (req) => {
       `⚔️ ${k.killerName} a éliminé le monstre du Slot ${k.slot}. Récompense ${k.reward}.`
     ).join('\n');
 
+    // Berseker penalty messages for public log
+    const bersekerPenaltyMessages = berserkerPenalties.length > 0 
+      ? berserkerPenalties.map(p => {
+          const playerName = positions?.find((pos: PositionFinale) => pos.num_joueur === p.playerNum)?.nom || `Joueur ${p.playerNum}`;
+          return `💀 ${playerName} a utilisé Piqure Berseker sans coup de grâce : -10 jetons`;
+        }).join('\n')
+      : '';
+
     // MJ summary with full details (slots, targets, etc.)
     const mjAttackMessages = mjActions.map(a => {
       const slotInfo = a.slot_attaque ? `[Slot ${a.slot_attaque}${a.targetMonster ? ` → ${a.targetMonster}` : ''}]` : '[Pas d\'attaque]';
@@ -694,6 +702,7 @@ serve(async (req) => {
           summary: publicSummary,
           kills: kills.map(k => ({ killer: k.killerName, monster: k.monsterName })),
           forestState,
+          berserkerPenalties: berserkerPenalties.map(p => p.playerNum),
         },
       }),
       // Public logs - new format without revealing slots
@@ -708,6 +717,12 @@ serve(async (req) => {
         manche: manche,
         type: 'COUP_DE_GRACE',
         message: killMessages,
+      }) : Promise.resolve(),
+      bersekerPenaltyMessages ? supabase.from('logs_joueurs').insert({
+        game_id: gameId,
+        manche: manche,
+        type: 'PENALITE_BERSEKER',
+        message: bersekerPenaltyMessages,
       }) : Promise.resolve(),
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
