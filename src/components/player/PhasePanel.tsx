@@ -83,9 +83,6 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
   const [currentAction, setCurrentAction] = useState<Record<string, unknown> | null>(null);
   const [activePlayerCount, setActivePlayerCount] = useState<number>(6);
   
-  // Phase 3 state
-  const [shopItems, setShopItems] = useState<ShopItem[]>([]);
-  const [selectedShopItem, setSelectedShopItem] = useState<string>('');
 
   // Compute filtered attack and protection items
   const attackItems = useMemo(() => {
@@ -141,8 +138,6 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
       fetchInventory();
       fetchItemCatalog();
       fetchCurrentAction();
-    } else if (game.phase === 'PHASE3_SHOP') {
-      fetchShopItems();
     }
     
     // Subscribe to player changes for real-time count updates
@@ -214,17 +209,6 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
     }
   };
 
-  const fetchShopItems = async () => {
-    const { data } = await supabase
-      .from('shop_catalogue')
-      .select('id, objet, cout_normal, cout_akila, categorie')
-      .eq('game_id', game.id)
-      .eq('actif', true);
-    
-    if (data) {
-      setShopItems(data);
-    }
-  };
 
   const handleSubmitBet = async () => {
     const miseValue = parseInt(mise, 10);
@@ -672,43 +656,16 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
           </div>
         )}
 
-        {/* Phase 3: Shop */}
+        {/* Phase 3: Shop - Display handled by ShopPanel component */}
         {game.phase === 'PHASE3_SHOP' && (
-          <div className="space-y-4">
-            {shopItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Boutique non disponible
-              </p>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  {shopItems.map((item) => (
-                    <div
-                      key={item.id}
-                      onClick={() => !isLocked && setSelectedShopItem(item.id)}
-                      className={`p-3 rounded cursor-pointer transition-colors ${
-                        selectedShopItem === item.id
-                          ? 'bg-primary/20 border-primary'
-                          : 'bg-secondary/30 hover:bg-secondary/50'
-                      } border`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{item.objet}</span>
-                        <span className="text-sm text-yellow-500">{item.cout_normal} jetons</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{item.categorie}</span>
-                    </div>
-                  ))}
-                </div>
-                
-                <ForestButton
-                  disabled={!selectedShopItem || isLocked}
-                  className="w-full"
-                >
-                  Acheter
-                </ForestButton>
-              </>
-            )}
+          <div className="text-center py-6">
+            <ShoppingBag className="h-12 w-12 text-green-400 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">
+              Phase 3 - Boutique
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Consultez la boutique ci-dessous pour acheter des objets
+            </p>
           </div>
         )}
 
