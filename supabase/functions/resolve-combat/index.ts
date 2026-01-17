@@ -270,6 +270,12 @@ serve(async (req) => {
     const pendingEffects: PendingEffect[] = [];
     const dotLogs: string[] = [];
     
+    // Track weapons with kill bonus per player (for Sabre Akila etc.)
+    const playerKillBonusWeapons = new Map<number, { weaponName: string; bonusTokens: number }[]>();
+    
+    // Track bonus tokens awarded for kills
+    const killBonusTokens: { playerNum: number; playerName: string; weaponName: string; bonus: number }[] = [];
+    
     // Helper function to track item consumption
     const trackItemConsumption = (playerNum: number, playerName: string, itemName: string) => {
       if (!itemName || itemName === 'Aucune' || itemName === '' || itemName === PERMANENT_WEAPON) {
@@ -315,6 +321,22 @@ serve(async (req) => {
         });
         
         rewardUpdates.push({ playerNum: attackerNum, reward: monster.reward || 10 });
+        
+        // Apply kill bonus tokens (Sabre Akila etc.) - only for non-DOT kills
+        if (!fromDot) {
+          const bonusWeapons = playerKillBonusWeapons.get(attackerNum);
+          if (bonusWeapons && bonusWeapons.length > 0) {
+            for (const bw of bonusWeapons) {
+              killBonusTokens.push({
+                playerNum: attackerNum,
+                playerName: attackerName,
+                weaponName: bw.weaponName,
+                bonus: bw.bonusTokens,
+              });
+            }
+          }
+        }
+        
         return { killed: true, monsterName: monster.name || null };
       }
       
@@ -516,6 +538,16 @@ serve(async (req) => {
           berserkerPlayers.push(pos.num_joueur);
         }
         
+        // Track weapons with BONUS_KILL_JETONS (Sabre Akila etc.)
+        if (item.special_effect === 'BONUS_KILL_JETONS' && item.special_value) {
+          const bonusTokens = parseInt(item.special_value, 10) || 0;
+          if (bonusTokens > 0) {
+            const existing = playerKillBonusWeapons.get(pos.num_joueur) || [];
+            existing.push({ weaponName: attackName, bonusTokens });
+            playerKillBonusWeapons.set(pos.num_joueur, existing);
+          }
+        }
+        
         return { damage: baseDamage, isAoe: false, aoeDamage: 0 };
       };
 
@@ -692,6 +724,26 @@ serve(async (req) => {
       }
     }
 
+    // Apply kill bonus tokens (Sabre Akila etc.)
+    for (const bonus of killBonusTokens) {
+      const { data: playerData } = await supabase
+        .from('game_players')
+        .select('jetons')
+        .eq('game_id', gameId)
+        .eq('player_number', bonus.playerNum)
+        .single();
+      
+      if (playerData) {
+        await supabase
+          .from('game_players')
+          .update({ jetons: (playerData.jetons || 0) + bonus.bonus })
+          .eq('game_id', gameId)
+          .eq('player_number', bonus.playerNum);
+        
+        console.log(`[resolve-combat] Applied kill bonus: ${bonus.playerName} +${bonus.bonus} jetons (${bonus.weaponName})`);
+      }
+    }
+
     // ==========================================
     // CONSUME ITEMS FROM INVENTORY
     // ==========================================
@@ -840,6 +892,11 @@ serve(async (req) => {
     // DOT effects log for public
     const dotPublicMessages = dotLogs.length > 0 ? dotLogs.join('\n') : '';
 
+    // Kill bonus messages for public log (Sabre Akila etc.)
+    const killBonusMessages = killBonusTokens.length > 0
+      ? killBonusTokens.map(b => `🗡️ ${b.playerName} obtient +${b.bonus} jetons bonus (${b.weaponName})`).join('\n')
+      : '';
+
     // MJ summary with full details (slots, targets, etc.)
     const mjAttackMessages = mjActions.map(a => {
       const slotInfo = a.slot_attaque ? `[Slot ${a.slot_attaque}${a.targetMonster ? ` → ${a.targetMonster}` : ''}]` : '[Pas d\'attaque]';
@@ -895,6 +952,12 @@ serve(async (req) => {
         type: 'EFFETS_RETARDES',
         message: dotPublicMessages,
       }) : Promise.resolve(),
+      killBonusMessages ? supabase.from('logs_joueurs').insert({
+        game_id: gameId,
+        manche: manche,
+        type: 'BONUS_KILL',
+        message: killBonusMessages,
+      }) : Promise.resolve(),
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
         manche: manche,
@@ -912,7 +975,7 @@ serve(async (req) => {
         game_id: gameId,
         manche: manche,
         action: 'COMBAT_DATA',
-        details: JSON.stringify({ kills, rewards: rewardUpdates, berserkerPenalties, dotEffects: dotLogs }),
+        details: JSON.stringify({ kills, rewards: rewardUpdates, berserkerPenalties, killBonusTokens, dotEffects: dotLogs }),
       }),
     ]);
 
