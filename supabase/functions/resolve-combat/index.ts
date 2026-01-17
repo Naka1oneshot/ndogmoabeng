@@ -51,7 +51,7 @@ interface PublicAction {
   totalHeal: number;
   cancelled: boolean;
   cancelReason?: string;
-  dotDamage?: number; // Extra damage from DOT effects
+  dotDamage?: number;
 }
 
 interface Kill {
@@ -61,7 +61,7 @@ interface Kill {
   monsterId: number;
   slot: number;
   reward: number;
-  fromDot?: boolean; // Kill from DOT effect
+  fromDot?: boolean;
 }
 
 interface ConsumedItem {
@@ -91,16 +91,30 @@ interface MJAction {
   dotKills?: string[];
 }
 
-// Pending effect for DOT/delayed damage
+// Pending effect types
 interface PendingEffect {
   sourcePlayerNum: number;
   sourcePlayerName: string;
   weaponName: string;
-  type: 'DOT' | 'DELAYED';
+  type: 'DOT' | 'DELAYED' | 'DOT_PERSISTENT' | 'MINE';
   damage: number;
-  targetSlots: number[]; // [1,2,3] for AOE, or [slot] for single
-  triggersAfterPlayers: number; // Number of players that must attack before this triggers
-  remainingTriggers: number; // How many more triggers remain
+  targetSlots: number[];
+  triggersAfterPlayers: number;
+  remainingTriggers: number;
+}
+
+// Voile tracking - attackers after voile activation lose tokens
+interface VoileEffect {
+  activatedAt: number;
+  playerNum: number;
+  slot: number;
+}
+
+// Amulette tracking - double coequipier damage
+interface AmuletteEffect {
+  playerNum: number;
+  mateNum: number;
+  position: number;
 }
 
 serve(async (req) => {
@@ -230,6 +244,14 @@ serve(async (req) => {
     const monsterNameMap = new Map<number, string>(monsterCatalog?.map((m: { id: number; name: string }) => [m.id, m.name]) || []);
     const monsterRewardMap = new Map<number, number>(monsterCatalog?.map((m: { id: number; reward_default: number }) => [m.id, m.reward_default]) || []);
     
+    // Player mate mapping
+    const playerMateMap = new Map<number, number>();
+    for (const player of players || []) {
+      if (player.player_number && player.mate_num) {
+        playerMateMap.set(player.player_number, player.mate_num);
+      }
+    }
+    
     // Monster state by slot
     const monsterBySlot = new Map<number, Monster>();
     const monstersById = new Map<string, Monster>();
@@ -252,10 +274,15 @@ serve(async (req) => {
       inventoryMap.set(key, (inventoryMap.get(key) || 0) + (inv.quantite || 0));
     }
 
-    // Protection maps (track when protections are activated)
+    // Protection maps
     const shieldBySlot = new Map<number, { activatedAt: number; playerNum: number }>();
-    const voileBySlot = new Map<number, { activatedAt: number; playerNum: number }>();
-    const gazBySlot = new Map<number, { activatedAt: number; playerNum: number }>();
+    const gazActiveSlots = new Map<number, { activatedAt: number; playerNum: number }>();
+    
+    // Voile du Gardien: track for token penalty
+    const voileEffects: VoileEffect[] = [];
+    
+    // Amulette de soutien: track for damage doubling
+    const amuletteEffects: AmuletteEffect[] = [];
 
     const publicActions: PublicAction[] = [];
     const mjActions: MJAction[] = [];
@@ -263,25 +290,27 @@ serve(async (req) => {
     const rewardUpdates: { playerNum: number; reward: number }[] = [];
     const consumedItems: ConsumedItem[] = [];
     
-    // Permanent item that should never be consumed
     const PERMANENT_WEAPON = 'Par défaut (+2 si compagnon Akandé)';
     
-    // Pending DOT/delayed effects
+    // Pending effects
     const pendingEffects: PendingEffect[] = [];
     const dotLogs: string[] = [];
     
-    // Track weapons with kill bonus per player (for Sabre Akila etc.)
+    // Track weapons with kill bonus per player
     const playerKillBonusWeapons = new Map<number, { weaponName: string; bonusTokens: number }[]>();
-    
-    // Track bonus tokens awarded for kills
     const killBonusTokens: { playerNum: number; playerName: string; weaponName: string; bonus: number }[] = [];
+    
+    // Track token penalties from Voile du Gardien
+    const voilePenalties: { playerNum: number; playerName: string; tokens: number; reason: string }[] = [];
+    
+    // Track damage multipliers from Amulette
+    const damageMultipliers = new Map<number, number>(); // playerNum -> multiplier
     
     // Helper function to track item consumption
     const trackItemConsumption = (playerNum: number, playerName: string, itemName: string) => {
       if (!itemName || itemName === 'Aucune' || itemName === '' || itemName === PERMANENT_WEAPON) {
         return;
       }
-      // Check if player has item in inventory
       const invKey = `${playerNum}_${itemName}`;
       const hasItem = (inventoryMap.get(invKey) || 0) > 0;
       consumedItems.push({
@@ -299,10 +328,10 @@ serve(async (req) => {
       attackerNum: number, 
       attackerName: string,
       fromDot: boolean = false
-    ): { killed: boolean; monsterName: string | null } => {
+    ): { killed: boolean; monsterName: string | null; damageDealt: number } => {
       const monster = monsterBySlot.get(slot);
       if (!monster || monster.status !== 'EN_BATAILLE') {
-        return { killed: false, monsterName: null };
+        return { killed: false, monsterName: null, damageDealt: 0 };
       }
       
       monster.pv_current = Math.max(0, monster.pv_current - damage);
@@ -322,7 +351,7 @@ serve(async (req) => {
         
         rewardUpdates.push({ playerNum: attackerNum, reward: monster.reward || 10 });
         
-        // Apply kill bonus tokens (Sabre Akila etc.) - only for non-DOT kills
+        // Apply kill bonus tokens - only for non-DOT kills
         if (!fromDot) {
           const bonusWeapons = playerKillBonusWeapons.get(attackerNum);
           if (bonusWeapons && bonusWeapons.length > 0) {
@@ -337,22 +366,48 @@ serve(async (req) => {
           }
         }
         
-        return { killed: true, monsterName: monster.name || null };
+        return { killed: true, monsterName: monster.name || null, damageDealt: damage };
       }
       
-      return { killed: false, monsterName: monster.name || null };
+      return { killed: false, monsterName: monster.name || null, damageDealt: damage };
     };
     
-    // Helper to process pending DOT effects after a player's turn
+    // Helper to process pending effects after a player's turn
     const processPendingEffects = (afterPosition: number): string[] => {
       const effectLogs: string[] = [];
       
       for (const effect of pendingEffects) {
         if (effect.remainingTriggers > 0) {
-          effect.remainingTriggers--;
-          
-          if (effect.remainingTriggers === 0 || effect.type === 'DOT') {
-            // Apply the effect
+          // DOT_PERSISTENT triggers after every player
+          if (effect.type === 'DOT_PERSISTENT') {
+            const killedMonsters: string[] = [];
+            
+            for (const slot of effect.targetSlots) {
+              const result = applyDamageToMonster(
+                slot, 
+                effect.damage, 
+                effect.sourcePlayerNum, 
+                effect.sourcePlayerName,
+                true
+              );
+              if (result.killed && result.monsterName) {
+                killedMonsters.push(`${result.monsterName} (Slot ${slot})`);
+              }
+            }
+            
+            let logMsg = `🌫️ ${effect.weaponName} de ${effect.sourcePlayerName} inflige ${effect.damage} dégâts sur slot ${effect.targetSlots.join(', ')}`;
+            
+            if (killedMonsters.length > 0) {
+              logMsg += ` — ⚔️ KILL: ${killedMonsters.join(', ')}`;
+            }
+            
+            effectLogs.push(logMsg);
+            effect.remainingTriggers--;
+          }
+          // DOT triggers after each of the next N players
+          else if (effect.type === 'DOT') {
+            effect.remainingTriggers--;
+            
             const killedMonsters: string[] = [];
             
             for (const slot of effect.targetSlots) {
@@ -376,13 +431,34 @@ serve(async (req) => {
             }
             
             effectLogs.push(logMsg);
+          }
+          // DELAYED triggers only after N players
+          else if (effect.type === 'DELAYED') {
+            effect.remainingTriggers--;
             
-            // For DOT effects that continue, reset the trigger counter
-            if (effect.type === 'DOT' && effect.triggersAfterPlayers > 0) {
-              effect.triggersAfterPlayers--;
-              if (effect.triggersAfterPlayers > 0) {
-                effect.remainingTriggers = 1; // Reset for next player
+            if (effect.remainingTriggers === 0) {
+              const killedMonsters: string[] = [];
+              
+              for (const slot of effect.targetSlots) {
+                const result = applyDamageToMonster(
+                  slot, 
+                  effect.damage, 
+                  effect.sourcePlayerNum, 
+                  effect.sourcePlayerName,
+                  true
+                );
+                if (result.killed && result.monsterName) {
+                  killedMonsters.push(`${result.monsterName} (Slot ${slot})`);
+                }
               }
+              
+              let logMsg = `💥 ${effect.weaponName} de ${effect.sourcePlayerName} explose : ${effect.damage} dégâts sur slot ${effect.targetSlots.join(', ')}`;
+              
+              if (killedMonsters.length > 0) {
+                logMsg += ` — ⚔️ KILL: ${killedMonsters.join(', ')}`;
+              }
+              
+              effectLogs.push(logMsg);
             }
           }
         }
@@ -392,9 +468,27 @@ serve(async (req) => {
     };
     
     const berserkerPlayers: number[] = [];
+    const totalPlayers = (positions as PositionFinale[]).length;
+
+    // First pass: collect Amulette effects to apply damage doubling
+    for (const pos of positions as PositionFinale[]) {
+      if (pos.attaque1 === 'Amulette de soutien' || pos.attaque2 === 'Amulette de soutien') {
+        const mateNum = playerMateMap.get(pos.num_joueur);
+        if (mateNum) {
+          amuletteEffects.push({
+            playerNum: pos.num_joueur,
+            mateNum: mateNum,
+            position: pos.position_finale,
+          });
+          // Set multiplier for the mate
+          damageMultipliers.set(mateNum, (damageMultipliers.get(mateNum) || 1) * 2);
+          console.log(`[resolve-combat] Amulette: Player ${pos.num_joueur} doubles damage for mate ${mateNum}`);
+        }
+      }
+    }
 
     // Process each player in order of position_finale
-    for (let i = 0; i < (positions as PositionFinale[]).length; i++) {
+    for (let i = 0; i < totalPlayers; i++) {
       const pos = (positions as PositionFinale[])[i];
       
       const mjAction: MJAction = {
@@ -426,19 +520,27 @@ serve(async (req) => {
         dotDamage: 0,
       };
 
-      // Process protection first (activates for subsequent attacks)
+      // Process protection first
       if (pos.protection && pos.slot_protection && pos.protection !== 'Aucune' && pos.protection !== PERMANENT_WEAPON) {
         const protItem = itemMap.get(pos.protection);
         if (protItem) {
           if (protItem.special_effect === 'BOUCLIER_MIROIR' || pos.protection.toLowerCase().includes('bouclier')) {
             shieldBySlot.set(pos.slot_protection, { activatedAt: pos.position_finale, playerNum: pos.num_joueur });
-          } else if (protItem.special_effect === 'VOILE_PENALITE' || pos.protection.toLowerCase().includes('voile')) {
-            voileBySlot.set(pos.slot_protection, { activatedAt: pos.position_finale, playerNum: pos.num_joueur });
-          } else if (protItem.special_effect === 'GAZ_ANNULATION' || pos.protection.toLowerCase().includes('gaz')) {
-            gazBySlot.set(pos.slot_protection, { activatedAt: pos.position_finale, playerNum: pos.num_joueur });
+          } else if (protItem.special_effect === 'RENVOI_JETONS' || pos.protection === 'Voile du Gardien') {
+            // Voile du Gardien: attackers after this lose tokens = damage
+            voileEffects.push({
+              activatedAt: pos.position_finale,
+              playerNum: pos.num_joueur,
+              slot: pos.slot_protection,
+            });
+          } else if (protItem.special_effect === 'ANNULATION_ATTAQUE' || protItem.special_effect === 'GAZ_ANNULATION' || pos.protection === 'Gaz Soporifique') {
+            // Gaz Soporifique: cancels ALL subsequent attacks (not just one slot)
+            // We mark all 3 slots as affected
+            for (let slot = 1; slot <= 3; slot++) {
+              gazActiveSlots.set(slot, { activatedAt: pos.position_finale, playerNum: pos.num_joueur });
+            }
           }
           
-          // Track protection item for consumption (ALL protections are consumed when used)
           trackItemConsumption(pos.num_joueur, pos.nom, pos.protection);
         }
       }
@@ -447,20 +549,34 @@ serve(async (req) => {
       const targetSlot = pos.slot_attaque;
       let attackCancelled = false;
       let cancelReason = '';
+      let ignoreProtection = false;
 
-      if (targetSlot) {
-        // Check gaz (cancels attacks after activation)
-        const gaz = gazBySlot.get(targetSlot);
-        if (gaz && gaz.activatedAt < pos.position_finale) {
+      // Check for items that ignore protection
+      const att1Item = pos.attaque1 ? itemMap.get(pos.attaque1) : null;
+      const att2Item = pos.attaque2 ? itemMap.get(pos.attaque2) : null;
+      if (att1Item?.ignore_protection || att2Item?.ignore_protection) {
+        ignoreProtection = true;
+      }
+
+      if (targetSlot && !ignoreProtection) {
+        // Check gaz (cancels ALL attacks after activation)
+        let gazActive = false;
+        for (const [slot, gaz] of gazActiveSlots) {
+          if (gaz.activatedAt < pos.position_finale) {
+            gazActive = true;
+            break;
+          }
+        }
+        if (gazActive) {
           attackCancelled = true;
-          cancelReason = 'Gaz Asphyxiant';
+          cancelReason = 'Gaz Soporifique';
         }
 
-        // Check voile (cancels attack + penalty)
-        const voile = voileBySlot.get(targetSlot);
-        if (voile && voile.activatedAt < pos.position_finale) {
+        // Check shield
+        const shield = shieldBySlot.get(targetSlot);
+        if (shield && shield.activatedAt < pos.position_finale) {
           attackCancelled = true;
-          cancelReason = 'Voile de Brume';
+          cancelReason = 'Bouclier Miroir';
         }
       }
 
@@ -470,7 +586,6 @@ serve(async (req) => {
       let aoeImmediate1 = 0;
       let aoeImmediate2 = 0;
 
-      // Helper to process a single attack
       const processAttack = (attackName: string | null): { damage: number; isAoe: boolean; aoeDamage: number } => {
         if (!attackName || attackName === 'Aucune') {
           return { damage: 0, isAoe: false, aoeDamage: 0 };
@@ -481,20 +596,32 @@ serve(async (req) => {
           return { damage: 0, isAoe: false, aoeDamage: 0 };
         }
         
-        // Akande clan bonus (only for default weapon)
+        // Akande clan bonus
         let bonus = 0;
         if (pos.clan === 'Akandé' && attackName === PERMANENT_WEAPON) {
           bonus = 2;
         }
         
-        const baseDamage = (item.base_damage || 0) + bonus;
+        let baseDamage = (item.base_damage || 0) + bonus;
         
-        // Check for special effects
+        // Apply damage multiplier from Amulette
+        const multiplier = damageMultipliers.get(pos.num_joueur) || 1;
+        if (multiplier > 1) {
+          baseDamage = baseDamage * multiplier;
+          console.log(`[resolve-combat] Amulette multiplier applied: ${pos.nom} damage x${multiplier} = ${baseDamage}`);
+        }
+        
+        // === SPECIAL EFFECTS ===
+        
+        // Flèche du Crépuscule: AOE_3 immediate damage (no DOT)
+        if (item.target === 'AOE_3' && item.special_effect !== 'DOT') {
+          return { damage: 0, isAoe: true, aoeDamage: baseDamage };
+        }
+        
+        // Grenade incendiaire: AOE_3 + DOT for 2 next players
         if (item.special_effect === 'DOT' && item.target === 'AOE_3') {
-          // Grenade incendiaire: 1 damage to all 3 slots immediately + DOT for 2 next players
           const numPlayers = parseInt(item.special_value || '2', 10);
           
-          // Register pending DOT effect
           pendingEffects.push({
             sourcePlayerNum: pos.num_joueur,
             sourcePlayerName: pos.nom,
@@ -503,14 +630,55 @@ serve(async (req) => {
             damage: baseDamage,
             targetSlots: [1, 2, 3],
             triggersAfterPlayers: numPlayers,
-            remainingTriggers: 1, // Trigger after each of the next N players
+            remainingTriggers: numPlayers,
           });
           
-          return { damage: 0, isAoe: true, aoeDamage: baseDamage }; // Immediate AOE damage
+          return { damage: 0, isAoe: true, aoeDamage: baseDamage };
         }
         
+        // Canon de brume: DOT_PERSISTENT - 1 damage to slot at end of each subsequent player's turn
+        if (item.special_effect === 'DOT_PERSISTENT') {
+          const remainingPlayers = totalPlayers - pos.position_finale;
+          
+          if (targetSlot && remainingPlayers > 0) {
+            pendingEffects.push({
+              sourcePlayerNum: pos.num_joueur,
+              sourcePlayerName: pos.nom,
+              weaponName: attackName,
+              type: 'DOT_PERSISTENT',
+              damage: baseDamage,
+              targetSlots: [targetSlot],
+              triggersAfterPlayers: remainingPlayers,
+              remainingTriggers: remainingPlayers,
+            });
+          }
+          
+          // Also apply immediate damage
+          return { damage: baseDamage, isAoe: false, aoeDamage: 0 };
+        }
+        
+        // Mine: DEGATS_RETARDES with timing DEBUT_MANCHE_SUIVANTE
+        // For now, store in pending_effects table for next manche
+        if (item.special_effect === 'DEGATS_RETARDES' && item.timing === 'DEBUT_MANCHE_SUIVANTE') {
+          // Store mine effect for next round
+          if (targetSlot) {
+            // We'll insert into pending_effects table at the end
+            pendingEffects.push({
+              sourcePlayerNum: pos.num_joueur,
+              sourcePlayerName: pos.nom,
+              weaponName: attackName,
+              type: 'MINE',
+              damage: baseDamage,
+              targetSlots: [targetSlot],
+              triggersAfterPlayers: 0, // Will be processed at start of next manche
+              remainingTriggers: 0,
+            });
+          }
+          return { damage: 0, isAoe: false, aoeDamage: 0 }; // No immediate damage
+        }
+        
+        // Grenade Frag: delayed damage at end of next player's turn
         if (item.special_effect === 'DEGATS_RETARDES') {
-          // Grenade Frag: delayed damage at end of next player's turn
           const numPlayers = parseInt(item.special_value || '1', 10);
           
           pendingEffects.push({
@@ -524,13 +692,14 @@ serve(async (req) => {
             remainingTriggers: numPlayers,
           });
           
-          return { damage: 0, isAoe: false, aoeDamage: 0 }; // No immediate damage
+          return { damage: 0, isAoe: false, aoeDamage: 0 };
         }
         
-        // Check if ignore_protection
-        if (item.ignore_protection && targetSlot) {
-          attackCancelled = false;
-          cancelReason = '';
+        // Amulette de soutien: 2 damage + already set multiplier for mate
+        if (item.special_effect === 'DOUBLE_COEQUIPIER') {
+          // The doubling effect was already processed in first pass
+          // Just return the base damage for this attack
+          return { damage: baseDamage, isAoe: false, aoeDamage: 0 };
         }
         
         // Track Piqure Berseker
@@ -538,7 +707,7 @@ serve(async (req) => {
           berserkerPlayers.push(pos.num_joueur);
         }
         
-        // Track weapons with BONUS_KILL_JETONS (Sabre Akila etc.)
+        // Track weapons with BONUS_KILL_JETONS (Sabre Akila)
         if (item.special_effect === 'BONUS_KILL_JETONS' && item.special_value) {
           const bonusTokens = parseInt(item.special_value, 10) || 0;
           if (bonusTokens > 0) {
@@ -570,7 +739,7 @@ serve(async (req) => {
       mjAction.damage1 = damage1;
       mjAction.damage2 = damage2;
 
-      // Apply cancellation to direct damage only
+      // Apply cancellation to direct damage only (items still consumed via Gaz)
       if (attackCancelled) {
         mjAction.cancelled = true;
         mjAction.cancelReason = cancelReason;
@@ -582,42 +751,53 @@ serve(async (req) => {
 
       const totalDirectDamage = damage1 + damage2;
       
-      // Apply AOE immediate damage (Grenade incendiaire) - not affected by cancellation on single slot
+      // Apply AOE immediate damage (Flèche du Crépuscule, Grenade incendiaire)
       const totalAoeDamage = aoeImmediate1 + aoeImmediate2;
-      if (totalAoeDamage > 0) {
+      if (totalAoeDamage > 0 && !attackCancelled) {
         for (const slot of [1, 2, 3]) {
           const result = applyDamageToMonster(slot, totalAoeDamage, pos.num_joueur, pos.nom, false);
           if (result.killed && result.monsterName) {
             mjAction.killed = (mjAction.killed ? mjAction.killed + ', ' : '') + result.monsterName;
           }
         }
-        dotLogs.push(`🔥 ${pos.nom} lance Grenade incendiaire : ${totalAoeDamage} dégâts immédiats sur tous les slots`);
+        
+        // Determine weapon name for log
+        const aoeWeapon = [pos.attaque1, pos.attaque2].find(w => {
+          const item = w ? itemMap.get(w) : null;
+          return item?.target === 'AOE_3';
+        });
+        dotLogs.push(`🎯 ${pos.nom} utilise ${aoeWeapon || 'AOE'} : ${totalAoeDamage} dégâts sur tous les slots`);
       }
 
       mjAction.totalDamage = totalDirectDamage;
-      publicAction.totalDamage = totalDirectDamage + (totalAoeDamage * 3); // Total damage including AOE
+      publicAction.totalDamage = totalDirectDamage + (totalAoeDamage * 3);
+
+      // Check Voile du Gardien penalty BEFORE applying damage
+      if (targetSlot && totalDirectDamage > 0 && !attackCancelled) {
+        for (const voile of voileEffects) {
+          if (voile.slot === targetSlot && voile.activatedAt < pos.position_finale) {
+            // Player loses tokens = damage they would have dealt
+            voilePenalties.push({
+              playerNum: pos.num_joueur,
+              playerName: pos.nom,
+              tokens: totalDirectDamage,
+              reason: 'Voile du Gardien',
+            });
+            // Attack is NOT cancelled, damage still applies, but player loses tokens
+            console.log(`[resolve-combat] Voile du Gardien: ${pos.nom} loses ${totalDirectDamage} jetons`);
+          }
+        }
+      }
 
       // Apply direct damage to target monster
-      if (targetSlot && totalDirectDamage > 0) {
+      if (targetSlot && totalDirectDamage > 0 && !attackCancelled) {
         const monster = monsterBySlot.get(targetSlot);
         if (monster && monster.status === 'EN_BATAILLE') {
           mjAction.targetMonster = monster.name || null;
           
-          // Check shield (blocks damage, reflects some)
-          const shield = shieldBySlot.get(targetSlot);
-          if (shield && shield.activatedAt < pos.position_finale) {
-            // Damage blocked by shield
-            mjAction.cancelled = true;
-            mjAction.cancelReason = 'Bouclier Miroir';
-            publicAction.cancelled = true;
-            publicAction.cancelReason = 'Attaque bloquée';
-            publicAction.totalDamage = totalAoeDamage * 3; // Only AOE damage counts
-          } else {
-            // Apply damage
-            const result = applyDamageToMonster(targetSlot, totalDirectDamage, pos.num_joueur, pos.nom, false);
-            if (result.killed && result.monsterName) {
-              mjAction.killed = (mjAction.killed ? mjAction.killed + ', ' : '') + result.monsterName;
-            }
+          const result = applyDamageToMonster(targetSlot, totalDirectDamage, pos.num_joueur, pos.nom, false);
+          if (result.killed && result.monsterName) {
+            mjAction.killed = (mjAction.killed ? mjAction.killed + ', ' : '') + result.monsterName;
           }
         }
       }
@@ -629,7 +809,6 @@ serve(async (req) => {
       const effectLogs = processPendingEffects(pos.position_finale);
       if (effectLogs.length > 0) {
         dotLogs.push(...effectLogs);
-        // Update the MJ action with DOT kills
         for (const log of effectLogs) {
           if (log.includes('KILL:')) {
             const killMatch = log.match(/KILL: (.+)$/);
@@ -724,7 +903,7 @@ serve(async (req) => {
       }
     }
 
-    // Apply kill bonus tokens (Sabre Akila etc.)
+    // Apply kill bonus tokens (Sabre Akila)
     for (const bonus of killBonusTokens) {
       const { data: playerData } = await supabase
         .from('game_players')
@@ -744,6 +923,40 @@ serve(async (req) => {
       }
     }
 
+    // Apply Voile du Gardien penalties
+    for (const penalty of voilePenalties) {
+      const { data: playerData } = await supabase
+        .from('game_players')
+        .select('jetons')
+        .eq('game_id', gameId)
+        .eq('player_number', penalty.playerNum)
+        .single();
+      
+      if (playerData) {
+        await supabase
+          .from('game_players')
+          .update({ jetons: Math.max(0, (playerData.jetons || 0) - penalty.tokens) })
+          .eq('game_id', gameId)
+          .eq('player_number', penalty.playerNum);
+        
+        console.log(`[resolve-combat] Applied Voile penalty: ${penalty.playerName} -${penalty.tokens} jetons`);
+      }
+    }
+
+    // Store Mine effects for next round in pending_effects table
+    const mineEffects = pendingEffects.filter(e => e.type === 'MINE');
+    for (const mine of mineEffects) {
+      await supabase.from('pending_effects').insert({
+        game_id: gameId,
+        manche: manche + 1, // For next manche
+        type: 'MINE',
+        slot: mine.targetSlots[0],
+        weapon: mine.weaponName,
+        by_num: mine.sourcePlayerNum,
+      });
+      console.log(`[resolve-combat] Stored Mine effect for manche ${manche + 1}: slot ${mine.targetSlots[0]} by ${mine.sourcePlayerName}`);
+    }
+
     // ==========================================
     // CONSUME ITEMS FROM INVENTORY
     // ==========================================
@@ -753,7 +966,6 @@ serve(async (req) => {
     const itemsMissingFromInventory: ConsumedItem[] = [];
     
     for (const item of consumedItems) {
-      // Find the inventory entry for this player and item
       const { data: invRow, error: invError } = await supabase
         .from('inventory')
         .select('*')
@@ -763,7 +975,6 @@ serve(async (req) => {
         .single();
       
       if (invError || !invRow) {
-        // Item not found in inventory - log and continue (don't crash)
         console.log(`[resolve-combat] Item not found in inventory: ${item.itemName} for player ${item.playerNum}`);
         itemsMissingFromInventory.push(item);
         continue;
@@ -772,7 +983,6 @@ serve(async (req) => {
       const currentQty = invRow.quantite || 1;
       
       if (currentQty > 1) {
-        // Decrement quantity
         const { error: updateError } = await supabase
           .from('inventory')
           .update({ 
@@ -786,7 +996,6 @@ serve(async (req) => {
           console.log(`[resolve-combat] Decremented ${item.itemName} for player ${item.playerNum}: ${currentQty} -> ${currentQty - 1}`);
         }
       } else {
-        // Delete the row entirely
         const { error: deleteError } = await supabase
           .from('inventory')
           .delete()
@@ -799,7 +1008,7 @@ serve(async (req) => {
       }
     }
 
-    // Log missing items to MJ if any
+    // Log missing items to MJ
     if (itemsMissingFromInventory.length > 0) {
       const missingItemsMsg = itemsMissingFromInventory.map(
         i => `${i.playerName} (J${i.playerNum}): ${i.itemName} non trouvé en inventaire`
@@ -836,7 +1045,7 @@ serve(async (req) => {
       itemsConsumed: consumedItems.filter(i => i.wasInInventory).length,
     };
 
-    // Build public summary (NO TARGET INFO)
+    // Build public summary
     const publicSummary = publicActions.map(a => ({
       position: a.position,
       nom: a.nom,
@@ -846,7 +1055,6 @@ serve(async (req) => {
       cancelReason: a.cancelReason,
     }));
 
-    // Build MJ summary (FULL DETAILS)
     const mjSummary = mjActions;
 
     // Store combat results
@@ -859,8 +1067,7 @@ serve(async (req) => {
       forest_state: forestState,
     });
 
-    // Create logs - NEW FORMAT: one line per player showing what they used and damage dealt
-    // Format: "NomJoueur a utilisé "Arme" inflige X dégâts."
+    // Create logs
     const publicAttackMessages = publicActions.map(a => {
       if (a.cancelled) {
         const weaponsStr = a.weapons.length > 0 ? `"${a.weapons.join('" + "')}"` : 'aucune arme';
@@ -875,13 +1082,11 @@ serve(async (req) => {
       return `${a.nom} a utilisé ${weaponsStr} inflige ${a.totalDamage} dégâts.`;
     }).join('\n');
 
-    // Kill messages for public log - show slot and reward
     const killMessages = kills.map(k => {
       const dotSuffix = k.fromDot ? ' (effet retardé)' : '';
       return `⚔️ ${k.killerName} a éliminé le monstre du Slot ${k.slot}. Récompense ${k.reward}.${dotSuffix}`;
     }).join('\n');
 
-    // Berseker penalty messages for public log
     const bersekerPenaltyMessages = berserkerPenalties.length > 0 
       ? berserkerPenalties.map(p => {
           const playerName = positions?.find((pos: PositionFinale) => pos.num_joueur === p.playerNum)?.nom || `Joueur ${p.playerNum}`;
@@ -889,15 +1094,29 @@ serve(async (req) => {
         }).join('\n')
       : '';
 
-    // DOT effects log for public
     const dotPublicMessages = dotLogs.length > 0 ? dotLogs.join('\n') : '';
 
-    // Kill bonus messages for public log (Sabre Akila etc.)
     const killBonusMessages = killBonusTokens.length > 0
       ? killBonusTokens.map(b => `🗡️ ${b.playerName} obtient +${b.bonus} jetons bonus (${b.weaponName})`).join('\n')
       : '';
 
-    // MJ summary with full details (slots, targets, etc.)
+    const voilePenaltyMessages = voilePenalties.length > 0
+      ? voilePenalties.map(p => `🛡️ ${p.playerName} perd ${p.tokens} jetons (${p.reason})`).join('\n')
+      : '';
+
+    const amuletteMessages = amuletteEffects.length > 0
+      ? amuletteEffects.map(a => {
+          const playerName = positions?.find((pos: PositionFinale) => pos.num_joueur === a.playerNum)?.nom || `Joueur ${a.playerNum}`;
+          const mateName = positions?.find((pos: PositionFinale) => pos.num_joueur === a.mateNum)?.nom || `Joueur ${a.mateNum}`;
+          return `💎 ${playerName} utilise Amulette de soutien : dégâts de ${mateName} doublés`;
+        }).join('\n')
+      : '';
+
+    const mineMessages = mineEffects.length > 0
+      ? mineEffects.map(m => `💣 ${m.sourcePlayerName} a posé une Mine sur le Slot ${m.targetSlots[0]} (explosera au début de la prochaine manche)`).join('\n')
+      : '';
+
+    // MJ summary
     const mjAttackMessages = mjActions.map(a => {
       const slotInfo = a.slot_attaque ? `[Slot ${a.slot_attaque}${a.targetMonster ? ` → ${a.targetMonster}` : ''}]` : '[Pas d\'attaque]';
       const weaponsInfo = [a.attaque1, a.attaque2].filter(w => w && w !== 'Aucune').map(w => `"${w}"`).join(' + ') || 'Aucune arme';
@@ -913,7 +1132,6 @@ serve(async (req) => {
     }).join('\n');
 
     await Promise.all([
-      // Public events
       supabase.from('session_events').insert({
         game_id: gameId,
         audience: 'ALL',
@@ -925,9 +1143,9 @@ serve(async (req) => {
           kills: kills.map(k => ({ killer: k.killerName, monster: k.monsterName, fromDot: k.fromDot })),
           forestState,
           berserkerPenalties: berserkerPenalties.map(p => p.playerNum),
+          voilePenalties: voilePenalties.map(p => ({ playerNum: p.playerNum, tokens: p.tokens })),
         },
       }),
-      // Public logs - new format without revealing slots
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
         manche: manche,
@@ -958,13 +1176,30 @@ serve(async (req) => {
         type: 'BONUS_KILL',
         message: killBonusMessages,
       }) : Promise.resolve(),
+      voilePenaltyMessages ? supabase.from('logs_joueurs').insert({
+        game_id: gameId,
+        manche: manche,
+        type: 'PENALITE_VOILE',
+        message: voilePenaltyMessages,
+      }) : Promise.resolve(),
+      amuletteMessages ? supabase.from('logs_joueurs').insert({
+        game_id: gameId,
+        manche: manche,
+        type: 'AMULETTE_SOUTIEN',
+        message: amuletteMessages,
+      }) : Promise.resolve(),
+      mineMessages ? supabase.from('logs_joueurs').insert({
+        game_id: gameId,
+        manche: manche,
+        type: 'MINE_POSEE',
+        message: mineMessages,
+      }) : Promise.resolve(),
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
         manche: manche,
         type: 'ETAT_FORET',
         message: `🌲 État de la forêt: ${forestState.totalPvRemaining} PV restants (${kills.length} monstre(s) éliminé(s))`,
       }),
-      // MJ logs - detailed version with slots and targets
       supabase.from('logs_mj').insert({
         game_id: gameId,
         manche: manche,
@@ -975,34 +1210,32 @@ serve(async (req) => {
         game_id: gameId,
         manche: manche,
         action: 'COMBAT_DATA',
-        details: JSON.stringify({ kills, rewards: rewardUpdates, berserkerPenalties, killBonusTokens, dotEffects: dotLogs }),
+        details: JSON.stringify({ kills, rewards: rewardUpdates, berserkerPenalties, killBonusTokens, voilePenalties, amuletteEffects, mineEffects: mineEffects.map(m => ({ slot: m.targetSlots[0], player: m.sourcePlayerNum })), dotEffects: dotLogs }),
       }),
     ]);
 
-    // Update game phase
-    await supabase
-      .from('games')
-      .update({ phase: 'PHASE3_SHOP', phase_locked: false })
-      .eq('id', gameId);
-
-    console.log(`[resolve-combat] Combat resolved for game ${gameId}, manche ${manche}. Kills: ${kills.length}, DOT effects: ${dotLogs.length}`);
+    console.log(`[resolve-combat] Combat resolved for game ${gameId} manche ${manche}: ${kills.length} kills, ${voilePenalties.length} voile penalties, ${amuletteEffects.length} amulette effects`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Combat résolu',
+      JSON.stringify({
+        success: true,
         publicSummary,
-        kills: kills.map(k => ({ killer: k.killerName, monster: k.monsterName, fromDot: k.fromDot })),
+        kills,
         forestState,
-        dotEffects: dotLogs,
+        berserkerPenalties,
+        killBonusTokens,
+        voilePenalties,
+        amuletteEffects: amuletteEffects.length,
+        minesPlaced: mineEffects.length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('[resolve-combat] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Erreur inconnue' }),
+      JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
