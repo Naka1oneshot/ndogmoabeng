@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,19 +6,18 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { MJPlayersTab } from './MJPlayersTab';
-import { MJPhasesTab } from './MJPhasesTab';
 import { MJBetsTab } from './MJBetsTab';
+import { MJPhase2Tab } from './MJPhase2Tab';
 import { MJInventoryTab } from './MJInventoryTab';
 import { MJCombatTab } from './MJCombatTab';
 import { MJEventsTab } from './MJEventsTab';
 import { MJMonstersConfigTab } from './MJMonstersConfigTab';
 import { MJItemsShopTab } from './MJItemsShopTab';
 import { MJShopPhaseTab } from './MJShopPhaseTab';
-import { MJHistoryTab } from './MJHistoryTab';
 import { 
-  ChevronLeft, Loader2, Users, Settings, Swords, 
+  ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
-  Bug, Store, History
+  Bug, Store, Swords, Target
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -45,7 +43,6 @@ interface MJDashboardProps {
 
 export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [game, setGame] = useState<Game>(initialGame);
   const [copied, setCopied] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -213,18 +210,18 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="players" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 md:grid-cols-9">
+        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
           <TabsTrigger value="players" className="flex items-center gap-1">
             <Users className="h-4 w-4" />
             <span className="hidden md:inline">Joueurs</span>
           </TabsTrigger>
           <TabsTrigger value="bets" className="flex items-center gap-1">
             <Coins className="h-4 w-4" />
-            <span className="hidden md:inline">Mises</span>
+            <span className="hidden md:inline">Mise</span>
           </TabsTrigger>
-          <TabsTrigger value="phases" className="flex items-center gap-1">
-            <Settings className="h-4 w-4" />
-            <span className="hidden md:inline">Phases</span>
+          <TabsTrigger value="phase2" className="flex items-center gap-1">
+            <Target className="h-4 w-4" />
+            <span className="hidden md:inline">Phase 2</span>
           </TabsTrigger>
           <TabsTrigger value="monsters" className="flex items-center gap-1">
             <Bug className="h-4 w-4" />
@@ -246,10 +243,6 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">Events</span>
           </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-1">
-            <History className="h-4 w-4" />
-            <span className="hidden md:inline">Historique</span>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="players" className="mt-6">
@@ -260,8 +253,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           <MJBetsTab game={game} onGameUpdate={fetchGame} />
         </TabsContent>
 
-        <TabsContent value="phases" className="mt-6">
-          <MJPhasesTab game={game} onGameUpdate={fetchGame} />
+        <TabsContent value="phase2" className="mt-6">
+          <MJPhase2Tab game={game} onGameUpdate={fetchGame} />
         </TabsContent>
 
         <TabsContent value="monsters" className="mt-6">
@@ -286,10 +279,6 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
         <TabsContent value="events" className="mt-6">
           <MJEventsTab game={game} />
-        </TabsContent>
-
-        <TabsContent value="history" className="mt-6">
-          <MJHistoryTab gameId={game.id} currentManche={game.manche_active} />
         </TabsContent>
       </Tabs>
     </div>
