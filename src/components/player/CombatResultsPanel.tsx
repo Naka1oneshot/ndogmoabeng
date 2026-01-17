@@ -38,10 +38,12 @@ interface CombatResult {
 
 interface CombatResultsPanelProps {
   game: Game;
+  selectedManche?: number;
   className?: string;
 }
 
-export function CombatResultsPanel({ game, className }: CombatResultsPanelProps) {
+export function CombatResultsPanel({ game, selectedManche, className }: CombatResultsPanelProps) {
+  const manche = selectedManche ?? game.manche_active;
   const [combatResult, setCombatResult] = useState<CombatResult | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,14 +58,14 @@ export function CombatResultsPanel({ game, className }: CombatResultsPanelProps)
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [game.id, game.manche_active]);
+  }, [game.id, manche]);
 
   const fetchCombatResult = async () => {
     const { data } = await supabase
       .from('combat_results')
       .select('public_summary, kills, forest_state')
       .eq('game_id', game.id)
-      .eq('manche', game.manche_active)
+      .eq('manche', manche)
       .maybeSingle();
 
     if (data) {
