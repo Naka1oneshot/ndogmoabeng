@@ -524,10 +524,12 @@ serve(async (req) => {
       if (pos.protection && pos.slot_protection && pos.protection !== 'Aucune' && pos.protection !== PERMANENT_WEAPON) {
         const protItem = itemMap.get(pos.protection);
         if (protItem) {
-          if (protItem.special_effect === 'BOUCLIER_MIROIR' || pos.protection.toLowerCase().includes('bouclier')) {
+          // Bouclier rituel: INVULNERABILITE_APRES - blocks all damage after this position
+          if (protItem.special_effect === 'INVULNERABILITE_APRES' || protItem.special_effect === 'BOUCLIER_MIROIR' || pos.protection === 'Bouclier rituel') {
             shieldBySlot.set(pos.slot_protection, { activatedAt: pos.position_finale, playerNum: pos.num_joueur });
+            console.log(`[resolve-combat] Bouclier rituel: Slot ${pos.slot_protection} protected after position ${pos.position_finale}`);
           } else if (protItem.special_effect === 'RENVOI_JETONS' || pos.protection === 'Voile du Gardien') {
-            // Voile du Gardien: attackers after this lose tokens = damage
+            // Voile du Gardien: attackers after this lose tokens = damage AND attack blocked
             voileEffects.push({
               activatedAt: pos.position_finale,
               playerNum: pos.num_joueur,
@@ -538,6 +540,15 @@ serve(async (req) => {
             // We mark all 3 slots as affected
             for (let slot = 1; slot <= 3; slot++) {
               gazActiveSlots.set(slot, { activatedAt: pos.position_finale, playerNum: pos.num_joueur });
+            }
+          } else if (protItem.special_effect === 'SOIN_DEPASSE_MAX' || pos.protection === 'Essence de Ndogmoabeng') {
+            // Essence de Ndogmoabeng: +6 PV to monster at end of turn (can exceed max)
+            const healAmount = protItem.base_heal || 6;
+            const monster = monsterBySlot.get(pos.slot_protection);
+            if (monster && monster.status === 'EN_BATAILLE') {
+              monster.pv_current += healAmount;
+              console.log(`[resolve-combat] Essence de Ndogmoabeng: ${pos.nom} heals monster on slot ${pos.slot_protection} for ${healAmount} PV (now ${monster.pv_current})`);
+              dotLogs.push(`💚 ${pos.nom} utilise Essence de Ndogmoabeng : +${healAmount} PV au monstre du slot ${pos.slot_protection}`);
             }
           }
           
