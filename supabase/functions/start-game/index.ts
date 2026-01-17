@@ -77,7 +77,7 @@ serve(async (req) => {
     // Fetch all active players (non-host) ordered by joined_at
     const { data: players, error: playersError } = await supabase
       .from("game_players")
-      .select("id, display_name, status, joined_at")
+      .select("id, display_name, status, joined_at, clan")
       .eq("game_id", gameId)
       .eq("is_host", false)
       .in("status", ["ACTIVE", "WAITING"])
@@ -99,6 +99,7 @@ serve(async (req) => {
       id: player.id,
       player_number: index + 1,
       status: "ACTIVE",
+      clan: player.clan,
     }));
 
     // Update players with new numbers and ACTIVE status
@@ -115,6 +116,55 @@ serve(async (req) => {
         console.error("Player update error:", updateError);
       }
     }
+
+    // Initialize player inventories with starting items (IDEMPOTENT - using upsert)
+    console.log("Initializing player inventories...");
+    
+    for (const player of playerUpdates) {
+      // All players get the default weapon (permanent, non-consumable)
+      const { error: defaultItemError } = await supabase
+        .from("inventory")
+        .upsert(
+          {
+            game_id: gameId,
+            owner_num: player.player_number,
+            objet: "Par défaut (+2 si compagnon Akandé)",
+            quantite: 1,
+            disponible: true,
+            dispo_attaque: true,
+          },
+          { onConflict: "game_id,owner_num,objet" }
+        );
+
+      if (defaultItemError) {
+        console.error("Default item insert error:", defaultItemError);
+      }
+
+      // Akila clan players get the Sniper Akila (single use, consumable)
+      if (player.clan === "Akila") {
+        const { error: sniperError } = await supabase
+          .from("inventory")
+          .upsert(
+            {
+              game_id: gameId,
+              owner_num: player.player_number,
+              objet: "Sniper Akila",
+              quantite: 1,
+              disponible: true,
+              dispo_attaque: true,
+            },
+            { onConflict: "game_id,owner_num,objet" }
+          );
+
+        if (sniperError) {
+          console.error("Sniper Akila insert error:", sniperError);
+        } else {
+          console.log(`Added Sniper Akila to player #${player.player_number} (Akila clan)`);
+        }
+      }
+    }
+    
+    console.log("Player inventories initialized");
 
     // Update game status to IN_GAME with phase
     const { error: gameUpdateError } = await supabase
