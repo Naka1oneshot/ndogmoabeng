@@ -158,6 +158,50 @@ export type Database = {
           },
         ]
       }
+      combat_results: {
+        Row: {
+          created_at: string
+          forest_state: Json | null
+          game_id: string
+          id: string
+          kills: Json
+          manche: number
+          mj_summary: Json
+          public_summary: Json
+          resolved_at: string
+        }
+        Insert: {
+          created_at?: string
+          forest_state?: Json | null
+          game_id: string
+          id?: string
+          kills?: Json
+          manche: number
+          mj_summary?: Json
+          public_summary?: Json
+          resolved_at?: string
+        }
+        Update: {
+          created_at?: string
+          forest_state?: Json | null
+          game_id?: string
+          id?: string
+          kills?: Json
+          manche?: number
+          mj_summary?: Json
+          public_summary?: Json
+          resolved_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "combat_results_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_monsters: {
         Row: {
           created_at: string

@@ -4,7 +4,8 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Badge } from '@/components/ui/badge';
 import { 
   Lock, Unlock, ArrowRight, RotateCcw, Loader2, 
-  CheckCircle2, AlertCircle, Users, ClipboardList
+  CheckCircle2, AlertCircle, Users, ClipboardList,
+  Target, Swords
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,6 +15,19 @@ interface Game {
   manche_active: number;
   phase: string;
   phase_locked: boolean;
+}
+
+interface PositionFinale {
+  rang_priorite: number;
+  num_joueur: number;
+  nom: string;
+  clan: string | null;
+  position_finale: number;
+  slot_attaque: number | null;
+  attaque1: string | null;
+  attaque2: string | null;
+  protection: string | null;
+  slot_protection: number | null;
 }
 
 interface MJPhasesTabProps {
@@ -33,15 +47,21 @@ export function MJPhasesTab({ game, onGameUpdate }: MJPhasesTabProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [playerCount, setPlayerCount] = useState(0);
   const [submissionCount, setSubmissionCount] = useState(0);
+  const [positionsFinales, setPositionsFinales] = useState<PositionFinale[]>([]);
+  const [combatResolved, setCombatResolved] = useState(false);
 
   useEffect(() => {
     fetchStats();
+    fetchPositionsFinales();
+    checkCombatResolved();
     
     const channel = supabase
       .channel(`mj-phases-stats-${game.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, fetchStats)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'round_bets', filter: `game_id=eq.${game.id}` }, fetchStats)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'actions', filter: `game_id=eq.${game.id}` }, fetchStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'positions_finales', filter: `game_id=eq.${game.id}` }, fetchPositionsFinales)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'combat_results', filter: `game_id=eq.${game.id}` }, checkCombatResolved)
       .subscribe();
 
     return () => {
@@ -80,6 +100,28 @@ export function MJPhasesTab({ game, onGameUpdate }: MJPhasesTabProps) {
     setSubmissionCount(submissions);
   };
 
+  const fetchPositionsFinales = async () => {
+    const { data } = await supabase
+      .from('positions_finales')
+      .select('*')
+      .eq('game_id', game.id)
+      .eq('manche', game.manche_active)
+      .order('position_finale', { ascending: true });
+    
+    setPositionsFinales(data || []);
+  };
+
+  const checkCombatResolved = async () => {
+    const { data } = await supabase
+      .from('combat_results')
+      .select('id')
+      .eq('game_id', game.id)
+      .eq('manche', game.manche_active)
+      .maybeSingle();
+    
+    setCombatResolved(!!data);
+  };
+
   const handleAction = async (action: string) => {
     setLoading(action);
     try {
@@ -93,9 +135,53 @@ export function MJPhasesTab({ game, onGameUpdate }: MJPhasesTabProps) {
 
       toast.success(getActionMessage(action));
       onGameUpdate();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Phase action error:', error);
-      toast.error(error.message || 'Erreur');
+      toast.error(error instanceof Error ? error.message : 'Erreur');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handlePublishPositions = async () => {
+    setLoading('publish_positions');
+    try {
+      const { data, error } = await supabase.functions.invoke('publish-positions', {
+        body: { gameId: game.id },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || 'Erreur lors de la publication des positions');
+      }
+
+      toast.success('Positions finales publiées !');
+      onGameUpdate();
+      fetchPositionsFinales();
+    } catch (error: unknown) {
+      console.error('Publish positions error:', error);
+      toast.error(error instanceof Error ? error.message : 'Erreur');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleResolveCombat = async () => {
+    setLoading('resolve_combat');
+    try {
+      const { data, error } = await supabase.functions.invoke('resolve-combat', {
+        body: { gameId: game.id },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || 'Erreur lors de la résolution du combat');
+      }
+
+      toast.success('Combat résolu ! Passage en Phase 3.');
+      onGameUpdate();
+      checkCombatResolved();
+    } catch (error: unknown) {
+      console.error('Resolve combat error:', error);
+      toast.error(error instanceof Error ? error.message : 'Erreur');
     } finally {
       setLoading(null);
     }
@@ -113,6 +199,8 @@ export function MJPhasesTab({ game, onGameUpdate }: MJPhasesTabProps) {
 
   const isResolution = game.phase === 'RESOLUTION';
   const allSubmitted = submissionCount >= playerCount && playerCount > 0;
+  const isPhase2 = game.phase === 'PHASE2_POSITIONS';
+  const positionsPublished = positionsFinales.length > 0;
 
   return (
     <div className="space-y-6">
@@ -146,9 +234,106 @@ export function MJPhasesTab({ game, onGameUpdate }: MJPhasesTabProps) {
         </div>
       </div>
 
-      {/* Contrôles de phase */}
+      {/* Contrôles Phase 2 spécifiques */}
+      {isPhase2 && (
+        <div className="card-gradient rounded-lg border border-amber-500/50 p-6">
+          <h3 className="font-display text-lg mb-4 flex items-center gap-2">
+            <Target className="h-5 w-5 text-amber-500" />
+            Contrôles Phase 2
+          </h3>
+          
+          <div className="flex flex-wrap gap-3 mb-4">
+            <ForestButton
+              onClick={handlePublishPositions}
+              disabled={loading !== null || positionsPublished}
+              className={positionsPublished ? 'opacity-50' : 'bg-blue-600 hover:bg-blue-700'}
+            >
+              {loading === 'publish_positions' ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Target className="h-4 w-4 mr-2" />
+              )}
+              {positionsPublished ? 'Positions publiées ✓' : '1. Publier positions finales'}
+            </ForestButton>
+
+            <ForestButton
+              onClick={handleResolveCombat}
+              disabled={loading !== null || !game.phase_locked || !positionsPublished || combatResolved}
+              className={combatResolved ? 'opacity-50' : 'bg-red-600 hover:bg-red-700'}
+            >
+              {loading === 'resolve_combat' ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Swords className="h-4 w-4 mr-2" />
+              )}
+              {combatResolved ? 'Combat résolu ✓' : '2. Résoudre combat'}
+            </ForestButton>
+          </div>
+
+          {!positionsPublished && (
+            <p className="text-xs text-muted-foreground">
+              Étape 1 : Publiez d'abord les positions finales pour verrouiller la phase et établir l'ordre d'attaque.
+            </p>
+          )}
+          {positionsPublished && !combatResolved && (
+            <p className="text-xs text-amber-400">
+              Étape 2 : Résolvez le combat pour appliquer les dégâts et passer à la Phase 3.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Positions finales (visible uniquement en phase 2 pour le MJ) */}
+      {isPhase2 && positionsFinales.length > 0 && (
+        <div className="card-gradient rounded-lg border border-border p-6">
+          <h3 className="font-display text-lg mb-4">
+            Positions finales (Détails MJ)
+          </h3>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 px-2">Pos</th>
+                  <th className="text-left py-2 px-2">Joueur</th>
+                  <th className="text-left py-2 px-2">Clan</th>
+                  <th className="text-center py-2 px-2">Slot Att.</th>
+                  <th className="text-left py-2 px-2">Attaque 1</th>
+                  <th className="text-left py-2 px-2">Attaque 2</th>
+                  <th className="text-center py-2 px-2">Slot Prot.</th>
+                  <th className="text-left py-2 px-2">Protection</th>
+                </tr>
+              </thead>
+              <tbody>
+                {positionsFinales.map((pos) => (
+                  <tr key={pos.num_joueur} className="border-b border-border/50 hover:bg-secondary/30">
+                    <td className="py-2 px-2 font-bold text-primary">#{pos.position_finale}</td>
+                    <td className="py-2 px-2">{pos.nom}</td>
+                    <td className="py-2 px-2 text-muted-foreground">{pos.clan || '-'}</td>
+                    <td className="py-2 px-2 text-center">
+                      {pos.slot_attaque ? (
+                        <Badge variant="destructive" className="text-xs">{pos.slot_attaque}</Badge>
+                      ) : '-'}
+                    </td>
+                    <td className="py-2 px-2">{pos.attaque1 || '-'}</td>
+                    <td className="py-2 px-2">{pos.attaque2 || '-'}</td>
+                    <td className="py-2 px-2 text-center">
+                      {pos.slot_protection ? (
+                        <Badge variant="secondary" className="text-xs">{pos.slot_protection}</Badge>
+                      ) : '-'}
+                    </td>
+                    <td className="py-2 px-2">{pos.protection || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Contrôles de phase généraux */}
       <div className="card-gradient rounded-lg border border-border p-6">
-        <h3 className="font-display text-lg mb-4">Contrôles</h3>
+        <h3 className="font-display text-lg mb-4">Contrôles généraux</h3>
         
         <div className="flex flex-wrap gap-3">
           {game.phase_locked ? (
@@ -242,6 +427,38 @@ export function MJPhasesTab({ game, onGameUpdate }: MJPhasesTabProps) {
             </div>
           )}
 
+          {isPhase2 && (
+            <>
+              <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  {positionsPublished ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                  )}
+                  <span>Positions publiées</span>
+                </div>
+                <Badge variant={positionsPublished ? 'default' : 'secondary'}>
+                  {positionsPublished ? 'Oui' : 'Non'}
+                </Badge>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  {combatResolved ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                  )}
+                  <span>Combat résolu</span>
+                </div>
+                <Badge variant={combatResolved ? 'default' : 'secondary'}>
+                  {combatResolved ? 'Oui' : 'Non'}
+                </Badge>
+              </div>
+            </>
+          )}
+
           {!allSubmitted && playerCount > 0 && (game.phase === 'PHASE1_MISES' || game.phase === 'PHASE2_POSITIONS') && (
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
               <p className="text-sm text-amber-200">
@@ -251,11 +468,11 @@ export function MJPhasesTab({ game, onGameUpdate }: MJPhasesTabProps) {
             </div>
           )}
 
-          {allSubmitted && playerCount > 0 && (
+          {allSubmitted && playerCount > 0 && !positionsPublished && isPhase2 && (
             <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
               <p className="text-sm text-green-200">
                 <CheckCircle2 className="h-4 w-4 inline mr-2" />
-                Tous les joueurs ont soumis. Vous pouvez verrouiller et passer à la phase suivante.
+                Tous les joueurs ont soumis. Vous pouvez publier les positions finales.
               </p>
             </div>
           )}
