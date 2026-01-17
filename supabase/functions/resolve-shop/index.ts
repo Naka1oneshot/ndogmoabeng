@@ -474,11 +474,19 @@ Deno.serve(async (req) => {
       details: `Passage automatique à la manche ${nextManche} (+${tokenBonus} jetons pour tous)`,
     });
 
+    // Public log for token bonus
+    await supabase.from('logs_joueurs').insert({
+      game_id: gameId,
+      manche: nextManche,
+      type: 'BONUS',
+      message: `💰 Tous les joueurs reçoivent +${tokenBonus} jetons pour la nouvelle manche !`,
+    });
+
     await supabase.from('logs_joueurs').insert({
       game_id: gameId,
       manche: nextManche,
       type: 'PHASE',
-      message: `🔄 Nouvelle manche ${nextManche} - Phase 1 : Mises (+${tokenBonus} jetons pour tous)`,
+      message: `🔄 Nouvelle manche ${nextManche} - Phase 1 : Mises`,
     });
 
     // Session event for new round
