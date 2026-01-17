@@ -4,9 +4,18 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, ShoppingBag, Coins, Sword, Shield, 
-  Check, X, Lock, AlertCircle
+  Check, Lock, AlertCircle, Clock, Send
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Game {
   id: string;
@@ -20,6 +29,7 @@ interface Player {
   jetons: number;
   clan?: string;
   playerToken?: string;
+  playerId?: string;
 }
 
 interface ShopPanelProps {
@@ -30,6 +40,7 @@ interface ShopPanelProps {
 
 interface ShopOffer {
   item_ids: string[];
+  resolved: boolean;
 }
 
 interface ShopPrice {
@@ -47,17 +58,27 @@ interface ItemCatalog {
   restockable: boolean;
 }
 
-interface Purchase {
+interface ShopRequest {
+  want_buy: boolean;
+  item_name: string | null;
+}
+
+interface ApprovedPurchase {
   item_name: string;
 }
 
 export function ShopPanel({ game, player, className }: ShopPanelProps) {
   const [loading, setLoading] = useState(true);
-  const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [shopOffer, setShopOffer] = useState<ShopOffer | null>(null);
   const [prices, setPrices] = useState<ShopPrice[]>([]);
   const [items, setItems] = useState<ItemCatalog[]>([]);
-  const [myPurchases, setMyPurchases] = useState<Purchase[]>([]);
+  const [myRequest, setMyRequest] = useState<ShopRequest | null>(null);
+  const [myPurchases, setMyPurchases] = useState<ApprovedPurchase[]>([]);
+  
+  // Form state
+  const [wantBuy, setWantBuy] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<string>('');
 
   useEffect(() => {
     fetchData();
@@ -65,6 +86,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
     const channel = supabase
       .channel(`player-shop-${game.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_shop_offers', filter: `game_id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shop_requests', filter: `game_id=eq.${game.id}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_item_purchases', filter: `game_id=eq.${game.id}` }, fetchData)
       .subscribe();
 
@@ -76,25 +98,44 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [offerRes, pricesRes, itemsRes, purchasesRes] = await Promise.all([
+      const [offerRes, pricesRes, itemsRes, requestRes, purchasesRes] = await Promise.all([
         supabase
           .from('game_shop_offers')
-          .select('item_ids')
+          .select('item_ids, resolved')
           .eq('game_id', game.id)
           .eq('manche', game.manche_active)
           .maybeSingle(),
         supabase.from('shop_prices').select('*'),
         supabase.from('item_catalog').select('name, category, base_damage, base_heal, notes, restockable'),
         supabase
+          .from('shop_requests')
+          .select('want_buy, item_name')
+          .eq('game_id', game.id)
+          .eq('manche', game.manche_active)
+          .eq('player_num', player.playerNumber)
+          .maybeSingle(),
+        supabase
           .from('game_item_purchases')
           .select('item_name')
           .eq('game_id', game.id)
+          .eq('manche', game.manche_active)
           .eq('player_num', player.playerNumber),
       ]);
 
       setShopOffer(offerRes.data);
       setPrices(pricesRes.data || []);
       setItems((itemsRes.data || []) as ItemCatalog[]);
+      
+      if (requestRes.data) {
+        setMyRequest(requestRes.data);
+        setWantBuy(requestRes.data.want_buy);
+        setSelectedItem(requestRes.data.item_name || '');
+      } else {
+        setMyRequest(null);
+        setWantBuy(false);
+        setSelectedItem('');
+      }
+      
       setMyPurchases(purchasesRes.data || []);
     } catch (error) {
       console.error('Error fetching shop data:', error);
@@ -103,29 +144,35 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
     }
   };
 
-  const handlePurchase = async (itemName: string) => {
-    setPurchasing(itemName);
+  const handleSubmitRequest = async () => {
+    if (wantBuy && !selectedItem) {
+      toast.error('Veuillez sélectionner un objet');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('purchase-item', {
+      const { data, error } = await supabase.functions.invoke('submit-shop-request', {
         body: { 
           gameId: game.id, 
           playerNumber: player.playerNumber,
-          itemName,
           playerToken: player.playerToken,
+          wantBuy: wantBuy,
+          itemName: wantBuy ? selectedItem : null,
         },
       });
 
       if (error || !data?.success) {
-        throw new Error(data?.error || 'Erreur lors de l\'achat');
+        throw new Error(data?.error || 'Erreur lors de l\'enregistrement');
       }
 
-      toast.success(`${itemName} acheté ! Nouveau solde: ${data.newBalance} jetons`);
+      toast.success(data.message);
       fetchData();
     } catch (error) {
-      console.error('Error purchasing item:', error);
+      console.error('Error submitting shop request:', error);
       toast.error(error instanceof Error ? error.message : 'Erreur');
     } finally {
-      setPurchasing(null);
+      setSubmitting(false);
     }
   };
 
@@ -144,23 +191,6 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
     return isAkila ? price.cost_akila : price.cost_normal;
   };
 
-  const canPurchase = (itemName: string) => {
-    const info = getItemInfo(itemName);
-    const cost = getCost(itemName);
-    
-    // Check if already purchased (unless restockable)
-    if (!info?.restockable && myPurchases.some(p => p.item_name === itemName)) {
-      return { can: false, reason: 'Déjà acheté' };
-    }
-    
-    // Check tokens
-    if (player.jetons < cost) {
-      return { can: false, reason: 'Jetons insuffisants' };
-    }
-
-    return { can: true, reason: null };
-  };
-
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'ATTAQUE': return <Sword className="h-4 w-4 text-red-500" />;
@@ -171,6 +201,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
 
   const isLocked = game.phase_locked;
   const isPhase3 = game.phase === 'PHASE3_SHOP';
+  const isResolved = shopOffer?.resolved;
 
   if (loading) {
     return (
@@ -211,6 +242,48 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
     );
   }
 
+  // Show purchases if resolved
+  if (isResolved) {
+    return (
+      <div className={`card-gradient rounded-lg border border-green-500/30 ${className}`}>
+        <div className="p-3 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-green-500" />
+            <h3 className="font-display text-sm">Boutique - Résolu</h3>
+          </div>
+          <Badge variant="outline" className="text-green-500 border-green-500">
+            <Check className="h-3 w-3 mr-1" />
+            Terminé
+          </Badge>
+        </div>
+        
+        <div className="p-4 space-y-3">
+          {myPurchases.length > 0 ? (
+            <>
+              <p className="text-sm text-green-400">
+                ✅ Vos achats validés :
+              </p>
+              {myPurchases.map((purchase, idx) => (
+                <div key={idx} className="p-2 bg-green-500/10 rounded border border-green-500/30">
+                  <span className="font-medium">{purchase.item_name}</span>
+                </div>
+              ))}
+            </>
+          ) : myRequest?.want_buy ? (
+            <p className="text-sm text-amber-400">
+              ⚠️ Votre demande pour "{myRequest.item_name}" n'a pas pu être validée 
+              (objet déjà pris par un joueur plus prioritaire ou jetons insuffisants)
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Vous n'avez pas souhaité acheter d'objet cette manche.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`card-gradient rounded-lg border border-green-500/30 ${className}`}>
       <div className="p-3 border-b border-border flex items-center justify-between">
@@ -229,89 +302,125 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
         </div>
       </div>
 
-      <div className="p-4 space-y-3">
+      {/* Important notice */}
+      <div className="p-3 bg-amber-500/10 border-b border-amber-500/30">
+        <p className="text-xs text-amber-400 flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          <span>Aucun achat immédiat. Le MJ résout les achats selon l'ordre de priorité.</span>
+        </p>
+      </div>
+
+      {/* Shop items list */}
+      <div className="p-4 space-y-2">
+        <p className="text-xs text-muted-foreground mb-3">Objets disponibles :</p>
         {shopOffer.item_ids.map((itemName, index) => {
           const info = getItemInfo(itemName);
-          const price = getPrice(itemName);
           const cost = getCost(itemName);
-          const { can, reason } = canPurchase(itemName);
-          const isPurchasing = purchasing === itemName;
 
           return (
             <div
               key={`${itemName}-${index}`}
-              className={`p-3 rounded-lg border transition-colors ${
-                can 
-                  ? 'bg-secondary/50 border-border hover:border-green-500/50' 
-                  : 'bg-secondary/20 border-border/50 opacity-60'
+              className={`p-2 rounded-lg border transition-colors ${
+                selectedItem === itemName && wantBuy
+                  ? 'bg-green-500/20 border-green-500/50' 
+                  : 'bg-secondary/30 border-border/50'
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {info && getCategoryIcon(info.category)}
-                    <span className="font-medium truncate">{itemName}</span>
-                    {info?.restockable && (
-                      <Badge variant="outline" className="text-xs shrink-0">∞</Badge>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {info?.base_damage && info.base_damage > 0 && (
-                      <span className="text-red-400">⚔️{info.base_damage} DMG</span>
-                    )}
-                    {info?.base_heal && info.base_heal > 0 && (
-                      <span className="text-green-400">💚+{info.base_heal} HP</span>
-                    )}
-                  </div>
-                  
-                  {info?.notes && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {info.notes}
-                    </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {info && getCategoryIcon(info.category)}
+                  <span className="font-medium text-sm">{itemName}</span>
+                  {info?.restockable && (
+                    <Badge variant="outline" className="text-xs">∞</Badge>
                   )}
                 </div>
-
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <div className="flex items-center gap-1">
-                    <Coins className="h-3 w-3 text-yellow-500" />
-                    <span className={`font-bold ${cost <= player.jetons ? 'text-yellow-500' : 'text-red-500'}`}>
-                      {cost}
-                    </span>
-                  </div>
-
-                  {can ? (
-                    <ForestButton
-                      size="sm"
-                      onClick={() => handlePurchase(itemName)}
-                      disabled={isPurchasing || isLocked}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      {isPurchasing ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <>
-                          <Check className="h-3 w-3 mr-1" />
-                          Acheter
-                        </>
-                      )}
-                    </ForestButton>
-                  ) : (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <X className="h-3 w-3" />
-                      <span>{reason}</span>
-                    </div>
-                  )}
+                <div className="flex items-center gap-1">
+                  <Coins className="h-3 w-3 text-yellow-500" />
+                  <span className={`text-sm ${cost <= player.jetons ? 'text-yellow-500' : 'text-red-500'}`}>
+                    {cost}
+                  </span>
                 </div>
               </div>
+              {info?.notes && (
+                <p className="text-xs text-muted-foreground mt-1 pl-6">{info.notes}</p>
+              )}
             </div>
           );
         })}
+      </div>
+
+      {/* Request form */}
+      <div className="p-4 border-t border-border space-y-4">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="want-buy" className="text-sm font-medium">
+            Souhaitez-vous acheter ?
+          </Label>
+          <Switch
+            id="want-buy"
+            checked={wantBuy}
+            onCheckedChange={setWantBuy}
+            disabled={isLocked || submitting}
+          />
+        </div>
+
+        {wantBuy && (
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Choisir un objet :</Label>
+            <Select 
+              value={selectedItem} 
+              onValueChange={setSelectedItem}
+              disabled={isLocked || submitting}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un objet..." />
+              </SelectTrigger>
+              <SelectContent>
+                {shopOffer.item_ids.map((itemName, idx) => {
+                  const cost = getCost(itemName);
+                  const canAfford = player.jetons >= cost;
+                  return (
+                    <SelectItem 
+                      key={`${itemName}-${idx}`} 
+                      value={itemName}
+                      disabled={!canAfford}
+                    >
+                      <span className={!canAfford ? 'text-muted-foreground' : ''}>
+                        {itemName} ({cost} jetons)
+                        {!canAfford && ' - Insuffisant'}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <ForestButton
+          onClick={handleSubmitRequest}
+          disabled={isLocked || submitting || (wantBuy && !selectedItem)}
+          className="w-full"
+        >
+          {submitting ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Send className="h-4 w-4 mr-2" />
+          )}
+          Enregistrer mon choix
+        </ForestButton>
+
+        {myRequest && (
+          <p className="text-xs text-center text-muted-foreground">
+            {myRequest.want_buy 
+              ? `✅ Souhait enregistré : ${myRequest.item_name}`
+              : '✅ Enregistré : aucun achat souhaité'}
+          </p>
+        )}
 
         {isLocked && (
           <p className="text-xs text-center text-amber-500 pt-2">
             <AlertCircle className="h-3 w-3 inline mr-1" />
-            Phase verrouillée - achats désactivés
+            Phase verrouillée - modifications désactivées
           </p>
         )}
       </div>

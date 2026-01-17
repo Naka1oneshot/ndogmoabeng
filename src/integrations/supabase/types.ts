@@ -263,6 +263,9 @@ export type Database = {
           player_id: string
           player_num: number
           purchased_at: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
         }
         Insert: {
           cost: number
@@ -274,6 +277,9 @@ export type Database = {
           player_id: string
           player_num: number
           purchased_at?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
         }
         Update: {
           cost?: number
@@ -285,6 +291,9 @@ export type Database = {
           player_id?: string
           player_num?: number
           purchased_at?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
         }
         Relationships: [
           {
@@ -430,6 +439,8 @@ export type Database = {
           item_ids: string[]
           locked: boolean
           manche: number
+          resolved: boolean
+          resolved_at: string | null
         }
         Insert: {
           created_at?: string
@@ -439,6 +450,8 @@ export type Database = {
           item_ids?: string[]
           locked?: boolean
           manche: number
+          resolved?: boolean
+          resolved_at?: string | null
         }
         Update: {
           created_at?: string
@@ -448,6 +461,8 @@ export type Database = {
           item_ids?: string[]
           locked?: boolean
           manche?: number
+          resolved?: boolean
+          resolved_at?: string | null
         }
         Relationships: [
           {
@@ -1149,6 +1164,50 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "item_catalog"
             referencedColumns: ["name"]
+          },
+        ]
+      }
+      shop_requests: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          item_name: string | null
+          manche: number
+          player_id: string
+          player_num: number
+          updated_at: string
+          want_buy: boolean
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          item_name?: string | null
+          manche: number
+          player_id: string
+          player_num: number
+          updated_at?: string
+          want_buy?: boolean
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          item_name?: string | null
+          manche?: number
+          player_id?: string
+          player_num?: number
+          updated_at?: string
+          want_buy?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_requests_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
           },
         ]
       }
