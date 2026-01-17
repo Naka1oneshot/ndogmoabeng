@@ -772,7 +772,8 @@ serve(async (req) => {
       mjAction.totalDamage = totalDirectDamage;
       publicAction.totalDamage = totalDirectDamage + (totalAoeDamage * 3);
 
-      // Check Voile du Gardien penalty BEFORE applying damage
+      // Check Voile du Gardien - BLOCKS damage AND applies token penalty
+      let voileBlocked = false;
       if (targetSlot && totalDirectDamage > 0 && !attackCancelled) {
         for (const voile of voileEffects) {
           if (voile.slot === targetSlot && voile.activatedAt < pos.position_finale) {
@@ -783,14 +784,20 @@ serve(async (req) => {
               tokens: totalDirectDamage,
               reason: 'Voile du Gardien',
             });
-            // Attack is NOT cancelled, damage still applies, but player loses tokens
-            console.log(`[resolve-combat] Voile du Gardien: ${pos.nom} loses ${totalDirectDamage} jetons`);
+            // Attack IS blocked - monster takes no damage
+            voileBlocked = true;
+            mjAction.cancelled = true;
+            mjAction.cancelReason = 'Voile du Gardien';
+            publicAction.cancelled = true;
+            publicAction.cancelReason = 'Voile du Gardien';
+            console.log(`[resolve-combat] Voile du Gardien: ${pos.nom} loses ${totalDirectDamage} jetons, attack blocked`);
+            break;
           }
         }
       }
 
-      // Apply direct damage to target monster
-      if (targetSlot && totalDirectDamage > 0 && !attackCancelled) {
+      // Apply direct damage to target monster (only if not blocked by Voile)
+      if (targetSlot && totalDirectDamage > 0 && !attackCancelled && !voileBlocked) {
         const monster = monsterBySlot.get(targetSlot);
         if (monster && monster.status === 'EN_BATAILLE') {
           mjAction.targetMonster = monster.name || null;
