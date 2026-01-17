@@ -134,7 +134,33 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
         return;
       }
 
-      toast.success(`Token de ${playerName} réinitialisé`);
+      // Generate the reconnection link with the new token
+      const reconnectUrl = `${window.location.origin}/player/${game.id}?token=${data.newToken}`;
+      
+      // Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(reconnectUrl);
+        setCopiedId(playerId);
+        setTimeout(() => setCopiedId(null), 3000);
+        toast.success(
+          <div className="space-y-1">
+            <p>Token de <strong>{playerName}</strong> réinitialisé</p>
+            <p className="text-xs text-muted-foreground">Lien de reconnexion copié dans le presse-papier</p>
+          </div>
+        );
+      } catch {
+        // Fallback: show the link in the toast
+        toast.success(
+          <div className="space-y-2">
+            <p>Token de <strong>{playerName}</strong> réinitialisé</p>
+            <div className="text-xs bg-secondary p-2 rounded break-all select-all">
+              {reconnectUrl}
+            </div>
+          </div>,
+          { duration: 10000 }
+        );
+      }
+
       fetchPlayers();
     } catch (err) {
       console.error('Reset error:', err);
