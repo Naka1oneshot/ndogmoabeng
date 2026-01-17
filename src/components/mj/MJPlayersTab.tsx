@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { 
   User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, 
-  Users, UserX, Play, Trash2 
+  Users, UserX, Play
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -55,7 +55,6 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -120,47 +119,6 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
       toast.error(error.message || 'Erreur lors du démarrage');
     } finally {
       setStarting(false);
-    }
-  };
-
-  const handleDeleteGame = async () => {
-    setDeleting(true);
-    try {
-      const tablesToClear = [
-        'session_events',
-        'session_bans',
-        'pending_effects',
-        'positions_finales',
-        'round_bets',
-        'actions',
-        'inventory',
-        'logs_joueurs',
-        'logs_mj',
-        'battlefield',
-        'monsters',
-        'combat_config',
-        'shop_catalogue',
-        'game_players',
-      ];
-
-      for (const table of tablesToClear) {
-        await (supabase.from(table as any).delete().eq('game_id', game.id));
-      }
-
-      const { error } = await supabase
-        .from('games')
-        .delete()
-        .eq('id', game.id);
-
-      if (error) throw error;
-
-      toast.success('Partie supprimée');
-      onGameUpdate();
-    } catch (error) {
-      console.error('Error deleting game:', error);
-      toast.error('Erreur lors de la suppression');
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -295,33 +253,6 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
             Démarrer la partie ({activePlayers.length} joueurs)
           </ForestButton>
         )}
-
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <ForestButton variant="outline" className="text-destructive border-destructive/50 hover:bg-destructive/10">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Supprimer la partie
-            </ForestButton>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Supprimer la partie ?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Cette action est irréversible. Tous les joueurs seront déconnectés et toutes les données seront supprimées.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteGame}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Supprimer définitivement
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
 
       {/* Liste des joueurs actifs */}
