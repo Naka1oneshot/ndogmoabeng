@@ -60,6 +60,13 @@ interface Kill {
   slot: number;
 }
 
+interface ConsumedItem {
+  playerNum: number;
+  playerName: string;
+  itemName: string;
+  wasInInventory: boolean;
+}
+
 interface MJAction {
   position: number;
   nom: string;
@@ -236,7 +243,26 @@ serve(async (req) => {
     const mjActions: MJAction[] = [];
     const kills: Kill[] = [];
     const rewardUpdates: { playerNum: number; reward: number }[] = [];
-    const inventoryUpdates: { ownerNum: number; objet: string; delta: number }[] = [];
+    const consumedItems: ConsumedItem[] = [];
+    
+    // Permanent item that should never be consumed
+    const PERMANENT_WEAPON = 'Par défaut (+2 si compagnon Akandé)';
+    
+    // Helper function to track item consumption
+    const trackItemConsumption = (playerNum: number, playerName: string, itemName: string) => {
+      if (!itemName || itemName === 'Aucune' || itemName === '' || itemName === PERMANENT_WEAPON) {
+        return;
+      }
+      // Check if player has item in inventory
+      const invKey = `${playerNum}_${itemName}`;
+      const hasItem = (inventoryMap.get(invKey) || 0) > 0;
+      consumedItems.push({
+        playerNum,
+        playerName,
+        itemName,
+        wasInInventory: hasItem,
+      });
+    };
     const berserkerPlayers: number[] = [];
 
     // Process each player in order of position_finale
@@ -268,7 +294,7 @@ serve(async (req) => {
       };
 
       // Process protection first (activates for subsequent attacks)
-      if (pos.protection && pos.slot_protection) {
+      if (pos.protection && pos.slot_protection && pos.protection !== 'Aucune' && pos.protection !== PERMANENT_WEAPON) {
         const protItem = itemMap.get(pos.protection);
         if (protItem) {
           if (protItem.special_effect === 'BOUCLIER_MIROIR' || pos.protection.toLowerCase().includes('bouclier')) {
@@ -279,10 +305,8 @@ serve(async (req) => {
             gazBySlot.set(pos.slot_protection, { activatedAt: pos.position_finale, playerNum: pos.num_joueur });
           }
           
-          // Consume protection item if consumable
-          if (protItem.consumable) {
-            inventoryUpdates.push({ ownerNum: pos.num_joueur, objet: pos.protection, delta: -1 });
-          }
+          // Track protection item for consumption (ALL protections are consumed when used)
+          trackItemConsumption(pos.num_joueur, pos.nom, pos.protection);
         }
       }
 
@@ -312,14 +336,14 @@ serve(async (req) => {
       let damage1 = 0;
       let damage2 = 0;
 
-      if (pos.attaque1) {
+      if (pos.attaque1 && pos.attaque1 !== 'Aucune') {
         const item1 = itemMap.get(pos.attaque1);
         if (item1) {
           publicAction.weapons.push(pos.attaque1);
           
-          // Akande clan bonus
+          // Akande clan bonus (only for default weapon)
           let bonus = 0;
-          if (pos.clan === 'Akandé') {
+          if (pos.clan === 'Akandé' && pos.attaque1 === PERMANENT_WEAPON) {
             bonus = 2;
           }
           
@@ -342,28 +366,26 @@ serve(async (req) => {
             berserkerPlayers.push(pos.num_joueur);
           }
 
-          // Consume item if consumable
-          if (item1.consumable) {
-            inventoryUpdates.push({ ownerNum: pos.num_joueur, objet: pos.attaque1, delta: -1 });
-          }
+          // Track attack item for consumption (ALL attacks except permanent weapon)
+          trackItemConsumption(pos.num_joueur, pos.nom, pos.attaque1);
         }
       }
 
-      if (pos.attaque2) {
+      if (pos.attaque2 && pos.attaque2 !== 'Aucune') {
         const item2 = itemMap.get(pos.attaque2);
         if (item2) {
           publicAction.weapons.push(pos.attaque2);
           
+          // Akande clan bonus (only for default weapon)
           let bonus = 0;
-          if (pos.clan === 'Akandé') {
+          if (pos.clan === 'Akandé' && pos.attaque2 === PERMANENT_WEAPON) {
             bonus = 2;
           }
           
           damage2 = (item2.base_damage || 0) + bonus;
-          
-          if (item2.consumable) {
-            inventoryUpdates.push({ ownerNum: pos.num_joueur, objet: pos.attaque2, delta: -1 });
-          }
+
+          // Track attack item for consumption (ALL attacks except permanent weapon)
+          trackItemConsumption(pos.num_joueur, pos.nom, pos.attaque2);
         }
       }
 
@@ -508,6 +530,85 @@ serve(async (req) => {
       }
     }
 
+    // ==========================================
+    // CONSUME ITEMS FROM INVENTORY
+    // ==========================================
+    console.log(`[resolve-combat] Processing ${consumedItems.length} item consumptions`);
+    
+    const consumptionLogs: string[] = [];
+    const itemsMissingFromInventory: ConsumedItem[] = [];
+    
+    for (const item of consumedItems) {
+      // Find the inventory entry for this player and item
+      const { data: invRow, error: invError } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('game_id', gameId)
+        .eq('owner_num', item.playerNum)
+        .eq('objet', item.itemName)
+        .single();
+      
+      if (invError || !invRow) {
+        // Item not found in inventory - log and continue (don't crash)
+        console.log(`[resolve-combat] Item not found in inventory: ${item.itemName} for player ${item.playerNum}`);
+        itemsMissingFromInventory.push(item);
+        continue;
+      }
+      
+      const currentQty = invRow.quantite || 1;
+      
+      if (currentQty > 1) {
+        // Decrement quantity
+        const { error: updateError } = await supabase
+          .from('inventory')
+          .update({ 
+            quantite: currentQty - 1,
+            dispo_attaque: currentQty - 1 > 0 
+          })
+          .eq('id', invRow.id);
+        
+        if (!updateError) {
+          consumptionLogs.push(`Joueur ${item.playerNum} (${item.playerName}): -1 ${item.itemName} (reste: ${currentQty - 1})`);
+          console.log(`[resolve-combat] Decremented ${item.itemName} for player ${item.playerNum}: ${currentQty} -> ${currentQty - 1}`);
+        }
+      } else {
+        // Delete the row entirely
+        const { error: deleteError } = await supabase
+          .from('inventory')
+          .delete()
+          .eq('id', invRow.id);
+        
+        if (!deleteError) {
+          consumptionLogs.push(`Joueur ${item.playerNum} (${item.playerName}): -1 ${item.itemName} (épuisé)`);
+          console.log(`[resolve-combat] Deleted ${item.itemName} for player ${item.playerNum} (was last one)`);
+        }
+      }
+    }
+
+    // Log missing items to MJ if any
+    if (itemsMissingFromInventory.length > 0) {
+      const missingItemsMsg = itemsMissingFromInventory.map(
+        i => `${i.playerName} (J${i.playerNum}): ${i.itemName} non trouvé en inventaire`
+      ).join('\n');
+      
+      await supabase.from('logs_mj').insert({
+        game_id: gameId,
+        manche: manche,
+        action: 'OBJET_ABSENT_INVENTAIRE',
+        details: missingItemsMsg,
+      });
+    }
+
+    // Log consumption to MJ
+    if (consumptionLogs.length > 0) {
+      await supabase.from('logs_mj').insert({
+        game_id: gameId,
+        manche: manche,
+        action: 'INVENTAIRE_CONSO',
+        details: consumptionLogs.join('\n'),
+      });
+    }
+
     // Calculate forest state
     const { data: updatedMonsters } = await supabase
       .from('game_state_monsters')
@@ -518,6 +619,7 @@ serve(async (req) => {
     const forestState = {
       totalPvRemaining: totalPvCurrent,
       monstersKilled: kills.length,
+      itemsConsumed: consumedItems.filter(i => i.wasInInventory).length,
     };
 
     // Build public summary (NO TARGET INFO)
