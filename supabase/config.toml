@@ -58,3 +58,9 @@ verify_jwt = false
 
 [functions.purchase-item]
 verify_jwt = false
+
+[functions.resolve-shop]
+verify_jwt = false
+
+[functions.submit-shop-request]
+verify_jwt = false
