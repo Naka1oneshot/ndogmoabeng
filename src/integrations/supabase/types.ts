@@ -202,6 +202,56 @@ export type Database = {
           },
         ]
       }
+      game_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          game_id: string
+          id: string
+          manche: number
+          message: string
+          payload: Json | null
+          phase: string
+          player_id: string | null
+          player_num: number | null
+          visibility: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          game_id: string
+          id?: string
+          manche?: number
+          message: string
+          payload?: Json | null
+          phase?: string
+          player_id?: string | null
+          player_num?: number | null
+          visibility?: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          game_id?: string
+          id?: string
+          manche?: number
+          message?: string
+          payload?: Json | null
+          phase?: string
+          player_id?: string | null
+          player_num?: number | null
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_events_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_item_purchases: {
         Row: {
           cost: number

@@ -15,10 +15,11 @@ import { MJEventsTab } from './MJEventsTab';
 import { MJMonstersConfigTab } from './MJMonstersConfigTab';
 import { MJItemsShopTab } from './MJItemsShopTab';
 import { MJShopPhaseTab } from './MJShopPhaseTab';
+import { MJHistoryTab } from './MJHistoryTab';
 import { 
   ChevronLeft, Loader2, Users, Settings, Swords, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
-  Bug, Store
+  Bug, Store, History
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -212,7 +213,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="players" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
+        <TabsList className="grid w-full grid-cols-5 md:grid-cols-9">
           <TabsTrigger value="players" className="flex items-center gap-1">
             <Users className="h-4 w-4" />
             <span className="hidden md:inline">Joueurs</span>
@@ -244,6 +245,10 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           <TabsTrigger value="events" className="flex items-center gap-1">
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">Events</span>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-1">
+            <History className="h-4 w-4" />
+            <span className="hidden md:inline">Historique</span>
           </TabsTrigger>
         </TabsList>
 
@@ -281,6 +286,10 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
         <TabsContent value="events" className="mt-6">
           <MJEventsTab game={game} />
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-6">
+          <MJHistoryTab gameId={game.id} currentManche={game.manche_active} />
         </TabsContent>
       </Tabs>
     </div>
