@@ -34,7 +34,11 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
   const [teammates, setTeammates] = useState<Teammate[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Fetch teammates (players with same mate_num)
+  // Calculate a consistent mate_group ID from the pair (min of playerNum and mateNum)
+  // This ensures both players in a pair use the same group ID
+  const mateGroupId = mateNum ? Math.min(playerNum, mateNum) : null;
+
+  // Fetch teammates (the player whose player_number equals our mateNum)
   useEffect(() => {
     if (!mateNum) return;
 
@@ -43,8 +47,7 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
         .from('game_players')
         .select('player_number, display_name')
         .eq('game_id', gameId)
-        .eq('mate_num', mateNum)
-        .neq('player_number', playerNum)
+        .eq('player_number', mateNum)
         .in('status', ['ACTIVE', 'IN_QUEUE']);
 
       if (!error && data) {
@@ -53,18 +56,18 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
     };
 
     fetchTeammates();
-  }, [gameId, mateNum, playerNum]);
+  }, [gameId, mateNum]);
 
   // Fetch and subscribe to messages
   useEffect(() => {
-    if (!mateNum) return;
+    if (!mateGroupId) return;
 
     const fetchMessages = async () => {
       const { data, error } = await supabase
         .from('team_messages')
         .select('*')
         .eq('game_id', gameId)
-        .eq('mate_group', mateNum)
+        .eq('mate_group', mateGroupId)
         .order('created_at', { ascending: true });
 
       if (!error && data) {
@@ -76,7 +79,7 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
 
     // Real-time subscription
     const channel = supabase
-      .channel(`team-chat-${gameId}-${mateNum}`)
+      .channel(`team-chat-${gameId}-${mateGroupId}`)
       .on(
         'postgres_changes',
         {
@@ -87,7 +90,7 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
         },
         (payload) => {
           const newMsg = payload.new as Message;
-          if (newMsg.mate_group === mateNum) {
+          if (newMsg.mate_group === mateGroupId) {
             setMessages((prev) => [...prev, newMsg]);
           }
         }
@@ -97,7 +100,7 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, mateNum]);
+  }, [gameId, mateGroupId]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -107,14 +110,14 @@ const TeamChat: React.FC<TeamChatProps> = ({ gameId, playerNum, playerName, mate
   }, [messages]);
 
   const handleSend = async () => {
-    if (!newMessage.trim() || !mateNum) return;
+    if (!newMessage.trim() || !mateGroupId) return;
 
     setSending(true);
     const { error } = await supabase.from('team_messages').insert({
       game_id: gameId,
       sender_num: playerNum,
       sender_name: playerName,
-      mate_group: mateNum,
+      mate_group: mateGroupId,
       message: newMessage.trim(),
     });
 
