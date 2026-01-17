@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Package, Coins, Trophy, Sword, Shield } from 'lucide-react';
+import { Loader2, Package, Coins, Trophy, Sword, Shield, Info, Zap, Heart } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface InventoryItem {
   id: string;
@@ -9,6 +15,15 @@ interface InventoryItem {
   quantite: number;
   disponible: boolean;
   dispo_attaque: boolean;
+}
+
+interface CatalogItem {
+  name: string;
+  category: string;
+  base_damage: number | null;
+  base_heal: number | null;
+  notes: string | null;
+  consumable: boolean | null;
 }
 
 interface PlayerInventoryProps {
@@ -21,6 +36,145 @@ interface PlayerInventoryProps {
   className?: string;
 }
 
+function ItemDetails({ item, catalog }: { item: InventoryItem; catalog: Map<string, CatalogItem> }) {
+  const details = catalog.get(item.objet);
+  
+  if (!details) {
+    return (
+      <div className="flex items-center justify-between p-2 rounded bg-secondary/30">
+        <span className="text-sm">{item.objet}</span>
+        <span className="text-xs font-medium">x{item.quantite}</span>
+      </div>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center justify-between p-2 rounded bg-secondary/30 cursor-help hover:bg-secondary/50 transition-colors">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">{item.objet}</span>
+              {!item.disponible && (
+                <span className="text-xs text-red-400">(utilisé)</span>
+              )}
+              <Info className="h-3 w-3 text-muted-foreground" />
+            </div>
+            <div className="flex items-center gap-2">
+              {details.base_damage && details.base_damage > 0 && (
+                <span className="flex items-center gap-0.5 text-xs text-red-400">
+                  <Zap className="h-3 w-3" />
+                  {details.base_damage}
+                </span>
+              )}
+              {details.base_heal && details.base_heal > 0 && (
+                <span className="flex items-center gap-0.5 text-xs text-green-400">
+                  <Heart className="h-3 w-3" />
+                  {details.base_heal}
+                </span>
+              )}
+              <span className="text-xs font-medium">x{item.quantite}</span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="max-w-[250px] p-3">
+          <div className="space-y-2">
+            <p className="font-semibold text-sm">{item.objet}</p>
+            <div className="flex gap-3 text-xs">
+              {details.base_damage !== null && details.base_damage > 0 && (
+                <span className="flex items-center gap-1 text-red-400">
+                  <Zap className="h-3 w-3" /> Dégâts: {details.base_damage}
+                </span>
+              )}
+              {details.base_heal !== null && details.base_heal > 0 && (
+                <span className="flex items-center gap-1 text-green-400">
+                  <Heart className="h-3 w-3" /> Soins: {details.base_heal}
+                </span>
+              )}
+            </div>
+            {details.notes && (
+              <p className="text-xs text-muted-foreground border-t border-border pt-2">
+                {details.notes}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {details.consumable ? '🔥 Consommable' : '∞ Permanent'}
+            </p>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function UsableItemDetails({ item, catalog }: { item: InventoryItem; catalog: Map<string, CatalogItem> }) {
+  const details = catalog.get(item.objet);
+  
+  if (!details) {
+    return (
+      <div className="flex items-center justify-between p-2 rounded bg-green-500/10 border border-green-500/20">
+        <span className="text-sm">{item.objet}</span>
+        <span className="text-xs font-medium">x{item.quantite}</span>
+      </div>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center justify-between p-2 rounded bg-green-500/10 border border-green-500/20 cursor-help hover:bg-green-500/20 transition-colors">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">{item.objet}</span>
+              <Info className="h-3 w-3 text-muted-foreground" />
+            </div>
+            <div className="flex items-center gap-2">
+              {details.base_damage && details.base_damage > 0 && (
+                <span className="flex items-center gap-0.5 text-xs text-red-400">
+                  <Zap className="h-3 w-3" />
+                  {details.base_damage}
+                </span>
+              )}
+              {details.base_heal && details.base_heal > 0 && (
+                <span className="flex items-center gap-0.5 text-xs text-green-400">
+                  <Heart className="h-3 w-3" />
+                  {details.base_heal}
+                </span>
+              )}
+              <span className="text-xs font-medium">x{item.quantite}</span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="max-w-[250px] p-3">
+          <div className="space-y-2">
+            <p className="font-semibold text-sm">{item.objet}</p>
+            <div className="flex gap-3 text-xs">
+              {details.base_damage !== null && details.base_damage > 0 && (
+                <span className="flex items-center gap-1 text-red-400">
+                  <Zap className="h-3 w-3" /> Dégâts: {details.base_damage}
+                </span>
+              )}
+              {details.base_heal !== null && details.base_heal > 0 && (
+                <span className="flex items-center gap-1 text-green-400">
+                  <Heart className="h-3 w-3" /> Soins: {details.base_heal}
+                </span>
+              )}
+            </div>
+            {details.notes && (
+              <p className="text-xs text-muted-foreground border-t border-border pt-2">
+                {details.notes}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {details.consumable ? '🔥 Consommable' : '∞ Permanent'}
+            </p>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export function PlayerInventory({
   gameId,
   playerNumber,
@@ -31,10 +185,11 @@ export function PlayerInventory({
   className,
 }: PlayerInventoryProps) {
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [catalog, setCatalog] = useState<Map<string, CatalogItem>>(new Map());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchInventory();
+    fetchData();
 
     const channel = supabase
       .channel(`inventory-${gameId}-${playerNumber}`)
@@ -55,6 +210,11 @@ export function PlayerInventory({
     };
   }, [gameId, playerNumber]);
 
+  const fetchData = async () => {
+    await Promise.all([fetchInventory(), fetchCatalog()]);
+    setLoading(false);
+  };
+
   const fetchInventory = async () => {
     const { data, error } = await supabase
       .from('inventory')
@@ -65,7 +225,20 @@ export function PlayerInventory({
     if (!error && data) {
       setItems(data);
     }
-    setLoading(false);
+  };
+
+  const fetchCatalog = async () => {
+    const { data, error } = await supabase
+      .from('item_catalog')
+      .select('name, category, base_damage, base_heal, notes, consumable');
+
+    if (!error && data) {
+      const catalogMap = new Map<string, CatalogItem>();
+      data.forEach((item) => {
+        catalogMap.set(item.name, item);
+      });
+      setCatalog(catalogMap);
+    }
   };
 
   const usableItems = items.filter((item) => item.disponible && item.dispo_attaque);
@@ -133,13 +306,7 @@ export function PlayerInventory({
                   </div>
                   <div className="space-y-1">
                     {usableItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-2 rounded bg-green-500/10 border border-green-500/20"
-                      >
-                        <span className="text-sm">{item.objet}</span>
-                        <span className="text-xs font-medium">x{item.quantite}</span>
-                      </div>
+                      <UsableItemDetails key={item.id} item={item} catalog={catalog} />
                     ))}
                   </div>
                 </div>
@@ -154,18 +321,7 @@ export function PlayerInventory({
                   </div>
                   <div className="space-y-1">
                     {otherItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-2 rounded bg-secondary/30"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{item.objet}</span>
-                          {!item.disponible && (
-                            <span className="text-xs text-red-400">(utilisé)</span>
-                          )}
-                        </div>
-                        <span className="text-xs font-medium">x{item.quantite}</span>
-                      </div>
+                      <ItemDetails key={item.id} item={item} catalog={catalog} />
                     ))}
                   </div>
                 </div>
