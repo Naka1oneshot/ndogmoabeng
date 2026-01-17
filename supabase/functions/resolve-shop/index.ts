@@ -437,6 +437,26 @@ Deno.serve(async (req) => {
     const nextManche = manche + 1;
     console.log(`[resolve-shop] Auto-advancing to manche ${nextManche}, PHASE1_MISES`);
 
+    // Credit 5 tokens to all active players for the new round
+    const tokenBonus = 5;
+    const { error: bonusError } = await supabase.rpc('increment_all_player_tokens', {
+      p_game_id: gameId,
+      p_amount: tokenBonus
+    });
+
+    // If RPC doesn't exist, fallback to manual update
+    if (bonusError) {
+      console.log('[resolve-shop] RPC not available, using manual token increment');
+      for (const player of players || []) {
+        await supabase
+          .from('game_players')
+          .update({ jetons: (player.jetons || 0) + tokenBonus })
+          .eq('id', player.id);
+      }
+    }
+
+    console.log(`[resolve-shop] Credited ${tokenBonus} tokens to all active players`);
+
     await supabase
       .from('games')
       .update({ 
@@ -451,14 +471,14 @@ Deno.serve(async (req) => {
       game_id: gameId,
       manche: nextManche,
       action: 'NOUVELLE_MANCHE',
-      details: `Passage automatique à la manche ${nextManche}`,
+      details: `Passage automatique à la manche ${nextManche} (+${tokenBonus} jetons pour tous)`,
     });
 
     await supabase.from('logs_joueurs').insert({
       game_id: gameId,
       manche: nextManche,
       type: 'PHASE',
-      message: `🔄 Nouvelle manche ${nextManche} - Phase 1 : Mises`,
+      message: `🔄 Nouvelle manche ${nextManche} - Phase 1 : Mises (+${tokenBonus} jetons pour tous)`,
     });
 
     // Session event for new round
