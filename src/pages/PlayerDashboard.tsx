@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock, ShoppingBag } from 'lucide-react';
+import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock, ShoppingBag, Users } from 'lucide-react';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ import { PositionsRankingPanel } from '@/components/player/PositionsRankingPanel
 import { CombatResultsPanel } from '@/components/player/CombatResultsPanel';
 import { PlayerActionTabs } from '@/components/player/PlayerActionTabs';
 import { MancheSelector } from '@/components/player/MancheSelector';
+import TeamChat from '@/components/player/TeamChat';
 
 interface Game {
   id: string;
@@ -331,9 +332,19 @@ export default function PlayerDashboard() {
 
         <main className="flex-1 p-4">
           <div className="max-w-7xl mx-auto grid grid-cols-3 gap-4 h-[calc(100vh-120px)]">
-            {/* Left column: Events */}
+            {/* Left column: Events + Team Chat */}
             <div className="space-y-4 overflow-hidden flex flex-col">
               <EventsFeed gameId={game.id} className="flex-1 min-h-0" />
+              {player.mateNum && (
+                <div className="h-64 card-gradient rounded-lg border border-border overflow-hidden">
+                  <TeamChat
+                    gameId={game.id}
+                    playerNum={player.playerNumber}
+                    playerName={player.displayName}
+                    mateNum={player.mateNum}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Center column: Battlefield + Results */}
@@ -448,8 +459,21 @@ export default function PlayerDashboard() {
             <PlayerActionTabs game={game} player={player} />
           </TabsContent>
 
+          {player.mateNum && (
+            <TabsContent value="chat" className="p-4 mt-0 h-[calc(100vh-180px)]">
+              <div className="h-full card-gradient rounded-lg border border-border overflow-hidden">
+                <TeamChat
+                  gameId={game.id}
+                  playerNum={player.playerNumber}
+                  playerName={player.displayName}
+                  mateNum={player.mateNum}
+                />
+              </div>
+            </TabsContent>
+          )}
+
           {/* Fixed bottom tabs */}
-          <TabsList className="fixed bottom-0 left-0 right-0 h-14 grid grid-cols-4 bg-background/95 backdrop-blur border-t border-border rounded-none">
+          <TabsList className={`fixed bottom-0 left-0 right-0 h-14 grid ${player.mateNum ? 'grid-cols-5' : 'grid-cols-4'} bg-background/95 backdrop-blur border-t border-border rounded-none`}>
             <TabsTrigger
               value="battle"
               className="flex flex-col items-center gap-1 data-[state=active]:bg-primary/10"
@@ -478,6 +502,15 @@ export default function PlayerDashboard() {
               <Zap className="h-4 w-4" />
               <span className="text-xs">Phase</span>
             </TabsTrigger>
+            {player.mateNum && (
+              <TabsTrigger
+                value="chat"
+                className="flex flex-col items-center gap-1 data-[state=active]:bg-primary/10"
+              >
+                <Users className="h-4 w-4" />
+                <span className="text-xs">Chat</span>
+              </TabsTrigger>
+            )}
           </TabsList>
         </Tabs>
       </main>
