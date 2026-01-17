@@ -363,11 +363,45 @@ Deno.serve(async (req) => {
       details: `Shop résolu: ${purchasesApproved.length} achats validés, ${purchasesRefused.length} refusés`,
     });
 
+    // Build public log message with player names
+    // Get all players who had a request or are active
+    const allPlayerIds = new Set([
+      ...Array.from(requestMap.values()).map(r => r.player_id),
+      ...Array.from(playerMap.keys())
+    ]);
+
+    // Get names of players who got approved
+    const approvedNames = purchasesApproved.map(p => p.playerName);
+    
+    // Get names of players who didn't buy or were refused (everyone else)
+    const nonBuyerNames: string[] = [];
+    for (const ranking of rankings) {
+      const player = playerMap.get(ranking.player_id);
+      const request = requestMap.get(ranking.player_id);
+      
+      if (!player) continue;
+      
+      // Skip if they got an approved purchase
+      if (approvedNames.includes(player.display_name)) continue;
+      
+      // They either: refused, had no wish, or insufficient funds
+      nonBuyerNames.push(player.display_name);
+    }
+
+    // Build the public message
+    let publicShopMessage = '🛒 Résolution du shop :\n';
+    if (approvedNames.length > 0) {
+      publicShopMessage += `✅ Achats validés pour : ${approvedNames.join(', ')}.\n`;
+    }
+    if (nonBuyerNames.length > 0) {
+      publicShopMessage += `❌ Pas d'achat pour : ${nonBuyerNames.join(', ')}.`;
+    }
+
     await supabase.from('logs_joueurs').insert({
       game_id: gameId,
       manche: manche,
       type: 'SHOP_FIN',
-      message: `🛒 Shop terminé : ${purchasesApproved.length} achats validés sur ${shopOffer.item_ids.length} objets proposés`,
+      message: publicShopMessage,
     });
 
     // Session event
