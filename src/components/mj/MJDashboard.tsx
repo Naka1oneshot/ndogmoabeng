@@ -14,6 +14,7 @@ import { MJEventsTab } from './MJEventsTab';
 import { MJMonstersConfigTab } from './MJMonstersConfigTab';
 import { MJItemsShopTab } from './MJItemsShopTab';
 import { MJShopPhaseTab } from './MJShopPhaseTab';
+import MJTeamChatViewer from './MJTeamChatViewer';
 import { 
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
@@ -431,6 +432,9 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
         <TabsContent value="events" className="mt-6">
           <MJEventsTab game={game} />
+          <div className="mt-6">
+            <MJTeamChatViewer gameId={game.id} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -1211,6 +1211,44 @@ export type Database = {
           },
         ]
       }
+      team_messages: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          mate_group: number
+          message: string
+          sender_name: string
+          sender_num: number
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          mate_group: number
+          message: string
+          sender_name: string
+          sender_num: number
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          mate_group?: number
+          message?: string
+          sender_name?: string
+          sender_num?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_messages_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
