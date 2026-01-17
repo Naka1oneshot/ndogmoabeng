@@ -202,6 +202,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
   const isLocked = game.phase_locked;
   const isPhase3 = game.phase === 'PHASE3_SHOP';
   const isResolved = shopOffer?.resolved;
+  const canSubmitWish = isPhase3 && !isLocked && !isResolved;
 
   if (loading) {
     return (
@@ -213,29 +214,14 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
     );
   }
 
-  if (!isPhase3) {
-    return (
-      <div className={`p-4 ${className}`}>
-        <div className="text-center py-6">
-          <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-          <p className="text-sm text-muted-foreground">
-            La boutique n'est pas ouverte
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Phase actuelle: {game.phase}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+  // No shop generated yet
   if (!shopOffer || shopOffer.item_ids.length === 0) {
     return (
       <div className={`p-4 ${className}`}>
         <div className="text-center py-6">
           <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
           <p className="text-sm text-muted-foreground">
-            En attente de l'ouverture du shop par le MJ...
+            En attente de la génération du shop par le MJ...
           </p>
         </div>
       </div>
@@ -350,81 +336,95 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
         })}
       </div>
 
-      {/* Request form */}
-      <div className="pt-3 border-t border-border space-y-4">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="want-buy" className="text-sm font-medium">
-            Souhaitez-vous acheter ?
-          </Label>
-          <Switch
-            id="want-buy"
-            checked={wantBuy}
-            onCheckedChange={setWantBuy}
-            disabled={isLocked || submitting}
-          />
-        </div>
-
-        {wantBuy && (
-          <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground">Choisir un objet :</Label>
-            <Select 
-              value={selectedItem} 
-              onValueChange={setSelectedItem}
-              disabled={isLocked || submitting}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un objet..." />
-              </SelectTrigger>
-              <SelectContent>
-                {shopOffer.item_ids.map((itemName, idx) => {
-                  const cost = getCost(itemName);
-                  const canAfford = player.jetons >= cost;
-                  return (
-                    <SelectItem 
-                      key={`${itemName}-${idx}`} 
-                      value={itemName}
-                      disabled={!canAfford}
-                    >
-                      <span className={!canAfford ? 'text-muted-foreground' : ''}>
-                        {itemName} ({cost} jetons)
-                        {!canAfford && ' - Insuffisant'}
-                      </span>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+      {/* Request form - only enabled in Phase 3 */}
+      {!isPhase3 ? (
+        <div className="pt-3 border-t border-border">
+          <div className="p-3 rounded bg-muted/50 border border-border text-center">
+            <Lock className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              Souhaits d'achat verrouillés
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Disponible en Phase 3 (Shop)
+            </p>
           </div>
-        )}
+        </div>
+      ) : (
+        <div className="pt-3 border-t border-border space-y-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="want-buy" className="text-sm font-medium">
+              Souhaitez-vous acheter ?
+            </Label>
+            <Switch
+              id="want-buy"
+              checked={wantBuy}
+              onCheckedChange={setWantBuy}
+              disabled={!canSubmitWish || submitting}
+            />
+          </div>
 
-        <ForestButton
-          onClick={handleSubmitRequest}
-          disabled={isLocked || submitting || (wantBuy && !selectedItem)}
-          className="w-full"
-        >
-          {submitting ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Send className="h-4 w-4 mr-2" />
+          {wantBuy && (
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Choisir un objet :</Label>
+              <Select 
+                value={selectedItem} 
+                onValueChange={setSelectedItem}
+                disabled={!canSubmitWish || submitting}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un objet..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {shopOffer.item_ids.map((itemName, idx) => {
+                    const cost = getCost(itemName);
+                    const canAfford = player.jetons >= cost;
+                    return (
+                      <SelectItem 
+                        key={`${itemName}-${idx}`} 
+                        value={itemName}
+                        disabled={!canAfford}
+                      >
+                        <span className={!canAfford ? 'text-muted-foreground' : ''}>
+                          {itemName} ({cost} jetons)
+                          {!canAfford && ' - Insuffisant'}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
           )}
-          Enregistrer mon choix
-        </ForestButton>
 
-        {myRequest && (
-          <p className="text-xs text-center text-muted-foreground">
-            {myRequest.want_buy 
-              ? `✅ Souhait enregistré : ${myRequest.item_name}`
-              : '✅ Enregistré : aucun achat souhaité'}
-          </p>
-        )}
+          <ForestButton
+            onClick={handleSubmitRequest}
+            disabled={!canSubmitWish || submitting || (wantBuy && !selectedItem)}
+            className="w-full"
+          >
+            {submitting ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Send className="h-4 w-4 mr-2" />
+            )}
+            Enregistrer mon choix
+          </ForestButton>
 
-        {isLocked && (
-          <p className="text-xs text-center text-amber-500 pt-2">
-            <AlertCircle className="h-3 w-3 inline mr-1" />
-            Phase verrouillée - modifications désactivées
-          </p>
-        )}
-      </div>
+          {myRequest && (
+            <p className="text-xs text-center text-muted-foreground">
+              {myRequest.want_buy 
+                ? `✅ Souhait enregistré : ${myRequest.item_name}`
+                : '✅ Enregistré : aucun achat souhaité'}
+            </p>
+          )}
+
+          {isLocked && (
+            <p className="text-xs text-center text-amber-500 pt-2">
+              <AlertCircle className="h-3 w-3 inline mr-1" />
+              Phase verrouillée - modifications désactivées
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
