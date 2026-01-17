@@ -19,8 +19,10 @@ interface PublicAction {
 }
 
 interface Kill {
-  killer: string;
-  monster: string;
+  killerName: string;
+  monsterName: string;
+  slot: number;
+  reward: number;
 }
 
 interface ForestState {
@@ -145,9 +147,11 @@ export function CombatResultsPanel({ game, className }: CombatResultsPanelProps)
                   key={idx} 
                   className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-sm"
                 >
-                  <span className="font-bold text-amber-400">{kill.killer}</span>
+                  <span className="font-bold text-amber-400">{kill.killerName}</span>
                   {' a éliminé '}
-                  <span className="font-bold text-red-400">{kill.monster}</span>
+                  <span className="font-bold text-red-400">{kill.monsterName}</span>
+                  {' dans '}
+                  <span className="font-medium text-muted-foreground">Slot {kill.slot}</span>
                   {' !'}
                 </div>
               ))}
