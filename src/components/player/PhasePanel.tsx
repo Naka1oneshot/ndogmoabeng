@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Check, Lock, Coins, MapPin, ShoppingBag, Swords } from 'lucide-react';
+import { Loader2, Check, Lock, Coins, MapPin, ShoppingBag, Swords, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Game {
   id: string;
@@ -28,7 +29,23 @@ interface PhasePanelProps {
 interface InventoryItem {
   objet: string;
   quantite: number;
+  disponible: boolean;
   dispo_attaque: boolean;
+}
+
+interface CatalogItem {
+  name: string;
+  category: 'ATTAQUE' | 'PROTECTION';
+  base_damage: number;
+  base_heal: number;
+  target: string;
+  timing: string;
+  persistence: string;
+  ignore_protection: boolean;
+  special_effect: string;
+  special_value: string;
+  consumable: boolean;
+  notes: string;
 }
 
 interface ShopItem {
@@ -41,7 +58,7 @@ interface ShopItem {
 
 const phaseConfig = {
   PHASE1_MISES: { icon: Coins, label: 'Mises', color: 'text-yellow-500' },
-  PHASE2_POSITIONS: { icon: MapPin, label: 'Positions', color: 'text-blue-500' },
+  PHASE2_POSITIONS: { icon: MapPin, label: 'Actions', color: 'text-blue-500' },
   PHASE3_SHOP: { icon: ShoppingBag, label: 'Boutique', color: 'text-green-500' },
   PHASE4_COMBAT: { icon: Swords, label: 'Combat', color: 'text-red-500' },
   RESOLUTION: { icon: Check, label: 'Résolution', color: 'text-purple-500' },
@@ -62,17 +79,49 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
   const [attaque2, setAttaque2] = useState<string>('');
   const [protectionObjet, setProtectionObjet] = useState<string>('');
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [itemCatalog, setItemCatalog] = useState<CatalogItem[]>([]);
   const [currentAction, setCurrentAction] = useState<Record<string, unknown> | null>(null);
   
   // Phase 3 state
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
   const [selectedShopItem, setSelectedShopItem] = useState<string>('');
 
+  // Compute filtered attack and protection items
+  const attackItems = useMemo(() => {
+    return inventory.filter(inv => {
+      const catalogItem = itemCatalog.find(c => c.name === inv.objet);
+      return catalogItem?.category === 'ATTAQUE' && inv.quantite > 0 && inv.dispo_attaque;
+    });
+  }, [inventory, itemCatalog]);
+
+  const protectionItems = useMemo(() => {
+    return inventory.filter(inv => {
+      const catalogItem = itemCatalog.find(c => c.name === inv.objet);
+      return catalogItem?.category === 'PROTECTION' && inv.quantite > 0 && inv.disponible;
+    });
+  }, [inventory, itemCatalog]);
+
+  // Check if Attaque 2 is enabled (only when Attaque 1 is "Piqure Berseker")
+  const isAttaque2Enabled = attaque1 === 'Piqure Berseker';
+
+  // Get catalog info for an item
+  const getItemInfo = (itemName: string): CatalogItem | undefined => {
+    return itemCatalog.find(c => c.name === itemName);
+  };
+
+  // Reset Attaque 2 when Attaque 1 changes and isn't Piqure Berseker
+  useEffect(() => {
+    if (attaque1 !== 'Piqure Berseker' && attaque2 !== '' && attaque2 !== 'none') {
+      setAttaque2('none');
+    }
+  }, [attaque1]);
+
   useEffect(() => {
     if (game.phase === 'PHASE1_MISES') {
       fetchCurrentBet();
     } else if (game.phase === 'PHASE2_POSITIONS') {
       fetchInventory();
+      fetchItemCatalog();
       fetchCurrentAction();
     } else if (game.phase === 'PHASE3_SHOP') {
       fetchShopItems();
@@ -97,13 +146,22 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
   const fetchInventory = async () => {
     const { data } = await supabase
       .from('inventory')
-      .select('objet, quantite, dispo_attaque')
+      .select('objet, quantite, disponible, dispo_attaque')
       .eq('game_id', game.id)
-      .eq('owner_num', player.playerNumber)
-      .eq('disponible', true);
+      .eq('owner_num', player.playerNumber);
     
     if (data) {
       setInventory(data);
+    }
+  };
+
+  const fetchItemCatalog = async () => {
+    const { data } = await supabase
+      .from('item_catalog')
+      .select('name, category, base_damage, base_heal, target, timing, persistence, ignore_protection, special_effect, special_value, consumable, notes');
+    
+    if (data) {
+      setItemCatalog(data as CatalogItem[]);
     }
   };
 
@@ -148,7 +206,6 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
 
     setSubmitting(true);
     try {
-      // Upsert with new columns
       const { error } = await supabase
         .from('round_bets')
         .upsert(
@@ -173,7 +230,6 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
       setCurrentBet(miseValue);
       console.log(`[PhasePanel] Bet submitted: player=${player.playerNumber}, mise=${miseValue}`);
       
-      // Warning if bet exceeds tokens
       if (miseValue > player.jetons) {
         toast.warning(`Mise enregistrée, mais ${miseValue} > votre solde (${player.jetons}). Elle sera forcée à 0 à la clôture.`);
       } else {
@@ -188,9 +244,47 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
   };
 
   const handleSubmitAction = async () => {
+    // Validation: force Attaque 2 to none if Attaque 1 is not Piqure Berseker
+    const finalAttaque2 = attaque1 === 'Piqure Berseker' ? attaque2 : 'none';
+    
+    // Validation: if protection is "none", clear slot protection
+    const finalSlotProtection = protectionObjet && protectionObjet !== 'none' ? slotProtection : null;
+
+    // Validate attack items exist in inventory with correct category
+    if (attaque1 && attaque1 !== 'none') {
+      const invItem = inventory.find(i => i.objet === attaque1);
+      const catItem = itemCatalog.find(c => c.name === attaque1);
+      if (!invItem || invItem.quantite <= 0 || catItem?.category !== 'ATTAQUE') {
+        toast.error('Attaque 1 invalide ou non disponible');
+        return;
+      }
+    }
+
+    if (finalAttaque2 && finalAttaque2 !== 'none') {
+      const invItem = inventory.find(i => i.objet === finalAttaque2);
+      const catItem = itemCatalog.find(c => c.name === finalAttaque2);
+      if (!invItem || invItem.quantite <= 0 || catItem?.category !== 'ATTAQUE') {
+        toast.error('Attaque 2 invalide ou non disponible');
+        return;
+      }
+    }
+
+    if (protectionObjet && protectionObjet !== 'none') {
+      const invItem = inventory.find(i => i.objet === protectionObjet);
+      const catItem = itemCatalog.find(c => c.name === protectionObjet);
+      if (!invItem || invItem.quantite <= 0 || catItem?.category !== 'PROTECTION') {
+        toast.error('Protection invalide ou non disponible');
+        return;
+      }
+      if (!finalSlotProtection) {
+        toast.error('Veuillez sélectionner un slot de protection');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      await supabase
+      const { error } = await supabase
         .from('actions')
         .upsert(
           {
@@ -199,13 +293,19 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
             num_joueur: player.playerNumber,
             position_souhaitee: positionSouhaitee ? parseInt(positionSouhaitee) : null,
             slot_attaque: slotAttaque ? parseInt(slotAttaque) : null,
-            slot_protection: slotProtection ? parseInt(slotProtection) : null,
-            attaque1: attaque1 || null,
-            attaque2: attaque2 || null,
-            protection_objet: protectionObjet || null,
+            slot_protection: finalSlotProtection ? parseInt(finalSlotProtection) : null,
+            attaque1: attaque1 && attaque1 !== 'none' ? attaque1 : null,
+            attaque2: finalAttaque2 && finalAttaque2 !== 'none' ? finalAttaque2 : null,
+            protection_objet: protectionObjet && protectionObjet !== 'none' ? protectionObjet : null,
           },
           { onConflict: 'game_id,manche,num_joueur' }
         );
+
+      if (error) {
+        console.error('[PhasePanel] Action submission error:', error);
+        toast.error(`Erreur: ${error.message}`);
+        return;
+      }
 
       setCurrentAction({ submitted: true });
       toast.success('Actions enregistrées !');
@@ -214,6 +314,54 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Render item with tooltip
+  const renderItemOption = (item: InventoryItem, showQuantity: boolean = true) => {
+    const info = getItemInfo(item.objet);
+    return (
+      <SelectItem key={item.objet} value={item.objet}>
+        <div className="flex items-center gap-2">
+          <span>{item.objet}</span>
+          {showQuantity && <span className="text-muted-foreground text-xs">(x{item.quantite})</span>}
+          {info && !info.consumable && (
+            <span className="text-xs bg-primary/20 text-primary px-1 rounded">∞</span>
+          )}
+        </div>
+      </SelectItem>
+    );
+  };
+
+  // Render item info tooltip
+  const ItemInfoTooltip = ({ itemName }: { itemName: string }) => {
+    const info = getItemInfo(itemName);
+    if (!info || itemName === 'none') return null;
+    
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="h-3 w-3 text-muted-foreground cursor-help inline ml-1" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <div className="space-y-1 text-xs">
+              <p className="font-semibold">{info.name}</p>
+              {info.base_damage > 0 && <p>⚔️ Dégâts: {info.base_damage}</p>}
+              {info.base_heal > 0 && <p>💚 Soin: {info.base_heal}</p>}
+              <p>🎯 Cible: {info.target}</p>
+              <p>⏱️ Timing: {info.timing}</p>
+              {info.persistence !== 'AUCUNE' && <p>📌 Persistance: {info.persistence}</p>}
+              {info.ignore_protection && <p className="text-amber-400">⚡ Ignore les protections</p>}
+              {info.special_effect !== 'AUCUN' && <p>✨ Effet: {info.special_effect}</p>}
+              <p className="text-muted-foreground italic mt-1">{info.notes}</p>
+              <p className={info.consumable ? 'text-amber-400' : 'text-green-400'}>
+                {info.consumable ? '🔥 Usage unique' : '♾️ Permanent'}
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
   };
 
   const config = phaseConfig[game.phase as keyof typeof phaseConfig] || phaseConfig.RESOLUTION;
@@ -309,7 +457,7 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
           </div>
         )}
 
-        {/* Phase 2: Positions */}
+        {/* Phase 2: Actions */}
         {game.phase === 'PHASE2_POSITIONS' && (
           <div className="space-y-4">
             {currentAction && (
@@ -319,6 +467,7 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
               </div>
             )}
 
+            {/* Position et Slot Attaque */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Position souhaitée</Label>
@@ -335,7 +484,7 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
               </div>
               
               <div className="space-y-1">
-                <Label className="text-xs">Slot attaque</Label>
+                <Label className="text-xs">Emplacement attaque</Label>
                 <Select value={slotAttaque} onValueChange={setSlotAttaque} disabled={isLocked}>
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Slot" />
@@ -349,75 +498,126 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
+            {/* Attaque 1 - filtered by ATTAQUE category */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1">
                 <Label className="text-xs">Attaque 1</Label>
-                <Select value={attaque1} onValueChange={setAttaque1} disabled={isLocked}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Objet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucune</SelectItem>
-                    {inventory.filter(i => i.dispo_attaque).map((item) => (
-                      <SelectItem key={item.objet} value={item.objet}>
-                        {item.objet} (x{item.quantite})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {attaque1 && attaque1 !== 'none' && <ItemInfoTooltip itemName={attaque1} />}
               </div>
-              
-              <div className="space-y-1">
-                <Label className="text-xs">Attaque 2</Label>
-                <Select value={attaque2} onValueChange={setAttaque2} disabled={isLocked}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Objet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucune</SelectItem>
-                    {inventory.filter(i => i.dispo_attaque).map((item) => (
+              <Select value={attaque1} onValueChange={setAttaque1} disabled={isLocked}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Choisir une attaque" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune</SelectItem>
+                  {attackItems.map((item) => {
+                    const info = getItemInfo(item.objet);
+                    return (
                       <SelectItem key={item.objet} value={item.objet}>
-                        {item.objet} (x{item.quantite})
+                        <div className="flex items-center gap-2">
+                          <span>{item.objet}</span>
+                          {info && !info.consumable && (
+                            <span className="text-xs bg-primary/20 text-primary px-1 rounded">∞</span>
+                          )}
+                          {info?.base_damage && info.base_damage > 0 && (
+                            <span className="text-xs text-red-400">⚔️{info.base_damage}</span>
+                          )}
+                        </div>
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* Attaque 2 - only enabled if Attaque 1 is "Piqure Berseker" */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1">
+                <Label className={`text-xs ${!isAttaque2Enabled ? 'text-muted-foreground' : ''}`}>
+                  Attaque 2
+                  {!isAttaque2Enabled && (
+                    <span className="ml-1 text-xs text-muted-foreground">(requiert Piqure Berseker)</span>
+                  )}
+                </Label>
+                {attaque2 && attaque2 !== 'none' && isAttaque2Enabled && <ItemInfoTooltip itemName={attaque2} />}
+              </div>
+              <Select 
+                value={isAttaque2Enabled ? attaque2 : 'none'} 
+                onValueChange={setAttaque2} 
+                disabled={isLocked || !isAttaque2Enabled}
+              >
+                <SelectTrigger className={`h-9 ${!isAttaque2Enabled ? 'opacity-50' : ''}`}>
+                  <SelectValue placeholder="Aucune" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune</SelectItem>
+                  {isAttaque2Enabled && attackItems
+                    .filter(item => item.objet !== 'Piqure Berseker') // Can't use Piqure Berseker twice
+                    .map((item) => {
+                      const info = getItemInfo(item.objet);
+                      return (
+                        <SelectItem key={item.objet} value={item.objet}>
+                          <div className="flex items-center gap-2">
+                            <span>{item.objet}</span>
+                            {info && !info.consumable && (
+                              <span className="text-xs bg-primary/20 text-primary px-1 rounded">∞</span>
+                            )}
+                            {info?.base_damage && info.base_damage > 0 && (
+                              <span className="text-xs text-red-400">⚔️{info.base_damage}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Protection - filtered by PROTECTION category */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1">
+                <Label className="text-xs">Protection</Label>
+                {protectionObjet && protectionObjet !== 'none' && <ItemInfoTooltip itemName={protectionObjet} />}
+              </div>
+              <Select value={protectionObjet} onValueChange={setProtectionObjet} disabled={isLocked}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Choisir une protection" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune</SelectItem>
+                  {protectionItems.map((item) => {
+                    const info = getItemInfo(item.objet);
+                    return (
+                      <SelectItem key={item.objet} value={item.objet}>
+                        <div className="flex items-center gap-2">
+                          <span>{item.objet}</span>
+                          {info?.base_heal && info.base_heal > 0 && (
+                            <span className="text-xs text-green-400">💚{info.base_heal}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Emplacement Protection - only shown if protection is selected */}
+            {protectionObjet && protectionObjet !== 'none' && (
               <div className="space-y-1">
-                <Label className="text-xs">Slot protection</Label>
+                <Label className="text-xs">Emplacement protection</Label>
                 <Select value={slotProtection} onValueChange={setSlotProtection} disabled={isLocked}>
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Slot" />
+                    <SelectValue placeholder="Choisir un slot" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Aucun</SelectItem>
                     {[1, 2, 3].map((n) => (
                       <SelectItem key={n} value={n.toString()}>Slot {n}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div className="space-y-1">
-                <Label className="text-xs">Objet protection</Label>
-                <Select value={protectionObjet} onValueChange={setProtectionObjet} disabled={isLocked}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Objet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun</SelectItem>
-                    {inventory.map((item) => (
-                      <SelectItem key={item.objet} value={item.objet}>
-                        {item.objet} (x{item.quantite})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            )}
 
             <ForestButton
               onClick={handleSubmitAction}
@@ -433,6 +633,13 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
                 </>
               )}
             </ForestButton>
+
+            {isLocked && (
+              <p className="text-xs text-center text-amber-500">
+                <Lock className="h-3 w-3 inline mr-1" />
+                Phase verrouillée par le MJ
+              </p>
+            )}
           </div>
         )}
 
