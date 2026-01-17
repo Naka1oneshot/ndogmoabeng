@@ -46,3 +46,9 @@ verify_jwt = false
 
 [functions.close-phase1-bets]
 verify_jwt = false
+
+[functions.publish-positions]
+verify_jwt = false
+
+[functions.resolve-combat]
+verify_jwt = false
