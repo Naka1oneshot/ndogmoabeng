@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -46,6 +46,7 @@ const PLAYER_TOKEN_PREFIX = 'ndogmoabeng_player_';
 export default function PlayerDashboard() {
   const navigate = useNavigate();
   const { gameId } = useParams<{ gameId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
 
   const [game, setGame] = useState<Game | null>(null);
@@ -103,6 +104,16 @@ export default function PlayerDashboard() {
       return;
     }
 
+    // Check if token is passed via URL query param (reconnection link)
+    const tokenFromUrl = searchParams.get('token');
+    if (tokenFromUrl) {
+      // Store the token in localStorage and remove from URL
+      localStorage.setItem(`${PLAYER_TOKEN_PREFIX}${gameId}`, tokenFromUrl);
+      setSearchParams({}, { replace: true });
+      validateAndFetch(tokenFromUrl);
+      return;
+    }
+
     const playerToken = localStorage.getItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
 
     if (!playerToken) {
@@ -111,7 +122,7 @@ export default function PlayerDashboard() {
     }
 
     validateAndFetch(playerToken);
-  }, [gameId]);
+  }, [gameId, searchParams]);
 
   const validateAndFetch = async (playerToken: string) => {
     try {
