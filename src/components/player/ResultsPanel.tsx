@@ -14,7 +14,6 @@ interface FinalPosition {
   num_joueur: number;
   nom: string | null;
   position_finale: number | null;
-  slot_attaque: number | null;
   rang_priorite: number | null;
 }
 
@@ -86,10 +85,10 @@ export function ResultsPanel({ gameId, manche, phase, phaseLocked, className }: 
       setPriorityRankings(rankings);
     }
 
-    // Fetch final positions
+    // Fetch final positions (without slot_attaque - should not be revealed to players)
     const { data: positions } = await supabase
       .from('positions_finales')
-      .select('num_joueur, nom, position_finale, slot_attaque, rang_priorite')
+      .select('num_joueur, nom, position_finale, rang_priorite')
       .eq('game_id', gameId)
       .eq('manche', manche)
       .order('position_finale', { ascending: true });
@@ -197,18 +196,8 @@ export function ResultsPanel({ gameId, manche, phase, phaseLocked, className }: 
                     className="flex items-center justify-between p-2 rounded bg-secondary/30 text-sm"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-bold w-6">#{pos.num_joueur}</span>
+                      <span className="font-bold w-6">#{pos.position_finale ?? '-'}</span>
                       <span className="text-muted-foreground">{pos.nom || `Joueur ${pos.num_joueur}`}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Pos:</span>
-                      <span className="font-medium">{pos.position_finale ?? '-'}</span>
-                      {pos.slot_attaque && (
-                        <>
-                          <span className="text-xs text-muted-foreground">Slot:</span>
-                          <span className="font-medium text-red-400">{pos.slot_attaque}</span>
-                        </>
-                      )}
                     </div>
                   </div>
                 ))}
