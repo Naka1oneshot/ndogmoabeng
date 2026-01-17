@@ -17,10 +17,21 @@ import { MJShopPhaseTab } from './MJShopPhaseTab';
 import { 
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
-  Bug, Store, Swords, Target, SkipForward
+  Bug, Store, Swords, Target, SkipForward, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Game {
   id: string;
@@ -48,6 +59,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [editingName, setEditingName] = useState(false);
   const [editedName, setEditedName] = useState(game.name);
   const [saving, setSaving] = useState(false);
+
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const channel = supabase
@@ -167,6 +180,54 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
     }
   };
 
+  const handleDeleteGame = async () => {
+    setDeleting(true);
+    try {
+      const tablesToClear = [
+        'session_events',
+        'session_bans',
+        'pending_effects',
+        'positions_finales',
+        'round_bets',
+        'actions',
+        'inventory',
+        'logs_joueurs',
+        'logs_mj',
+        'battlefield',
+        'monsters',
+        'combat_config',
+        'shop_catalogue',
+        'game_state_monsters',
+        'game_monsters',
+        'priority_rankings',
+        'game_shop_offers',
+        'shop_requests',
+        'game_item_purchases',
+        'game_events',
+        'game_players',
+      ];
+
+      for (const table of tablesToClear) {
+        await (supabase.from(table as any).delete().eq('game_id', game.id));
+      }
+
+      const { error } = await supabase
+        .from('games')
+        .delete()
+        .eq('id', game.id);
+
+      if (error) throw error;
+
+      toast.success('Partie supprimée');
+      onBack();
+    } catch (error) {
+      console.error('Error deleting game:', error);
+      toast.error('Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const joinUrl = `${window.location.origin}/join/${game.join_code}`;
 
   return (
@@ -217,7 +278,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       </div>
 
       {/* Game info bar */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
         <div className="p-3 bg-secondary/50 rounded-lg text-center">
           <div className="text-muted-foreground">Manche</div>
           <div className="font-bold text-lg">{game.manche_active}</div>
@@ -238,18 +299,55 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           <div className="text-muted-foreground">Max joueurs</div>
           <div className="font-bold">{game.x_nb_joueurs || '∞'}</div>
         </div>
-        <div className="p-3 bg-secondary/50 rounded-lg flex items-center justify-center">
-          <ForestButton 
-            size="sm" 
-            onClick={handleNextRound}
-            className="bg-amber-600 hover:bg-amber-700"
-          >
-            <SkipForward className="h-4 w-4 mr-1" />
-            Manche suivante
-          </ForestButton>
-        </div>
       </div>
 
+      {/* Action buttons */}
+      <div className="flex items-center gap-3">
+        <ForestButton 
+          size="sm" 
+          onClick={handleNextRound}
+          className="bg-amber-600 hover:bg-amber-700"
+        >
+          <SkipForward className="h-4 w-4 mr-1" />
+          Manche suivante
+        </ForestButton>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <ForestButton
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              disabled={deleting}
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-1" />
+              )}
+              Supprimer la partie
+            </ForestButton>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer la partie ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Cette action est irréversible. Toutes les données de la partie
+                "{game.name}" seront définitivement supprimées.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={handleDeleteGame}
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
       {/* QR Code (collapsible on mobile) */}
       {game.status === 'LOBBY' && (
         <details className="card-gradient rounded-lg border border-border p-4">
