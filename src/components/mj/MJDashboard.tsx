@@ -17,7 +17,7 @@ import { MJShopPhaseTab } from './MJShopPhaseTab';
 import { 
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
-  Bug, Store, Swords, Target
+  Bug, Store, Swords, Target, SkipForward
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -123,6 +123,50 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
     }
   };
 
+  const handleNextRound = async () => {
+    const nextManche = game.manche_active + 1;
+    try {
+      const { error } = await supabase
+        .from('games')
+        .update({ 
+          manche_active: nextManche, 
+          phase: 'PHASE1_MISES',
+          phase_locked: false
+        })
+        .eq('id', game.id);
+
+      if (error) throw error;
+
+      // Log the round change
+      await supabase.from('logs_mj').insert({
+        game_id: game.id,
+        manche: nextManche,
+        action: 'NOUVELLE_MANCHE',
+        details: `Passage manuel à la manche ${nextManche}`,
+      });
+
+      await supabase.from('logs_joueurs').insert({
+        game_id: game.id,
+        manche: nextManche,
+        type: 'PHASE',
+        message: `🔄 Nouvelle manche ${nextManche} - Phase 1 : Mises`,
+      });
+
+      await supabase.from('session_events').insert({
+        game_id: game.id,
+        type: 'ROUND_CHANGE',
+        audience: 'ALL',
+        message: `Nouvelle manche ${nextManche}`,
+        payload: { manche: nextManche, phase: 'PHASE1_MISES' },
+      });
+
+      toast.success(`Passage à la manche ${nextManche}`);
+    } catch (error) {
+      console.error('Error advancing round:', error);
+      toast.error('Erreur lors du passage à la manche suivante');
+    }
+  };
+
   const joinUrl = `${window.location.origin}/join/${game.join_code}`;
 
   return (
@@ -173,7 +217,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       </div>
 
       {/* Game info bar */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
         <div className="p-3 bg-secondary/50 rounded-lg text-center">
           <div className="text-muted-foreground">Manche</div>
           <div className="font-bold text-lg">{game.manche_active}</div>
@@ -193,6 +237,16 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         <div className="p-3 bg-secondary/50 rounded-lg text-center">
           <div className="text-muted-foreground">Max joueurs</div>
           <div className="font-bold">{game.x_nb_joueurs || '∞'}</div>
+        </div>
+        <div className="p-3 bg-secondary/50 rounded-lg flex items-center justify-center">
+          <ForestButton 
+            size="sm" 
+            onClick={handleNextRound}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            <SkipForward className="h-4 w-4 mr-1" />
+            Manche suivante
+          </ForestButton>
         </div>
       </div>
 

@@ -186,7 +186,8 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
       if (data.alreadyResolved) {
         toast.info('Shop déjà résolu pour cette manche');
       } else {
-        toast.success(`Shop résolu ! ${data.stats.approved} achats validés, ${data.stats.refused} refusés`);
+        const nextRound = data.nextRound ? ` → Manche ${data.nextRound.manche}` : '';
+        toast.success(`Shop résolu ! ${data.stats.approved} achats validés, ${data.stats.refused} refusés${nextRound}`);
       }
       fetchData();
     } catch (error) {

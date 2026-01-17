@@ -399,16 +399,57 @@ Deno.serve(async (req) => {
 
     console.log(`[resolve-shop] Complete: ${purchasesApproved.length} approved, ${purchasesRefused.length} refused`);
 
+    // Auto-advance to next round and Phase 1
+    const nextManche = manche + 1;
+    console.log(`[resolve-shop] Auto-advancing to manche ${nextManche}, PHASE1_MISES`);
+
+    await supabase
+      .from('games')
+      .update({ 
+        manche_active: nextManche, 
+        phase: 'PHASE1_MISES',
+        phase_locked: false
+      })
+      .eq('id', gameId);
+
+    // Log the round change
+    await supabase.from('logs_mj').insert({
+      game_id: gameId,
+      manche: nextManche,
+      action: 'NOUVELLE_MANCHE',
+      details: `Passage automatique à la manche ${nextManche}`,
+    });
+
+    await supabase.from('logs_joueurs').insert({
+      game_id: gameId,
+      manche: nextManche,
+      type: 'PHASE',
+      message: `🔄 Nouvelle manche ${nextManche} - Phase 1 : Mises`,
+    });
+
+    // Session event for new round
+    await supabase.from('session_events').insert({
+      game_id: gameId,
+      type: 'ROUND_CHANGE',
+      audience: 'ALL',
+      message: `Nouvelle manche ${nextManche}`,
+      payload: { manche: nextManche, phase: 'PHASE1_MISES' },
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Shop résolu avec succès`,
+        message: `Shop résolu avec succès - Passage à la manche ${nextManche}`,
         approved: purchasesApproved,
         refused: purchasesRefused,
         stats: {
           totalRequests: requests?.length || 0,
           approved: purchasesApproved.length,
           refused: purchasesRefused.length,
+        },
+        nextRound: {
+          manche: nextManche,
+          phase: 'PHASE1_MISES',
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
