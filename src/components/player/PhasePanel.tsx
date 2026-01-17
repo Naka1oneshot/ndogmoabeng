@@ -656,18 +656,6 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
           </div>
         )}
 
-        {/* Phase 3: Shop - Display handled by ShopPanel component */}
-        {game.phase === 'PHASE3_SHOP' && (
-          <div className="text-center py-6">
-            <ShoppingBag className="h-12 w-12 text-green-400 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">
-              Phase 3 - Boutique
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              Consultez la boutique ci-dessous pour acheter des objets
-            </p>
-          </div>
-        )}
 
         {/* Phase 4: Combat (read-only) */}
         {game.phase === 'PHASE4_COMBAT' && (
