@@ -209,17 +209,23 @@ export function BattlefieldView({ gameId, className, showDetails = false }: Batt
                     <div className="flex items-center justify-between gap-1 text-xs">
                       <div className="flex items-center gap-1">
                         <Heart className="h-3 w-3 text-red-400" />
-                        <span>{monster.pv_current}/{getMonsterPvMax(monster)}</span>
+                        {showDetails ? (
+                          <span>{monster.pv_current}/{getMonsterPvMax(monster)}</span>
+                        ) : (
+                          <span>PV: {getMonsterPvMax(monster)}</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 text-amber-400">
                         <Trophy className="h-3 w-3" />
                         <span>{getMonsterReward(monster)}</span>
                       </div>
                     </div>
-                    <Progress
-                      value={(monster.pv_current / getMonsterPvMax(monster)) * 100}
-                      className="h-1.5"
-                    />
+                    {showDetails && (
+                      <Progress
+                        value={(monster.pv_current / getMonsterPvMax(monster)) * 100}
+                        className="h-1.5"
+                      />
+                    )}
                   </div>
 
                   <div className={`text-xs mt-2 px-2 py-0.5 rounded ${statusColors[monster.status] || ''}`}>
