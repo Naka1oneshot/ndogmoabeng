@@ -645,18 +645,39 @@ serve(async (req) => {
       forest_state: forestState,
     });
 
-    // Create logs
+    // Create logs - NEW FORMAT: one line per player showing what they used and damage dealt
+    // Format: "NomJoueur a utilisé "Arme" inflige X dégâts."
     const publicAttackMessages = publicActions.map(a => {
-      const weaponsStr = a.weapons.length > 0 ? a.weapons.join(' + ') : 'Aucune arme';
       if (a.cancelled) {
-        return `${a.nom} (#${a.position}) — ${weaponsStr} — Attaque annulée (${a.cancelReason})`;
+        const weaponsStr = a.weapons.length > 0 ? `"${a.weapons.join('" + "')}"` : 'aucune arme';
+        return `${a.nom} a utilisé ${weaponsStr} — Attaque annulée (${a.cancelReason})`;
       }
-      return `${a.nom} (#${a.position}) — ${weaponsStr} — Dégâts: ${a.totalDamage}`;
+      
+      if (a.weapons.length === 0) {
+        return `${a.nom} n'a pas attaqué`;
+      }
+      
+      const weaponsStr = a.weapons.map(w => `"${w}"`).join(' + ');
+      return `${a.nom} a utilisé ${weaponsStr} inflige ${a.totalDamage} dégâts.`;
     }).join('\n');
 
     const killMessages = kills.map(k => 
       `⚔️ COUP DE GRÂCE: ${k.killerName} a éliminé ${k.monsterName}!`
     ).join('\n');
+
+    // MJ summary with full details (slots, targets, etc.)
+    const mjAttackMessages = mjActions.map(a => {
+      const slotInfo = a.slot_attaque ? `[Slot ${a.slot_attaque}${a.targetMonster ? ` → ${a.targetMonster}` : ''}]` : '[Pas d\'attaque]';
+      const weaponsInfo = [a.attaque1, a.attaque2].filter(w => w && w !== 'Aucune').map(w => `"${w}"`).join(' + ') || 'Aucune arme';
+      const protInfo = a.protection && a.protection !== 'Aucune' ? ` | Protection: "${a.protection}" sur slot ${a.slot_protection}` : '';
+      
+      if (a.cancelled) {
+        return `#${a.position} ${a.nom} (J${a.num_joueur}) ${slotInfo} — ${weaponsInfo} — ANNULÉ (${a.cancelReason})${protInfo}`;
+      }
+      
+      const killInfo = a.killed ? ` — ⚔️ KILL: ${a.killed}` : '';
+      return `#${a.position} ${a.nom} (J${a.num_joueur}) ${slotInfo} — ${weaponsInfo} — ${a.totalDamage} dégâts${killInfo}${protInfo}`;
+    }).join('\n');
 
     await Promise.all([
       // Public events
@@ -672,7 +693,7 @@ serve(async (req) => {
           forestState,
         },
       }),
-      // Public logs
+      // Public logs - new format without revealing slots
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
         manche: manche,
@@ -691,12 +712,18 @@ serve(async (req) => {
         type: 'ETAT_FORET',
         message: `🌲 État de la forêt: ${forestState.totalPvRemaining} PV restants (${kills.length} monstre(s) éliminé(s))`,
       }),
-      // MJ logs
+      // MJ logs - detailed version with slots and targets
       supabase.from('logs_mj').insert({
         game_id: gameId,
         manche: manche,
         action: 'COMBAT_RESOLU',
-        details: JSON.stringify({ actions: mjSummary, kills, rewards: rewardUpdates, berserkerPenalties }),
+        details: mjAttackMessages,
+      }),
+      supabase.from('logs_mj').insert({
+        game_id: gameId,
+        manche: manche,
+        action: 'COMBAT_DATA',
+        details: JSON.stringify({ kills, rewards: rewardUpdates, berserkerPenalties }),
       }),
     ]);
 
