@@ -89,7 +89,34 @@ serve(async (req) => {
     }
 
     const manche = game.manche_active;
-    const nbJoueurs = game.x_nb_joueurs || 6;
+
+    // Get ACTIVE players count - this is our N (source of truth)
+    const { data: activePlayers, error: playersError } = await supabase
+      .from('game_players')
+      .select('player_number, display_name, clan, jetons')
+      .eq('game_id', gameId)
+      .eq('is_host', false)
+      .in('status', ['ACTIVE', 'IN_GAME']);
+
+    if (playersError) {
+      console.error('[publish-positions] Error fetching players:', playersError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Erreur lors de la récupération des joueurs' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // N = actual active player count (NOT x_nb_joueurs or max_players)
+    const N = activePlayers?.length || 0;
+    
+    if (N === 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Aucun joueur actif dans la partie' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[publish-positions] N = ${N} active players`);
 
     // Get priority rankings (order from Phase 1)
     const { data: rankings, error: rankingsError } = await supabase
@@ -121,22 +148,10 @@ serve(async (req) => {
       );
     }
 
-    // Get players info
-    const { data: players, error: playersError } = await supabase
-      .from('game_players')
-      .select('player_number, display_name, clan, jetons')
-      .eq('game_id', gameId)
-      .eq('status', 'ACTIVE')
-      .eq('is_host', false);
-
-    if (playersError) {
-      console.error('[publish-positions] Error fetching players:', playersError);
-    }
-
-    const playerMap = new Map(players?.map(p => [p.player_number, p]) || []);
+    const playerMap = new Map(activePlayers?.map(p => [p.player_number, p]) || []);
     const actionMap = new Map(actions?.map(a => [a.num_joueur, a]) || []);
 
-    // Track occupied positions
+    // Track occupied positions - only positions 1..N are valid
     const occupiedPositions = new Set<number>();
     const positionsFinales: Array<{
       game_id: string;
@@ -161,29 +176,37 @@ serve(async (req) => {
       const player = playerMap.get(numJoueur);
       const action = actionMap.get(numJoueur);
       
+      // Skip if player is no longer active
+      if (!player) {
+        console.log(`[publish-positions] Skipping player ${numJoueur} - not in active players`);
+        continue;
+      }
+      
       let positionSouhaitee = action?.position_souhaitee || null;
-      let positionFinale: number;
+      let positionFinale: number = -1;
 
-      // Find available position
-      if (positionSouhaitee && positionSouhaitee >= 1 && positionSouhaitee <= nbJoueurs && !occupiedPositions.has(positionSouhaitee)) {
-        // Desired position is available
-        positionFinale = positionSouhaitee;
+      // Validate position_souhaitee is within 1..N
+      const isValidDesired = positionSouhaitee !== null && 
+                             positionSouhaitee >= 1 && 
+                             positionSouhaitee <= N;
+
+      if (isValidDesired && !occupiedPositions.has(positionSouhaitee!)) {
+        // Desired position is valid and available
+        positionFinale = positionSouhaitee!;
       } else {
-        // Find first available position
-        // If desired position is taken, try pos+1, pos+2, ..., nbJoueurs, then 1, 2, ...
-        const startPos = positionSouhaitee && positionSouhaitee >= 1 && positionSouhaitee <= nbJoueurs 
-          ? positionSouhaitee 
-          : 1;
+        // Find next available position
+        // If desired is valid but taken, start from desired+1, wrap around
+        // If desired is invalid, start from 1
+        const startPos = isValidDesired ? positionSouhaitee! : 1;
         
-        positionFinale = -1;
-        // Try from startPos to nbJoueurs
-        for (let i = startPos; i <= nbJoueurs; i++) {
+        // Try from startPos to N
+        for (let i = startPos; i <= N; i++) {
           if (!occupiedPositions.has(i)) {
             positionFinale = i;
             break;
           }
         }
-        // If not found, try from 1 to startPos-1
+        // If not found, try from 1 to startPos-1 (wrap around)
         if (positionFinale === -1) {
           for (let i = 1; i < startPos; i++) {
             if (!occupiedPositions.has(i)) {
@@ -192,9 +215,23 @@ serve(async (req) => {
             }
           }
         }
-        // Fallback (shouldn't happen if nbJoueurs >= number of players)
-        if (positionFinale === -1) {
-          positionFinale = occupiedPositions.size + 1;
+      }
+
+      // This should never happen if N >= number of players being processed
+      if (positionFinale === -1) {
+        console.error(`[publish-positions] Could not find position for player ${numJoueur}`);
+        positionFinale = occupiedPositions.size + 1;
+      }
+
+      // Ensure position is always within 1..N
+      if (positionFinale < 1 || positionFinale > N) {
+        console.error(`[publish-positions] Invalid position ${positionFinale} for player ${numJoueur}, forcing to valid range`);
+        // Find first available in 1..N
+        for (let i = 1; i <= N; i++) {
+          if (!occupiedPositions.has(i)) {
+            positionFinale = i;
+            break;
+          }
         }
       }
 
@@ -217,6 +254,18 @@ serve(async (req) => {
         slot_protection: action?.slot_protection || null,
       });
     }
+
+    // Verify we have a valid permutation of 1..N
+    const finalPositionSet = new Set(positionsFinales.map(p => p.position_finale));
+    const expectedPositions = new Set(Array.from({ length: N }, (_, i) => i + 1));
+    
+    if (finalPositionSet.size !== positionsFinales.length) {
+      console.error('[publish-positions] Duplicate positions detected!', positionsFinales.map(p => p.position_finale));
+    }
+    
+    // Log for debugging
+    console.log(`[publish-positions] Final positions (N=${N}):`, 
+      positionsFinales.map(p => `${p.nom}:${p.position_finale}`).join(', '));
 
     // Sort by position_finale for display
     positionsFinales.sort((a, b) => a.position_finale - b.position_finale);
@@ -313,6 +362,7 @@ serve(async (req) => {
         success: true, 
         message: 'Positions finales publiées',
         positionsCount: positionsFinales.length,
+        activePlayerCount: N,
         // Only return public info
         publicRanking: positionsFinales.map(p => ({ 
           position: p.position_finale, 

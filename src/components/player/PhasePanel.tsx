@@ -81,6 +81,7 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [itemCatalog, setItemCatalog] = useState<CatalogItem[]>([]);
   const [currentAction, setCurrentAction] = useState<Record<string, unknown> | null>(null);
+  const [activePlayerCount, setActivePlayerCount] = useState<number>(6);
   
   // Phase 3 state
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
@@ -116,7 +117,24 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
     }
   }, [attaque1]);
 
+  // Fetch active player count for position options
+  const fetchActivePlayerCount = async () => {
+    const { count, error } = await supabase
+      .from('game_players')
+      .select('*', { count: 'exact', head: true })
+      .eq('game_id', game.id)
+      .eq('is_host', false)
+      .in('status', ['ACTIVE', 'IN_GAME']);
+    
+    if (!error && count !== null) {
+      setActivePlayerCount(count);
+    }
+  };
+
   useEffect(() => {
+    // Always fetch active player count for reference
+    fetchActivePlayerCount();
+    
     if (game.phase === 'PHASE1_MISES') {
       fetchCurrentBet();
     } else if (game.phase === 'PHASE2_POSITIONS') {
@@ -126,7 +144,18 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
     } else if (game.phase === 'PHASE3_SHOP') {
       fetchShopItems();
     }
-  }, [game.phase, game.manche_active]);
+    
+    // Subscribe to player changes for real-time count updates
+    const channel = supabase
+      .channel(`players-count-${game.id}`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` },
+        () => { fetchActivePlayerCount(); }
+      )
+      .subscribe();
+    
+    return () => { supabase.removeChannel(channel); };
+  }, [game.id, game.phase, game.manche_active]);
 
   const fetchCurrentBet = async () => {
     const { data } = await supabase
@@ -470,13 +499,13 @@ export function PhasePanel({ game, player, className }: PhasePanelProps) {
             {/* Position et Slot Attaque */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Position souhaitée</Label>
+                <Label className="text-xs">Position souhaitée (1-{activePlayerCount})</Label>
                 <Select value={positionSouhaitee} onValueChange={setPositionSouhaitee} disabled={isLocked}>
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Position" />
                   </SelectTrigger>
                   <SelectContent>
-                    {[1, 2, 3, 4, 5, 6].map((n) => (
+                    {Array.from({ length: activePlayerCount }, (_, i) => i + 1).map((n) => (
                       <SelectItem key={n} value={n.toString()}>Position {n}</SelectItem>
                     ))}
                   </SelectContent>
