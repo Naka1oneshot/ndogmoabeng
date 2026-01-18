@@ -1,4 +1,5 @@
 import { Ship, Trees, Waves } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 interface GameStartAnimationProps {
   gameType: 'FORET' | 'RIVIERES';
@@ -13,7 +14,31 @@ export function GameStartAnimation({
   playerName,
   isMJ = false 
 }: GameStartAnimationProps) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const isForet = gameType === 'FORET';
+  
+  // Play sound effect on mount
+  useEffect(() => {
+    const soundFile = isForet ? '/sounds/forest-wind.mp3' : '/sounds/foghorn.mp3';
+    
+    try {
+      audioRef.current = new Audio(soundFile);
+      audioRef.current.volume = 0.5;
+      audioRef.current.play().catch(err => {
+        // Autoplay might be blocked by browser, that's okay
+        console.log('Audio autoplay blocked:', err);
+      });
+    } catch (err) {
+      console.log('Audio not available:', err);
+    }
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [isForet]);
   
   // Theme colors based on game type
   const bgColor = isForet ? 'bg-[#1a2f1a]' : 'bg-[#0B1020]';
