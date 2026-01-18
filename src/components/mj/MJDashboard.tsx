@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,6 +6,7 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
+import { GameStartAnimation } from '@/components/game/GameStartAnimation';
 import { MJPlayersTab } from './MJPlayersTab';
 import { MJBetsTab } from './MJBetsTab';
 import { MJPhase2Tab } from './MJPhase2Tab';
@@ -72,10 +73,38 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [editedName, setEditedName] = useState(game.name);
   const [saving, setSaving] = useState(false);
   const [advancingStep, setAdvancingStep] = useState(false);
-
   const [deleting, setDeleting] = useState(false);
+  const [playerCount, setPlayerCount] = useState(0);
+  
+  // Start animation state
+  const [showStartAnimation, setShowStartAnimation] = useState(false);
+  const previousGameStatusRef = useRef<string>(initialGame.status);
   
   const isAdventure = game.mode === 'ADVENTURE' && game.adventure_id;
+
+  // Detect game start transition for FORET animation
+  useEffect(() => {
+    if (previousGameStatusRef.current === 'LOBBY' && game.status === 'IN_GAME' && 
+        (game.selected_game_type_code === 'FORET' || !game.selected_game_type_code)) {
+      setShowStartAnimation(true);
+      const timer = setTimeout(() => setShowStartAnimation(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    previousGameStatusRef.current = game.status;
+  }, [game.status, game.selected_game_type_code]);
+
+  // Fetch player count for animation
+  useEffect(() => {
+    const fetchPlayerCount = async () => {
+      const { count } = await supabase
+        .from('game_players')
+        .select('*', { count: 'exact', head: true })
+        .eq('game_id', game.id)
+        .eq('status', 'ACTIVE');
+      setPlayerCount(count || 0);
+    };
+    fetchPlayerCount();
+  }, [game.id]);
 
   useEffect(() => {
     const channel = supabase
@@ -271,6 +300,17 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
   // Check if game type is implemented
   const isGameTypeImplemented = IMPLEMENTED_GAME_TYPES.includes(game.selected_game_type_code || '');
+
+  // Start animation overlay for FORET
+  if (showStartAnimation) {
+    return (
+      <GameStartAnimation 
+        gameType="FORET" 
+        playerCount={playerCount} 
+        isMJ={true} 
+      />
+    );
+  }
 
   // Show "in development" screen for non-implemented game types (only for IN_GAME status)
   if (game.status === 'IN_GAME' && !isGameTypeImplemented) {

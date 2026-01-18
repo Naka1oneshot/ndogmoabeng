@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
@@ -7,6 +7,7 @@ import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock, ShoppingBa
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { GameStartAnimation } from '@/components/game/GameStartAnimation';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
 import { EventsFeed } from '@/components/player/EventsFeed';
@@ -64,6 +65,10 @@ export default function PlayerDashboard() {
   const [mobileTab, setMobileTab] = useState('battle');
   const [selectedManche, setSelectedManche] = useState<number>(1);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+  
+  // Start animation state for FORET
+  const [showStartAnimation, setShowStartAnimation] = useState(false);
+  const previousGameStatusRef = useRef<string | null>(null);
 
   // Auto-reset to current manche when game.manche_active changes
   useEffect(() => {
@@ -71,6 +76,19 @@ export default function PlayerDashboard() {
       setSelectedManche(game.manche_active);
     }
   }, [game?.manche_active]);
+
+  // Detect game start transition for FORET animation
+  useEffect(() => {
+    if (previousGameStatusRef.current === 'LOBBY' && game?.status === 'IN_GAME' && 
+        (game.selected_game_type_code === 'FORET' || !game.selected_game_type_code)) {
+      setShowStartAnimation(true);
+      const timer = setTimeout(() => setShowStartAnimation(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    if (game?.status) {
+      previousGameStatusRef.current = game.status;
+    }
+  }, [game?.status, game?.selected_game_type_code]);
 
   const { handleLeave: presenceLeave } = usePlayerPresence({
     gameId,
@@ -381,6 +399,17 @@ export default function PlayerDashboard() {
           />
         </main>
       </div>
+    );
+  }
+
+  // Start animation overlay for FORET
+  if (showStartAnimation) {
+    return (
+      <GameStartAnimation 
+        gameType="FORET" 
+        playerName={player.displayName} 
+        isMJ={false} 
+      />
     );
   }
 
