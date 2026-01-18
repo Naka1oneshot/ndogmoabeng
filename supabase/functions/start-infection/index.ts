@@ -57,12 +57,13 @@ Deno.serve(async (req) => {
 
     console.log('[start-infection] Starting with:', { gameId, sessionGameId, roleConfig, startingTokens });
 
-    // 1. Fetch active players
-    const { data: players, error: playersError } = await supabase
+    // 1. Fetch active players (with player_number assigned)
+    const { data: playersRaw, error: playersError } = await supabase
       .from('game_players')
       .select('id, player_number, display_name, clan, jetons')
       .eq('game_id', gameId)
       .is('removed_at', null)
+      .not('player_number', 'is', null)
       .order('player_number', { ascending: true });
 
     if (playersError) {
@@ -70,8 +71,10 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to fetch players: ${playersError.message}`);
     }
 
-    if (!players || players.length < 6) {
-      throw new Error(`Not enough players. Need at least 6, got ${players?.length || 0}`);
+    const players = playersRaw || [];
+
+    if (players.length < 6) {
+      throw new Error(`Not enough players. Need at least 6, got ${players.length}`);
     }
 
     const playerCount = players.length;
