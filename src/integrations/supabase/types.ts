@@ -64,6 +64,120 @@ export type Database = {
           },
         ]
       }
+      adventure_scores: {
+        Row: {
+          breakdown: Json | null
+          game_player_id: string
+          id: string
+          session_id: string
+          total_score_value: number
+          updated_at: string
+        }
+        Insert: {
+          breakdown?: Json | null
+          game_player_id: string
+          id?: string
+          session_id: string
+          total_score_value?: number
+          updated_at?: string
+        }
+        Update: {
+          breakdown?: Json | null
+          game_player_id?: string
+          id?: string
+          session_id?: string
+          total_score_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adventure_scores_game_player_id_fkey"
+            columns: ["game_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "adventure_scores_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      adventure_steps: {
+        Row: {
+          adventure_id: string
+          created_at: string
+          custom_starting_tokens: number | null
+          default_step_config: Json | null
+          game_type_code: string
+          id: string
+          step_index: number
+          token_policy: string
+        }
+        Insert: {
+          adventure_id: string
+          created_at?: string
+          custom_starting_tokens?: number | null
+          default_step_config?: Json | null
+          game_type_code: string
+          id?: string
+          step_index: number
+          token_policy?: string
+        }
+        Update: {
+          adventure_id?: string
+          created_at?: string
+          custom_starting_tokens?: number | null
+          default_step_config?: Json | null
+          game_type_code?: string
+          id?: string
+          step_index?: number
+          token_policy?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adventure_steps_adventure_id_fkey"
+            columns: ["adventure_id"]
+            isOneToOne: false
+            referencedRelation: "adventures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "adventure_steps_game_type_code_fkey"
+            columns: ["game_type_code"]
+            isOneToOne: false
+            referencedRelation: "game_types"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      adventures: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       battlefield: {
         Row: {
           created_at: string | null
@@ -522,50 +636,120 @@ export type Database = {
           },
         ]
       }
+      game_types: {
+        Row: {
+          code: string
+          created_at: string
+          default_config: Json | null
+          default_starting_tokens: number | null
+          description: string | null
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          default_config?: Json | null
+          default_starting_tokens?: number | null
+          description?: string | null
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          default_config?: Json | null
+          default_starting_tokens?: number | null
+          description?: string | null
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       games: {
         Row: {
+          adventure_id: string | null
           created_at: string
+          current_session_game_id: string | null
+          current_step_index: number
           host_user_id: string
           id: string
           join_code: string
           manche_active: number | null
+          mode: string
           name: string
           phase: string
           phase_locked: boolean
+          selected_game_type_code: string | null
           sens_depart_egalite: string | null
           starting_tokens: number
           status: string
+          winner_declared: boolean
           x_nb_joueurs: number | null
         }
         Insert: {
+          adventure_id?: string | null
           created_at?: string
+          current_session_game_id?: string | null
+          current_step_index?: number
           host_user_id: string
           id?: string
           join_code: string
           manche_active?: number | null
+          mode?: string
           name?: string
           phase?: string
           phase_locked?: boolean
+          selected_game_type_code?: string | null
           sens_depart_egalite?: string | null
           starting_tokens?: number
           status?: string
+          winner_declared?: boolean
           x_nb_joueurs?: number | null
         }
         Update: {
+          adventure_id?: string | null
           created_at?: string
+          current_session_game_id?: string | null
+          current_step_index?: number
           host_user_id?: string
           id?: string
           join_code?: string
           manche_active?: number | null
+          mode?: string
           name?: string
           phase?: string
           phase_locked?: boolean
+          selected_game_type_code?: string | null
           sens_depart_egalite?: string | null
           starting_tokens?: number
           status?: string
+          winner_declared?: boolean
           x_nb_joueurs?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_games_current_session_game"
+            columns: ["current_session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "games_adventure_id_fkey"
+            columns: ["adventure_id"]
+            isOneToOne: false
+            referencedRelation: "adventures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "games_selected_game_type_code_fkey"
+            columns: ["selected_game_type_code"]
+            isOneToOne: false
+            referencedRelation: "game_types"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       inventory: {
         Row: {
@@ -1088,6 +1272,63 @@ export type Database = {
           },
         ]
       }
+      session_games: {
+        Row: {
+          config: Json | null
+          created_at: string
+          ended_at: string | null
+          game_type_code: string
+          id: string
+          manche_active: number
+          phase: string | null
+          session_id: string
+          started_at: string | null
+          status: string
+          step_index: number
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          ended_at?: string | null
+          game_type_code: string
+          id?: string
+          manche_active?: number
+          phase?: string | null
+          session_id: string
+          started_at?: string | null
+          status?: string
+          step_index: number
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          ended_at?: string | null
+          game_type_code?: string
+          id?: string
+          manche_active?: number
+          phase?: string | null
+          session_id?: string
+          started_at?: string | null
+          status?: string
+          step_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_games_game_type_code_fkey"
+            columns: ["game_type_code"]
+            isOneToOne: false
+            referencedRelation: "game_types"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "session_games_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_catalogue: {
         Row: {
           actif: boolean | null
@@ -1207,6 +1448,48 @@ export type Database = {
             columns: ["game_id"]
             isOneToOne: false
             referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stage_scores: {
+        Row: {
+          created_at: string
+          details: Json | null
+          game_player_id: string
+          id: string
+          score_value: number
+          session_game_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          game_player_id: string
+          id?: string
+          score_value?: number
+          session_game_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          game_player_id?: string
+          id?: string
+          score_value?: number
+          session_game_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stage_scores_game_player_id_fkey"
+            columns: ["game_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stage_scores_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
             referencedColumns: ["id"]
           },
         ]
