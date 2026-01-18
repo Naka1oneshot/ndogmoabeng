@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, Dice6, Lock, Play, Users, History, 
-  AlertTriangle, CheckCircle, XCircle, Anchor
+  AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -65,12 +65,24 @@ interface Player {
   jetons: number;
 }
 
+interface StageScore {
+  game_player_id: string;
+  score_value: number;
+  details: {
+    validated_levels: number;
+    jetons_end: number;
+    penalty_applied: boolean;
+  };
+}
+
 interface MJRivieresDashboardProps {
   gameId: string;
   sessionGameId: string;
+  isAdventure?: boolean;
+  onNextGame?: () => void;
 }
 
-export function MJRivieresDashboard({ gameId, sessionGameId }: MJRivieresDashboardProps) {
+export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false, onNextGame }: MJRivieresDashboardProps) {
   const [state, setState] = useState<RiverSessionState | null>(null);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats[]>([]);
   const [decisions, setDecisions] = useState<RiverDecision[]>([]);
@@ -89,6 +101,10 @@ export function MJRivieresDashboard({ gameId, sessionGameId }: MJRivieresDashboa
 
   // Logs
   const [logs, setLogs] = useState<{ id: string; action: string; details: string; manche: number }[]>([]);
+
+  // Scores
+  const [stageScores, setStageScores] = useState<StageScore[]>([]);
+  const [showFinalRanking, setShowFinalRanking] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -148,6 +164,14 @@ export function MJRivieresDashboard({ gameId, sessionGameId }: MJRivieresDashboa
         .limit(50);
 
       if (logsData) setLogs(logsData);
+
+      // Fetch stage scores
+      const { data: scoresData } = await supabase
+        .from('stage_scores')
+        .select('game_player_id, score_value, details')
+        .eq('session_game_id', sessionGameId);
+
+      if (scoresData) setStageScores(scoresData as StageScore[]);
 
     } catch (error) {
       console.error('Error fetching RIVIERES data:', error);
@@ -313,11 +337,109 @@ export function MJRivieresDashboard({ gameId, sessionGameId }: MJRivieresDashboa
   const dangerSet = state.danger_raw !== null;
   const canResolve = dangerSet && allLocked;
 
+  // Check if game is finished (status ENDED with scores calculated)
+  const isGameFinished = state.status === 'ENDED' && stageScores.length > 0;
+
   const getPlayerById = (id: string) => players.find(p => p.id === id);
   const getStatsByPlayerId = (id: string) => playerStats.find(s => s.player_id === id);
+  const getScoreByPlayerId = (id: string) => stageScores.find(s => s.game_player_id === id);
+
+  // Build ranking sorted by score
+  const ranking = players
+    .map(p => {
+      const score = getScoreByPlayerId(p.id);
+      const stats = getStatsByPlayerId(p.id);
+      return {
+        ...p,
+        score_value: score?.score_value ?? 0,
+        validated_levels: stats?.validated_levels ?? 0,
+        penalty_applied: score?.details?.penalty_applied ?? false,
+      };
+    })
+    .filter(p => p.player_number !== null)
+    .sort((a, b) => b.score_value - a.score_value);
 
   return (
     <div className="space-y-4">
+      {/* FINAL RANKING MODAL when game is finished */}
+      {(isGameFinished || showFinalRanking) && (
+        <div className={`${rivieresCardStyle} p-6 border-2 border-[#D4AF37]`}>
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <Trophy className="h-8 w-8 text-[#D4AF37]" />
+            <h2 className="text-2xl font-bold text-[#D4AF37]">
+              {isAdventure ? 'Classement Intermédiaire' : 'Classement Final'}
+            </h2>
+            <Trophy className="h-8 w-8 text-[#D4AF37]" />
+          </div>
+
+          <table className="w-full text-sm mb-6">
+            <thead className="bg-[#0B1020]">
+              <tr>
+                <th className="p-3 text-left text-[#D4AF37]">Rang</th>
+                <th className="p-3 text-left text-[#9CA3AF]">Joueur</th>
+                <th className="p-3 text-center text-[#9CA3AF]">Niveaux</th>
+                <th className="p-3 text-center text-[#9CA3AF]">Jetons</th>
+                <th className="p-3 text-right text-[#D4AF37]">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ranking.map((p, idx) => (
+                <tr key={p.id} className={`border-t border-[#D4AF37]/10 ${idx === 0 ? 'bg-[#D4AF37]/10' : ''}`}>
+                  <td className="p-3">
+                    <span className={`text-xl font-bold ${idx === 0 ? 'text-[#D4AF37]' : idx === 1 ? 'text-gray-300' : idx === 2 ? 'text-amber-600' : 'text-[#9CA3AF]'}`}>
+                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                    </span>
+                  </td>
+                  <td className="p-3 text-[#E8E8E8] font-medium">{p.display_name}</td>
+                  <td className="p-3 text-center">
+                    <span className={p.validated_levels >= 9 ? 'text-[#4ADE80]' : 'text-amber-400'}>
+                      {p.validated_levels}/15
+                    </span>
+                    {p.penalty_applied && <span className="text-xs text-red-400 ml-1">⚠️</span>}
+                  </td>
+                  <td className="p-3 text-center text-[#4ADE80]">
+                    {players.find(pl => pl.id === p.id)?.jetons ?? 0}💎
+                  </td>
+                  <td className="p-3 text-right">
+                    <span className="text-xl font-bold text-[#D4AF37]">{p.score_value}</span>
+                    <span className="text-[#9CA3AF] text-sm ml-1">pts</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="flex justify-center gap-4">
+            {!isGameFinished && (
+              <ForestButton
+                variant="outline"
+                onClick={() => setShowFinalRanking(false)}
+                className="border-[#9CA3AF] text-[#9CA3AF]"
+              >
+                Fermer
+              </ForestButton>
+            )}
+            {isAdventure && onNextGame ? (
+              <ForestButton
+                onClick={onNextGame}
+                className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black text-lg px-8"
+              >
+                <Flag className="h-5 w-5 mr-2" />
+                Jeu suivant
+              </ForestButton>
+            ) : (
+              <ForestButton
+                onClick={() => toast.success('Partie terminée ! Scores enregistrés.')}
+                className="bg-[#1B4D3E] hover:bg-[#1B4D3E]/80 text-white text-lg px-8"
+              >
+                <Trophy className="h-5 w-5 mr-2" />
+                Fin de partie
+              </ForestButton>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Status bar */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className={`${rivieresCardStyle} p-3 text-center`}>
@@ -340,13 +462,26 @@ export function MJRivieresDashboard({ gameId, sessionGameId }: MJRivieresDashboa
         </div>
         <div className={`${rivieresCardStyle} p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Statut</div>
-          <Badge className={state.status === 'RUNNING' ? 'bg-green-600' : 'bg-gray-600'}>
+          <Badge className={state.status === 'RUNNING' ? 'bg-green-600' : state.status === 'ENDED' ? 'bg-purple-600' : 'bg-gray-600'}>
             {state.status}
           </Badge>
         </div>
       </div>
 
-      <Tabs defaultValue="actions" className="w-full">
+      {/* Show ranking button when game is finished but modal closed */}
+      {isGameFinished && !showFinalRanking && (
+        <div className="flex justify-center">
+          <ForestButton
+            onClick={() => setShowFinalRanking(true)}
+            className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
+          >
+            <Trophy className="h-4 w-4 mr-2" />
+            Voir le classement final
+          </ForestButton>
+        </div>
+      )}
+
+      <Tabs defaultValue={isGameFinished ? "players" : "actions"} className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-[#20232A]">
           <TabsTrigger value="actions" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
             <Play className="h-4 w-4 mr-1" /> Actions
