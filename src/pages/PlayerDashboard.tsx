@@ -28,6 +28,7 @@ interface Game {
   manche_active: number;
   phase: string;
   phase_locked: boolean;
+  current_session_game_id: string | null;
 }
 
 interface Player {
@@ -368,7 +369,7 @@ export default function PlayerDashboard() {
 
             {/* Center column: Battlefield + Results */}
             <div className="space-y-4 overflow-auto">
-              <BattlefieldView gameId={game.id} />
+              <BattlefieldView gameId={game.id} sessionGameId={game.current_session_game_id} />
               
               {/* Manche Selector */}
               <div className="card-gradient rounded-lg border border-border p-3 flex items-center justify-between">
@@ -384,10 +385,12 @@ export default function PlayerDashboard() {
                 game={game} 
                 currentPlayerNumber={player.playerNumber}
                 selectedManche={selectedManche}
+                sessionGameId={game.current_session_game_id}
               />
-              <CombatResultsPanel game={game} selectedManche={selectedManche} />
+              <CombatResultsPanel game={game} selectedManche={selectedManche} sessionGameId={game.current_session_game_id} />
               <ResultsPanel
                 gameId={game.id}
+                sessionGameId={game.current_session_game_id}
                 manche={game.manche_active}
                 selectedManche={selectedManche}
                 phase={game.phase}
@@ -433,7 +436,7 @@ export default function PlayerDashboard() {
       <main className="flex-1 pb-16">
         <Tabs value={mobileTab} onValueChange={setMobileTab} className="h-full">
           <TabsContent value="battle" className="p-4 space-y-4 mt-0">
-            <BattlefieldView gameId={game.id} />
+            <BattlefieldView gameId={game.id} sessionGameId={game.current_session_game_id} />
             
             {/* Manche Selector - Mobile */}
             <div className="card-gradient rounded-lg border border-border p-3">
@@ -448,10 +451,12 @@ export default function PlayerDashboard() {
               game={game} 
               currentPlayerNumber={player.playerNumber}
               selectedManche={selectedManche}
+              sessionGameId={game.current_session_game_id}
             />
-            <CombatResultsPanel game={game} selectedManche={selectedManche} />
+            <CombatResultsPanel game={game} selectedManche={selectedManche} sessionGameId={game.current_session_game_id} />
             <ResultsPanel
               gameId={game.id}
+              sessionGameId={game.current_session_game_id}
               manche={game.manche_active}
               selectedManche={selectedManche}
               phase={game.phase}

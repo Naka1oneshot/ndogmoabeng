@@ -24,6 +24,7 @@ interface Game {
   status: string;
   manche_active: number;
   phase: string;
+  current_session_game_id?: string | null;
 }
 
 interface ShopOffer {

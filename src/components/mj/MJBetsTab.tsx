@@ -37,6 +37,7 @@ interface Game {
   phase: string;
   phase_locked: boolean;
   sens_depart_egalite: string;
+  current_session_game_id?: string | null;
 }
 
 interface MJBetsTabProps {

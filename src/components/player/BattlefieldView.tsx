@@ -22,6 +22,7 @@ interface MonsterState {
 
 interface BattlefieldViewProps {
   gameId: string;
+  sessionGameId?: string | null;
   className?: string;
   showDetails?: boolean; // For MJ to see extra info
 }
@@ -38,7 +39,7 @@ const statusLabels: Record<string, string> = {
   MORT: 'Vaincu',
 };
 
-export function BattlefieldView({ gameId, className, showDetails = false }: BattlefieldViewProps) {
+export function BattlefieldView({ gameId, sessionGameId, className, showDetails = false }: BattlefieldViewProps) {
   const [monsters, setMonsters] = useState<MonsterState[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,11 +63,11 @@ export function BattlefieldView({ gameId, className, showDetails = false }: Batt
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId]);
+  }, [gameId, sessionGameId]);
 
   const fetchData = async () => {
-    // Fetch runtime state with catalog and config info
-    const { data: stateData, error: stateError } = await supabase
+    // Build query with session_game_id filter if available
+    let stateQuery = supabase
       .from('game_state_monsters')
       .select(`
         id,
@@ -75,8 +76,13 @@ export function BattlefieldView({ gameId, className, showDetails = false }: Batt
         status,
         battlefield_slot
       `)
-      .eq('game_id', gameId)
-      .order('battlefield_slot', { ascending: true, nullsFirst: false });
+      .eq('game_id', gameId);
+    
+    if (sessionGameId) {
+      stateQuery = stateQuery.eq('session_game_id', sessionGameId);
+    }
+
+    const { data: stateData, error: stateError } = await stateQuery.order('battlefield_slot', { ascending: true, nullsFirst: false });
 
     if (stateError) {
       console.error('Error fetching monster state:', stateError);
