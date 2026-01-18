@@ -18,7 +18,7 @@ import MJTeamChatViewer from './MJTeamChatViewer';
 import { 
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
-  Bug, Store, Swords, Target, SkipForward, Trash2
+  Bug, Store, Swords, Target, SkipForward, Trash2, FastForward
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -47,6 +47,10 @@ interface Game {
   sens_depart_egalite: string;
   created_at: string;
   current_session_game_id: string | null;
+  mode: string;
+  adventure_id: string | null;
+  current_step_index: number;
+  selected_game_type_code: string | null;
 }
 
 interface MJDashboardProps {
@@ -61,8 +65,11 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [editingName, setEditingName] = useState(false);
   const [editedName, setEditedName] = useState(game.name);
   const [saving, setSaving] = useState(false);
+  const [advancingStep, setAdvancingStep] = useState(false);
 
   const [deleting, setDeleting] = useState(false);
+  
+  const isAdventure = game.mode === 'ADVENTURE' && game.adventure_id;
 
   useEffect(() => {
     const channel = supabase
@@ -230,6 +237,30 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
     }
   };
 
+  const handleNextSessionGame = async () => {
+    if (!isAdventure) return;
+    
+    setAdvancingStep(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('next-session-game', {
+        body: { gameId: game.id },
+      });
+
+      if (error) throw error;
+
+      if (data.adventureComplete) {
+        toast.success("🏆 L'aventure est terminée !");
+      } else {
+        toast.success(`Passage à l'étape ${data.stepIndex} : ${data.gameTypeCode}`);
+      }
+    } catch (error) {
+      console.error('Error advancing to next session game:', error);
+      toast.error('Erreur lors du passage au jeu suivant');
+    } finally {
+      setAdvancingStep(false);
+    }
+  };
+
   const joinUrl = `${window.location.origin}/join/${game.join_code}`;
 
   return (
@@ -280,7 +311,14 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       </div>
 
       {/* Game info bar */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
+        {isAdventure && (
+          <div className="p-3 bg-primary/20 rounded-lg text-center border border-primary/30">
+            <div className="text-muted-foreground">Étape</div>
+            <div className="font-bold text-lg">{game.current_step_index}</div>
+            <div className="text-xs text-muted-foreground">{game.selected_game_type_code}</div>
+          </div>
+        )}
         <div className="p-3 bg-secondary/50 rounded-lg text-center">
           <div className="text-muted-foreground">Manche</div>
           <div className="font-bold text-lg">{game.manche_active}</div>
@@ -304,7 +342,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       </div>
 
       {/* Action buttons */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <ForestButton 
           size="sm" 
           onClick={handleNextRound}
@@ -313,6 +351,43 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           <SkipForward className="h-4 w-4 mr-1" />
           Manche suivante
         </ForestButton>
+
+        {isAdventure && game.status === 'IN_GAME' && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <ForestButton
+                size="sm"
+                className="bg-primary hover:bg-primary/90"
+                disabled={advancingStep}
+              >
+                {advancingStep ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <FastForward className="h-4 w-4 mr-1" />
+                )}
+                Jeu suivant
+              </ForestButton>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Passer au jeu suivant ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette action terminera le jeu actuel (étape {game.current_step_index}) et démarrera 
+                  la prochaine étape de l'aventure. Les inventaires seront réinitialisés.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={handleNextSessionGame}
+                >
+                  Continuer l'aventure
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
