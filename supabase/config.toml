@@ -85,3 +85,6 @@ verify_jwt = false
 
 [functions.start-infection]
 verify_jwt = false
+
+[functions.resolve-infection-round]
+verify_jwt = false

@@ -153,10 +153,41 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   };
 
   const handleLockAndResolve = async () => {
-    if (!roundState) return;
-    toast.info('Verrouillage et résolution...');
-    // TODO: Call resolve-infection-round edge function
-    toast.success('Manche résolue ! (à implémenter)');
+    if (!roundState || !game.current_session_game_id) return;
+    
+    toast.info('Verrouillage et résolution en cours...');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('resolve-infection-round', {
+        body: {
+          gameId: game.id,
+          sessionGameId: game.current_session_game_id,
+          manche: game.manche_active || 1,
+        },
+      });
+
+      if (error) {
+        console.error('[MJ] resolve-infection-round error:', error);
+        toast.error(`Erreur: ${error.message}`);
+        return;
+      }
+
+      if (!data?.success) {
+        toast.error(data?.error || 'Erreur inconnue');
+        return;
+      }
+
+      if (data.data.gameEnded) {
+        toast.success(`Partie terminée! Victoire ${data.data.winner}`);
+      } else {
+        toast.success(`Manche ${game.manche_active} résolue! ${data.data.deaths} mort(s)`);
+      }
+      
+      fetchData();
+    } catch (err) {
+      console.error('[MJ] resolve-infection-round exception:', err);
+      toast.error('Erreur lors de la résolution');
+    }
   };
 
   const handleNextRound = async () => {
