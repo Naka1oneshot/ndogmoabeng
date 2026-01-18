@@ -23,9 +23,10 @@ import { MancheSelector } from '@/components/player/MancheSelector';
 import TeamChat from '@/components/player/TeamChat';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { PlayerRivieresDashboard } from '@/components/rivieres/PlayerRivieresDashboard';
+import { PlayerInfectionDashboard } from '@/components/infection/PlayerInfectionDashboard';
 
 // Implemented game types
-const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES'];
+const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION'];
 
 interface Game {
   id: string;
@@ -399,6 +400,28 @@ export default function PlayerDashboard() {
           />
         </main>
       </div>
+    );
+  }
+
+  // INFECTION Dashboard
+  if (game.selected_game_type_code === 'INFECTION') {
+    return (
+      <PlayerInfectionDashboard 
+        game={game} 
+        player={{
+          id: player.id,
+          display_name: player.displayName,
+          player_number: player.playerNumber,
+          clan: player.clan,
+          jetons: player.jetons,
+          pvic: 0,
+          is_alive: true,
+          role_code: null,
+          team_code: null,
+          immune_permanent: false,
+        }}
+        onLeave={handleLeave}
+      />
     );
   }
 

@@ -18,7 +18,8 @@ import { MJItemsShopTab } from './MJItemsShopTab';
 import { MJShopPhaseTab } from './MJShopPhaseTab';
 import MJTeamChatViewer from './MJTeamChatViewer';
 import { MJRivieresDashboard } from '@/components/rivieres/MJRivieresDashboard';
-import { 
+import { MJInfectionDashboard } from '@/components/infection/MJInfectionDashboard';
+import {
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
   Bug, Store, Swords, Target, SkipForward, Trash2, FastForward
@@ -38,7 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 // Implemented game types
-const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES'];
+const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION'];
 
 
 interface Game {
@@ -516,6 +517,11 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           onNextGame={isAdventure ? handleNextSessionGame : undefined}
           gameStatus={game.status}
         />
+      )}
+
+      {/* INFECTION Dashboard */}
+      {game.selected_game_type_code === 'INFECTION' && (
+        <MJInfectionDashboard game={game} onBack={onBack} />
       )}
 
       {/* FORET Tabs (original) - Only show for FORET games or when no game type is selected */}
