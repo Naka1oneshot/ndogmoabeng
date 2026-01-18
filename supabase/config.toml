@@ -88,3 +88,12 @@ verify_jwt = false
 
 [functions.resolve-infection-round]
 verify_jwt = false
+
+[functions.next-infection-round]
+verify_jwt = false
+
+[functions.infection-submit-action]
+verify_jwt = false
+
+[functions.infection-submit-shot]
+verify_jwt = false
