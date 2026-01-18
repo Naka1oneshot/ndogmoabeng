@@ -391,8 +391,8 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
         </div>
       )}
 
-      {/* Requests section - only show if shop exists and not resolved and not viewing history */}
-      {shopOffer && !isResolved && !isViewingHistory && (
+      {/* Requests section - show if shop exists and (not resolved and not viewing history OR viewing history) */}
+      {shopOffer && ((!isResolved && !isViewingHistory) || isViewingHistory) && (
         <div className="card-gradient rounded-lg border border-amber-500/30 p-4">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-medium flex items-center gap-2">
@@ -400,38 +400,41 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
               Souhaits d'achat ({requests.length} joueurs)
             </h4>
             
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <ForestButton
-                  disabled={resolving || requests.length === 0}
-                  className="bg-amber-600 hover:bg-amber-700"
-                >
-                  {resolving ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Play className="h-4 w-4 mr-2" />
-                  )}
-                  Résoudre le Shop
-                </ForestButton>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Résoudre le Shop ?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Cette action va appliquer les achats selon l'ordre de priorité des mises.
-                    Les joueurs les plus prioritaires seront servis en premier.
-                    <br /><br />
-                    <strong>Cette action est irréversible.</strong>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleResolveShop}>
-                    Confirmer la résolution
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {/* Only show resolve button for current manche and not resolved */}
+            {!isViewingHistory && !isResolved && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <ForestButton
+                    disabled={resolving || requests.length === 0}
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    {resolving ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Play className="h-4 w-4 mr-2" />
+                    )}
+                    Résoudre le Shop
+                  </ForestButton>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Résoudre le Shop ?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Cette action va appliquer les achats selon l'ordre de priorité des mises.
+                      Les joueurs les plus prioritaires seront servis en premier.
+                      <br /><br />
+                      <strong>Cette action est irréversible.</strong>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleResolveShop}>
+                      Confirmer la résolution
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
 
           {requests.length === 0 ? (
