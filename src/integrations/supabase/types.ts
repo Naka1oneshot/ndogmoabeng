@@ -1312,6 +1312,272 @@ export type Database = {
           },
         ]
       }
+      river_decisions: {
+        Row: {
+          decision: string
+          game_id: string
+          id: string
+          keryndes_choice: string
+          locked_at: string | null
+          manche: number
+          mise_demandee: number
+          mise_effective: number | null
+          niveau: number
+          player_id: string
+          player_num: number
+          session_game_id: string
+          status: string
+          submitted_at: string
+        }
+        Insert: {
+          decision: string
+          game_id: string
+          id?: string
+          keryndes_choice?: string
+          locked_at?: string | null
+          manche: number
+          mise_demandee?: number
+          mise_effective?: number | null
+          niveau: number
+          player_id: string
+          player_num: number
+          session_game_id: string
+          status?: string
+          submitted_at?: string
+        }
+        Update: {
+          decision?: string
+          game_id?: string
+          id?: string
+          keryndes_choice?: string
+          locked_at?: string | null
+          manche?: number
+          mise_demandee?: number
+          mise_effective?: number | null
+          niveau?: number
+          player_id?: string
+          player_num?: number
+          session_game_id?: string
+          status?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "river_decisions_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "river_decisions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "river_decisions_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      river_level_history: {
+        Row: {
+          cagnotte_after: number
+          cagnotte_before: number
+          danger_effectif: number | null
+          danger_raw: number | null
+          dice_count: number | null
+          game_id: string
+          id: string
+          manche: number
+          mj_summary: string | null
+          niveau: number
+          outcome: string
+          public_summary: string | null
+          resolved_at: string
+          session_game_id: string
+          total_mises: number
+        }
+        Insert: {
+          cagnotte_after?: number
+          cagnotte_before?: number
+          danger_effectif?: number | null
+          danger_raw?: number | null
+          dice_count?: number | null
+          game_id: string
+          id?: string
+          manche: number
+          mj_summary?: string | null
+          niveau: number
+          outcome: string
+          public_summary?: string | null
+          resolved_at?: string
+          session_game_id: string
+          total_mises?: number
+        }
+        Update: {
+          cagnotte_after?: number
+          cagnotte_before?: number
+          danger_effectif?: number | null
+          danger_raw?: number | null
+          dice_count?: number | null
+          game_id?: string
+          id?: string
+          manche?: number
+          mj_summary?: string | null
+          niveau?: number
+          outcome?: string
+          public_summary?: string | null
+          resolved_at?: string
+          session_game_id?: string
+          total_mises?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "river_level_history_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "river_level_history_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      river_player_stats: {
+        Row: {
+          created_at: string
+          current_round_status: string
+          descended_level: number | null
+          game_id: string
+          id: string
+          keryndes_available: boolean
+          player_id: string
+          player_num: number
+          session_game_id: string
+          updated_at: string
+          validated_levels: number
+        }
+        Insert: {
+          created_at?: string
+          current_round_status?: string
+          descended_level?: number | null
+          game_id: string
+          id?: string
+          keryndes_available?: boolean
+          player_id: string
+          player_num: number
+          session_game_id: string
+          updated_at?: string
+          validated_levels?: number
+        }
+        Update: {
+          created_at?: string
+          current_round_status?: string
+          descended_level?: number | null
+          game_id?: string
+          id?: string
+          keryndes_available?: boolean
+          player_id?: string
+          player_num?: number
+          session_game_id?: string
+          updated_at?: string
+          validated_levels?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "river_player_stats_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "river_player_stats_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "river_player_stats_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      river_session_state: {
+        Row: {
+          cagnotte_manche: number
+          created_at: string
+          danger_dice_count: number | null
+          danger_effectif: number | null
+          danger_raw: number | null
+          game_id: string
+          id: string
+          manche_active: number
+          niveau_active: number
+          session_game_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cagnotte_manche?: number
+          created_at?: string
+          danger_dice_count?: number | null
+          danger_effectif?: number | null
+          danger_raw?: number | null
+          game_id: string
+          id?: string
+          manche_active?: number
+          niveau_active?: number
+          session_game_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cagnotte_manche?: number
+          created_at?: string
+          danger_dice_count?: number | null
+          danger_effectif?: number | null
+          danger_raw?: number | null
+          game_id?: string
+          id?: string
+          manche_active?: number
+          niveau_active?: number
+          session_game_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "river_session_state_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "river_session_state_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: true
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       round_bets: {
         Row: {
           created_at: string | null
