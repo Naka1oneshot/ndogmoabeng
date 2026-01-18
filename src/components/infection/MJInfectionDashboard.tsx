@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { toast } from 'sonner';
+import { MJActionsTab } from './MJActionsTab';
+import { MJChatsTab } from './MJChatsTab';
 
 interface Game {
   id: string;
@@ -191,9 +193,35 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   };
 
   const handleNextRound = async () => {
+    if (!game.current_session_game_id) return;
+    
     toast.info('Ouverture de la manche suivante...');
-    // TODO: Call next-infection-round edge function
-    toast.success('Manche suivante ouverte ! (à implémenter)');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('next-infection-round', {
+        body: {
+          gameId: game.id,
+          sessionGameId: game.current_session_game_id,
+        },
+      });
+
+      if (error) {
+        console.error('[MJ] next-infection-round error:', error);
+        toast.error(`Erreur: ${error.message}`);
+        return;
+      }
+
+      if (!data?.success) {
+        toast.error(data?.error || 'Erreur inconnue');
+        return;
+      }
+
+      toast.success(`Manche ${data.data.manche} ouverte !`);
+      fetchData();
+    } catch (err) {
+      console.error('[MJ] next-infection-round exception:', err);
+      toast.error('Erreur lors de l\'ouverture');
+    }
   };
 
   const activePlayers = players.filter(p => p.status === 'ACTIVE');
@@ -486,19 +514,24 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
         </TabsContent>
 
         <TabsContent value="actions" className="p-4 mt-0">
-          <div className={theme.card}>
-            <div className="p-4 text-center text-[#6B7280]">
-              Actions et votes de la manche (à implémenter)
-            </div>
-          </div>
+          {game.current_session_game_id && (
+            <MJActionsTab
+              gameId={game.id}
+              sessionGameId={game.current_session_game_id}
+              manche={game.manche_active || 1}
+              players={players}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="chat" className="p-4 mt-0">
-          <div className={theme.card}>
-            <div className="p-4 text-center text-[#6B7280]">
-              Chats PUBLIC / PV / SY (à implémenter)
-            </div>
-          </div>
+          {game.current_session_game_id && (
+            <MJChatsTab
+              gameId={game.id}
+              sessionGameId={game.current_session_game_id}
+              players={players}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>
