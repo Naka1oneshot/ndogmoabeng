@@ -274,6 +274,15 @@ serve(async (req) => {
       inventoryMap.set(key, (inventoryMap.get(key) || 0) + (inv.quantite || 0));
     }
 
+    // Load pending effects from previous round (e.g., Mines)
+    const { data: pendingFromDb } = await supabase
+      .from('pending_effects')
+      .select('*')
+      .eq('game_id', gameId)
+      .eq('manche', manche);
+    
+    console.log(`[resolve-combat] Loaded ${pendingFromDb?.length || 0} pending effects from DB for manche ${manche}`);
+
     // Protection maps
     const shieldBySlot = new Map<number, { activatedAt: number; playerNum: number }>();
     const gazActiveSlots = new Map<number, { activatedAt: number; playerNum: number }>();
@@ -469,6 +478,67 @@ serve(async (req) => {
     
     const berserkerPlayers: number[] = [];
     const totalPlayers = (positions as PositionFinale[]).length;
+
+    // ==========================================
+    // APPLY PENDING EFFECTS FROM PREVIOUS ROUND (e.g., Mines)
+    // ==========================================
+    const mineKills: Kill[] = [];
+    const mineLogs: string[] = [];
+    
+    if (pendingFromDb && pendingFromDb.length > 0) {
+      for (const effect of pendingFromDb) {
+        if (effect.type === 'MINE' && effect.slot) {
+          const monster = monsterBySlot.get(effect.slot);
+          if (monster && monster.status === 'EN_BATAILLE') {
+            // Get mine damage from item catalog
+            const mineItem = itemMap.get(effect.weapon || 'Mine');
+            const damage = mineItem?.base_damage || 10;
+            
+            // Get player name for logging
+            const attackerName = players?.find(p => p.player_number === effect.by_num)?.display_name || `Joueur ${effect.by_num}`;
+            
+            console.log(`[resolve-combat] Applying Mine from previous round: slot ${effect.slot}, damage ${damage}, by ${attackerName}`);
+            
+            monster.pv_current = Math.max(0, monster.pv_current - damage);
+            
+            let mineLog = `💣 Mine de ${attackerName} explose sur slot ${effect.slot} : ${damage} dégâts`;
+            
+            if (monster.pv_current <= 0) {
+              monster.status = 'MORT';
+              
+              mineKills.push({
+                killerName: attackerName,
+                killerNum: effect.by_num || 0,
+                monsterName: monster.name || `Monstre ${monster.monster_id}`,
+                monsterId: monster.monster_id,
+                slot: effect.slot,
+                reward: monster.reward || 10,
+                fromDot: true,
+              });
+              
+              rewardUpdates.push({ playerNum: effect.by_num || 0, reward: monster.reward || 10 });
+              
+              mineLog += ` — ⚔️ KILL: ${monster.name || `Monstre ${monster.monster_id}`}`;
+            }
+            
+            mineLogs.push(mineLog);
+          }
+        }
+      }
+      
+      // Delete processed pending effects
+      const effectIds = pendingFromDb.map(e => e.id);
+      if (effectIds.length > 0) {
+        await supabase
+          .from('pending_effects')
+          .delete()
+          .in('id', effectIds);
+        console.log(`[resolve-combat] Deleted ${effectIds.length} processed pending effects`);
+      }
+    }
+    
+    // Add mine kills to the main kills array
+    kills.push(...mineKills);
 
     // First pass: collect Amulette effects to apply damage doubling
     for (const pos of positions as PositionFinale[]) {
@@ -1181,6 +1251,12 @@ serve(async (req) => {
         message: '🛒 Phase 3 : Le marché est ouvert !',
         payload: { type: 'PHASE_CHANGE', phase: 'PHASE3_SHOP' },
       }),
+      mineLogs.length > 0 ? supabase.from('logs_joueurs').insert({
+        game_id: gameId,
+        manche: manche,
+        type: 'MINE_EXPLOSION',
+        message: mineLogs.join('\n'),
+      }) : Promise.resolve(),
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
         manche: manche,
