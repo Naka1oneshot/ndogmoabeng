@@ -4,7 +4,8 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Map, Gamepad2, Plus, ChevronRight } from 'lucide-react';
+import { Loader2, Map, Gamepad2, Plus, ChevronRight, Clock, Check } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
 interface Adventure {
@@ -21,10 +22,13 @@ interface AdventureStep {
   token_policy: string;
 }
 
+type GameTypeStatus = 'PROJECT' | 'COMING_SOON' | 'AVAILABLE';
+
 interface GameType {
   code: string;
   name: string;
   description: string | null;
+  status: GameTypeStatus;
 }
 
 interface AdventureSelectorProps {
@@ -60,11 +64,12 @@ export function AdventureSelector({
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch active game types
+      // Fetch active game types (exclude PROJECT status)
       const { data: typesData } = await supabase
         .from('game_types')
-        .select('code, name, description')
-        .eq('is_active', true);
+        .select('code, name, description, status')
+        .eq('is_active', true)
+        .in('status', ['AVAILABLE', 'COMING_SOON']);
 
       setGameTypes(typesData || []);
 
@@ -227,22 +232,51 @@ export function AdventureSelector({
         <div className="space-y-2">
           <Label>Type de jeu</Label>
           <div className="grid gap-2">
-            {gameTypes.map((type) => (
-              <div
-                key={type.code}
-                onClick={() => onGameTypeSelect(type.code)}
-                className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                  selectedGameTypeCode === type.code
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50'
-                }`}
-              >
-                <div className="font-medium">{type.name}</div>
-                {type.description && (
-                  <div className="text-sm text-muted-foreground">{type.description}</div>
-                )}
-              </div>
-            ))}
+            {gameTypes.map((type) => {
+              const isAvailable = type.status === 'AVAILABLE';
+              const isComingSoon = type.status === 'COMING_SOON';
+              
+              return (
+                <div
+                  key={type.code}
+                  onClick={() => isAvailable && onGameTypeSelect(type.code)}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    !isAvailable 
+                      ? 'opacity-70 cursor-not-allowed border-border bg-muted/30'
+                      : selectedGameTypeCode === type.code
+                        ? 'border-primary bg-primary/10 cursor-pointer'
+                        : 'border-border hover:border-primary/50 cursor-pointer'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium flex items-center gap-2">
+                      {type.name}
+                      {isAvailable && (
+                        <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                          <Check className="h-3 w-3 mr-1" />
+                          Disponible
+                        </Badge>
+                      )}
+                      {isComingSoon && (
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Bientôt
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  {type.description && (
+                    <div className="text-sm text-muted-foreground">{type.description}</div>
+                  )}
+                  {isComingSoon && (
+                    <div className="mt-2 text-xs text-amber-600 bg-amber-500/10 p-2 rounded">
+                      Ce jeu sera bientôt disponible ! En attendant, vous pouvez jouer à : {' '}
+                      {gameTypes.filter(t => t.status === 'AVAILABLE').map(t => t.name).join(', ') || 'Forêt'}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -365,17 +399,25 @@ export function AdventureSelector({
             <div className="flex flex-wrap gap-2">
               {gameTypes
                 .filter(type => !selectedSteps.includes(type.code))
-                .map((type) => (
-                  <ForestButton
-                    key={type.code}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addStepToAdventure(type.code)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    {type.name}
-                  </ForestButton>
-                ))}
+                .map((type) => {
+                  const isAvailable = type.status === 'AVAILABLE';
+                  const isComingSoon = type.status === 'COMING_SOON';
+                  
+                  return (
+                    <ForestButton
+                      key={type.code}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addStepToAdventure(type.code)}
+                      className={isComingSoon ? 'opacity-70' : ''}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      {type.name}
+                      {isComingSoon && <Clock className="h-3 w-3 ml-1 text-amber-500" />}
+                      {isAvailable && <Check className="h-3 w-3 ml-1 text-green-500" />}
+                    </ForestButton>
+                  );
+                })}
             </div>
           </div>
 
