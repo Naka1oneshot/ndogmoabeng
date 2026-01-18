@@ -468,17 +468,18 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         </details>
       )}
       {/* RIVIERES Dashboard */}
-      {game.status === 'IN_GAME' && game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id && (
+      {game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id && (
         <MJRivieresDashboard 
           gameId={game.id} 
           sessionGameId={game.current_session_game_id}
           isAdventure={!!isAdventure}
           onNextGame={isAdventure ? handleNextSessionGame : undefined}
+          gameStatus={game.status}
         />
       )}
 
-      {/* FORET Tabs (original) */}
-      {game.status !== 'IN_GAME' || game.selected_game_type_code === 'FORET' ? (
+      {/* FORET Tabs (original) - Only show for FORET games or when no game type is selected */}
+      {(game.selected_game_type_code === 'FORET' || !game.selected_game_type_code) ? (
       <Tabs defaultValue="players" className="w-full">
         <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
           <TabsTrigger value="players" className="flex items-center gap-1">
