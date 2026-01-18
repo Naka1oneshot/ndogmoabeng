@@ -111,12 +111,13 @@ serve(async (req) => {
       throw new Error(`Erreur création état: ${stateError.message}`);
     }
 
-    // Get all active players
+    // Get all active players (excluding host without player_number)
     const { data: players, error: playersError } = await supabase
       .from("game_players")
       .select("id, player_number, clan, jetons")
       .eq("game_id", gameId)
-      .eq("status", "ACTIVE");
+      .eq("status", "ACTIVE")
+      .not("player_number", "is", null);
 
     if (playersError) {
       throw new Error(`Erreur récupération joueurs: ${playersError.message}`);
