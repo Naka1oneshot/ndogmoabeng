@@ -82,10 +82,31 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "game-start-pulse": {
+          "0%": { transform: "scale(0.8)", opacity: "0" },
+          "50%": { transform: "scale(1.1)", opacity: "1" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        "game-start-fade": {
+          "0%": { opacity: "1" },
+          "100%": { opacity: "0" },
+        },
+        "slide-up-fade": {
+          "0%": { transform: "translateY(20px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        "wave": {
+          "0%, 100%": { transform: "translateY(0) rotate(-5deg)" },
+          "50%": { transform: "translateY(-10px) rotate(5deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "game-start-pulse": "game-start-pulse 0.6s ease-out forwards",
+        "game-start-fade": "game-start-fade 0.5s ease-out forwards",
+        "slide-up-fade": "slide-up-fade 0.5s ease-out forwards",
+        "wave": "wave 2s ease-in-out infinite",
       },
     },
   },
