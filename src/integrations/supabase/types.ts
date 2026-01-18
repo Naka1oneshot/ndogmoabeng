@@ -735,6 +735,7 @@ export type Database = {
           description: string | null
           is_active: boolean
           name: string
+          status: Database["public"]["Enums"]["game_type_status"]
         }
         Insert: {
           code: string
@@ -744,6 +745,7 @@ export type Database = {
           description?: string | null
           is_active?: boolean
           name: string
+          status?: Database["public"]["Enums"]["game_type_status"]
         }
         Update: {
           code?: string
@@ -753,6 +755,7 @@ export type Database = {
           description?: string | null
           is_active?: boolean
           name?: string
+          status?: Database["public"]["Enums"]["game_type_status"]
         }
         Relationships: []
       }
@@ -1764,6 +1767,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      game_type_status: "PROJECT" | "COMING_SOON" | "AVAILABLE"
       item_category: "ATTAQUE" | "PROTECTION" | "UTILITAIRE"
       monster_initial_status: "EN_BATAILLE" | "EN_FILE"
       monster_runtime_status: "EN_BATAILLE" | "EN_FILE" | "MORT"
@@ -1895,6 +1899,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      game_type_status: ["PROJECT", "COMING_SOON", "AVAILABLE"],
       item_category: ["ATTAQUE", "PROTECTION", "UTILITAIRE"],
       monster_initial_status: ["EN_BATAILLE", "EN_FILE"],
       monster_runtime_status: ["EN_BATAILLE", "EN_FILE", "MORT"],
