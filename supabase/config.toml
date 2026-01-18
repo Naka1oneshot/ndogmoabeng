@@ -67,3 +67,18 @@ verify_jwt = false
 
 [functions.next-session-game]
 verify_jwt = false
+
+[functions.rivieres-init]
+verify_jwt = false
+
+[functions.rivieres-set-danger]
+verify_jwt = false
+
+[functions.rivieres-submit-decision]
+verify_jwt = false
+
+[functions.rivieres-lock-decisions]
+verify_jwt = false
+
+[functions.rivieres-resolve-level]
+verify_jwt = false
