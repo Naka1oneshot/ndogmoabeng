@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target, MessageSquare, Package, Activity, Syringe, Vote, Skull } from 'lucide-react';
+import { Target, MessageSquare, Package, Activity, Syringe, Vote, Skull, Mail } from 'lucide-react';
 import { INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { InfectionActionPanel } from './InfectionActionPanel';
 import { InfectionVotePanel } from './InfectionVotePanel';
 import { InfectionChatPanel } from './InfectionChatPanel';
 import { InfectionInventoryPanel } from './InfectionInventoryPanel';
 import { InfectionEventsPanel } from './InfectionEventsPanel';
+import { InfectionPrivateMessagesPanel } from './InfectionPrivateMessagesPanel';
+import { InfectionGameEndScreen } from './InfectionGameEndScreen';
 
 interface Game {
   id: string;
@@ -106,6 +108,17 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
     );
   }
 
+  // Game ended
+  if (game.status === 'ENDED' && game.current_session_game_id) {
+    return (
+      <InfectionGameEndScreen
+        gameId={game.id}
+        sessionGameId={game.current_session_game_id}
+        player={player}
+      />
+    );
+  }
+
   // Dead
   if (player.is_alive === false) {
     return (
@@ -188,7 +201,14 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
         </TabsContent>
 
         <TabsContent value="inventory" className="flex-1 p-4 mt-0 overflow-auto">
-          <InfectionInventoryPanel sessionGameId={game.current_session_game_id!} player={player} />
+          <div className="space-y-4">
+            <InfectionInventoryPanel sessionGameId={game.current_session_game_id!} player={player} />
+            <InfectionPrivateMessagesPanel 
+              gameId={game.id} 
+              sessionGameId={game.current_session_game_id!} 
+              player={player} 
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="events" className="flex-1 p-4 mt-0 overflow-auto">
