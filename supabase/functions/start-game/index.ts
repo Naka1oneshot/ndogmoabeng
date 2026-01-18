@@ -48,7 +48,7 @@ serve(async (req) => {
     // Fetch the game and verify host
     const { data: game, error: gameError } = await supabase
       .from("games")
-      .select("id, name, status, host_user_id, manche_active")
+      .select("id, name, status, host_user_id, manche_active, current_session_game_id, mode, selected_game_type_code")
       .eq("id", gameId)
       .single();
 
@@ -73,6 +73,44 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Get the session_game_id (current stage)
+    let sessionGameId = game.current_session_game_id;
+    
+    // If no session_game exists, create one (should be rare with Phase 1+2 migrations)
+    if (!sessionGameId) {
+      const gameTypeCode = game.selected_game_type_code || 'FORET';
+      const { data: newSessionGame, error: createError } = await supabase
+        .from("session_games")
+        .insert({
+          session_id: gameId,
+          step_index: 1,
+          game_type_code: gameTypeCode,
+          status: 'PENDING',
+          manche_active: 1,
+          phase: 'PHASE1_MISES',
+        })
+        .select()
+        .single();
+      
+      if (createError || !newSessionGame) {
+        console.error("Session game creation error:", createError);
+        return new Response(
+          JSON.stringify({ error: "Erreur création session_game" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      sessionGameId = newSessionGame.id;
+      
+      // Update games with the new session_game_id
+      await supabase
+        .from("games")
+        .update({ current_session_game_id: sessionGameId })
+        .eq("id", gameId);
+    }
+
+    console.log(`[start-game] Using session_game_id: ${sessionGameId}`);
 
     // Fetch all active players (non-host) ordered by joined_at
     const { data: players, error: playersError } = await supabase
@@ -127,6 +165,7 @@ serve(async (req) => {
         .upsert(
           {
             game_id: gameId,
+            session_game_id: sessionGameId,
             owner_num: player.player_number,
             objet: "Par défaut (+2 si compagnon Akandé)",
             quantite: 1,
@@ -147,6 +186,7 @@ serve(async (req) => {
           .upsert(
             {
               game_id: gameId,
+              session_game_id: sessionGameId,
               owner_num: player.player_number,
               objet: "Sniper Akila",
               quantite: 1,
@@ -189,6 +229,13 @@ serve(async (req) => {
       }
     }
     
+    // Update game_monsters with session_game_id
+    await supabase
+      .from("game_monsters")
+      .update({ session_game_id: sessionGameId })
+      .eq("game_id", gameId)
+      .is("session_game_id", null);
+    
     // Initialize runtime state (game_state_monsters) - idempotent
     const { error: initMonsterStateError } = await supabase.rpc(
       "initialize_game_state_monsters",
@@ -199,6 +246,13 @@ serve(async (req) => {
     } else {
       console.log("Game monsters runtime state initialized");
     }
+    
+    // Update game_state_monsters with session_game_id
+    await supabase
+      .from("game_state_monsters")
+      .update({ session_game_id: sessionGameId })
+      .eq("game_id", gameId)
+      .is("session_game_id", null);
 
     // Update game status to IN_GAME with phase
     const { error: gameUpdateError } = await supabase
@@ -219,6 +273,17 @@ serve(async (req) => {
       );
     }
 
+    // Update session_games status
+    await supabase
+      .from("session_games")
+      .update({
+        status: "RUNNING",
+        manche_active: 1,
+        phase: "PHASE1_MISES",
+        started_at: new Date().toISOString(),
+      })
+      .eq("id", sessionGameId);
+
     // Create public event for all players
     await supabase.from("session_events").insert({
       game_id: gameId,
@@ -230,6 +295,7 @@ serve(async (req) => {
         round: 1,
         phase: "PHASE1_MISES",
         playerCount: activePlayers.length,
+        sessionGameId: sessionGameId,
       },
     });
 
@@ -246,6 +312,7 @@ serve(async (req) => {
       message: `StartGame: ${activePlayers.length} joueurs activés`,
       payload: {
         event: "GAME_START_ADMIN",
+        sessionGameId: sessionGameId,
         players: playerUpdates.map(p => ({
           id: p.id,
           playerNumber: p.player_number,
@@ -254,12 +321,13 @@ serve(async (req) => {
       },
     });
 
-    console.log("Game started successfully:", gameId);
+    console.log("Game started successfully:", gameId, "session_game_id:", sessionGameId);
 
     return new Response(
       JSON.stringify({
         success: true,
         gameId,
+        sessionGameId,
         status: "IN_GAME",
         round: 1,
         phase: "PHASE1_MISES",

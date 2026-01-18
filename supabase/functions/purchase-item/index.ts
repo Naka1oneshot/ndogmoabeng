@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     // Get game info
     const { data: game, error: gameError } = await supabase
       .from('games')
-      .select('id, manche_active, phase')
+      .select('id, manche_active, phase, current_session_game_id')
       .eq('id', gameId)
       .single();
 
@@ -51,14 +51,20 @@ Deno.serve(async (req) => {
     }
 
     const manche = game.manche_active;
+    const sessionGameId = game.current_session_game_id;
 
     // Get shop offer for this round
-    const { data: shopOffer, error: offerError } = await supabase
+    let offerQuery = supabase
       .from('game_shop_offers')
       .select('item_ids')
       .eq('game_id', gameId)
-      .eq('manche', manche)
-      .single();
+      .eq('manche', manche);
+    
+    if (sessionGameId) {
+      offerQuery = offerQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const { data: shopOffer, error: offerError } = await offerQuery.single();
 
     if (offerError || !shopOffer) {
       return new Response(
@@ -154,6 +160,7 @@ Deno.serve(async (req) => {
       // Log refusal
       await supabase.from('logs_mj').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         action: 'SHOP_REFUS',
         num_joueur: playerNumber,
@@ -162,6 +169,7 @@ Deno.serve(async (req) => {
 
       await supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'SHOP_REFUS',
         message: `❌ Achat refusé : jetons insuffisants (${player.jetons}/${cost} requis)`,
@@ -196,6 +204,7 @@ Deno.serve(async (req) => {
       .from('game_item_purchases')
       .insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         player_id: player.id,
         player_num: playerNumber,
         item_name: itemName,
@@ -236,6 +245,7 @@ Deno.serve(async (req) => {
       // Insert new inventory item
       await supabase.from('inventory').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         owner_num: playerNumber,
         objet: itemName,
         quantite: 1,
@@ -247,6 +257,7 @@ Deno.serve(async (req) => {
     // Logs
     await supabase.from('logs_mj').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: manche,
       action: 'SHOP_OK',
       num_joueur: playerNumber,
@@ -255,6 +266,7 @@ Deno.serve(async (req) => {
 
     await supabase.from('logs_joueurs').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: manche,
       type: 'SHOP_OK',
       message: `✅ ${player.display_name} a acheté un objet !`,
@@ -270,6 +282,7 @@ Deno.serve(async (req) => {
         player_num: playerNumber, 
         player_name: player.display_name,
         item: itemName,
+        sessionGameId,
       },
     });
 
@@ -282,6 +295,7 @@ Deno.serve(async (req) => {
         item: itemName,
         cost: cost,
         newBalance: newBalance,
+        sessionGameId,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
