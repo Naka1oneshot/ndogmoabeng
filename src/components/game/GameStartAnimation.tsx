@@ -1,5 +1,5 @@
-import { Ship, Trees, Waves } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { Ship, Trees, Waves, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 interface GameStartAnimationProps {
   gameType: 'FORET' | 'RIVIERES';
@@ -15,6 +15,7 @@ export function GameStartAnimation({
   isMJ = false 
 }: GameStartAnimationProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
   const isForet = gameType === 'FORET';
   
   // Play sound effect on mount
@@ -39,6 +40,14 @@ export function GameStartAnimation({
       }
     };
   }, [isForet]);
+
+  // Handle mute toggle
+  const toggleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
   
   // Theme colors based on game type
   const bgColor = isForet ? 'bg-[#1a2f1a]' : 'bg-[#0B1020]';
@@ -65,6 +74,18 @@ export function GameStartAnimation({
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center ${bgColor}`}>
+      {/* Mute button */}
+      <button
+        onClick={toggleMute}
+        className={`absolute top-4 right-4 p-3 rounded-full transition-all duration-200 hover:scale-110 ${
+          isForet 
+            ? 'bg-[#2d4a2d]/50 hover:bg-[#2d4a2d]/70 text-[#4ADE80]' 
+            : 'bg-[#1B4D3E]/50 hover:bg-[#1B4D3E]/70 text-[#D4AF37]'
+        }`}
+        aria-label={isMuted ? 'Activer le son' : 'Couper le son'}
+      >
+        {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
+      </button>
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className={`absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t ${gradientColor} to-transparent`} />
