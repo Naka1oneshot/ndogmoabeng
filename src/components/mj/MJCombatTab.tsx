@@ -9,16 +9,38 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Swords, Heart, Skull, Target, Trophy, FileText, Clock, Copy, Check } from 'lucide-react';
+import { Loader2, Swords, Heart, Skull, Target, Trophy, FileText, Clock, Copy, Check, Flag, FastForward } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface GamePlayer {
+  id: string;
+  display_name: string;
+  player_number: number;
+  jetons: number;
+  recompenses: number;
+}
 
 interface Game {
   id: string;
   manche_active: number;
+  mode?: string;
+  adventure_id?: string | null;
+  current_session_game_id?: string | null;
 }
 
 interface MonsterState {
@@ -49,6 +71,8 @@ interface CombatLog {
 
 interface MJCombatTabProps {
   game: Game;
+  isAdventure?: boolean;
+  onNextGame?: () => void;
 }
 
 // Combat-related action types to filter
@@ -59,13 +83,16 @@ const COMBAT_ACTIONS = [
   'ATTAQUE', 'EFFECT', 'COMBAT_RESOLUTION', 'COMBAT_RESOLU', 'COMBAT_DATA'
 ];
 
-export function MJCombatTab({ game }: MJCombatTabProps) {
+export function MJCombatTab({ game, isAdventure, onNextGame }: MJCombatTabProps) {
   const [monsters, setMonsters] = useState<MonsterState[]>([]);
   const [combatLogs, setCombatLogs] = useState<CombatLog[]>([]);
+  const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedManche, setSelectedManche] = useState<string>('current');
   const [availableManches, setAvailableManches] = useState<number[]>([]);
   const [copied, setCopied] = useState(false);
+  const [showFinalRanking, setShowFinalRanking] = useState(false);
+  const [endingGame, setEndingGame] = useState(false);
 
   const fetchData = useCallback(async () => {
     // Fetch monsters
@@ -95,6 +122,22 @@ export function MJCombatTab({ game }: MJCombatTabProps) {
       setMonsters(enriched);
     } else {
       setMonsters([]);
+    }
+
+    // Fetch players
+    const { data: playersData } = await supabase
+      .from('game_players')
+      .select('id, display_name, player_number, jetons, recompenses')
+      .eq('game_id', game.id)
+      .is('removed_at', null)
+      .order('player_number', { ascending: true });
+    
+    if (playersData) {
+      setPlayers(playersData.map(p => ({
+        ...p,
+        jetons: p.jetons ?? 0,
+        recompenses: p.recompenses ?? 0,
+      })));
     }
 
     // Fetch combat logs
@@ -128,12 +171,60 @@ export function MJCombatTab({ game }: MJCombatTabProps) {
       .channel(`mj-combat-${game.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_state_monsters', filter: `game_id=eq.${game.id}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'logs_mj', filter: `game_id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, fetchData)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [game.id, fetchData]);
+
+  // Check if all monsters are dead
+  const allMonstersDead = monsters.length > 0 && monsters.every(m => m.status === 'MORT');
+
+  // Calculate player scores and ranking
+  const playerRanking = players
+    .map(p => ({
+      ...p,
+      score: p.jetons + p.recompenses,
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  const handleEndGame = async () => {
+    setEndingGame(true);
+    try {
+      // Update game status to ENDED
+      const { error } = await supabase
+        .from('games')
+        .update({ status: 'ENDED', phase: 'ENDED' })
+        .eq('id', game.id);
+
+      if (error) throw error;
+
+      // Log the end
+      await supabase.from('logs_mj').insert({
+        game_id: game.id,
+        manche: game.manche_active,
+        action: 'FIN_PARTIE',
+        details: 'La partie est terminée - tous les monstres ont été vaincus',
+      });
+
+      await supabase.from('session_events').insert({
+        game_id: game.id,
+        type: 'GAME_END',
+        audience: 'ALL',
+        message: 'La partie est terminée ! Tous les monstres ont été vaincus.',
+      });
+
+      toast.success('Partie terminée !');
+      setShowFinalRanking(true);
+    } catch (error) {
+      console.error('Error ending game:', error);
+      toast.error('Erreur lors de la fin de partie');
+    } finally {
+      setEndingGame(false);
+    }
+  };
 
   const getMonsterPvMax = (m: MonsterState): number => m.config?.pv_max_override ?? m.catalog?.pv_max_default ?? 10;
   const getMonsterReward = (m: MonsterState): number => m.config?.reward_override ?? m.catalog?.reward_default ?? 10;
@@ -320,6 +411,114 @@ export function MJCombatTab({ game }: MJCombatTabProps) {
                 {getMonsterName(monster)}
               </Badge>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* End game button when all monsters are dead */}
+      {allMonstersDead && !showFinalRanking && (
+        <div className="card-gradient rounded-lg border-2 border-amber-500/50 bg-amber-500/10 p-6 text-center">
+          <Trophy className="h-12 w-12 mx-auto mb-4 text-amber-500" />
+          <h3 className="font-display text-xl mb-2">Tous les monstres sont vaincus !</h3>
+          <p className="text-muted-foreground mb-4">
+            La forêt est sécurisée. Vous pouvez maintenant terminer la partie et afficher le classement final.
+          </p>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <ForestButton
+                size="lg"
+                className="bg-amber-600 hover:bg-amber-700"
+                disabled={endingGame}
+              >
+                {endingGame ? (
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                ) : (
+                  <Flag className="h-5 w-5 mr-2" />
+                )}
+                Terminer la partie
+              </ForestButton>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Terminer la partie ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette action terminera définitivement la partie et affichera le classement final.
+                  Les joueurs verront leurs scores finaux.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-amber-600 text-white hover:bg-amber-700"
+                  onClick={handleEndGame}
+                >
+                  Terminer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
+
+      {/* Final ranking display */}
+      {showFinalRanking && (
+        <div className="card-gradient rounded-lg border-2 border-primary/50 p-6">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <Trophy className="h-8 w-8 text-amber-500" />
+            <h3 className="font-display text-2xl">
+              {isAdventure ? 'Classement Intermédiaire' : 'Classement Final'}
+            </h3>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 px-3">Rang</th>
+                  <th className="text-left py-2 px-3">Joueur</th>
+                  <th className="text-right py-2 px-3">Jetons</th>
+                  <th className="text-right py-2 px-3">Récompenses</th>
+                  <th className="text-right py-2 px-3">Score Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {playerRanking.map((player, index) => (
+                  <tr key={player.id} className={`border-b border-border/50 ${index < 3 ? 'bg-primary/10' : ''}`}>
+                    <td className="py-3 px-3">
+                      <span className={`font-bold ${index === 0 ? 'text-amber-500' : index === 1 ? 'text-gray-400' : index === 2 ? 'text-amber-700' : ''}`}>
+                        #{index + 1}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 font-medium">{player.display_name}</td>
+                    <td className="py-3 px-3 text-right">{player.jetons}</td>
+                    <td className="py-3 px-3 text-right text-amber-500">+{player.recompenses}</td>
+                    <td className="py-3 px-3 text-right font-bold text-lg">{player.score}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-center gap-3 mt-6">
+            {isAdventure && onNextGame ? (
+              <ForestButton
+                size="lg"
+                onClick={onNextGame}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <FastForward className="h-5 w-5 mr-2" />
+                Jeu suivant
+              </ForestButton>
+            ) : (
+              <ForestButton
+                size="lg"
+                variant="outline"
+                onClick={() => setShowFinalRanking(false)}
+              >
+                Fermer
+              </ForestButton>
+            )}
           </div>
         </div>
       )}
