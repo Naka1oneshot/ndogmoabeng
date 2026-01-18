@@ -25,6 +25,7 @@ export type Database = {
           num_joueur: number
           position_souhaitee: number | null
           protection_objet: string | null
+          session_game_id: string | null
           slot_attaque: number | null
           slot_protection: number | null
         }
@@ -38,6 +39,7 @@ export type Database = {
           num_joueur: number
           position_souhaitee?: number | null
           protection_objet?: string | null
+          session_game_id?: string | null
           slot_attaque?: number | null
           slot_protection?: number | null
         }
@@ -51,6 +53,7 @@ export type Database = {
           num_joueur?: number
           position_souhaitee?: number | null
           protection_objet?: string | null
+          session_game_id?: string | null
           slot_attaque?: number | null
           slot_protection?: number | null
         }
@@ -60,6 +63,13 @@ export type Database = {
             columns: ["game_id"]
             isOneToOne: false
             referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_actions_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
             referencedColumns: ["id"]
           },
         ]
@@ -185,6 +195,7 @@ export type Database = {
           id: string
           monstre_id_en_place: number | null
           pv_miroir: number | null
+          session_game_id: string | null
           slot: number
         }
         Insert: {
@@ -193,6 +204,7 @@ export type Database = {
           id?: string
           monstre_id_en_place?: number | null
           pv_miroir?: number | null
+          session_game_id?: string | null
           slot: number
         }
         Update: {
@@ -201,6 +213,7 @@ export type Database = {
           id?: string
           monstre_id_en_place?: number | null
           pv_miroir?: number | null
+          session_game_id?: string | null
           slot?: number
         }
         Relationships: [
@@ -209,6 +222,13 @@ export type Database = {
             columns: ["game_id"]
             isOneToOne: false
             referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_battlefield_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
             referencedColumns: ["id"]
           },
         ]
@@ -227,6 +247,7 @@ export type Database = {
           notes: string | null
           objet: string
           persistance: string | null
+          session_game_id: string | null
           soin_base: number | null
           timing: string | null
         }
@@ -243,6 +264,7 @@ export type Database = {
           notes?: string | null
           objet: string
           persistance?: string | null
+          session_game_id?: string | null
           soin_base?: number | null
           timing?: string | null
         }
@@ -259,6 +281,7 @@ export type Database = {
           notes?: string | null
           objet?: string
           persistance?: string | null
+          session_game_id?: string | null
           soin_base?: number | null
           timing?: string | null
         }
@@ -268,6 +291,13 @@ export type Database = {
             columns: ["game_id"]
             isOneToOne: false
             referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_combat_config_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
             referencedColumns: ["id"]
           },
         ]
@@ -283,6 +313,7 @@ export type Database = {
           mj_summary: Json
           public_summary: Json
           resolved_at: string
+          session_game_id: string | null
         }
         Insert: {
           created_at?: string
@@ -294,6 +325,7 @@ export type Database = {
           mj_summary?: Json
           public_summary?: Json
           resolved_at?: string
+          session_game_id?: string | null
         }
         Update: {
           created_at?: string
@@ -305,6 +337,7 @@ export type Database = {
           mj_summary?: Json
           public_summary?: Json
           resolved_at?: string
+          session_game_id?: string | null
         }
         Relationships: [
           {
@@ -312,6 +345,13 @@ export type Database = {
             columns: ["game_id"]
             isOneToOne: false
             referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_combat_results_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
             referencedColumns: ["id"]
           },
         ]
@@ -328,6 +368,7 @@ export type Database = {
           phase: string
           player_id: string | null
           player_num: number | null
+          session_game_id: string | null
           visibility: string
         }
         Insert: {
@@ -341,6 +382,7 @@ export type Database = {
           phase?: string
           player_id?: string | null
           player_num?: number | null
+          session_game_id?: string | null
           visibility?: string
         }
         Update: {
@@ -354,9 +396,17 @@ export type Database = {
           phase?: string
           player_id?: string | null
           player_num?: number | null
+          session_game_id?: string | null
           visibility?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_game_events_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "game_events_game_id_fkey"
             columns: ["game_id"]
@@ -379,6 +429,7 @@ export type Database = {
           purchased_at: string
           resolved_at: string | null
           resolved_by: string | null
+          session_game_id: string | null
           status: string
         }
         Insert: {
@@ -393,6 +444,7 @@ export type Database = {
           purchased_at?: string
           resolved_at?: string | null
           resolved_by?: string | null
+          session_game_id?: string | null
           status?: string
         }
         Update: {
@@ -407,9 +459,17 @@ export type Database = {
           purchased_at?: string
           resolved_at?: string | null
           resolved_by?: string | null
+          session_game_id?: string | null
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_game_item_purchases_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "game_item_purchases_game_id_fkey"
             columns: ["game_id"]
@@ -430,6 +490,7 @@ export type Database = {
           order_index: number
           pv_max_override: number | null
           reward_override: number | null
+          session_game_id: string | null
         }
         Insert: {
           created_at?: string
@@ -441,6 +502,7 @@ export type Database = {
           order_index?: number
           pv_max_override?: number | null
           reward_override?: number | null
+          session_game_id?: string | null
         }
         Update: {
           created_at?: string
@@ -452,8 +514,16 @@ export type Database = {
           order_index?: number
           pv_max_override?: number | null
           reward_override?: number | null
+          session_game_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_game_monsters_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "game_monsters_game_id_fkey"
             columns: ["game_id"]
@@ -555,6 +625,7 @@ export type Database = {
           manche: number
           resolved: boolean
           resolved_at: string | null
+          session_game_id: string | null
         }
         Insert: {
           created_at?: string
@@ -566,6 +637,7 @@ export type Database = {
           manche: number
           resolved?: boolean
           resolved_at?: string | null
+          session_game_id?: string | null
         }
         Update: {
           created_at?: string
@@ -577,8 +649,16 @@ export type Database = {
           manche?: number
           resolved?: boolean
           resolved_at?: string | null
+          session_game_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_game_shop_offers_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "game_shop_offers_game_id_fkey"
             columns: ["game_id"]
@@ -596,6 +676,7 @@ export type Database = {
           id: string
           monster_id: number
           pv_current: number
+          session_game_id: string | null
           status: Database["public"]["Enums"]["monster_runtime_status"]
           updated_at: string
         }
@@ -606,6 +687,7 @@ export type Database = {
           id?: string
           monster_id: number
           pv_current: number
+          session_game_id?: string | null
           status?: Database["public"]["Enums"]["monster_runtime_status"]
           updated_at?: string
         }
@@ -616,10 +698,18 @@ export type Database = {
           id?: string
           monster_id?: number
           pv_current?: number
+          session_game_id?: string | null
           status?: Database["public"]["Enums"]["monster_runtime_status"]
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_game_state_monsters_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "game_state_monsters_game_id_fkey"
             columns: ["game_id"]
@@ -761,6 +851,7 @@ export type Database = {
           objet: string
           owner_num: number | null
           quantite: number | null
+          session_game_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -771,6 +862,7 @@ export type Database = {
           objet: string
           owner_num?: number | null
           quantite?: number | null
+          session_game_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -781,8 +873,16 @@ export type Database = {
           objet?: string
           owner_num?: number | null
           quantite?: number | null
+          session_game_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_inventory_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventory_game_id_fkey"
             columns: ["game_id"]
@@ -856,6 +956,7 @@ export type Database = {
           log_index: number
           manche: number | null
           message: string | null
+          session_game_id: string | null
           timestamp: string | null
           type: string | null
         }
@@ -865,6 +966,7 @@ export type Database = {
           log_index?: number
           manche?: number | null
           message?: string | null
+          session_game_id?: string | null
           timestamp?: string | null
           type?: string | null
         }
@@ -874,10 +976,18 @@ export type Database = {
           log_index?: number
           manche?: number | null
           message?: string | null
+          session_game_id?: string | null
           timestamp?: string | null
           type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_logs_joueurs_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "logs_joueurs_game_id_fkey"
             columns: ["game_id"]
@@ -895,6 +1005,7 @@ export type Database = {
           id: string
           manche: number | null
           num_joueur: number | null
+          session_game_id: string | null
           timestamp: string | null
         }
         Insert: {
@@ -904,6 +1015,7 @@ export type Database = {
           id?: string
           manche?: number | null
           num_joueur?: number | null
+          session_game_id?: string | null
           timestamp?: string | null
         }
         Update: {
@@ -913,9 +1025,17 @@ export type Database = {
           id?: string
           manche?: number | null
           num_joueur?: number | null
+          session_game_id?: string | null
           timestamp?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_logs_mj_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "logs_mj_game_id_fkey"
             columns: ["game_id"]
@@ -961,6 +1081,7 @@ export type Database = {
           pv_actuels: number
           pv_max: number
           recompense: number | null
+          session_game_id: string | null
           statut: string | null
           type: string
         }
@@ -972,6 +1093,7 @@ export type Database = {
           pv_actuels?: number
           pv_max?: number
           recompense?: number | null
+          session_game_id?: string | null
           statut?: string | null
           type: string
         }
@@ -983,10 +1105,18 @@ export type Database = {
           pv_actuels?: number
           pv_max?: number
           recompense?: number | null
+          session_game_id?: string | null
           statut?: string | null
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_monsters_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "monsters_game_id_fkey"
             columns: ["game_id"]
@@ -1003,6 +1133,7 @@ export type Database = {
           game_id: string
           id: string
           manche: number
+          session_game_id: string | null
           slot: number | null
           type: string
           weapon: string | null
@@ -1013,6 +1144,7 @@ export type Database = {
           game_id: string
           id?: string
           manche: number
+          session_game_id?: string | null
           slot?: number | null
           type: string
           weapon?: string | null
@@ -1023,11 +1155,19 @@ export type Database = {
           game_id?: string
           id?: string
           manche?: number
+          session_game_id?: string | null
           slot?: number | null
           type?: string
           weapon?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_pending_effects_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pending_effects_game_id_fkey"
             columns: ["game_id"]
@@ -1053,6 +1193,7 @@ export type Database = {
           position_souhaitee: number | null
           protection: string | null
           rang_priorite: number | null
+          session_game_id: string | null
           slot_attaque: number | null
           slot_protection: number | null
         }
@@ -1071,6 +1212,7 @@ export type Database = {
           position_souhaitee?: number | null
           protection?: string | null
           rang_priorite?: number | null
+          session_game_id?: string | null
           slot_attaque?: number | null
           slot_protection?: number | null
         }
@@ -1089,10 +1231,18 @@ export type Database = {
           position_souhaitee?: number | null
           protection?: string | null
           rang_priorite?: number | null
+          session_game_id?: string | null
           slot_attaque?: number | null
           slot_protection?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_positions_finales_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "positions_finales_game_id_fkey"
             columns: ["game_id"]
@@ -1113,6 +1263,7 @@ export type Database = {
           num_joueur: number
           player_id: string
           rank: number
+          session_game_id: string | null
           tie_group_id: number | null
         }
         Insert: {
@@ -1125,6 +1276,7 @@ export type Database = {
           num_joueur: number
           player_id: string
           rank: number
+          session_game_id?: string | null
           tie_group_id?: number | null
         }
         Update: {
@@ -1137,9 +1289,17 @@ export type Database = {
           num_joueur?: number
           player_id?: string
           rank?: number
+          session_game_id?: string | null
           tie_group_id?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_priority_rankings_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "priority_rankings_game_id_fkey"
             columns: ["game_id"]
@@ -1160,6 +1320,7 @@ export type Database = {
           mise_effective: number | null
           note: string | null
           num_joueur: number
+          session_game_id: string | null
           status: string | null
           submitted_at: string | null
         }
@@ -1173,6 +1334,7 @@ export type Database = {
           mise_effective?: number | null
           note?: string | null
           num_joueur: number
+          session_game_id?: string | null
           status?: string | null
           submitted_at?: string | null
         }
@@ -1186,10 +1348,18 @@ export type Database = {
           mise_effective?: number | null
           note?: string | null
           num_joueur?: number
+          session_game_id?: string | null
           status?: string | null
           submitted_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_round_bets_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "round_bets_game_id_fkey"
             columns: ["game_id"]
@@ -1417,6 +1587,7 @@ export type Database = {
           manche: number
           player_id: string
           player_num: number
+          session_game_id: string | null
           updated_at: string
           want_buy: boolean
         }
@@ -1428,6 +1599,7 @@ export type Database = {
           manche: number
           player_id: string
           player_num: number
+          session_game_id?: string | null
           updated_at?: string
           want_buy?: boolean
         }
@@ -1439,10 +1611,18 @@ export type Database = {
           manche?: number
           player_id?: string
           player_num?: number
+          session_game_id?: string | null
           updated_at?: string
           want_buy?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_shop_requests_session_game"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shop_requests_game_id_fkey"
             columns: ["game_id"]
