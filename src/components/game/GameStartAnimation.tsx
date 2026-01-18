@@ -1,9 +1,9 @@
-import { Ship, Trees, Waves, Volume2, VolumeX, Volume1 } from 'lucide-react';
+import { Ship, Trees, Waves, Volume2, VolumeX, Volume1, Syringe, Skull } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 
 interface GameStartAnimationProps {
-  gameType: 'FORET' | 'RIVIERES';
+  gameType: 'FORET' | 'RIVIERES' | 'INFECTION';
   playerCount?: number;
   playerName?: string;
   isMJ?: boolean;
@@ -17,6 +17,7 @@ export function GameStartAnimation({
 }: GameStartAnimationProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isForet = gameType === 'FORET';
+  const isInfection = gameType === 'INFECTION';
   
   // Initialize mute state from localStorage
   const [isMuted, setIsMuted] = useState(() => {
@@ -42,7 +43,7 @@ export function GameStartAnimation({
   
   // Play sound effect on mount
   useEffect(() => {
-    const soundFile = isForet ? '/sounds/forest-wind.mp3' : '/sounds/foghorn.mp3';
+    const soundFile = isForet ? '/sounds/forest-wind.mp3' : isInfection ? '/sounds/combat-hit.mp3' : '/sounds/foghorn.mp3';
     
     try {
       audioRef.current = new Audio(soundFile);
@@ -61,7 +62,7 @@ export function GameStartAnimation({
         audioRef.current = null;
       }
     };
-  }, [isForet]); // Only re-run on game type change, not on volume/mute changes
+  }, [isForet, isInfection]); // Only re-run on game type change, not on volume/mute changes
 
   // Update audio when volume changes
   useEffect(() => {
@@ -110,13 +111,13 @@ export function GameStartAnimation({
   const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 50 ? Volume1 : Volume2;
   
   // Theme colors based on game type
-  const bgColor = isForet ? 'bg-[#1a2f1a]' : 'bg-[#0B1020]';
-  const accentColor = isForet ? 'text-[#4ADE80]' : 'text-[#D4AF37]';
-  const accentColorFaded = isForet ? 'text-[#4ADE80]/30' : 'text-[#D4AF37]/30';
-  const gradientColor = isForet ? 'from-[#2d4a2d]/30' : 'from-[#1B4D3E]/30';
+  const bgColor = isForet ? 'bg-[#1a2f1a]' : isInfection ? 'bg-[#0B0E14]' : 'bg-[#0B1020]';
+  const accentColor = isForet ? 'text-[#4ADE80]' : isInfection ? 'text-[#B00020]' : 'text-[#D4AF37]';
+  const accentColorFaded = isForet ? 'text-[#4ADE80]/30' : isInfection ? 'text-[#B00020]/30' : 'text-[#D4AF37]/30';
+  const gradientColor = isForet ? 'from-[#2d4a2d]/30' : isInfection ? 'from-[#B00020]/10' : 'from-[#1B4D3E]/30';
   
-  const Icon = isForet ? Trees : Ship;
-  const WaveIcon = isForet ? Trees : Waves;
+  const Icon = isForet ? Trees : isInfection ? Syringe : Ship;
+  const WaveIcon = isForet ? Trees : isInfection ? Skull : Waves;
   
   const title = isMJ 
     ? 'Partie lancée !' 
@@ -130,7 +131,9 @@ export function GameStartAnimation({
 
   const flavorText = isForet
     ? 'En route vers la forêt mystérieuse...'
-    : "Que l'aventure commence...";
+    : isInfection 
+      ? "L'infection se propage..."
+      : "Que l'aventure commence...";
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center ${bgColor}`}>
@@ -141,7 +144,9 @@ export function GameStartAnimation({
             className={`flex items-center gap-2 px-3 py-2 rounded-full ${
               isForet 
                 ? 'bg-[#2d4a2d]/70' 
-                : 'bg-[#1B4D3E]/70'
+                : isInfection 
+                  ? 'bg-[#1A2235]/70'
+                  : 'bg-[#1B4D3E]/70'
             }`}
           >
             <Slider
@@ -151,7 +156,7 @@ export function GameStartAnimation({
               step={1}
               className="w-24"
             />
-            <span className={`text-xs font-medium min-w-[2rem] ${isForet ? 'text-[#4ADE80]' : 'text-[#D4AF37]'}`}>
+            <span className={`text-xs font-medium min-w-[2rem] ${isForet ? 'text-[#4ADE80]' : isInfection ? 'text-[#B00020]' : 'text-[#D4AF37]'}`}>
               {volume}%
             </span>
           </div>
@@ -162,7 +167,9 @@ export function GameStartAnimation({
           className={`p-3 rounded-full transition-all duration-200 hover:scale-110 ${
             isForet 
               ? 'bg-[#2d4a2d]/50 hover:bg-[#2d4a2d]/70 text-[#4ADE80]' 
-              : 'bg-[#1B4D3E]/50 hover:bg-[#1B4D3E]/70 text-[#D4AF37]'
+              : isInfection 
+                ? 'bg-[#1A2235]/50 hover:bg-[#1A2235]/70 text-[#B00020]'
+                : 'bg-[#1B4D3E]/50 hover:bg-[#1B4D3E]/70 text-[#D4AF37]'
           }`}
           aria-label={isMuted ? 'Activer le son' : 'Régler le volume'}
           title="Clic: volume | Double-clic: mute"
