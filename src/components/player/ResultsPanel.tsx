@@ -19,6 +19,7 @@ interface FinalPosition {
 
 interface ResultsPanelProps {
   gameId: string;
+  sessionGameId?: string | null;
   manche: number;
   selectedManche?: number;
   phase: string;
@@ -26,7 +27,7 @@ interface ResultsPanelProps {
   className?: string;
 }
 
-export function ResultsPanel({ gameId, manche, selectedManche, phase, phaseLocked, className }: ResultsPanelProps) {
+export function ResultsPanel({ gameId, sessionGameId, manche, selectedManche, phase, phaseLocked, className }: ResultsPanelProps) {
   const displayManche = selectedManche ?? manche;
   const [priorityRankings, setPriorityRankings] = useState<PriorityRanking[]>([]);
   const [finalPositions, setFinalPositions] = useState<FinalPosition[]>([]);
@@ -75,25 +76,35 @@ export function ResultsPanel({ gameId, manche, selectedManche, phase, phaseLocke
   }, [gameId, displayManche]);
 
   const fetchResults = async () => {
-    // Fetch priority rankings from priority_rankings table (computed at Phase 1 close)
-    const { data: rankings } = await supabase
+    // Build query with session_game_id filter if available
+    let rankingsQuery = supabase
       .from('priority_rankings')
       .select('num_joueur, display_name, rank, mise_effective')
       .eq('game_id', gameId)
-      .eq('manche', displayManche)
-      .order('rank', { ascending: true });
+      .eq('manche', displayManche);
+    
+    if (sessionGameId) {
+      rankingsQuery = rankingsQuery.eq('session_game_id', sessionGameId);
+    }
+
+    const { data: rankings } = await rankingsQuery.order('rank', { ascending: true });
 
     if (rankings) {
       setPriorityRankings(rankings);
     }
 
-    // Fetch final positions (without slot_attaque - should not be revealed to players)
-    const { data: positions } = await supabase
+    // Fetch final positions with session_game_id filter
+    let positionsQuery = supabase
       .from('positions_finales')
       .select('num_joueur, nom, position_finale, rang_priorite')
       .eq('game_id', gameId)
-      .eq('manche', displayManche)
-      .order('position_finale', { ascending: true });
+      .eq('manche', displayManche);
+    
+    if (sessionGameId) {
+      positionsQuery = positionsQuery.eq('session_game_id', sessionGameId);
+    }
+
+    const { data: positions } = await positionsQuery.order('position_finale', { ascending: true });
 
     if (positions) {
       setFinalPositions(positions);

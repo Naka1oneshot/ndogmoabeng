@@ -7,6 +7,7 @@ interface Game {
   id: string;
   manche_active: number;
   phase: string;
+  current_session_game_id?: string | null;
 }
 
 interface PublicAction {
@@ -39,11 +40,13 @@ interface CombatResult {
 interface CombatResultsPanelProps {
   game: Game;
   selectedManche?: number;
+  sessionGameId?: string | null;
   className?: string;
 }
 
-export function CombatResultsPanel({ game, selectedManche, className }: CombatResultsPanelProps) {
+export function CombatResultsPanel({ game, selectedManche, sessionGameId, className }: CombatResultsPanelProps) {
   const manche = selectedManche ?? game.manche_active;
+  const effectiveSessionGameId = sessionGameId ?? game.current_session_game_id;
   const [combatResult, setCombatResult] = useState<CombatResult | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,12 +64,17 @@ export function CombatResultsPanel({ game, selectedManche, className }: CombatRe
   }, [game.id, manche]);
 
   const fetchCombatResult = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('combat_results')
       .select('public_summary, kills, forest_state')
       .eq('game_id', game.id)
-      .eq('manche', manche)
-      .maybeSingle();
+      .eq('manche', manche);
+    
+    if (effectiveSessionGameId) {
+      query = query.eq('session_game_id', effectiveSessionGameId);
+    }
+
+    const { data } = await query.maybeSingle();
 
     if (data) {
       setCombatResult({

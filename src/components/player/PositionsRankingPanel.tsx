@@ -8,6 +8,7 @@ interface Game {
   manche_active: number;
   phase: string;
   phase_locked: boolean;
+  current_session_game_id?: string | null;
 }
 
 interface PublicPosition {
@@ -20,11 +21,13 @@ interface PositionsRankingPanelProps {
   game: Game;
   currentPlayerNumber?: number;
   selectedManche?: number;
+  sessionGameId?: string | null;
   className?: string;
 }
 
-export function PositionsRankingPanel({ game, currentPlayerNumber, selectedManche, className }: PositionsRankingPanelProps) {
+export function PositionsRankingPanel({ game, currentPlayerNumber, selectedManche, sessionGameId, className }: PositionsRankingPanelProps) {
   const manche = selectedManche ?? game.manche_active;
+  const effectiveSessionGameId = sessionGameId ?? game.current_session_game_id;
   const [positions, setPositions] = useState<PublicPosition[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,12 +47,17 @@ export function PositionsRankingPanel({ game, currentPlayerNumber, selectedManch
   const fetchPositions = async () => {
     // Only fetch public fields: position_finale, nom, num_joueur
     // Do NOT fetch: slot_attaque, attaque1, attaque2, protection, slot_protection
-    const { data } = await supabase
+    let query = supabase
       .from('positions_finales')
       .select('position_finale, nom, num_joueur')
       .eq('game_id', game.id)
-      .eq('manche', manche)
-      .order('position_finale', { ascending: true });
+      .eq('manche', manche);
+    
+    if (effectiveSessionGameId) {
+      query = query.eq('session_game_id', effectiveSessionGameId);
+    }
+
+    const { data } = await query.order('position_finale', { ascending: true });
 
     setPositions(data || []);
     setLoading(false);

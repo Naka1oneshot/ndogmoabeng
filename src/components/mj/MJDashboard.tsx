@@ -46,6 +46,7 @@ interface Game {
   x_nb_joueurs: number;
   sens_depart_egalite: string;
   created_at: string;
+  current_session_game_id: string | null;
 }
 
 interface MJDashboardProps {

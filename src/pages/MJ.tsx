@@ -41,6 +41,7 @@ interface Game {
   phase_locked: boolean;
   created_at: string;
   active_players?: number;
+  current_session_game_id: string | null;
 }
 
 function generateJoinCode(): string {

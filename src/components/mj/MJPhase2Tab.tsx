@@ -38,6 +38,7 @@ interface Game {
   manche_active: number;
   phase: string;
   phase_locked: boolean;
+  current_session_game_id?: string | null;
 }
 
 interface MJPhase2TabProps {
