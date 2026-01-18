@@ -546,8 +546,13 @@ export type Database = {
           device_id: string | null
           display_name: string
           game_id: string
+          has_antibodies: boolean | null
           id: string
+          immune_permanent: boolean | null
+          infected_at_manche: number | null
           is_alive: boolean | null
+          is_carrier: boolean | null
+          is_contagious: boolean | null
           is_host: boolean
           jetons: number | null
           joined_at: string
@@ -555,20 +560,30 @@ export type Database = {
           mate_num: number | null
           player_number: number | null
           player_token: string | null
+          pvic: number | null
           recompenses: number | null
           removed_at: string | null
           removed_by: string | null
           removed_reason: string | null
+          role_code: string | null
           status: string | null
+          team_code: string | null
           user_id: string | null
+          will_contaminate_at_manche: number | null
+          will_die_at_manche: number | null
         }
         Insert: {
           clan?: string | null
           device_id?: string | null
           display_name: string
           game_id: string
+          has_antibodies?: boolean | null
           id?: string
+          immune_permanent?: boolean | null
+          infected_at_manche?: number | null
           is_alive?: boolean | null
+          is_carrier?: boolean | null
+          is_contagious?: boolean | null
           is_host?: boolean
           jetons?: number | null
           joined_at?: string
@@ -576,20 +591,30 @@ export type Database = {
           mate_num?: number | null
           player_number?: number | null
           player_token?: string | null
+          pvic?: number | null
           recompenses?: number | null
           removed_at?: string | null
           removed_by?: string | null
           removed_reason?: string | null
+          role_code?: string | null
           status?: string | null
+          team_code?: string | null
           user_id?: string | null
+          will_contaminate_at_manche?: number | null
+          will_die_at_manche?: number | null
         }
         Update: {
           clan?: string | null
           device_id?: string | null
           display_name?: string
           game_id?: string
+          has_antibodies?: boolean | null
           id?: string
+          immune_permanent?: boolean | null
+          infected_at_manche?: number | null
           is_alive?: boolean | null
+          is_carrier?: boolean | null
+          is_contagious?: boolean | null
           is_host?: boolean
           jetons?: number | null
           joined_at?: string
@@ -597,12 +622,17 @@ export type Database = {
           mate_num?: number | null
           player_number?: number | null
           player_token?: string | null
+          pvic?: number | null
           recompenses?: number | null
           removed_at?: string | null
           removed_by?: string | null
           removed_reason?: string | null
+          role_code?: string | null
           status?: string | null
+          team_code?: string | null
           user_id?: string | null
+          will_contaminate_at_manche?: number | null
+          will_die_at_manche?: number | null
         }
         Relationships: [
           {
@@ -841,6 +871,255 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "game_types"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      infection_chat_messages: {
+        Row: {
+          author_name: string
+          author_num: number
+          channel_key: string
+          channel_type: string
+          created_at: string | null
+          game_id: string
+          id: string
+          manche: number | null
+          message: string
+          session_game_id: string
+        }
+        Insert: {
+          author_name: string
+          author_num: number
+          channel_key: string
+          channel_type: string
+          created_at?: string | null
+          game_id: string
+          id?: string
+          manche?: number | null
+          message: string
+          session_game_id: string
+        }
+        Update: {
+          author_name?: string
+          author_num?: number
+          channel_key?: string
+          channel_type?: string
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          manche?: number | null
+          message?: string
+          session_game_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "infection_chat_messages_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "infection_chat_messages_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      infection_inputs: {
+        Row: {
+          ae_sabotage_target_num: number | null
+          ba_shot_target_num: number | null
+          corruption_amount: number | null
+          created_at: string | null
+          game_id: string
+          id: string
+          manche: number
+          oc_lookup_target_num: number | null
+          player_id: string
+          player_num: number
+          pv_antidote_target_num: number | null
+          pv_patient0_target_num: number | null
+          pv_shot_target_num: number | null
+          session_game_id: string
+          sy_research_target_num: number | null
+          updated_at: string | null
+          vote_suspect_pv_target_num: number | null
+          vote_test_target_num: number | null
+        }
+        Insert: {
+          ae_sabotage_target_num?: number | null
+          ba_shot_target_num?: number | null
+          corruption_amount?: number | null
+          created_at?: string | null
+          game_id: string
+          id?: string
+          manche: number
+          oc_lookup_target_num?: number | null
+          player_id: string
+          player_num: number
+          pv_antidote_target_num?: number | null
+          pv_patient0_target_num?: number | null
+          pv_shot_target_num?: number | null
+          session_game_id: string
+          sy_research_target_num?: number | null
+          updated_at?: string | null
+          vote_suspect_pv_target_num?: number | null
+          vote_test_target_num?: number | null
+        }
+        Update: {
+          ae_sabotage_target_num?: number | null
+          ba_shot_target_num?: number | null
+          corruption_amount?: number | null
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          manche?: number
+          oc_lookup_target_num?: number | null
+          player_id?: string
+          player_num?: number
+          pv_antidote_target_num?: number | null
+          pv_patient0_target_num?: number | null
+          pv_shot_target_num?: number | null
+          session_game_id?: string
+          sy_research_target_num?: number | null
+          updated_at?: string | null
+          vote_suspect_pv_target_num?: number | null
+          vote_test_target_num?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "infection_inputs_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "infection_inputs_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      infection_round_state: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          game_id: string
+          id: string
+          locked_at: string | null
+          manche: number
+          opened_at: string | null
+          resolved_at: string | null
+          session_game_id: string
+          status: string
+          sy_required_success: number | null
+          sy_success_count: number | null
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          game_id: string
+          id?: string
+          locked_at?: string | null
+          manche: number
+          opened_at?: string | null
+          resolved_at?: string | null
+          session_game_id: string
+          status?: string
+          sy_required_success?: number | null
+          sy_success_count?: number | null
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          locked_at?: string | null
+          manche?: number
+          opened_at?: string | null
+          resolved_at?: string | null
+          session_game_id?: string
+          status?: string
+          sy_required_success?: number | null
+          sy_success_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "infection_round_state_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "infection_round_state_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      infection_shots: {
+        Row: {
+          created_at: string | null
+          game_id: string
+          id: string
+          ignore_reason: string | null
+          manche: number
+          server_ts: string
+          session_game_id: string
+          shooter_num: number
+          shooter_role: string
+          status: string
+          target_num: number
+        }
+        Insert: {
+          created_at?: string | null
+          game_id: string
+          id?: string
+          ignore_reason?: string | null
+          manche: number
+          server_ts?: string
+          session_game_id: string
+          shooter_num: number
+          shooter_role: string
+          status?: string
+          target_num: number
+        }
+        Update: {
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          ignore_reason?: string | null
+          manche?: number
+          server_ts?: string
+          session_game_id?: string
+          shooter_num?: number
+          shooter_role?: string
+          status?: string
+          target_num?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "infection_shots_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "infection_shots_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
           },
         ]
       }
