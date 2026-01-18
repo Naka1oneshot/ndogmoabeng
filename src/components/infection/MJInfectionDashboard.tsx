@@ -12,6 +12,7 @@ import { INFECTION_COLORS, INFECTION_ROLE_LABELS, getInfectionThemeClasses } fro
 import { toast } from 'sonner';
 import { MJActionsTab } from './MJActionsTab';
 import { MJChatsTab } from './MJChatsTab';
+import { MJRoundHistorySelector } from './MJRoundHistorySelector';
 
 interface Game {
   id: string;
@@ -67,6 +68,14 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   const [roundState, setRoundState] = useState<RoundState | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('control');
+  const [selectedManche, setSelectedManche] = useState(game.manche_active || 1);
+
+  // Reset selected manche when game.manche_active changes
+  useEffect(() => {
+    if (game.manche_active) {
+      setSelectedManche(game.manche_active);
+    }
+  }, [game.manche_active]);
 
   useEffect(() => {
     fetchData();
@@ -515,12 +524,20 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
 
         <TabsContent value="actions" className="p-4 mt-0">
           {game.current_session_game_id && (
-            <MJActionsTab
-              gameId={game.id}
-              sessionGameId={game.current_session_game_id}
-              manche={game.manche_active || 1}
-              players={players}
-            />
+            <div className="space-y-4">
+              <MJRoundHistorySelector
+                sessionGameId={game.current_session_game_id}
+                currentManche={game.manche_active || 1}
+                selectedManche={selectedManche}
+                onSelectManche={setSelectedManche}
+              />
+              <MJActionsTab
+                gameId={game.id}
+                sessionGameId={game.current_session_game_id}
+                manche={selectedManche}
+                players={players}
+              />
+            </div>
           )}
         </TabsContent>
 
