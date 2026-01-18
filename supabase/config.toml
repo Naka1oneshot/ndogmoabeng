@@ -64,3 +64,6 @@ verify_jwt = false
 
 [functions.submit-shop-request]
 verify_jwt = false
+
+[functions.next-session-game]
+verify_jwt = false

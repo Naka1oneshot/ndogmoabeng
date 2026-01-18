@@ -42,6 +42,10 @@ interface Game {
   created_at: string;
   active_players?: number;
   current_session_game_id: string | null;
+  mode: string;
+  adventure_id: string | null;
+  current_step_index: number;
+  selected_game_type_code: string | null;
 }
 
 function generateJoinCode(): string {
