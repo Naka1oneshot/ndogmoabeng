@@ -48,6 +48,8 @@ interface PlayerRivieresDashboardProps {
   playerToken: string;
   clan: string | null;
   jetons: number;
+  gameStatus?: string;
+  displayName?: string;
 }
 
 export function PlayerRivieresDashboard({
@@ -58,6 +60,8 @@ export function PlayerRivieresDashboard({
   playerToken,
   clan,
   jetons,
+  gameStatus = 'IN_GAME',
+  displayName,
 }: PlayerRivieresDashboardProps) {
   const [state, setState] = useState<RiverSessionState | null>(null);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats | null>(null);
@@ -183,6 +187,53 @@ export function PlayerRivieresDashboard({
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
+  // LOBBY VIEW - Show waiting room for players
+  if (gameStatus === 'LOBBY') {
+    return (
+      <div className={`${rivieresCardStyle} p-6`}>
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <Anchor className="h-8 w-8 text-[#D4AF37]" />
+          <h2 className="text-2xl font-bold text-[#D4AF37]">Salle d'attente</h2>
+        </div>
+        
+        <div className="text-center mb-6">
+          <div className="text-5xl mb-4">🚣</div>
+          <h3 className="text-xl font-bold text-[#E8E8E8] mb-2">
+            Bienvenue, {displayName || `Joueur ${playerNumber}`} !
+          </h3>
+          {clan && (
+            <Badge className="bg-[#D4AF37]/20 text-[#D4AF37] mb-4">
+              Clan {clan}
+            </Badge>
+          )}
+          <p className="text-[#9CA3AF]">
+            Préparez-vous pour l'aventure RIVIERES
+          </p>
+        </div>
+
+        <div className="bg-[#0B1020] rounded-lg p-4 text-center">
+          <Ship className="h-12 w-12 text-[#D4AF37] mx-auto mb-3 animate-bounce" />
+          <p className="text-[#E8E8E8] font-medium mb-2">
+            En attente du lancement de la partie...
+          </p>
+          <p className="text-[#9CA3AF] text-sm">
+            Le Maître du Jeu va bientôt démarrer l'aventure.
+          </p>
+        </div>
+
+        <div className="mt-6 p-4 bg-[#20232A] rounded-lg border border-[#D4AF37]/20">
+          <h4 className="text-[#D4AF37] font-medium mb-2">📜 Règles rapides</h4>
+          <ul className="text-sm text-[#9CA3AF] space-y-1">
+            <li>• Choisissez de rester sur le bateau ou de descendre à terre</li>
+            <li>• Plus vous restez longtemps, plus le risque est grand</li>
+            <li>• Misez vos jetons pour influencer votre priorité</li>
+            <li>• Accumulez des niveaux validés pour marquer des points</li>
+          </ul>
+        </div>
       </div>
     );
   }
