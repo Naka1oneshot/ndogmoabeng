@@ -19,6 +19,10 @@ import { CombatResultsPanel } from '@/components/player/CombatResultsPanel';
 import { PlayerActionTabs } from '@/components/player/PlayerActionTabs';
 import { MancheSelector } from '@/components/player/MancheSelector';
 import TeamChat from '@/components/player/TeamChat';
+import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
+
+// Only FORET is implemented for now
+const IMPLEMENTED_GAME_TYPES = ['FORET'];
 
 interface Game {
   id: string;
@@ -29,6 +33,7 @@ interface Game {
   phase: string;
   phase_locked: boolean;
   current_session_game_id: string | null;
+  selected_game_type_code: string | null;
 }
 
 interface Player {
@@ -332,6 +337,24 @@ export default function PlayerDashboard() {
               Retour à l'accueil
             </ForestButton>
           </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Check if game type is implemented
+  const isGameTypeImplemented = IMPLEMENTED_GAME_TYPES.includes(game.selected_game_type_code || '');
+
+  // Show "in development" screen for non-implemented game types
+  if (!isGameTypeImplemented) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PlayerHeader game={game} player={player} />
+        <main className="flex-1 p-4">
+          <GameTypeInDevelopment 
+            gameTypeCode={game.selected_game_type_code} 
+            onBack={() => navigate('/')}
+          />
         </main>
       </div>
     );
