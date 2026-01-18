@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     // Get game info
     const { data: game, error: gameError } = await supabase
       .from('games')
-      .select('id, manche_active, phase, host_user_id')
+      .select('id, manche_active, phase, host_user_id, current_session_game_id')
       .eq('id', gameId)
       .single();
 
@@ -81,14 +81,21 @@ Deno.serve(async (req) => {
     }
 
     const manche = game.manche_active;
+    const sessionGameId = game.current_session_game_id;
+    console.log(`[resolve-shop] Processing game ${gameId}, session_game ${sessionGameId}, manche ${manche}`);
 
-    // Check if shop offer exists
-    const { data: shopOffer, error: offerError } = await supabase
+    // Check if shop offer exists - use session_game_id if available
+    const shopOfferQuery = supabase
       .from('game_shop_offers')
       .select('id, item_ids, resolved')
       .eq('game_id', gameId)
-      .eq('manche', manche)
-      .single();
+      .eq('manche', manche);
+    
+    if (sessionGameId) {
+      shopOfferQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const { data: shopOffer, error: offerError } = await shopOfferQuery.single();
 
     if (offerError || !shopOffer) {
       return new Response(
@@ -110,13 +117,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get priority rankings for this round
-    const { data: rankings, error: rankingsError } = await supabase
+    // Get priority rankings for this round - use session_game_id if available
+    const rankingsQuery = supabase
       .from('priority_rankings')
       .select('player_id, num_joueur, rank, display_name')
       .eq('game_id', gameId)
-      .eq('manche', manche)
-      .order('rank', { ascending: true });
+      .eq('manche', manche);
+    
+    if (sessionGameId) {
+      rankingsQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const { data: rankings, error: rankingsError } = await rankingsQuery.order('rank', { ascending: true });
 
     if (rankingsError || !rankings || rankings.length === 0) {
       return new Response(
@@ -127,12 +139,18 @@ Deno.serve(async (req) => {
 
     console.log(`[resolve-shop] Found ${rankings.length} players in priority order`);
 
-    // Get all shop requests for this round
-    const { data: requests } = await supabase
+    // Get all shop requests for this round - use session_game_id if available
+    const requestsQuery = supabase
       .from('shop_requests')
       .select('id, player_id, player_num, want_buy, item_name')
       .eq('game_id', gameId)
       .eq('manche', manche);
+    
+    if (sessionGameId) {
+      requestsQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const { data: requests } = await requestsQuery;
 
     const requestMap = new Map<string, ShopRequest>();
     (requests || []).forEach(r => requestMap.set(r.player_id, r));
@@ -181,6 +199,7 @@ Deno.serve(async (req) => {
     // Log start
     await supabase.from('logs_mj').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: manche,
       action: 'SHOP_RESOLVE_START',
       details: `Résolution du shop selon l'ordre de priorité (${rankings.length} joueurs)`,
@@ -215,6 +234,7 @@ Deno.serve(async (req) => {
         });
         await supabase.from('logs_mj').insert({
           game_id: gameId,
+          session_game_id: sessionGameId,
           manche: manche,
           action: 'SHOP_REFUS',
           num_joueur: player.player_number,
@@ -235,6 +255,7 @@ Deno.serve(async (req) => {
         });
         await supabase.from('logs_mj').insert({
           game_id: gameId,
+          session_game_id: sessionGameId,
           manche: manche,
           action: 'SHOP_REFUS',
           num_joueur: player.player_number,
@@ -268,6 +289,7 @@ Deno.serve(async (req) => {
         });
         await supabase.from('logs_mj').insert({
           game_id: gameId,
+          session_game_id: sessionGameId,
           manche: manche,
           action: 'SHOP_REFUS',
           num_joueur: player.player_number,
@@ -292,6 +314,7 @@ Deno.serve(async (req) => {
       // Record purchase
       await supabase.from('game_item_purchases').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         player_id: player.id,
         player_num: player.player_number,
@@ -319,6 +342,7 @@ Deno.serve(async (req) => {
       } else {
         await supabase.from('inventory').insert({
           game_id: gameId,
+          session_game_id: sessionGameId,
           owner_num: player.player_number,
           objet: itemName,
           quantite: 1,
@@ -339,6 +363,7 @@ Deno.serve(async (req) => {
 
       await supabase.from('logs_mj').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         action: 'SHOP_OK',
         num_joueur: player.player_number,
@@ -358,6 +383,7 @@ Deno.serve(async (req) => {
     // Final logs
     await supabase.from('logs_mj').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: manche,
       action: 'SHOP_RESOLVE_END',
       details: `Shop résolu: ${purchasesApproved.length} achats validés, ${purchasesRefused.length} refusés`,
@@ -399,6 +425,7 @@ Deno.serve(async (req) => {
 
     await supabase.from('logs_joueurs').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: manche,
       type: 'SHOP_FIN',
       message: publicShopMessage,
@@ -420,6 +447,7 @@ Deno.serve(async (req) => {
     // Game event for history
     await supabase.from('game_events').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: manche,
       phase: 'PHASE3_SHOP',
       event_type: 'SHOP_RESOLVED',
@@ -469,6 +497,7 @@ Deno.serve(async (req) => {
     // Log the round change
     await supabase.from('logs_mj').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: nextManche,
       action: 'NOUVELLE_MANCHE',
       details: `Passage automatique à la manche ${nextManche} (+${tokenBonus} jetons pour tous)`,
@@ -477,6 +506,7 @@ Deno.serve(async (req) => {
     // Public log for token bonus
     await supabase.from('logs_joueurs').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: nextManche,
       type: 'BONUS',
       message: `💰 Tous les joueurs reçoivent +${tokenBonus} jetons pour la nouvelle manche !`,
@@ -484,6 +514,7 @@ Deno.serve(async (req) => {
 
     await supabase.from('logs_joueurs').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: nextManche,
       type: 'PHASE',
       message: `🔄 Nouvelle manche ${nextManche} - Phase 1 : Mises`,
