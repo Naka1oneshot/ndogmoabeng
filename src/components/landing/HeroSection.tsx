@@ -44,7 +44,7 @@ export function HeroSection() {
               Ndogmoabeng
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-lg mx-auto md:mx-0 mb-8">
-              Un univers de jeux immersifs. Trois clans, des choix, et une mémoire à défendre.
+              Un univers de jeux immersifs. Sept clans, des choix, du bluff et une mémoire à défendre.
             </p>
             
             {/* Stats */}
