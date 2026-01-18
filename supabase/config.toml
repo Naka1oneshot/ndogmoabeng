@@ -82,3 +82,6 @@ verify_jwt = false
 
 [functions.rivieres-resolve-level]
 verify_jwt = false
+
+[functions.start-infection]
+verify_jwt = false

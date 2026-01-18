@@ -112,9 +112,44 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   };
 
   const handleStartGame = async () => {
+    if (!game.current_session_game_id) {
+      toast.error('Aucune session de jeu active');
+      return;
+    }
+
+    if (activePlayers.length < 4) {
+      toast.error('Minimum 4 joueurs requis');
+      return;
+    }
+
     toast.info('Lancement de la partie INFECTION...');
-    // TODO: Call start-infection edge function
-    toast.success('Partie lancée ! (à implémenter)');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('start-infection', {
+        body: {
+          gameId: game.id,
+          sessionGameId: game.current_session_game_id,
+          startingTokens: game.starting_tokens,
+        },
+      });
+
+      if (error) {
+        console.error('[MJ] start-infection error:', error);
+        toast.error(`Erreur: ${error.message}`);
+        return;
+      }
+
+      if (!data?.success) {
+        toast.error(data?.error || 'Erreur inconnue');
+        return;
+      }
+
+      toast.success(`Partie lancée avec ${data.data.playerCount} joueurs !`);
+      fetchData();
+    } catch (err) {
+      console.error('[MJ] start-infection exception:', err);
+      toast.error('Erreur lors du lancement');
+    }
   };
 
   const handleLockAndResolve = async () => {
