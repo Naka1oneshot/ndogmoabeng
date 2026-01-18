@@ -4,8 +4,9 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Map, Gamepad2, Plus, ChevronRight, Clock, Check } from 'lucide-react';
+import { Loader2, Map, Gamepad2, Plus, ChevronRight, Clock, Check, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 
 interface Adventure {
@@ -302,32 +303,58 @@ export function AdventureSelector({
             </div>
           ) : (
             <div className="grid gap-2">
-              {adventures.map((adventure) => (
-                <div
-                  key={adventure.id}
-                  onClick={() => onAdventureSelect(adventure.id)}
-                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedAdventureId === adventure.id
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <div className="font-medium">{adventure.name}</div>
-                  {adventure.description && (
-                    <div className="text-sm text-muted-foreground mb-2">{adventure.description}</div>
-                  )}
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    {adventure.steps.map((step, index) => (
-                      <span key={step.id} className="flex items-center">
-                        <span className="px-2 py-0.5 bg-secondary rounded">{step.game_type_code}</span>
-                        {index < adventure.steps.length - 1 && (
-                          <ChevronRight className="h-3 w-3 mx-1" />
-                        )}
-                      </span>
-                    ))}
+              {adventures.map((adventure) => {
+                // Check if adventure has any COMING_SOON games
+                const hasComingSoonGames = adventure.steps.some(step => {
+                  const gameType = gameTypes.find(t => t.code === step.game_type_code);
+                  return gameType?.status === 'COMING_SOON';
+                });
+
+                return (
+                  <div
+                    key={adventure.id}
+                    onClick={() => onAdventureSelect(adventure.id)}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      selectedAdventureId === adventure.id
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{adventure.name}</span>
+                      {hasComingSoonGames && (
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Incomplet
+                        </Badge>
+                      )}
+                    </div>
+                    {adventure.description && (
+                      <div className="text-sm text-muted-foreground mb-2">{adventure.description}</div>
+                    )}
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
+                      {adventure.steps.map((step, index) => {
+                        const gameType = gameTypes.find(t => t.code === step.game_type_code);
+                        const isComingSoon = gameType?.status === 'COMING_SOON';
+                        
+                        return (
+                          <span key={step.id} className="flex items-center">
+                            <span className={`px-2 py-0.5 rounded flex items-center gap-1 ${
+                              isComingSoon ? 'bg-amber-500/20 text-amber-600' : 'bg-secondary'
+                            }`}>
+                              {step.game_type_code}
+                              {isComingSoon && <Clock className="h-3 w-3" />}
+                            </span>
+                            {index < adventure.steps.length - 1 && (
+                              <ChevronRight className="h-3 w-3 mx-1" />
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -374,23 +401,44 @@ export function AdventureSelector({
             <Label>Étapes de l'aventure</Label>
             {selectedSteps.length > 0 && (
               <div className="flex flex-wrap gap-2 p-2 bg-secondary/50 rounded-lg">
-                {selectedSteps.map((code, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-1 px-2 py-1 bg-primary/20 rounded text-sm"
-                  >
-                    <span className="text-xs text-muted-foreground">#{index + 1}</span>
-                    <span>{code}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeStepFromAdventure(index)}
-                      className="ml-1 text-destructive hover:text-destructive/80"
+                {selectedSteps.map((code, index) => {
+                  const gameType = gameTypes.find(t => t.code === code);
+                  const isComingSoon = gameType?.status === 'COMING_SOON';
+                  
+                  return (
+                    <div
+                      key={index}
+                      className={`flex items-center gap-1 px-2 py-1 rounded text-sm ${
+                        isComingSoon ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-primary/20'
+                      }`}
                     >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                      <span className="text-xs text-muted-foreground">#{index + 1}</span>
+                      <span>{code}</span>
+                      {isComingSoon && <Clock className="h-3 w-3 text-amber-500" />}
+                      <button
+                        type="button"
+                        onClick={() => removeStepFromAdventure(index)}
+                        className="ml-1 text-destructive hover:text-destructive/80"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
+            )}
+
+            {/* Warning if adventure contains COMING_SOON games */}
+            {selectedSteps.some(code => {
+              const gameType = gameTypes.find(t => t.code === code);
+              return gameType?.status === 'COMING_SOON';
+            }) && (
+              <Alert className="bg-amber-500/10 border-amber-500/30">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <AlertDescription className="text-amber-600 text-sm">
+                  Cette aventure contient des jeux en développement. Elle pourra être créée mais ne sera pas lançable tant que tous les jeux ne seront pas disponibles.
+                </AlertDescription>
+              </Alert>
             )}
             
             <div className="text-sm text-muted-foreground mb-2">
@@ -409,7 +457,7 @@ export function AdventureSelector({
                       variant="outline"
                       size="sm"
                       onClick={() => addStepToAdventure(type.code)}
-                      className={isComingSoon ? 'opacity-70' : ''}
+                      className={isComingSoon ? 'border-amber-500/50 hover:border-amber-500' : ''}
                     >
                       <Plus className="h-3 w-3 mr-1" />
                       {type.name}
