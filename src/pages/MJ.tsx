@@ -7,6 +7,7 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AdventureSelector } from '@/components/mj/AdventureSelector';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdminBadge } from '@/components/game/AdminBadge';
 import { MJDashboard } from '@/components/mj/MJDashboard';
@@ -75,6 +76,9 @@ export default function MJ() {
   const [xNbJoueurs, setXNbJoueurs] = useState(6);
   const [startingTokens, setStartingTokens] = useState(50);
   const [sensEgalite, setSensEgalite] = useState<'ASC' | 'DESC'>('ASC');
+  const [gameMode, setGameMode] = useState<'SINGLE_GAME' | 'ADVENTURE'>('SINGLE_GAME');
+  const [selectedAdventureId, setSelectedAdventureId] = useState<string | null>(null);
+  const [selectedGameTypeCode, setSelectedGameTypeCode] = useState<string | null>('FORET');
   const [creating, setCreating] = useState(false);
   
   // Game actions
@@ -172,10 +176,21 @@ export default function MJ() {
       return;
     }
 
+    // Validate mode-specific requirements
+    if (gameMode === 'ADVENTURE' && !selectedAdventureId) {
+      toast.error('Veuillez sélectionner une aventure');
+      return;
+    }
+    if (gameMode === 'SINGLE_GAME' && !selectedGameTypeCode) {
+      toast.error('Veuillez sélectionner un type de jeu');
+      return;
+    }
+
     setCreating(true);
     try {
       const joinCode = generateJoinCode();
       
+      // Create the game
       const { data, error } = await supabase
         .from('games')
         .insert({
@@ -187,6 +202,10 @@ export default function MJ() {
           sens_depart_egalite: sensEgalite,
           x_nb_joueurs: xNbJoueurs,
           starting_tokens: startingTokens,
+          mode: gameMode,
+          adventure_id: gameMode === 'ADVENTURE' ? selectedAdventureId : null,
+          selected_game_type_code: gameMode === 'SINGLE_GAME' ? selectedGameTypeCode : null,
+          current_step_index: 1,
         })
         .select()
         .single();
@@ -201,6 +220,50 @@ export default function MJ() {
         is_host: true,
       });
 
+      // For adventure mode, get the first step's game type and create initial session_game
+      let sessionGameId: string | null = null;
+      let actualGameTypeCode = selectedGameTypeCode;
+      
+      if (gameMode === 'ADVENTURE' && selectedAdventureId) {
+        const { data: firstStep } = await supabase
+          .from('adventure_steps')
+          .select('game_type_code')
+          .eq('adventure_id', selectedAdventureId)
+          .eq('step_index', 1)
+          .single();
+        
+        if (firstStep) {
+          actualGameTypeCode = firstStep.game_type_code;
+        }
+      }
+
+      // Create the initial session_game
+      const { data: sessionGame, error: sessionError } = await supabase
+        .from('session_games')
+        .insert({
+          session_id: data.id,
+          step_index: 1,
+          game_type_code: actualGameTypeCode || 'FORET',
+          status: 'PENDING',
+          manche_active: 1,
+          phase: 'PHASE1_MISES',
+        })
+        .select()
+        .single();
+
+      if (!sessionError && sessionGame) {
+        sessionGameId = sessionGame.id;
+        
+        // Update games with the session_game_id and game type
+        await supabase
+          .from('games')
+          .update({ 
+            current_session_game_id: sessionGameId,
+            selected_game_type_code: actualGameTypeCode,
+          })
+          .eq('id', data.id);
+      }
+
       // Initialize game monsters with defaults
       await supabase.rpc('initialize_game_monsters', { p_game_id: data.id });
 
@@ -209,9 +272,20 @@ export default function MJ() {
       setXNbJoueurs(6);
       setStartingTokens(50);
       setSensEgalite('ASC');
+      setGameMode('SINGLE_GAME');
+      setSelectedAdventureId(null);
+      setSelectedGameTypeCode('FORET');
       
       // Go to detail view of the new game
-      setSelectedGame({ ...data, active_players: 0 } as Game);
+      setSelectedGame({ 
+        ...data, 
+        active_players: 0,
+        current_session_game_id: sessionGameId,
+        mode: gameMode,
+        adventure_id: gameMode === 'ADVENTURE' ? selectedAdventureId : null,
+        current_step_index: 1,
+        selected_game_type_code: actualGameTypeCode,
+      } as Game);
       setViewMode('detail');
     } catch (error) {
       console.error('Error creating game:', error);
@@ -441,6 +515,16 @@ export default function MJ() {
                 onChange={(e) => setGameName(e.target.value)}
               />
             </div>
+
+            {/* Adventure/Mode Selector */}
+            <AdventureSelector
+              mode={gameMode}
+              onModeChange={setGameMode}
+              selectedAdventureId={selectedAdventureId}
+              onAdventureSelect={setSelectedAdventureId}
+              selectedGameTypeCode={selectedGameTypeCode}
+              onGameTypeSelect={setSelectedGameTypeCode}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
