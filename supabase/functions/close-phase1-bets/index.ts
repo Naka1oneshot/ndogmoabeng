@@ -79,7 +79,7 @@ serve(async (req) => {
     // Get game and verify host
     const { data: game, error: gameError } = await supabase
       .from('games')
-      .select('*')
+      .select('*, current_session_game_id')
       .eq('id', gameId)
       .single();
 
@@ -118,7 +118,9 @@ serve(async (req) => {
     }
 
     const manche = game.manche_active || 1;
-    console.log(`[close-phase1] Processing manche ${manche}`);
+    const sessionGameId = game.current_session_game_id;
+    
+    console.log(`[close-phase1] Processing manche ${manche}, session_game_id: ${sessionGameId}`);
 
     // Get active players (IN_GAME equivalent = ACTIVE, not LEFT/KICKED/REMOVED)
     const { data: players, error: playersError } = await supabase
@@ -146,12 +148,18 @@ serve(async (req) => {
 
     console.log(`[close-phase1] Found ${players.length} active players`);
 
-    // Get all bets for this round
-    const { data: bets, error: betsError } = await supabase
+    // Get all bets for this round (filter by session_game_id if available)
+    let betsQuery = supabase
       .from('round_bets')
       .select('*')
       .eq('game_id', gameId)
       .eq('manche', manche);
+    
+    if (sessionGameId) {
+      betsQuery = betsQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const { data: bets, error: betsError } = await betsQuery;
 
     if (betsError) {
       console.error(`[close-phase1] Failed to fetch bets, errorId: ${errorId}`, betsError);
@@ -277,6 +285,7 @@ serve(async (req) => {
           .from('round_bets')
           .insert({
             game_id: gameId,
+            session_game_id: sessionGameId,
             manche,
             num_joueur: rp.player.player_number,
             mise: 0,
@@ -314,6 +323,7 @@ serve(async (req) => {
     // 3. Insert priority rankings
     const rankings = rankedPlayers.map(rp => ({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche,
       player_id: rp.player.id,
       num_joueur: rp.player.player_number,
@@ -348,6 +358,14 @@ serve(async (req) => {
       );
     }
 
+    // Update session_games phase
+    if (sessionGameId) {
+      await supabase
+        .from('session_games')
+        .update({ phase: 'PHASE2_POSITIONS' })
+        .eq('id', sessionGameId);
+    }
+
     // 5. Create logs
 
     // MJ log (detailed with amounts)
@@ -366,6 +384,7 @@ serve(async (req) => {
     // Insert into logs_mj
     await supabase.from('logs_mj').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche,
       action: 'PHASE1_CLOSED',
       details: mjLogMessage,
@@ -374,6 +393,7 @@ serve(async (req) => {
     // Insert into logs_joueurs with new type PRIORITE_MISES
     await supabase.from('logs_joueurs').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche,
       type: 'PRIORITE_MISES',
       message: playerLogMessage,
@@ -390,6 +410,7 @@ serve(async (req) => {
           phase: 'PHASE1_MISES', 
           action: 'closed',
           newPhase: 'PHASE2_POSITIONS',
+          sessionGameId,
           rankings: rankedPlayers.map(rp => ({ 
             rank: rp.rank, 
             name: rp.player.display_name,
@@ -405,6 +426,7 @@ serve(async (req) => {
         payload: { 
           phase: 'PHASE1_MISES', 
           action: 'closed',
+          sessionGameId,
           rankings: rankedPlayers.map(rp => ({ 
             rank: rp.rank, 
             name: rp.player.display_name,
@@ -424,6 +446,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         manche,
+        sessionGameId,
         playerCount: players.length,
         rankings: rankedPlayers.map(rp => ({
           rank: rp.rank,

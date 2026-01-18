@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     // Get game info
     const { data: game, error: gameError } = await supabase
       .from('games')
-      .select('id, manche_active, phase, host_user_id')
+      .select('id, manche_active, phase, host_user_id, current_session_game_id')
       .eq('id', gameId)
       .single();
 
@@ -58,14 +58,20 @@ Deno.serve(async (req) => {
     }
 
     const manche = game.manche_active;
+    const sessionGameId = game.current_session_game_id;
 
     // Check if offer already exists for this round
-    const { data: existingOffer } = await supabase
+    let existingQuery = supabase
       .from('game_shop_offers')
       .select('*')
       .eq('game_id', gameId)
-      .eq('manche', manche)
-      .maybeSingle();
+      .eq('manche', manche);
+    
+    if (sessionGameId) {
+      existingQuery = existingQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const { data: existingOffer } = await existingQuery.maybeSingle();
 
     if (existingOffer) {
       if (existingOffer.locked && !forceRegenerate) {
@@ -81,11 +87,17 @@ Deno.serve(async (req) => {
       }
 
       // Check if any purchases made for this round
-      const { count: purchaseCount } = await supabase
+      let purchaseQuery = supabase
         .from('game_item_purchases')
         .select('*', { count: 'exact', head: true })
         .eq('game_id', gameId)
         .eq('manche', manche);
+      
+      if (sessionGameId) {
+        purchaseQuery = purchaseQuery.eq('session_game_id', sessionGameId);
+      }
+      
+      const { count: purchaseCount } = await purchaseQuery;
 
       if (purchaseCount && purchaseCount > 0) {
         console.log('[generate-shop] Cannot regenerate, purchases already made');
@@ -208,6 +220,7 @@ Deno.serve(async (req) => {
       .from('game_shop_offers')
       .upsert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         item_ids: offerItems,
         locked: true,
@@ -232,6 +245,7 @@ Deno.serve(async (req) => {
 
     await supabase.from('logs_mj').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: manche,
       action: 'SHOP_GEN',
       details: `Shop généré: ${offerSummary}`,
@@ -240,6 +254,7 @@ Deno.serve(async (req) => {
     // Public log for players
     await supabase.from('logs_joueurs').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: manche,
       type: 'SHOP',
       message: `🛒 Shop ouvert : 5 objets disponibles à l'achat !`,
@@ -251,7 +266,7 @@ Deno.serve(async (req) => {
       type: 'SHOP',
       audience: 'ALL',
       message: `🛒 La boutique de la manche ${manche} est ouverte !`,
-      payload: { items: offerItems },
+      payload: { items: offerItems, sessionGameId },
     });
 
     console.log('[generate-shop] Shop generated successfully');
@@ -261,6 +276,7 @@ Deno.serve(async (req) => {
         success: true, 
         offer: savedOffer,
         items: offerItems,
+        sessionGameId,
         warnings: warnings.length > 0 ? warnings : undefined,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

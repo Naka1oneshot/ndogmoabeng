@@ -47,7 +47,7 @@ serve(async (req) => {
     // Get game and verify host
     const { data: game, error: gameError } = await supabase
       .from('games')
-      .select('*')
+      .select('*, current_session_game_id')
       .eq('id', gameId)
       .single();
 
@@ -73,13 +73,22 @@ serve(async (req) => {
       );
     }
 
+    const manche = game.manche_active;
+    const sessionGameId = game.current_session_game_id;
+
     // Check if positions already published (idempotence)
-    const { data: existingPositions } = await supabase
+    let existingQuery = supabase
       .from('positions_finales')
       .select('id')
       .eq('game_id', gameId)
-      .eq('manche', game.manche_active)
+      .eq('manche', manche)
       .limit(1);
+    
+    if (sessionGameId) {
+      existingQuery = existingQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const { data: existingPositions } = await existingQuery;
 
     if (existingPositions && existingPositions.length > 0) {
       return new Response(
@@ -87,8 +96,6 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const manche = game.manche_active;
 
     // Get ACTIVE players count - this is our N (source of truth)
     const { data: activePlayers, error: playersError } = await supabase
@@ -116,15 +123,21 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[publish-positions] N = ${N} active players`);
+    console.log(`[publish-positions] N = ${N} active players, session_game_id: ${sessionGameId}`);
 
     // Get priority rankings (order from Phase 1)
-    const { data: rankings, error: rankingsError } = await supabase
+    let rankingsQuery = supabase
       .from('priority_rankings')
       .select('*')
       .eq('game_id', gameId)
       .eq('manche', manche)
       .order('rank', { ascending: true });
+    
+    if (sessionGameId) {
+      rankingsQuery = rankingsQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const { data: rankings, error: rankingsError } = await rankingsQuery;
 
     if (rankingsError || !rankings || rankings.length === 0) {
       return new Response(
@@ -134,11 +147,17 @@ serve(async (req) => {
     }
 
     // Get actions for this round
-    const { data: actions, error: actionsError } = await supabase
+    let actionsQuery = supabase
       .from('actions')
       .select('*')
       .eq('game_id', gameId)
       .eq('manche', manche);
+    
+    if (sessionGameId) {
+      actionsQuery = actionsQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const { data: actions, error: actionsError } = await actionsQuery;
 
     if (actionsError) {
       console.error('[publish-positions] Error fetching actions:', actionsError);
@@ -155,6 +174,7 @@ serve(async (req) => {
     const occupiedPositions = new Set<number>();
     const positionsFinales: Array<{
       game_id: string;
+      session_game_id: string | null;
       manche: number;
       rang_priorite: number;
       num_joueur: number;
@@ -239,6 +259,7 @@ serve(async (req) => {
 
       positionsFinales.push({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         rang_priorite: ranking.rank,
         num_joueur: numJoueur,
@@ -323,6 +344,7 @@ serve(async (req) => {
         message: publicMessage,
         payload: { 
           type: 'POSITIONS_FINALES',
+          sessionGameId,
           // Only include public info
           ranking: positionsFinales.map(p => ({ 
             position: p.position_finale, 
@@ -337,11 +359,12 @@ serve(async (req) => {
         audience: 'MJ',
         type: 'SYSTEM',
         message: 'Positions finales publiées',
-        payload: { positions: mjDetails },
+        payload: { positions: mjDetails, sessionGameId },
       }),
       // Public log
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'POSITIONS_FINALES',
         message: publicMessage,
@@ -349,6 +372,7 @@ serve(async (req) => {
       // MJ log
       supabase.from('logs_mj').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         action: 'POSITIONS_PUBLIEES',
         details: JSON.stringify(mjDetails),
@@ -363,6 +387,7 @@ serve(async (req) => {
         message: 'Positions finales publiées',
         positionsCount: positionsFinales.length,
         activePlayerCount: N,
+        sessionGameId,
         // Only return public info
         publicRanking: positionsFinales.map(p => ({ 
           position: p.position_finale, 
