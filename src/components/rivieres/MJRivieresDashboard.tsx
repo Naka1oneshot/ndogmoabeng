@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, Dice6, Lock, Play, Users, History, 
-  AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship
+  AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship, Waves
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -107,11 +107,25 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   const [stageScores, setStageScores] = useState<StageScore[]>([]);
   const [showFinalRanking, setShowFinalRanking] = useState(false);
 
+  // Start animation
+  const [showStartAnimation, setShowStartAnimation] = useState(false);
+  const previousGameStatusRef = useRef<string | undefined>(gameStatus);
+
   useEffect(() => {
     fetchData();
     const channel = setupRealtime();
     return () => { supabase.removeChannel(channel); };
   }, [sessionGameId]);
+
+  // Detect game start transition for animation
+  useEffect(() => {
+    if (previousGameStatusRef.current === 'LOBBY' && gameStatus === 'IN_GAME') {
+      setShowStartAnimation(true);
+      const timer = setTimeout(() => setShowStartAnimation(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    previousGameStatusRef.current = gameStatus;
+  }, [gameStatus]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -297,6 +311,51 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
+  // Start animation overlay for MJ
+  if (showStartAnimation) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B1020]">
+        {/* Animated background waves */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-[#1B4D3E]/30 to-transparent" />
+          <div className="absolute bottom-10 left-1/4 animate-wave">
+            <Waves className="h-16 w-16 text-[#D4AF37]/30" />
+          </div>
+          <div className="absolute bottom-20 right-1/4 animate-wave" style={{ animationDelay: '0.5s' }}>
+            <Waves className="h-12 w-12 text-[#D4AF37]/20" />
+          </div>
+          <div className="absolute bottom-5 left-1/2 animate-wave" style={{ animationDelay: '1s' }}>
+            <Waves className="h-20 w-20 text-[#D4AF37]/40" />
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="relative text-center z-10 px-6">
+          {/* Pulsing ship icon */}
+          <div className="mb-8 animate-game-start-pulse">
+            <div className="relative inline-block">
+              <Ship className="h-24 w-24 text-[#D4AF37]" />
+              <div className="absolute inset-0 animate-ping">
+                <Ship className="h-24 w-24 text-[#D4AF37]/30" />
+              </div>
+            </div>
+          </div>
+
+          {/* Text animations */}
+          <h1 className="text-4xl md:text-5xl font-bold text-[#D4AF37] mb-4 animate-slide-up-fade">
+            Partie lancée !
+          </h1>
+          <p className="text-xl text-[#E8E8E8] animate-slide-up-fade" style={{ animationDelay: '0.3s' }}>
+            {players.length} joueur{players.length > 1 ? 's' : ''} embarqué{players.length > 1 ? 's' : ''}
+          </p>
+          <p className="text-lg text-[#9CA3AF] mt-2 animate-slide-up-fade" style={{ animationDelay: '0.6s' }}>
+            Que l'aventure commence...
+          </p>
+        </div>
       </div>
     );
   }
