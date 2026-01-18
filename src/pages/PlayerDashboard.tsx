@@ -20,9 +20,10 @@ import { PlayerActionTabs } from '@/components/player/PlayerActionTabs';
 import { MancheSelector } from '@/components/player/MancheSelector';
 import TeamChat from '@/components/player/TeamChat';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
+import { PlayerRivieresDashboard } from '@/components/rivieres/PlayerRivieresDashboard';
 
-// Only FORET is implemented for now
-const IMPLEMENTED_GAME_TYPES = ['FORET'];
+// Implemented game types
+const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES'];
 
 interface Game {
   id: string;
@@ -360,7 +361,26 @@ export default function PlayerDashboard() {
     );
   }
 
-  // In-game view - Desktop
+  // RIVIERES Dashboard
+  if (game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0B1020] via-[#151B2D] to-[#0B1020]">
+        <PlayerHeader game={game} player={player} />
+        <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
+          <PlayerRivieresDashboard
+            gameId={game.id}
+            sessionGameId={game.current_session_game_id}
+            playerId={player.id}
+            playerNumber={player.playerNumber}
+            playerToken={player.playerToken || ''}
+            clan={player.clan}
+            jetons={player.jetons}
+          />
+        </main>
+      </div>
+    );
+  }
+
   if (!isMobile) {
     return (
       <div className="min-h-screen flex flex-col">

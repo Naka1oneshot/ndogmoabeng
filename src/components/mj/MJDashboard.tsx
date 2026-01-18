@@ -16,6 +16,7 @@ import { MJMonstersConfigTab } from './MJMonstersConfigTab';
 import { MJItemsShopTab } from './MJItemsShopTab';
 import { MJShopPhaseTab } from './MJShopPhaseTab';
 import MJTeamChatViewer from './MJTeamChatViewer';
+import { MJRivieresDashboard } from '@/components/rivieres/MJRivieresDashboard';
 import { 
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
@@ -35,8 +36,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// Only FORET is implemented for now
-const IMPLEMENTED_GAME_TYPES = ['FORET'];
+// Implemented game types
+const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES'];
 
 
 interface Game {
@@ -466,8 +467,13 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           </div>
         </details>
       )}
+      {/* RIVIERES Dashboard */}
+      {game.status === 'IN_GAME' && game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id && (
+        <MJRivieresDashboard gameId={game.id} sessionGameId={game.current_session_game_id} />
+      )}
 
-      {/* Tabs */}
+      {/* FORET Tabs (original) */}
+      {game.status !== 'IN_GAME' || game.selected_game_type_code === 'FORET' ? (
       <Tabs defaultValue="players" className="w-full">
         <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
           <TabsTrigger value="players" className="flex items-center gap-1">
@@ -543,6 +549,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           </div>
         </TabsContent>
       </Tabs>
+      ) : null}
     </div>
   );
 }
