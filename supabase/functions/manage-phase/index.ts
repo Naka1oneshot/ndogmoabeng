@@ -50,7 +50,7 @@ serve(async (req) => {
     // Get game and verify host
     const { data: game, error: gameError } = await supabase
       .from('games')
-      .select('*')
+      .select('*, current_session_game_id')
       .eq('id', gameId)
       .single();
 
@@ -67,6 +67,9 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const sessionGameId = game.current_session_game_id;
+    console.log(`[manage-phase] Action ${action} for game ${gameId}, session_game ${sessionGameId}`);
 
     let updates: Record<string, unknown> = {};
     let publicEvent: string | null = null;
@@ -134,6 +137,18 @@ serve(async (req) => {
       );
     }
 
+    // Update session_games table if we have a session_game_id
+    if (sessionGameId && (updates.phase || updates.manche_active)) {
+      const sessionGameUpdates: Record<string, unknown> = {};
+      if (updates.phase) sessionGameUpdates.phase = updates.phase;
+      if (updates.manche_active) sessionGameUpdates.manche_active = updates.manche_active;
+      
+      await supabase
+        .from('session_games')
+        .update(sessionGameUpdates)
+        .eq('id', sessionGameId);
+    }
+
     // Create events
     const events = [];
     
@@ -143,7 +158,7 @@ serve(async (req) => {
         audience: 'ALL',
         type: 'PHASE',
         message: publicEvent,
-        payload: { action, ...updates },
+        payload: { action, ...updates, session_game_id: sessionGameId },
       });
     }
 
@@ -153,7 +168,7 @@ serve(async (req) => {
         audience: 'MJ',
         type: 'SYSTEM',
         message: mjEvent,
-        payload: { action, ...updates },
+        payload: { action, ...updates, session_game_id: sessionGameId },
       });
     }
 
@@ -161,7 +176,7 @@ serve(async (req) => {
       await supabase.from('session_events').insert(events);
     }
 
-    console.log(`[manage-phase] Action ${action} executed for game ${gameId}`);
+    console.log(`[manage-phase] Action ${action} executed for game ${gameId}, session_game ${sessionGameId}`);
 
     return new Response(
       JSON.stringify({ 

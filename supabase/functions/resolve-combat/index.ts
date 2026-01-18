@@ -158,7 +158,7 @@ serve(async (req) => {
     // Get game and verify host
     const { data: game, error: gameError } = await supabase
       .from('games')
-      .select('*')
+      .select('*, current_session_game_id')
       .eq('id', gameId)
       .single();
 
@@ -192,14 +192,21 @@ serve(async (req) => {
     }
 
     const manche = game.manche_active;
+    const sessionGameId = game.current_session_game_id;
+    console.log(`[resolve-combat] Processing game ${gameId}, session_game ${sessionGameId}, manche ${manche}`);
 
-    // Check idempotence
-    const { data: existingResult } = await supabase
+    // Check idempotence - use session_game_id if available
+    const idempotenceQuery = supabase
       .from('combat_results')
       .select('*')
       .eq('game_id', gameId)
-      .eq('manche', manche)
-      .single();
+      .eq('manche', manche);
+    
+    if (sessionGameId) {
+      idempotenceQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const { data: existingResult } = await idempotenceQuery.single();
 
     if (existingResult) {
       console.log('[resolve-combat] Already resolved, returning cached result');
@@ -1036,6 +1043,7 @@ serve(async (req) => {
     for (const mine of mineEffects) {
       await supabase.from('pending_effects').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche + 1, // For next manche
         type: 'MINE',
         slot: mine.targetSlots[0],
@@ -1104,6 +1112,7 @@ serve(async (req) => {
       
       await supabase.from('logs_mj').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         action: 'OBJET_ABSENT_INVENTAIRE',
         details: missingItemsMsg,
@@ -1114,6 +1123,7 @@ serve(async (req) => {
     if (consumptionLogs.length > 0) {
       await supabase.from('logs_mj').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         action: 'INVENTAIRE_CONSO',
         details: consumptionLogs.join('\n'),
@@ -1148,6 +1158,7 @@ serve(async (req) => {
     // Store combat results
     await supabase.from('combat_results').insert({
       game_id: gameId,
+      session_game_id: sessionGameId,
       manche: manche,
       public_summary: publicSummary,
       mj_summary: mjSummary,
