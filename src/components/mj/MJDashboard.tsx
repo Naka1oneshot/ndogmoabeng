@@ -7,6 +7,7 @@ import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { GameStartAnimation } from '@/components/game/GameStartAnimation';
+import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
 import { MJPlayersTab } from './MJPlayersTab';
 import { MJBetsTab } from './MJBetsTab';
 import { MJPhase2Tab } from './MJPhase2Tab';
@@ -76,10 +77,17 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [advancingStep, setAdvancingStep] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
+  const [totalAdventureSteps, setTotalAdventureSteps] = useState(3);
   
   // Start animation state
   const [showStartAnimation, setShowStartAnimation] = useState(false);
   const previousGameStatusRef = useRef<string>(initialGame.status);
+  
+  // Transition animation state
+  const [showTransitionAnimation, setShowTransitionAnimation] = useState(false);
+  const [transitionFromGame, setTransitionFromGame] = useState<'FORET' | 'RIVIERES' | 'INFECTION'>('FORET');
+  const [transitionToGame, setTransitionToGame] = useState<'FORET' | 'RIVIERES' | 'INFECTION'>('FORET');
+  const previousStepIndexRef = useRef<number>(initialGame.current_step_index);
   
   const isAdventure = game.mode === 'ADVENTURE' && game.adventure_id;
 
@@ -93,6 +101,48 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
     }
     previousGameStatusRef.current = game.status;
   }, [game.status, game.selected_game_type_code]);
+
+  // Detect step change for transition animation
+  useEffect(() => {
+    if (isAdventure && previousStepIndexRef.current < game.current_step_index) {
+      // Get previous and current game type
+      const fetchGameTypes = async () => {
+        const { data: steps } = await supabase
+          .from('adventure_steps')
+          .select('step_index, game_type_code')
+          .eq('adventure_id', game.adventure_id!)
+          .in('step_index', [previousStepIndexRef.current, game.current_step_index])
+          .order('step_index');
+        
+        if (steps && steps.length >= 2) {
+          const fromType = steps.find(s => s.step_index === previousStepIndexRef.current)?.game_type_code;
+          const toType = steps.find(s => s.step_index === game.current_step_index)?.game_type_code;
+          
+          if (fromType && toType) {
+            setTransitionFromGame(fromType as any);
+            setTransitionToGame(toType as any);
+            setShowTransitionAnimation(true);
+          }
+        }
+        previousStepIndexRef.current = game.current_step_index;
+      };
+      fetchGameTypes();
+    }
+  }, [game.current_step_index, game.adventure_id, isAdventure]);
+
+  // Fetch adventure total steps
+  useEffect(() => {
+    if (isAdventure && game.adventure_id) {
+      const fetchSteps = async () => {
+        const { count } = await supabase
+          .from('adventure_steps')
+          .select('*', { count: 'exact', head: true })
+          .eq('adventure_id', game.adventure_id!);
+        if (count) setTotalAdventureSteps(count);
+      };
+      fetchSteps();
+    }
+  }, [game.adventure_id, isAdventure]);
 
   // Fetch player count for animation
   useEffect(() => {
@@ -301,6 +351,19 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
   // Check if game type is implemented
   const isGameTypeImplemented = IMPLEMENTED_GAME_TYPES.includes(game.selected_game_type_code || '');
+
+  // Transition animation overlay for adventure mode
+  if (showTransitionAnimation) {
+    return (
+      <GameTransitionAnimation
+        fromGameType={transitionFromGame}
+        toGameType={transitionToGame}
+        stepIndex={game.current_step_index}
+        totalSteps={totalAdventureSteps}
+        onComplete={() => setShowTransitionAnimation(false)}
+      />
+    );
+  }
 
   // Start animation overlay for FORET
   if (showStartAnimation) {

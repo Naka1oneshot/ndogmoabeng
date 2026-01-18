@@ -8,6 +8,7 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { GameStartAnimation } from '@/components/game/GameStartAnimation';
+import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
 import { EventsFeed } from '@/components/player/EventsFeed';
@@ -38,6 +39,9 @@ interface Game {
   phase_locked: boolean;
   current_session_game_id: string | null;
   selected_game_type_code: string | null;
+  mode?: string;
+  adventure_id?: string | null;
+  current_step_index?: number;
 }
 
 interface Player {
@@ -70,6 +74,15 @@ export default function PlayerDashboard() {
   // Start animation state for FORET
   const [showStartAnimation, setShowStartAnimation] = useState(false);
   const previousGameStatusRef = useRef<string | null>(null);
+  
+  // Transition animation state for adventure mode
+  const [showTransitionAnimation, setShowTransitionAnimation] = useState(false);
+  const [transitionFromGame, setTransitionFromGame] = useState<'FORET' | 'RIVIERES' | 'INFECTION'>('FORET');
+  const [transitionToGame, setTransitionToGame] = useState<'FORET' | 'RIVIERES' | 'INFECTION'>('FORET');
+  const [totalAdventureSteps, setTotalAdventureSteps] = useState(3);
+  const previousStepIndexRef = useRef<number | null>(null);
+
+  const isAdventure = game?.mode === 'ADVENTURE' && game?.adventure_id;
 
   // Auto-reset to current manche when game.manche_active changes
   useEffect(() => {
@@ -90,6 +103,53 @@ export default function PlayerDashboard() {
       previousGameStatusRef.current = game.status;
     }
   }, [game?.status, game?.selected_game_type_code]);
+
+  // Detect step change for transition animation in adventure mode
+  useEffect(() => {
+    if (!game || !isAdventure) return;
+    
+    const currentStepIndex = game.current_step_index ?? 1;
+    
+    if (previousStepIndexRef.current !== null && previousStepIndexRef.current < currentStepIndex) {
+      // Step changed - fetch game types and show animation
+      const fetchGameTypes = async () => {
+        const { data: steps } = await supabase
+          .from('adventure_steps')
+          .select('step_index, game_type_code')
+          .eq('adventure_id', game.adventure_id!)
+          .in('step_index', [previousStepIndexRef.current!, currentStepIndex])
+          .order('step_index');
+        
+        if (steps && steps.length >= 2) {
+          const fromType = steps.find(s => s.step_index === previousStepIndexRef.current)?.game_type_code;
+          const toType = steps.find(s => s.step_index === currentStepIndex)?.game_type_code;
+          
+          if (fromType && toType) {
+            setTransitionFromGame(fromType as any);
+            setTransitionToGame(toType as any);
+            setShowTransitionAnimation(true);
+          }
+        }
+      };
+      fetchGameTypes();
+    }
+    
+    previousStepIndexRef.current = currentStepIndex;
+  }, [game?.current_step_index, game?.adventure_id, isAdventure]);
+
+  // Fetch adventure total steps
+  useEffect(() => {
+    if (isAdventure && game?.adventure_id) {
+      const fetchSteps = async () => {
+        const { count } = await supabase
+          .from('adventure_steps')
+          .select('*', { count: 'exact', head: true })
+          .eq('adventure_id', game.adventure_id!);
+        if (count) setTotalAdventureSteps(count);
+      };
+      fetchSteps();
+    }
+  }, [game?.adventure_id, isAdventure]);
 
   const { handleLeave: presenceLeave } = usePlayerPresence({
     gameId,
@@ -360,6 +420,19 @@ export default function PlayerDashboard() {
           </div>
         </main>
       </div>
+    );
+  }
+
+  // Transition animation overlay for adventure mode
+  if (showTransitionAnimation) {
+    return (
+      <GameTransitionAnimation
+        fromGameType={transitionFromGame}
+        toGameType={transitionToGame}
+        stepIndex={game.current_step_index ?? 1}
+        totalSteps={totalAdventureSteps}
+        onComplete={() => setShowTransitionAnimation(false)}
+      />
     );
   }
 

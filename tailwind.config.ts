@@ -99,6 +99,14 @@ export default {
           "0%, 100%": { transform: "translateY(0) rotate(-5deg)" },
           "50%": { transform: "translateY(-10px) rotate(5deg)" },
         },
+        "bounce-x": {
+          "0%, 100%": { transform: "translateX(0)" },
+          "50%": { transform: "translateX(10px)" },
+        },
+        "spin-slow": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -107,6 +115,8 @@ export default {
         "game-start-fade": "game-start-fade 0.5s ease-out forwards",
         "slide-up-fade": "slide-up-fade 0.5s ease-out forwards",
         "wave": "wave 2s ease-in-out infinite",
+        "bounce-x": "bounce-x 1s ease-in-out infinite",
+        "spin-slow": "spin-slow 3s linear infinite",
       },
     },
   },
