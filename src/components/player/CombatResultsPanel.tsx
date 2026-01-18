@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Swords, Skull, TreePine, Ban, Check } from 'lucide-react';
+import { useGameSounds } from '@/hooks/useGameSounds';
 
 interface Game {
   id: string;
@@ -49,8 +50,14 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
   const effectiveSessionGameId = sessionGameId ?? game.current_session_game_id;
   const [combatResult, setCombatResult] = useState<CombatResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const { playCombatSequence } = useGameSounds();
+  const hasPlayedSound = useRef(false);
+  const previousResultId = useRef<string | null>(null);
 
   useEffect(() => {
+    // Reset sound flag when manche changes
+    hasPlayedSound.current = false;
+    previousResultId.current = null;
     fetchCombatResult();
 
     const channel = supabase
@@ -66,7 +73,7 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
   const fetchCombatResult = async () => {
     let query = supabase
       .from('combat_results')
-      .select('public_summary, kills, forest_state')
+      .select('id, public_summary, kills, forest_state')
       .eq('game_id', game.id)
       .eq('manche', manche);
     
@@ -77,11 +84,26 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
     const { data } = await query.maybeSingle();
 
     if (data) {
-      setCombatResult({
+      const resultId = data.id;
+      const isNewResult = resultId !== previousResultId.current;
+      
+      const result = {
         public_summary: data.public_summary as unknown as PublicAction[],
         kills: data.kills as unknown as Kill[],
         forest_state: data.forest_state as unknown as ForestState,
-      });
+      };
+      
+      setCombatResult(result);
+      
+      // Play sound only for new results (not on initial load of old data)
+      if (isNewResult && !hasPlayedSound.current && previousResultId.current !== null) {
+        const totalHits = result.public_summary.filter(a => !a.cancelled && a.totalDamage > 0).length;
+        const totalKills = result.kills.length;
+        playCombatSequence(totalKills, totalHits);
+        hasPlayedSound.current = true;
+      }
+      
+      previousResultId.current = resultId;
     } else {
       setCombatResult(null);
     }
