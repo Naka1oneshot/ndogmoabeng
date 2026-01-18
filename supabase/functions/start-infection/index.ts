@@ -73,34 +73,77 @@ Deno.serve(async (req) => {
 
     const players = playersRaw || [];
 
-    if (players.length < 6) {
-      throw new Error(`Not enough players. Need at least 6, got ${players.length}`);
+    if (players.length < 7) {
+      throw new Error(`Not enough players. Need at least 7, got ${players.length}`);
     }
 
     const playerCount = players.length;
     console.log('[start-infection] Player count:', playerCount);
 
-    // 2. Calculate role distribution
-    const defaultRoleConfig: RoleConfig = {
-      BA: 1,
-      PV: 2,
-      SY: 2,
-      AE: 1,
-      OC: 1,
-      KK: 1,
-      CV: Math.max(0, playerCount - 8), // Remaining players are CV
-    };
+    // 2. Calculate role distribution based on player count
+    // MINIMUM 7 players. Distribution ensures at least 1 CV for antibodies.
+    // 7 players:  BA=1, PV=2, SY=2, OC=1, CV=1 (no AE, no KK)
+    // 8 players:  BA=1, PV=2, SY=2, OC=1, KK=1, CV=1 (no AE)
+    // 9+ players: BA=1, PV=2, SY=2, AE=1, OC=1, KK=1, CV=remaining
+    let defaultRoleConfig: RoleConfig;
+    
+    if (playerCount === 7) {
+      // 7 players: BA=1, PV=2, SY=2, OC=1, CV=1 (no AE, no KK)
+      defaultRoleConfig = {
+        BA: 1,
+        PV: 2,
+        SY: 2,
+        AE: 0,
+        OC: 1,
+        KK: 0,
+        CV: 1,
+      };
+    } else if (playerCount === 8) {
+      // 8 players: BA=1, PV=2, SY=2, OC=1, KK=1, CV=1 (no AE)
+      defaultRoleConfig = {
+        BA: 1,
+        PV: 2,
+        SY: 2,
+        AE: 0,
+        OC: 1,
+        KK: 1,
+        CV: 1,
+      };
+    } else {
+      // 9+ players: full distribution with AE
+      defaultRoleConfig = {
+        BA: 1,
+        PV: 2,
+        SY: 2,
+        AE: 1,
+        OC: 1,
+        KK: 1,
+        CV: playerCount - 8, // Remaining are CV
+      };
+    }
 
     const finalRoleConfig: RoleConfig = {
       ...defaultRoleConfig,
       ...roleConfig,
     };
 
-    // Validate total roles = player count
+    // Validate total roles = player count and adjust if needed
     const totalRoles = Object.values(finalRoleConfig).reduce((a, b) => a + b, 0);
     if (totalRoles !== playerCount) {
-      // Adjust CV to match
-      finalRoleConfig.CV = playerCount - (totalRoles - finalRoleConfig.CV);
+      finalRoleConfig.CV = Math.max(0, playerCount - (totalRoles - finalRoleConfig.CV));
+    }
+    
+    // Safety check: ensure at least 1 CV for antibodies
+    if (finalRoleConfig.CV < 1) {
+      console.warn('[start-infection] Warning: No CV players - adjusting');
+      // Reduce KK or AE to make room for CV
+      if (finalRoleConfig.KK > 0) {
+        finalRoleConfig.KK--;
+        finalRoleConfig.CV++;
+      } else if (finalRoleConfig.AE > 0) {
+        finalRoleConfig.AE--;
+        finalRoleConfig.CV++;
+      }
     }
 
     console.log('[start-infection] Role config:', finalRoleConfig);
