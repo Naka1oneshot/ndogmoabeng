@@ -376,6 +376,8 @@ export default function PlayerDashboard() {
             playerToken={player.playerToken || ''}
             clan={player.clan}
             jetons={player.jetons}
+            gameStatus={game.status}
+            displayName={player.displayName}
           />
         </main>
       </div>
