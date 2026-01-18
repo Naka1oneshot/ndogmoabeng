@@ -13,8 +13,9 @@ import { AdminBadge } from '@/components/game/AdminBadge';
 import { MJDashboard } from '@/components/mj/MJDashboard';
 import { 
   Plus, LogOut, Loader2, ShieldAlert, 
-  ChevronLeft, Trash2, Eye, Users
+  ChevronLeft, Trash2, Eye, Users, Map, Gamepad2
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import {
@@ -430,8 +431,19 @@ export default function MJ() {
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-medium truncate">{game.name}</h3>
+                          {game.mode === 'ADVENTURE' ? (
+                            <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30 hover:bg-amber-600/30">
+                              <Map className="h-3 w-3 mr-1" />
+                              Aventure
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-emerald-600/20 text-emerald-400 border-emerald-600/30 hover:bg-emerald-600/30">
+                              <Gamepad2 className="h-3 w-3 mr-1" />
+                              Partie unique
+                            </Badge>
+                          )}
                           <GameStatusBadge status={game.status} />
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
