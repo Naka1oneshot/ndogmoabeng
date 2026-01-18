@@ -80,9 +80,10 @@ interface MJRivieresDashboardProps {
   sessionGameId: string;
   isAdventure?: boolean;
   onNextGame?: () => void;
+  gameStatus?: string;
 }
 
-export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false, onNextGame }: MJRivieresDashboardProps) {
+export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false, onNextGame, gameStatus = 'IN_GAME' }: MJRivieresDashboardProps) {
   const [state, setState] = useState<RiverSessionState | null>(null);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats[]>([]);
   const [decisions, setDecisions] = useState<RiverDecision[]>([]);
@@ -296,6 +297,57 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
+  // LOBBY VIEW - Show waiting room with player list
+  if (gameStatus === 'LOBBY') {
+    return (
+      <div className={`${rivieresCardStyle} p-6`}>
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <Anchor className="h-8 w-8 text-[#D4AF37]" />
+          <h2 className="text-2xl font-bold text-[#D4AF37]">Salle d'attente RIVIERES</h2>
+        </div>
+        
+        <div className="text-center mb-6">
+          <p className="text-[#9CA3AF] mb-2">
+            En attente du lancement de la partie...
+          </p>
+          <p className="text-[#E8E8E8]">
+            <span className="text-[#D4AF37] font-bold text-2xl">{players.length}</span> joueur{players.length > 1 ? 's' : ''} connecté{players.length > 1 ? 's' : ''}
+          </p>
+        </div>
+
+        {/* Player list */}
+        {players.length > 0 && (
+          <div className="bg-[#0B1020] rounded-lg p-4">
+            <h3 className="text-[#D4AF37] font-medium mb-3 flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Joueurs inscrits
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              {players.map(player => (
+                <div 
+                  key={player.id} 
+                  className="flex items-center gap-2 p-2 bg-[#20232A] rounded border border-[#D4AF37]/20"
+                >
+                  <span className="w-6 h-6 bg-[#D4AF37]/20 rounded-full flex items-center justify-center text-xs font-bold text-[#D4AF37]">
+                    {player.player_number || '?'}
+                  </span>
+                  <span className="text-[#E8E8E8] text-sm truncate flex-1">{player.display_name}</span>
+                  {player.clan && (
+                    <span className="text-xs text-[#9CA3AF]">{player.clan}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className="text-center text-[#9CA3AF] text-sm mt-6">
+          Utilisez le bouton "Démarrer la partie" dans la barre d'actions pour lancer le jeu RIVIERES.
+        </p>
       </div>
     );
   }
