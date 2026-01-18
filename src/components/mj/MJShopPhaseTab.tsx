@@ -87,6 +87,12 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
   const [requests, setRequests] = useState<ShopRequest[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [selectedManche, setSelectedManche] = useState(game.manche_active || 1);
+
+  // Reset to current manche when phase changes
+  useEffect(() => {
+    setSelectedManche(game.manche_active || 1);
+  }, [game.manche_active, game.phase]);
 
   useEffect(() => {
     fetchData();
@@ -101,7 +107,7 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [game.id, game.manche_active]);
+  }, [game.id, selectedManche]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -111,7 +117,7 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
           .from('game_shop_offers')
           .select('*')
           .eq('game_id', game.id)
-          .eq('manche', game.manche_active)
+          .eq('manche', selectedManche)
           .maybeSingle(),
         supabase.from('shop_prices').select('*'),
         supabase.from('item_catalog').select('name, category, base_damage, base_heal, restockable'),
@@ -119,13 +125,13 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
           .from('shop_requests')
           .select('*')
           .eq('game_id', game.id)
-          .eq('manche', game.manche_active)
+          .eq('manche', selectedManche)
           .order('updated_at', { ascending: false }),
         supabase
           .from('game_item_purchases')
           .select('*')
           .eq('game_id', game.id)
-          .eq('manche', game.manche_active)
+          .eq('manche', selectedManche)
           .order('purchased_at', { ascending: false }),
         supabase
           .from('game_players')
@@ -222,6 +228,8 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
   const isPhase3 = game.phase === 'PHASE3_SHOP';
   const isResolved = shopOffer?.resolved;
   const requestsWithBuy = requests.filter(r => r.want_buy);
+  const isViewingHistory = selectedManche < (game.manche_active || 1);
+  const mancheOptions = Array.from({ length: game.manche_active || 1 }, (_, i) => i + 1);
 
   if (loading) {
     return (
@@ -233,11 +241,43 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Manche Selector */}
+      {(game.manche_active || 1) > 1 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-muted-foreground">Manche :</span>
+          {mancheOptions.map((manche) => (
+            <button
+              key={manche}
+              onClick={() => setSelectedManche(manche)}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                selectedManche === manche
+                  ? 'bg-primary text-primary-foreground'
+                  : manche < (game.manche_active || 1)
+                    ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                    : 'bg-secondary hover:bg-secondary/80'
+              }`}
+            >
+              {manche}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* History indicator */}
+      {isViewingHistory && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-amber-500" />
+          <span className="text-sm text-amber-400">
+            Historique de la manche {selectedManche} (lecture seule)
+          </span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-display text-lg flex items-center gap-2">
           <ShoppingBag className="h-5 w-5 text-green-500" />
-          Shop Manche {game.manche_active}
+          Shop Manche {selectedManche}
         </h3>
         <div className="flex items-center gap-2">
           {isResolved && (
@@ -246,46 +286,50 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
               Résolu
             </Badge>
           )}
-          <Badge variant={isPhase3 ? 'default' : 'secondary'}>
-            {isPhase3 ? 'Phase active' : game.phase}
-          </Badge>
+          {!isViewingHistory && (
+            <Badge variant={isPhase3 ? 'default' : 'secondary'}>
+              {isPhase3 ? 'Phase active' : game.phase}
+            </Badge>
+          )}
         </div>
       </div>
 
-      {/* Generate button */}
-      <div className="card-gradient rounded-lg border border-border p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h4 className="font-medium">Génération du Shop</h4>
-            <p className="text-sm text-muted-foreground">
-              {shopOffer 
-                ? `Shop généré le ${new Date(shopOffer.generated_at).toLocaleString()}`
-                : 'Aucun shop généré pour cette manche'}
-            </p>
+      {/* Generate button - only show for current manche */}
+      {!isViewingHistory && (
+        <div className="card-gradient rounded-lg border border-border p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="font-medium">Génération du Shop</h4>
+              <p className="text-sm text-muted-foreground">
+                {shopOffer 
+                  ? `Shop généré le ${new Date(shopOffer.generated_at).toLocaleString()}`
+                  : 'Aucun shop généré pour cette manche'}
+              </p>
+            </div>
+            <ForestButton
+              onClick={handleGenerateShop}
+              disabled={generating || isResolved}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {generating ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : shopOffer ? (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              ) : (
+                <ShoppingBag className="h-4 w-4 mr-2" />
+              )}
+              {shopOffer ? 'Régénérer' : 'Générer le Shop'}
+            </ForestButton>
           </div>
-          <ForestButton
-            onClick={handleGenerateShop}
-            disabled={generating || isResolved}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {generating ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : shopOffer ? (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            ) : (
-              <ShoppingBag className="h-4 w-4 mr-2" />
-            )}
-            {shopOffer ? 'Régénérer' : 'Générer le Shop'}
-          </ForestButton>
-        </div>
 
-        {isResolved && (
-          <p className="text-xs text-green-400">
-            <CheckCircle2 className="h-3 w-3 inline mr-1" />
-            Shop résolu - régénération désactivée
-          </p>
-        )}
-      </div>
+          {isResolved && (
+            <p className="text-xs text-green-400">
+              <CheckCircle2 className="h-3 w-3 inline mr-1" />
+              Shop résolu - régénération désactivée
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Shop offer display */}
       {shopOffer && (
@@ -347,8 +391,8 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
         </div>
       )}
 
-      {/* Requests section - only show if shop exists and not resolved */}
-      {shopOffer && !isResolved && (
+      {/* Requests section - only show if shop exists and not resolved and not viewing history */}
+      {shopOffer && !isResolved && !isViewingHistory && (
         <div className="card-gradient rounded-lg border border-amber-500/30 p-4">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-medium flex items-center gap-2">
@@ -432,8 +476,8 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
         </div>
       )}
 
-      {/* Purchases log - show if resolved */}
-      {isResolved && (
+      {/* Purchases log - show if resolved or viewing history */}
+      {(isResolved || isViewingHistory) && (
         <div className="card-gradient rounded-lg border border-border p-4">
           <h4 className="font-medium mb-4 flex items-center gap-2">
             <User className="h-4 w-4" />
@@ -442,7 +486,7 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
 
           {purchases.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Aucun achat validé pour cette manche
+              {shopOffer ? 'Aucun achat validé pour cette manche' : 'Aucun shop pour cette manche'}
             </p>
           ) : (
             <div className="space-y-2">
