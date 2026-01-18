@@ -469,7 +469,12 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       )}
       {/* RIVIERES Dashboard */}
       {game.status === 'IN_GAME' && game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id && (
-        <MJRivieresDashboard gameId={game.id} sessionGameId={game.current_session_game_id} />
+        <MJRivieresDashboard 
+          gameId={game.id} 
+          sessionGameId={game.current_session_game_id}
+          isAdventure={!!isAdventure}
+          onNextGame={isAdventure ? handleNextSessionGame : undefined}
+        />
       )}
 
       {/* FORET Tabs (original) */}
