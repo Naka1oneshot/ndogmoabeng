@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Anchor, Ship, Trophy, MessageSquare, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Anchor, Ship, Trophy, MessageSquare, CheckCircle, AlertTriangle, Waves } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   rivieresCardStyle, 
@@ -69,6 +69,8 @@ export function PlayerRivieresDashboard({
   const [logs, setLogs] = useState<{ id: string; type: string; message: string; manche: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showStartAnimation, setShowStartAnimation] = useState(false);
+  const [previousGameStatus, setPreviousGameStatus] = useState<string | undefined>(undefined);
 
   // Form state
   const [decision, setDecision] = useState<'RESTE' | 'DESCENDS'>('RESTE');
@@ -76,6 +78,18 @@ export function PlayerRivieresDashboard({
   const [keryndesChoice, setKeryndesChoice] = useState<'NONE' | 'AV1_CANOT' | 'AV2_REDUCE'>('NONE');
 
   const isKeryndes = clan === 'Keryndes';
+
+  // Detect game start transition (LOBBY -> IN_GAME)
+  useEffect(() => {
+    if (previousGameStatus === 'LOBBY' && gameStatus === 'IN_GAME') {
+      setShowStartAnimation(true);
+      const timer = setTimeout(() => {
+        setShowStartAnimation(false);
+      }, 3000); // Animation duration
+      return () => clearTimeout(timer);
+    }
+    setPreviousGameStatus(gameStatus);
+  }, [gameStatus, previousGameStatus]);
 
   useEffect(() => {
     fetchData();
@@ -182,6 +196,56 @@ export function PlayerRivieresDashboard({
       setSubmitting(false);
     }
   };
+
+  // GAME START ANIMATION
+  if (showStartAnimation) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-[#0B1020] via-[#151B2D] to-[#0B1020]">
+        <div className="text-center">
+          {/* Background waves */}
+          <div className="absolute inset-0 overflow-hidden opacity-20">
+            <div className="absolute top-1/4 left-0 right-0 flex justify-center gap-8">
+              <Waves className="h-24 w-24 text-blue-400 animate-wave" style={{ animationDelay: '0s' }} />
+              <Waves className="h-24 w-24 text-blue-400 animate-wave" style={{ animationDelay: '0.3s' }} />
+              <Waves className="h-24 w-24 text-blue-400 animate-wave" style={{ animationDelay: '0.6s' }} />
+            </div>
+            <div className="absolute bottom-1/4 left-0 right-0 flex justify-center gap-8">
+              <Waves className="h-24 w-24 text-blue-400 animate-wave" style={{ animationDelay: '0.2s' }} />
+              <Waves className="h-24 w-24 text-blue-400 animate-wave" style={{ animationDelay: '0.5s' }} />
+              <Waves className="h-24 w-24 text-blue-400 animate-wave" style={{ animationDelay: '0.8s' }} />
+            </div>
+          </div>
+
+          {/* Main content */}
+          <div className="relative z-10">
+            <div className="animate-game-start-pulse">
+              <Ship className="h-24 w-24 text-[#D4AF37] mx-auto mb-6" />
+            </div>
+            
+            <h1 className="text-4xl font-bold text-[#D4AF37] mb-4 animate-slide-up-fade" style={{ animationDelay: '0.3s' }}>
+              🌊 RIVIERES 🌊
+            </h1>
+            
+            <p className="text-xl text-[#E8E8E8] mb-2 animate-slide-up-fade" style={{ animationDelay: '0.5s' }}>
+              La partie commence !
+            </p>
+            
+            <p className="text-[#9CA3AF] animate-slide-up-fade" style={{ animationDelay: '0.7s' }}>
+              Préparez-vous, {displayName || `Joueur ${playerNumber}`}...
+            </p>
+
+            <div className="mt-8 animate-slide-up-fade" style={{ animationDelay: '1s' }}>
+              <div className="flex items-center justify-center gap-2 text-[#4ADE80]">
+                <div className="w-2 h-2 rounded-full bg-[#4ADE80] animate-pulse" />
+                <span>Chargement...</span>
+                <div className="w-2 h-2 rounded-full bg-[#4ADE80] animate-pulse" style={{ animationDelay: '0.2s' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
