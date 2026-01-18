@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, Dice6, Lock, Play, Users, History, 
-  AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag
+  AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -303,6 +303,41 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
 
   // LOBBY VIEW - Show waiting room with player list
   if (gameStatus === 'LOBBY') {
+    const handleStartGame = async () => {
+      if (players.length < 1) {
+        toast.error('Au moins 1 joueur requis');
+        return;
+      }
+      
+      setActionLoading('start');
+      try {
+        // First, call start-game to transition to IN_GAME
+        const { error: startError } = await supabase.functions.invoke('start-game', {
+          body: { gameId },
+        });
+        
+        if (startError) throw startError;
+        
+        // Then initialize RIVIERES-specific state
+        const { error: initError } = await supabase.functions.invoke('rivieres-init', {
+          body: { session_game_id: sessionGameId },
+        });
+        
+        if (initError) {
+          console.error('RIVIERES init error:', initError);
+          // Don't throw - game is already started, RIVIERES init might auto-retry
+        }
+        
+        toast.success(`Partie RIVIERES lancée avec ${players.length} joueur${players.length > 1 ? 's' : ''} !`);
+        fetchData();
+      } catch (error: any) {
+        console.error('Start game error:', error);
+        toast.error(error.message || 'Erreur lors du démarrage');
+      } finally {
+        setActionLoading(null);
+      }
+    };
+
     return (
       <div className={`${rivieresCardStyle} p-6`}>
         <div className="flex items-center justify-center gap-3 mb-6">
@@ -321,7 +356,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
 
         {/* Player list */}
         {players.length > 0 && (
-          <div className="bg-[#0B1020] rounded-lg p-4">
+          <div className="bg-[#0B1020] rounded-lg p-4 mb-6">
             <h3 className="text-[#D4AF37] font-medium mb-3 flex items-center gap-2">
               <Users className="h-4 w-4" />
               Joueurs inscrits
@@ -345,9 +380,31 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           </div>
         )}
 
-        <p className="text-center text-[#9CA3AF] text-sm mt-6">
-          Utilisez le bouton "Démarrer la partie" dans la barre d'actions pour lancer le jeu RIVIERES.
-        </p>
+        {/* Start button */}
+        <ForestButton
+          size="lg"
+          onClick={handleStartGame}
+          disabled={actionLoading === 'start' || players.length < 1}
+          className="w-full bg-[#4ADE80] hover:bg-[#4ADE80]/80 text-black text-lg py-6 font-bold"
+        >
+          {actionLoading === 'start' ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              Démarrage en cours...
+            </>
+          ) : (
+            <>
+              <Ship className="h-5 w-5 mr-2" />
+              Démarrer la partie RIVIERES
+            </>
+          )}
+        </ForestButton>
+
+        {players.length < 1 && (
+          <p className="text-center text-amber-400 text-sm mt-3">
+            ⚠️ Au moins 1 joueur doit être connecté pour démarrer
+          </p>
+        )}
       </div>
     );
   }
