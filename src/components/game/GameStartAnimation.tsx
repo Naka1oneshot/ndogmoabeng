@@ -1,5 +1,6 @@
-import { Ship, Trees, Waves, Volume2, VolumeX } from 'lucide-react';
+import { Ship, Trees, Waves, Volume2, VolumeX, Volume1 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { Slider } from '@/components/ui/slider';
 
 interface GameStartAnimationProps {
   gameType: 'FORET' | 'RIVIERES';
@@ -25,6 +26,19 @@ export function GameStartAnimation({
       return false;
     }
   });
+
+  // Initialize volume from localStorage (0-100)
+  const [volume, setVolume] = useState(() => {
+    try {
+      const stored = localStorage.getItem('gameStartSoundVolume');
+      return stored ? parseInt(stored, 10) : 50;
+    } catch {
+      return 50;
+    }
+  });
+
+  // Show/hide volume slider
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   
   // Play sound effect on mount
   useEffect(() => {
@@ -32,10 +46,9 @@ export function GameStartAnimation({
     
     try {
       audioRef.current = new Audio(soundFile);
-      audioRef.current.volume = 0.5;
-      audioRef.current.muted = isMuted; // Apply stored preference
+      audioRef.current.volume = volume / 100;
+      audioRef.current.muted = isMuted;
       audioRef.current.play().catch(err => {
-        // Autoplay might be blocked by browser, that's okay
         console.log('Audio autoplay blocked:', err);
       });
     } catch (err) {
@@ -48,7 +61,21 @@ export function GameStartAnimation({
         audioRef.current = null;
       }
     };
-  }, [isForet, isMuted]);
+  }, [isForet]); // Only re-run on game type change, not on volume/mute changes
+
+  // Update audio when volume changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume / 100;
+    }
+  }, [volume]);
+
+  // Update audio when mute changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
 
   // Handle mute toggle and persist to localStorage
   const toggleMute = () => {
@@ -59,10 +86,28 @@ export function GameStartAnimation({
     } catch {
       // localStorage might not be available
     }
-    if (audioRef.current) {
-      audioRef.current.muted = newMuted;
+  };
+
+  // Handle volume change and persist to localStorage
+  const handleVolumeChange = (value: number[]) => {
+    const newVolume = value[0];
+    setVolume(newVolume);
+    try {
+      localStorage.setItem('gameStartSoundVolume', String(newVolume));
+    } catch {
+      // localStorage might not be available
+    }
+    // Unmute if adjusting volume while muted
+    if (isMuted && newVolume > 0) {
+      setIsMuted(false);
+      try {
+        localStorage.setItem('gameStartSoundMuted', 'false');
+      } catch {}
     }
   };
+
+  // Get appropriate volume icon
+  const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 50 ? Volume1 : Volume2;
   
   // Theme colors based on game type
   const bgColor = isForet ? 'bg-[#1a2f1a]' : 'bg-[#0B1020]';
@@ -89,18 +134,43 @@ export function GameStartAnimation({
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center ${bgColor}`}>
-      {/* Mute button */}
-      <button
-        onClick={toggleMute}
-        className={`absolute top-4 right-4 p-3 rounded-full transition-all duration-200 hover:scale-110 ${
-          isForet 
-            ? 'bg-[#2d4a2d]/50 hover:bg-[#2d4a2d]/70 text-[#4ADE80]' 
-            : 'bg-[#1B4D3E]/50 hover:bg-[#1B4D3E]/70 text-[#D4AF37]'
-        }`}
-        aria-label={isMuted ? 'Activer le son' : 'Couper le son'}
-      >
-        {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
-      </button>
+      {/* Volume controls */}
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        {showVolumeSlider && (
+          <div 
+            className={`flex items-center gap-2 px-3 py-2 rounded-full ${
+              isForet 
+                ? 'bg-[#2d4a2d]/70' 
+                : 'bg-[#1B4D3E]/70'
+            }`}
+          >
+            <Slider
+              value={[volume]}
+              onValueChange={handleVolumeChange}
+              max={100}
+              step={1}
+              className="w-24"
+            />
+            <span className={`text-xs font-medium min-w-[2rem] ${isForet ? 'text-[#4ADE80]' : 'text-[#D4AF37]'}`}>
+              {volume}%
+            </span>
+          </div>
+        )}
+        <button
+          onClick={() => setShowVolumeSlider(!showVolumeSlider)}
+          onDoubleClick={toggleMute}
+          className={`p-3 rounded-full transition-all duration-200 hover:scale-110 ${
+            isForet 
+              ? 'bg-[#2d4a2d]/50 hover:bg-[#2d4a2d]/70 text-[#4ADE80]' 
+              : 'bg-[#1B4D3E]/50 hover:bg-[#1B4D3E]/70 text-[#D4AF37]'
+          }`}
+          aria-label={isMuted ? 'Activer le son' : 'Régler le volume'}
+          title="Clic: volume | Double-clic: mute"
+        >
+          <VolumeIcon className="h-6 w-6" />
+        </button>
+      </div>
+      
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className={`absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t ${gradientColor} to-transparent`} />
