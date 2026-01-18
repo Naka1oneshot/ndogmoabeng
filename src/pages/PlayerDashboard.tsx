@@ -16,6 +16,7 @@ import { PhasePanel } from '@/components/player/PhasePanel';
 import { ResultsPanel } from '@/components/player/ResultsPanel';
 import { PositionsRankingPanel } from '@/components/player/PositionsRankingPanel';
 import { CombatResultsPanel } from '@/components/player/CombatResultsPanel';
+import { ForestFinalRanking } from '@/components/player/ForestFinalRanking';
 import { PlayerActionTabs } from '@/components/player/PlayerActionTabs';
 import { MancheSelector } from '@/components/player/MancheSelector';
 import TeamChat from '@/components/player/TeamChat';
@@ -414,6 +415,13 @@ export default function PlayerDashboard() {
             <div className="space-y-4 overflow-auto">
               <BattlefieldView gameId={game.id} sessionGameId={game.current_session_game_id} />
               
+              {/* Forest Final Ranking */}
+              <ForestFinalRanking 
+                gameId={game.id} 
+                sessionGameId={game.current_session_game_id}
+                currentPlayerNumber={player.playerNumber}
+              />
+              
               {/* Manche Selector */}
               <div className="card-gradient rounded-lg border border-border p-3 flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Historique</span>
@@ -480,6 +488,13 @@ export default function PlayerDashboard() {
         <Tabs value={mobileTab} onValueChange={setMobileTab} className="h-full">
           <TabsContent value="battle" className="p-4 space-y-4 mt-0">
             <BattlefieldView gameId={game.id} sessionGameId={game.current_session_game_id} />
+            
+            {/* Forest Final Ranking - Mobile */}
+            <ForestFinalRanking 
+              gameId={game.id} 
+              sessionGameId={game.current_session_game_id}
+              currentPlayerNumber={player.playerNumber}
+            />
             
             {/* Manche Selector - Mobile */}
             <div className="card-gradient rounded-lg border border-border p-3">
