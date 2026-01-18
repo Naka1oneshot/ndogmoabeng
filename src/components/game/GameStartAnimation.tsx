@@ -15,8 +15,16 @@ export function GameStartAnimation({
   isMJ = false 
 }: GameStartAnimationProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isMuted, setIsMuted] = useState(false);
   const isForet = gameType === 'FORET';
+  
+  // Initialize mute state from localStorage
+  const [isMuted, setIsMuted] = useState(() => {
+    try {
+      return localStorage.getItem('gameStartSoundMuted') === 'true';
+    } catch {
+      return false;
+    }
+  });
   
   // Play sound effect on mount
   useEffect(() => {
@@ -25,6 +33,7 @@ export function GameStartAnimation({
     try {
       audioRef.current = new Audio(soundFile);
       audioRef.current.volume = 0.5;
+      audioRef.current.muted = isMuted; // Apply stored preference
       audioRef.current.play().catch(err => {
         // Autoplay might be blocked by browser, that's okay
         console.log('Audio autoplay blocked:', err);
@@ -39,13 +48,19 @@ export function GameStartAnimation({
         audioRef.current = null;
       }
     };
-  }, [isForet]);
+  }, [isForet, isMuted]);
 
-  // Handle mute toggle
+  // Handle mute toggle and persist to localStorage
   const toggleMute = () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    try {
+      localStorage.setItem('gameStartSoundMuted', String(newMuted));
+    } catch {
+      // localStorage might not be available
+    }
     if (audioRef.current) {
-      audioRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
+      audioRef.current.muted = newMuted;
     }
   };
   
