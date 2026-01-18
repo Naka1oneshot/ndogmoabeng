@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
+import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { MJPlayersTab } from './MJPlayersTab';
 import { MJBetsTab } from './MJBetsTab';
 import { MJPhase2Tab } from './MJPhase2Tab';
@@ -33,6 +34,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+// Only FORET is implemented for now
+const IMPLEMENTED_GAME_TYPES = ['FORET'];
+
 
 interface Game {
   id: string;
@@ -262,6 +267,31 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   };
 
   const joinUrl = `${window.location.origin}/join/${game.join_code}`;
+
+  // Check if game type is implemented
+  const isGameTypeImplemented = IMPLEMENTED_GAME_TYPES.includes(game.selected_game_type_code || '');
+
+  // Show "in development" screen for non-implemented game types (only for IN_GAME status)
+  if (game.status === 'IN_GAME' && !isGameTypeImplemented) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <ForestButton variant="ghost" size="sm" onClick={onBack}>
+            <ChevronLeft className="h-4 w-4" />
+          </ForestButton>
+          <h2 className="font-display text-xl">{game.name}</h2>
+          <GameStatusBadge status={game.status} />
+        </div>
+        
+        <GameTypeInDevelopment 
+          gameTypeCode={game.selected_game_type_code} 
+          onBack={onBack}
+          showBackButton={false}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
