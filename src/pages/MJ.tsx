@@ -170,18 +170,23 @@ export default function MJ() {
     };
   };
 
-  // Check if current selection requires minimum 7 players (INFECTION)
-  const requiresMinimum7Players = (): boolean => {
-    if (gameMode === 'SINGLE_GAME') {
-      return selectedGameTypeCode === 'INFECTION';
-    }
-    // For adventure mode, we don't know the steps here, so we'll check in handleCreateGame
-    return false;
-  };
-
   // Get minimum players based on game type
   const getMinimumPlayers = (): number => {
-    return requiresMinimum7Players() ? 7 : 2;
+    if (gameMode === 'SINGLE_GAME') {
+      if (selectedGameTypeCode === 'INFECTION') return 7;
+      if (selectedGameTypeCode === 'FORET' || selectedGameTypeCode === 'RIVIERES') return 2;
+    }
+    return 2;
+  };
+
+  // Get label for minimum players hint
+  const getMinPlayersLabel = (): string | null => {
+    if (gameMode === 'SINGLE_GAME' && selectedGameTypeCode) {
+      if (selectedGameTypeCode === 'INFECTION') return 'min. 7 pour INFECTION';
+      if (selectedGameTypeCode === 'FORET') return 'min. 2 pour FORÊT';
+      if (selectedGameTypeCode === 'RIVIERES') return 'min. 2 pour RIVIÈRES';
+    }
+    return null;
   };
 
   // Auto-adjust player count when selecting INFECTION
@@ -586,8 +591,8 @@ export default function MJ() {
               <div className="space-y-2">
                 <Label htmlFor="xNbJoueurs">
                   Nombre de joueurs (X)
-                  {requiresMinimum7Players() && (
-                    <span className="text-xs text-amber-500 ml-2">(min. 7 pour INFECTION)</span>
+                  {getMinPlayersLabel() && (
+                    <span className="text-xs text-amber-500 ml-2">({getMinPlayersLabel()})</span>
                   )}
                 </Label>
                 <Input
