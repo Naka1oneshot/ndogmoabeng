@@ -318,10 +318,14 @@ export default function Profile() {
                       ) : (
                         <Users className="w-5 h-5 text-primary" />
                       )}
-                      <div>
+                        <div>
                         <div className="font-medium">{game.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Code: {game.join_code}
+                        <div className="text-sm text-muted-foreground flex items-center gap-3">
+                          <span>Code: {game.join_code}</span>
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {game.player_count} joueur{game.player_count > 1 ? 's' : ''}
+                          </span>
                         </div>
                       </div>
                     </div>
