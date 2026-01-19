@@ -97,3 +97,6 @@ verify_jwt = false
 
 [functions.infection-submit-shot]
 verify_jwt = false
+
+[functions.notify-meetup-registration]
+verify_jwt = false

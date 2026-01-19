@@ -80,11 +80,18 @@ export interface RegistrationData {
   userNote: string;
 }
 
+interface RegisterParams {
+  eventId: string;
+  data: RegistrationData;
+  eventTitle: string;
+  eventDate: string;
+}
+
 export function useMeetupRegistration() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function register(eventId: string, data: RegistrationData) {
+  async function register({ eventId, data, eventTitle, eventDate }: RegisterParams) {
     try {
       setLoading(true);
       setError(null);
@@ -116,6 +123,27 @@ export function useMeetupRegistration() {
         });
 
       if (insertError) throw insertError;
+
+      // Send notification email to admin (non-blocking)
+      try {
+        const adminUrl = `${window.location.origin}/admin/meetups`;
+        await supabase.functions.invoke('notify-meetup-registration', {
+          body: {
+            eventTitle,
+            eventDate,
+            displayName: data.displayName,
+            phone: data.phone,
+            companionsCount: data.companionsCount,
+            companionsNames: data.companionsNames.filter(n => n.trim() !== ''),
+            userNote: data.userNote.trim() || null,
+            adminUrl,
+          },
+        });
+        console.log('Admin notification sent');
+      } catch (notifError) {
+        // Don't fail the registration if notification fails
+        console.error('Failed to send admin notification:', notifError);
+      }
 
       return true;
     } catch (err) {
