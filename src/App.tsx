@@ -13,6 +13,8 @@ import JoinAnonymous from "./pages/JoinAnonymous";
 import PlayerDashboard from "./pages/PlayerDashboard";
 import AdminGames from "./pages/AdminGames";
 import AdminGameDetails from "./pages/AdminGameDetails";
+import WatchList from "./pages/WatchList";
+import WatchGame from "./pages/WatchGame";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +36,8 @@ const App = () => (
               <Route path="/player/:gameId" element={<PlayerDashboard />} />
               <Route path="/admin/games" element={<AdminGames />} />
               <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
+              <Route path="/watch" element={<WatchList />} />
+              <Route path="/watch/:gameId" element={<WatchGame />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ThemeProvider>

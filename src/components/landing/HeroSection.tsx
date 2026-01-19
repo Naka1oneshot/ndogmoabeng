@@ -6,7 +6,7 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Gamepad2, QrCode, Users, Sparkles } from 'lucide-react';
+import { Gamepad2, QrCode, Users, Sparkles, Eye } from 'lucide-react';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 export function HeroSection() {
@@ -47,15 +47,13 @@ export function HeroSection() {
               Un univers de jeux immersifs. Sept clans, des choix, du bluff et une mémoire à défendre.
             </p>
             
-            {/* Stats */}
+            {/* Stats - Always visible counter */}
             <div className="flex items-center justify-center md:justify-start gap-6 text-sm">
-              {gamesCount > 0 && (
-                <div className="flex items-center gap-2 text-primary">
-                  <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                  <Sparkles className="h-4 w-4" />
-                  <span>{gamesCount} partie{gamesCount > 1 ? 's' : ''} en cours</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-primary">
+                <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                <Sparkles className="h-4 w-4" />
+                <span>{gamesCount} partie{gamesCount !== 1 ? 's' : ''} en cours</span>
+              </div>
               {playersCount > 0 && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Users className="h-4 w-4" />
@@ -126,16 +124,24 @@ export function HeroSection() {
                     <Gamepad2 className="h-4 w-4" />
                     Créer une partie (MJ)
                   </ForestButton>
+
+                  {/* New: Watch a game */}
+                  <ForestButton 
+                    variant="ghost" 
+                    className="w-full"
+                    onClick={() => navigate('/watch')}
+                  >
+                    <Eye className="h-4 w-4" />
+                    Regarder une partie
+                  </ForestButton>
                 </div>
 
-                {/* Stats under CTA */}
-                {gamesCount > 0 && (
-                  <div className="mt-6 pt-4 border-t border-border text-center">
-                    <p className="text-sm text-muted-foreground">
-                      <span className="text-primary font-semibold">{gamesCount}</span> partie{gamesCount > 1 ? 's' : ''} en cours
-                    </p>
-                  </div>
-                )}
+                {/* Stats under CTA - always visible */}
+                <div className="mt-6 pt-4 border-t border-border text-center">
+                  <p className="text-sm text-muted-foreground">
+                    <span className="text-primary font-semibold">{gamesCount}</span> partie{gamesCount !== 1 ? 's' : ''} en cours
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
