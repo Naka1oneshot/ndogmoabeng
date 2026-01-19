@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ArrowLeft, Users, Syringe, Target, MessageSquare, 
   Activity, Play, Lock, CheckCircle, Settings, Skull,
-  RefreshCw, Copy, Check, UserX, Loader2
+  RefreshCw, Copy, Check, UserX, Loader2, Pencil, Save, X
 } from 'lucide-react';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { toast } from 'sonner';
@@ -59,6 +61,12 @@ interface RoundState {
   sy_required_success: number;
 }
 
+interface EditForm {
+  display_name: string;
+  player_number: number | null;
+  jetons: number;
+}
+
 interface MJInfectionDashboardProps {
   game: Game;
   onBack: () => void;
@@ -79,6 +87,11 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [kickModalOpen, setKickModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; name: string } | null>(null);
+  
+  // Editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({ display_name: '', player_number: null, jetons: 0 });
+  const [saving, setSaving] = useState(false);
 
   // Reset selected manche when game.manche_active changes
   useEffect(() => {
@@ -283,10 +296,52 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
     setKickModalOpen(true);
   };
 
+  // Editing functions
+  const startEditing = (player: Player) => {
+    setEditingId(player.id);
+    setEditForm({
+      display_name: player.display_name,
+      player_number: player.player_number,
+      jetons: player.jetons || 0,
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditForm({ display_name: '', player_number: null, jetons: 0 });
+  };
+
+  const handleSave = async (playerId: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('game_players')
+        .update({
+          display_name: editForm.display_name,
+          player_number: editForm.player_number,
+          jetons: editForm.jetons,
+        })
+        .eq('id', playerId);
+
+      if (error) throw error;
+
+      toast.success('Joueur mis à jour');
+      setEditingId(null);
+      setEditForm({ display_name: '', player_number: null, jetons: 0 });
+      fetchData();
+    } catch (err) {
+      console.error('Save error:', err);
+      toast.error('Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Filter out the host (MJ) from players
   const activePlayers = players.filter(p => p.status === 'ACTIVE' && !p.is_host && p.player_number !== null);
   const alivePlayers = activePlayers.filter(p => p.is_alive !== false);
-
+  const kickedPlayers = players.filter(p => p.status === 'REMOVED');
+  const availablePlayerNumbers = Array.from({ length: 20 }, (_, i) => i + 1);
   // Lobby view
   if (game.status === 'LOBBY') {
     return (
@@ -325,20 +380,131 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {activePlayers.map((player, idx) => (
+                  {activePlayers.map((player) => (
                     <div 
                       key={player.id}
-                      className="flex items-center justify-between p-3 bg-[#1A2235] rounded-lg"
+                      className="p-3 bg-[#1A2235] rounded-lg"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-[#D4AF37] font-mono">#{idx + 1}</span>
-                        <span className="font-medium">{player.display_name}</span>
-                        {player.clan && (
-                          <Badge variant="outline" className="text-xs">
-                            {player.clan}
-                          </Badge>
-                        )}
-                      </div>
+                      {editingId === player.id ? (
+                        // Edit mode
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-3 gap-3">
+                            <div>
+                              <label className="text-xs text-[#6B7280]">Nom</label>
+                              <Input
+                                value={editForm.display_name}
+                                onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                                className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-[#6B7280]">Numéro</label>
+                              <Select
+                                value={editForm.player_number?.toString() || ''}
+                                onValueChange={(val) => setEditForm({ ...editForm, player_number: parseInt(val) })}
+                              >
+                                <SelectTrigger className="h-8 text-sm bg-[#0F1729] border-[#2D3748]">
+                                  <SelectValue placeholder="#" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availablePlayerNumbers.map(n => (
+                                    <SelectItem key={n} value={n.toString()}>
+                                      #{n}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <label className="text-xs text-[#6B7280]">Jetons</label>
+                              <Input
+                                type="number"
+                                value={editForm.jetons}
+                                onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                                className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                              <X className="h-4 w-4 mr-1" />
+                              Annuler
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleSave(player.id)} 
+                              disabled={saving}
+                              className={theme.button}
+                            >
+                              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                              Sauvegarder
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        // View mode
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="text-[#D4AF37] font-mono">#{player.player_number}</span>
+                            <span className="font-medium">{player.display_name}</span>
+                            {player.clan && (
+                              <Badge variant="outline" className="text-xs">
+                                {player.clan}
+                              </Badge>
+                            )}
+                            <span className="text-xs text-[#6B7280]">💰 {player.jetons || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditing(player)}
+                              title="Modifier"
+                              className="h-7 w-7 p-0"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            {player.player_token && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
+                                title="Copier le lien"
+                                className="h-7 w-7 p-0"
+                              >
+                                {copiedId === player.id ? (
+                                  <Check className="h-3 w-3 text-green-500" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleResetToken(player.id, player.display_name)}
+                              disabled={resettingId === player.id}
+                              title="Reset token"
+                              className="h-7 w-7 p-0"
+                            >
+                              {resettingId === player.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3 w-3" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openKickModal(player.id, player.display_name)}
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Expulser"
+                            >
+                              <UserX className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -372,12 +538,33 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
             </div>
           </div>
 
+          {/* Kicked players */}
+          {kickedPlayers.length > 0 && (
+            <div className={`${theme.card} opacity-75`}>
+              <div className="p-4 border-b border-[#2D3748]">
+                <h2 className="font-semibold flex items-center gap-2 text-[#6B7280]">
+                  <UserX className="h-4 w-4" />
+                  Joueurs expulsés ({kickedPlayers.length})
+                </h2>
+              </div>
+              <div className="p-4 space-y-1">
+                {kickedPlayers.map((player) => (
+                  <div key={player.id} className="text-sm text-[#6B7280] flex items-center gap-2">
+                    <span>{player.display_name}</span>
+                    <span className="text-xs">-</span>
+                    <span className="text-xs text-[#B00020]">{player.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Start game button */}
           <Button 
             className={`w-full ${theme.button}`}
             size="lg"
             onClick={handleStartGame}
-            disabled={activePlayers.length < 4}
+            disabled={activePlayers.length < 7}
           >
             <Play className="h-5 w-5 mr-2" />
             Lancer la partie ({activePlayers.length} joueurs)
@@ -388,6 +575,18 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
             </p>
           )}
         </div>
+
+        {/* Kick Modal for Lobby */}
+        {selectedPlayer && (
+          <KickPlayerModal
+            open={kickModalOpen}
+            onOpenChange={setKickModalOpen}
+            playerId={selectedPlayer.id}
+            playerName={selectedPlayer.name}
+            gameId={game.id}
+            onSuccess={fetchData}
+          />
+        )}
       </div>
     );
   }
@@ -512,7 +711,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
           )}
         </TabsContent>
 
-        <TabsContent value="players" className="p-4 mt-0">
+        <TabsContent value="players" className="p-4 mt-0 space-y-4">
           <div className={theme.card}>
             <div className="p-4 border-b border-[#2D3748]">
               <h2 className="font-semibold">Joueurs ({activePlayers.length})</h2>
@@ -522,98 +721,180 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                 const roleInfo = player.role_code ? INFECTION_ROLE_LABELS[player.role_code] : null;
                 return (
                   <div key={player.id} className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[#D4AF37] font-mono">
-                          #{player.player_number}
-                        </span>
-                        <span className={player.is_alive === false ? 'line-through text-[#6B7280]' : ''}>
-                          {player.display_name}
-                        </span>
-                        {roleInfo && (
-                          <Badge 
-                            style={{ 
-                              backgroundColor: `${roleInfo.color}20`,
-                              color: roleInfo.color,
-                              borderColor: `${roleInfo.color}50`
-                            }}
-                          >
-                            {roleInfo.short}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        {player.is_carrier && (
-                          <Badge className="bg-[#B00020]/20 text-[#B00020]">Porteur</Badge>
-                        )}
-                        {player.is_contagious && (
-                          <Badge className="bg-[#E6A23C]/20 text-[#E6A23C]">Contagieux</Badge>
-                        )}
-                        {player.immune_permanent && (
-                          <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6]">Immunisé</Badge>
-                        )}
-                        {player.has_antibodies && (
-                          <Badge className="bg-[#D4AF37]/20 text-[#D4AF37]">Anticorps</Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <div className="flex items-center gap-4 text-xs text-[#6B7280]">
-                        <span>💰 {player.jetons || 0} jetons</span>
-                        <span>⭐ {player.pvic || 0} PVic</span>
-                        {player.infected_at_manche && (
-                          <span className="text-[#B00020]">
-                            Infecté M{player.infected_at_manche}
-                          </span>
-                        )}
-                      </div>
-                      {/* Player management actions */}
-                      <div className="flex items-center gap-1">
-                        {player.player_token && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
-                            title="Copier le lien de reconnexion"
-                            className="h-7 w-7 p-0"
-                          >
-                            {copiedId === player.id ? (
-                              <Check className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
+                    {editingId === player.id ? (
+                      // Edit mode in-game
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-xs text-[#6B7280]">Nom</label>
+                            <Input
+                              value={editForm.display_name}
+                              onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                              className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-[#6B7280]">Numéro</label>
+                            <Input
+                              type="number"
+                              value={editForm.player_number || ''}
+                              onChange={(e) => setEditForm({ ...editForm, player_number: parseInt(e.target.value) || null })}
+                              className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-[#6B7280]">Jetons</label>
+                            <Input
+                              type="number"
+                              value={editForm.jetons}
+                              onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                              className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                            <X className="h-4 w-4 mr-1" />
+                            Annuler
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleResetToken(player.id, player.display_name)}
-                          disabled={resettingId === player.id}
-                          title="Réinitialiser le token"
-                          className="h-7 w-7 p-0"
-                        >
-                          {resettingId === player.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-3 w-3" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openKickModal(player.id, player.display_name)}
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title="Expulser le joueur"
-                        >
-                          <UserX className="h-3 w-3" />
-                        </Button>
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleSave(player.id)} 
+                            disabled={saving}
+                            className={theme.button}
+                          >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                            Sauvegarder
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      // View mode in-game
+                      <>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="text-[#D4AF37] font-mono">
+                              #{player.player_number}
+                            </span>
+                            <span className={player.is_alive === false ? 'line-through text-[#6B7280]' : ''}>
+                              {player.display_name}
+                            </span>
+                            {roleInfo && (
+                              <Badge 
+                                style={{ 
+                                  backgroundColor: `${roleInfo.color}20`,
+                                  color: roleInfo.color,
+                                  borderColor: `${roleInfo.color}50`
+                                }}
+                              >
+                                {roleInfo.short}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs">
+                            {player.is_carrier && (
+                              <Badge className="bg-[#B00020]/20 text-[#B00020]">Porteur</Badge>
+                            )}
+                            {player.is_contagious && (
+                              <Badge className="bg-[#E6A23C]/20 text-[#E6A23C]">Contagieux</Badge>
+                            )}
+                            {player.immune_permanent && (
+                              <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6]">Immunisé</Badge>
+                            )}
+                            {player.has_antibodies && (
+                              <Badge className="bg-[#D4AF37]/20 text-[#D4AF37]">Anticorps</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="flex items-center gap-4 text-xs text-[#6B7280]">
+                            <span>💰 {player.jetons || 0} jetons</span>
+                            <span>⭐ {player.pvic || 0} PVic</span>
+                            {player.infected_at_manche && (
+                              <span className="text-[#B00020]">
+                                Infecté M{player.infected_at_manche}
+                              </span>
+                            )}
+                          </div>
+                          {/* Player management actions */}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditing(player)}
+                              title="Modifier"
+                              className="h-7 w-7 p-0"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            {player.player_token && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
+                                title="Copier le lien de reconnexion"
+                                className="h-7 w-7 p-0"
+                              >
+                                {copiedId === player.id ? (
+                                  <Check className="h-3 w-3 text-green-500" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleResetToken(player.id, player.display_name)}
+                              disabled={resettingId === player.id}
+                              title="Réinitialiser le token"
+                              className="h-7 w-7 p-0"
+                            >
+                              {resettingId === player.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3 w-3" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openKickModal(player.id, player.display_name)}
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Expulser le joueur"
+                            >
+                              <UserX className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
+
+          {/* Kicked players in-game */}
+          {kickedPlayers.length > 0 && (
+            <div className={`${theme.card} opacity-75`}>
+              <div className="p-4 border-b border-[#2D3748]">
+                <h2 className="font-semibold flex items-center gap-2 text-[#6B7280]">
+                  <UserX className="h-4 w-4" />
+                  Joueurs expulsés ({kickedPlayers.length})
+                </h2>
+              </div>
+              <div className="p-4 space-y-1">
+                {kickedPlayers.map((player) => (
+                  <div key={player.id} className="text-sm text-[#6B7280] flex items-center gap-2">
+                    <span>{player.display_name}</span>
+                    <span className="text-xs">-</span>
+                    <span className="text-xs text-[#B00020]">{player.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="actions" className="p-4 mt-0">
