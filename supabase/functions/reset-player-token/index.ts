@@ -22,19 +22,23 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
+    console.log("[reset-player-token] Auth header present:", !!authHeader);
+    
     if (!authHeader) {
+      console.log("[reset-player-token] No auth header - returning 401");
       return new Response(
-        JSON.stringify({ error: "Non autorisé" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Non autorisé - pas de header d'authentification" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const { playerId } = await req.json();
+    console.log("[reset-player-token] playerId:", playerId);
 
     if (!playerId) {
       return new Response(
-        JSON.stringify({ error: "ID joueur requis" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "ID joueur requis" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -48,10 +52,12 @@ serve(async (req) => {
     });
 
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    console.log("[reset-player-token] User:", user?.id, "Auth error:", authError?.message);
+    
     if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: "Non autorisé" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Non autorisé - utilisateur non authentifié" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -65,9 +71,10 @@ serve(async (req) => {
       .single();
 
     if (playerError || !player) {
+      console.log("[reset-player-token] Player not found:", playerError?.message);
       return new Response(
-        JSON.stringify({ error: "Joueur non trouvé" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Joueur non trouvé" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -79,17 +86,19 @@ serve(async (req) => {
       .single();
 
     if (gameError || !game) {
+      console.log("[reset-player-token] Game not found:", gameError?.message);
       return new Response(
-        JSON.stringify({ error: "Partie non trouvée" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Partie non trouvée" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Check if current user is the host
+    console.log("[reset-player-token] Host check - game.host_user_id:", game.host_user_id, "user.id:", user.id);
     if (game.host_user_id !== user.id) {
       return new Response(
-        JSON.stringify({ error: "Seul le MJ peut réinitialiser les tokens" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Seul le MJ peut réinitialiser les tokens" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -103,12 +112,14 @@ serve(async (req) => {
       .eq("id", playerId);
 
     if (updateError) {
-      console.error("Update error:", updateError);
+      console.error("[reset-player-token] Update error:", updateError);
       return new Response(
-        JSON.stringify({ error: "Erreur lors de la mise à jour" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Erreur lors de la mise à jour" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log("[reset-player-token] Success - new token generated for player:", playerId);
 
     return new Response(
       JSON.stringify({
