@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Users } from 'lucide-react';
+import { MessageCircle, Users, Send, Crown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface MJLobbyChatViewerProps {
   gameId: string;
@@ -19,6 +22,8 @@ interface Message {
 const MJLobbyChatViewer: React.FC<MJLobbyChatViewerProps> = ({ gameId }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -72,6 +77,33 @@ const MJLobbyChatViewer: React.FC<MJLobbyChatViewerProps> = ({ gameId }) => {
     }
   }, [isOpen, scrollToBottom]);
 
+  const handleSend = async () => {
+    if (!newMessage.trim()) return;
+
+    setSending(true);
+    const { error } = await supabase.from('lobby_chat_messages').insert({
+      game_id: gameId,
+      sender_num: 0, // MJ uses 0 as identifier
+      sender_name: 'MJ',
+      message: newMessage.trim(),
+    });
+
+    if (error) {
+      console.error('Error sending message:', error);
+      toast.error('Erreur lors de l\'envoi du message');
+    } else {
+      setNewMessage('');
+    }
+    setSending(false);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger className="w-full">
@@ -101,15 +133,23 @@ const MJLobbyChatViewer: React.FC<MJLobbyChatViewerProps> = ({ gameId }) => {
               <div className="space-y-3">
                 {messages.map((msg) => (
                   <div key={msg.id} className="flex gap-3">
-                    {/* Player number badge */}
-                    <span className="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                      {msg.sender_num}
-                    </span>
+                    {/* Player/MJ badge */}
+                    {msg.sender_num === 0 ? (
+                      <span className="w-7 h-7 bg-amber-500/20 rounded-full flex items-center justify-center shrink-0">
+                        <Crown className="h-4 w-4 text-amber-500" />
+                      </span>
+                    ) : (
+                      <span className="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                        {msg.sender_num}
+                      </span>
+                    )}
                     
                     {/* Message content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2">
-                        <span className="font-medium text-sm">{msg.sender_name}</span>
+                        <span className={`font-medium text-sm ${msg.sender_num === 0 ? 'text-amber-500' : ''}`}>
+                          {msg.sender_name}
+                        </span>
                         <span className="text-[10px] text-muted-foreground">
                           {new Date(msg.created_at).toLocaleTimeString('fr-FR', { 
                             hour: '2-digit', 
@@ -124,6 +164,27 @@ const MJLobbyChatViewer: React.FC<MJLobbyChatViewerProps> = ({ gameId }) => {
                 <div ref={messagesEndRef} />
               </div>
             )}
+          </div>
+          
+          {/* MJ Input */}
+          <div className="p-3 border-t border-border/50 bg-card/30">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Écrire un message en tant que MJ..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={sending}
+                className="flex-1"
+              />
+              <Button
+                size="icon"
+                onClick={handleSend}
+                disabled={!newMessage.trim() || sending}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </CollapsibleContent>
