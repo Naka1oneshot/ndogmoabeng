@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -441,6 +442,7 @@ export default function MJ() {
           <h1 className="font-display text-xl">Tableau MJ</h1>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <ThemeToggle />
           <AdminBadge email={user?.email} />
           <ForestButton variant="ghost" size="sm" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" />

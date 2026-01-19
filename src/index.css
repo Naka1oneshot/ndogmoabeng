@@ -10,11 +10,17 @@
 
 @layer base {
   /* ============================================
+     DARK MODE THEMES (Default)
+     ============================================ */
+  
+  /* ============================================
      THEME: VILLAGE DE NDOGMOABENG (Default/Global)
      Premium dark theme with gold accents
      ============================================ */
   :root,
-  .theme-village {
+  .mode-dark.theme-village,
+  .mode-dark .theme-village,
+  .theme-village:not(.mode-light):not(.mode-light *) {
     /* Backgrounds */
     --background: 220 20% 4%;           /* #070A0F */
     --background-gradient-to: 222 47% 11%; /* #0F172A */
@@ -86,9 +92,11 @@
 
   /* ============================================
      THEME: LES RIVIÈRES DE NDOGMOABENG
-     Aquatic blue theme
+     Aquatic blue theme (Dark)
      ============================================ */
-  .theme-rivieres {
+  .mode-dark.theme-rivieres,
+  .mode-dark .theme-rivieres,
+  .theme-rivieres:not(.mode-light):not(.mode-light *) {
     /* Backgrounds */
     --background: 213 69% 7%;           /* #06121F */
     --background-gradient-to: 207 56% 13%; /* #0B2236 */
@@ -157,9 +165,11 @@
 
   /* ============================================
      THEME: LA FORÊT DE NDOGMOABENG
-     Nature/Runes green theme
+     Nature/Runes green theme (Dark)
      ============================================ */
-  .theme-foret {
+  .mode-dark.theme-foret,
+  .mode-dark .theme-foret,
+  .theme-foret:not(.mode-light):not(.mode-light *) {
     /* Backgrounds */
     --background: 150 31% 5%;           /* #07110C */
     --background-gradient-to: 152 35% 8%; /* #0C1F16 */
@@ -230,9 +240,11 @@
 
   /* ============================================
      THEME: INFECTION À NDOGMOABENG
-     Biotech/Toxic theme
+     Biotech/Toxic theme (Dark)
      ============================================ */
-  .theme-infection {
+  .mode-dark.theme-infection,
+  .mode-dark .theme-infection,
+  .theme-infection:not(.mode-light):not(.mode-light *) {
     /* Backgrounds */
     --background: 220 14% 2%;           /* #050607 */
     --background-gradient-to: 220 26% 11%; /* #111827 */
@@ -296,6 +308,83 @@
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 220 18% 20%;
     --sidebar-ring: 80 85% 56%;
+  }
+
+  /* ============================================
+     LIGHT MODE - PALETTE C: PAPYRUS & BRAISE
+     Warm light theme with terracotta accents
+     ============================================ */
+  .mode-light,
+  .mode-light .theme-village,
+  .mode-light .theme-rivieres,
+  .mode-light .theme-foret,
+  .mode-light .theme-infection {
+    /* Backgrounds - Papyrus tones */
+    --background: 45 100% 98%;          /* #FFFDF7 */
+    --background-gradient-to: 39 47% 96%; /* #FAF6EE */
+    --foreground: 25 40% 11%;           /* #231A12 */
+    
+    /* Surfaces */
+    --card: 0 0% 100%;                  /* #FFFFFF */
+    --card-foreground: 25 40% 11%;      /* #231A12 */
+    --surface-2: 37 38% 93%;            /* #FAF1E3 */
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 25 40% 11%;
+    
+    /* Primary - Terracotta/Braise */
+    --primary: 18 69% 47%;              /* #C85C2B */
+    --primary-foreground: 0 0% 100%;    /* White text on terracotta */
+    --primary-hover: 18 65% 40%;        /* #A84B22 */
+    
+    /* Secondary - Slate Blue */
+    --secondary: 207 31% 33%;           /* #3B556D */
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Muted */
+    --muted: 37 38% 93%;                /* #FAF1E3 */
+    --muted-foreground: 25 18% 36%;     /* #6A584B */
+    
+    /* Accents */
+    --accent: 38 75% 42%;               /* #B7791F - Warm gold */
+    --accent-foreground: 0 0% 100%;
+    --accent-2: 207 31% 33%;            /* #3B556D - Slate */
+    
+    /* States */
+    --destructive: 340 65% 33%;         /* #9F1239 */
+    --destructive-foreground: 0 0% 100%;
+    --warning: 28 80% 37%;              /* #B45309 */
+    --success: 142 72% 29%;             /* #15803D */
+    
+    /* Borders & Inputs */
+    --border: 36 32% 85%;               /* #E9DDC8 */
+    --input: 0 0% 100%;
+    --ring: 18 69% 47%;
+    
+    --radius: 0.75rem;
+    
+    /* Gold token */
+    --gold: 38 75% 42%;                 /* #B7791F */
+    --gold-hover: 36 72% 36%;
+    
+    /* Glow effects (subtle in light mode) */
+    --glow-primary: 18 69% 47% / 0.15;
+    --glow-accent: 38 75% 42% / 0.1;
+    --glow-accent-2: 207 31% 33% / 0.1;
+    
+    /* Premium effects */
+    --shadow-glow: 0 0 20px hsl(18 69% 47% / 0.1);
+    --shadow-card: 0 4px 20px hsl(25 40% 11% / 0.08);
+    
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 25 40% 11%;
+    --sidebar-primary: 18 69% 47%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 37 38% 93%;
+    --sidebar-accent-foreground: 25 40% 11%;
+    --sidebar-border: 36 32% 85%;
+    --sidebar-ring: 18 69% 47%;
   }
 }
 

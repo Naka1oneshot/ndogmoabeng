@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { User, Coins, Lock } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
@@ -47,6 +48,7 @@ export function PlayerHeader({ game, player }: PlayerHeaderProps) {
             <span className="text-muted-foreground">
               Manche <strong className="text-forest-gold">{game.manche_active}</strong>
             </span>
+            <ThemeToggle />
           </div>
         </div>
 
