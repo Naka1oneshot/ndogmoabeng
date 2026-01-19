@@ -382,9 +382,9 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
             <Play className="h-5 w-5 mr-2" />
             Lancer la partie ({activePlayers.length} joueurs)
           </Button>
-          {activePlayers.length < 4 && (
+          {activePlayers.length < 7 && (
             <p className="text-center text-[#6B7280] text-sm">
-              Minimum 4 joueurs requis
+              Minimum 7 joueurs requis
             </p>
           )}
         </div>
