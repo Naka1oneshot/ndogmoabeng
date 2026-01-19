@@ -365,7 +365,7 @@ export function PlayerRivieresDashboard({
         </div>
         <div className="grid grid-cols-2 gap-3 text-center mt-3">
           <div>
-            <div className="text-[#9CA3AF] text-xs">Points de victoire pot.</div>
+            <div className="text-[#9CA3AF] text-xs">PVic pot.</div>
             <div className="text-lg font-bold">
               {(() => {
                 const levels = playerStats.validated_levels;
