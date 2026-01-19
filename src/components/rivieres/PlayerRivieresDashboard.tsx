@@ -14,6 +14,7 @@ import {
   getStatusDisplay, 
   getKeryndesDisplay 
 } from './RivieresTheme';
+import { calculateDangerRange, formatDangerRangeDisplay } from '@/lib/rivieresDangerCalculator';
 
 interface RiverSessionState {
   id: string;
@@ -67,6 +68,7 @@ export function PlayerRivieresDashboard({
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats | null>(null);
   const [currentDecision, setCurrentDecision] = useState<RiverDecision | null>(null);
   const [logs, setLogs] = useState<{ id: string; type: string; message: string; manche: number }[]>([]);
+  const [nbPlayersEnBateau, setNbPlayersEnBateau] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showStartAnimation, setShowStartAnimation] = useState(false);
@@ -119,7 +121,14 @@ export function PlayerRivieresDashboard({
 
       if (statsData) setPlayerStats(statsData);
 
-      // Fetch current decision
+      // Fetch count of players EN_BATEAU for danger range calculation
+      const { count } = await supabase
+        .from('river_player_stats')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_game_id', sessionGameId)
+        .eq('current_round_status', 'EN_BATEAU');
+
+      setNbPlayersEnBateau(count || 1);
       if (stateData) {
         const { data: decisionData } = await supabase
           .from('river_decisions')
@@ -170,8 +179,8 @@ export function PlayerRivieresDashboard({
           }
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'river_player_stats', filter: `session_game_id=eq.${sessionGameId}` },
-        (payload) => {
-          // Only update if it's our player's stats
+        async (payload) => {
+          // Update our player's stats if applicable
           const newStats = payload.new as any;
           if (newStats && newStats.player_id === playerId) {
             setPlayerStats({
@@ -181,6 +190,13 @@ export function PlayerRivieresDashboard({
               descended_level: newStats.descended_level,
             });
           }
+          // Refresh count of EN_BATEAU players for danger range
+          const { count } = await supabase
+            .from('river_player_stats')
+            .select('*', { count: 'exact', head: true })
+            .eq('session_game_id', sessionGameId)
+            .eq('current_round_status', 'EN_BATEAU');
+          setNbPlayersEnBateau(count || 1);
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'river_decisions', filter: `session_game_id=eq.${sessionGameId}` },
         (payload) => {
@@ -365,9 +381,21 @@ export function PlayerRivieresDashboard({
         </div>
         <div className={`${rivieresCardStyle} p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Danger</div>
-          <div className="text-xl font-bold text-[#FF6B6B]">
-            {state.danger_effectif !== null ? state.danger_effectif : '—'}
-          </div>
+          {state.danger_effectif !== null ? (
+            <div className="text-xl font-bold text-[#FF6B6B]">
+              {state.danger_effectif}
+            </div>
+          ) : (
+            (() => {
+              const dangerCalc = calculateDangerRange(nbPlayersEnBateau, state.manche_active, state.niveau_active);
+              return (
+                <div className="text-sm font-bold text-amber-400">
+                  {formatDangerRangeDisplay(dangerCalc.range)}
+                  <div className="text-[8px] text-[#9CA3AF] font-normal">estimé</div>
+                </div>
+              );
+            })()
+          )}
         </div>
         <div className={`${rivieresCardStyle} p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Cagnotte</div>
