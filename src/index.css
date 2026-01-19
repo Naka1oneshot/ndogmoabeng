@@ -4,67 +4,304 @@
 @tailwind components;
 @tailwind utilities;
 
-/* La Forêt de Ndogmoabeng - Mystic Forest Theme */
+/* ============================================
+   NDOGMOABENG DESIGN SYSTEM - THEME TOKENS
+   ============================================ */
 
 @layer base {
-  :root {
-    /* Dark forest theme - applied by default */
-    --background: 155 40% 6%;
-    --foreground: 140 20% 90%;
-
-    --card: 155 35% 10%;
-    --card-foreground: 140 20% 90%;
-
-    --popover: 155 35% 8%;
-    --popover-foreground: 140 20% 90%;
-
-    --primary: 145 60% 45%;
-    --primary-foreground: 155 40% 6%;
-
-    --secondary: 155 30% 15%;
-    --secondary-foreground: 140 20% 85%;
-
-    --muted: 155 25% 12%;
-    --muted-foreground: 140 15% 55%;
-
-    --accent: 145 70% 40%;
-    --accent-foreground: 155 40% 6%;
-
-    --destructive: 0 65% 50%;
+  /* ============================================
+     THEME: VILLAGE DE NDOGMOABENG (Default/Global)
+     Premium dark theme with gold accents
+     ============================================ */
+  :root,
+  .theme-village {
+    /* Backgrounds */
+    --background: 220 20% 4%;           /* #070A0F */
+    --background-gradient-to: 222 47% 11%; /* #0F172A */
+    --foreground: 40 33% 94%;           /* #F5F2EA */
+    
+    /* Surfaces */
+    --card: 222 47% 11%;                /* #0F172A */
+    --card-foreground: 40 33% 94%;      /* #F5F2EA */
+    --surface-2: 224 55% 21%;           /* #172554 */
+    
+    --popover: 222 47% 11%;
+    --popover-foreground: 40 33% 94%;
+    
+    /* Primary - Gold */
+    --primary: 43 74% 52%;              /* #D4AF37 */
+    --primary-foreground: 220 20% 4%;   /* Dark text on gold */
+    --primary-hover: 38 61% 45%;        /* #B8892E */
+    
+    /* Secondary */
+    --secondary: 224 55% 21%;           /* #172554 */
+    --secondary-foreground: 40 33% 94%;
+    
+    /* Muted */
+    --muted: 222 47% 11%;
+    --muted-foreground: 35 13% 75%;     /* #C9C4B8 */
+    
+    /* Accents */
+    --accent: 263 70% 58%;              /* #7C3AED - Mystic purple */
+    --accent-foreground: 40 33% 94%;
+    --accent-2: 174 65% 41%;            /* #14B8A6 - Fresh teal */
+    
+    /* States */
+    --destructive: 347 77% 50%;         /* #E11D48 */
     --destructive-foreground: 0 0% 100%;
-
-    --border: 155 25% 18%;
-    --input: 155 25% 15%;
-    --ring: 145 60% 45%;
-
+    --warning: 38 92% 50%;              /* #F59E0B */
+    --success: 142 71% 45%;             /* #22C55E */
+    
+    /* Borders & Inputs */
+    --border: 218 29% 23%;              /* #26324D */
+    --input: 222 47% 11%;
+    --ring: 43 74% 52%;
+    
+    /* Radius */
     --radius: 0.75rem;
-
-    /* Custom forest tokens */
-    --forest-glow: 145 80% 50%;
-    --forest-deep: 155 45% 4%;
-    --forest-mist: 140 20% 70%;
-    --forest-gold: 45 80% 55%;
     
-    /* Gradients */
-    --gradient-forest: linear-gradient(135deg, hsl(155, 40%, 6%) 0%, hsl(155, 45%, 10%) 50%, hsl(145, 35%, 8%) 100%);
-    --gradient-glow: linear-gradient(180deg, hsl(145, 60%, 45%) 0%, hsl(145, 70%, 35%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(155, 35%, 12%) 0%, hsl(155, 35%, 8%) 100%);
+    /* Gold token (Village-specific) */
+    --gold: 43 74% 52%;
+    --gold-hover: 38 61% 45%;
     
-    /* Shadows */
-    --shadow-glow: 0 0 30px hsl(145, 80%, 50% / 0.3);
-    --shadow-card: 0 8px 32px hsl(155, 45%, 4% / 0.5);
+    /* Glow effects */
+    --glow-primary: 43 74% 52% / 0.3;
+    --glow-accent: 263 70% 58% / 0.2;
+    --glow-accent-2: 174 65% 41% / 0.2;
+    
+    /* Premium effects */
+    --shadow-glow: 0 0 30px hsl(43 74% 52% / 0.15);
+    --shadow-card: 0 8px 32px hsl(220 20% 4% / 0.5);
+    
+    /* Sidebar */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 40 33% 94%;
+    --sidebar-primary: 43 74% 52%;
+    --sidebar-primary-foreground: 220 20% 4%;
+    --sidebar-accent: 224 55% 21%;
+    --sidebar-accent-foreground: 40 33% 94%;
+    --sidebar-border: 218 29% 23%;
+    --sidebar-ring: 43 74% 52%;
+  }
 
-    --sidebar-background: 155 40% 8%;
-    --sidebar-foreground: 140 20% 85%;
-    --sidebar-primary: 145 60% 45%;
-    --sidebar-primary-foreground: 155 40% 6%;
-    --sidebar-accent: 155 30% 15%;
-    --sidebar-accent-foreground: 140 20% 85%;
-    --sidebar-border: 155 25% 18%;
-    --sidebar-ring: 145 60% 45%;
+  /* ============================================
+     THEME: LES RIVIÈRES DE NDOGMOABENG
+     Aquatic blue theme
+     ============================================ */
+  .theme-rivieres {
+    /* Backgrounds */
+    --background: 213 69% 7%;           /* #06121F */
+    --background-gradient-to: 207 56% 13%; /* #0B2236 */
+    --foreground: 206 47% 95%;          /* #EAF2F8 */
+    
+    /* Surfaces */
+    --card: 207 56% 13%;                /* #0B2236 */
+    --card-foreground: 206 47% 95%;
+    --surface-2: 207 45% 18%;
+    
+    --popover: 207 56% 13%;
+    --popover-foreground: 206 47% 95%;
+    
+    /* Primary - Sky Blue */
+    --primary: 199 89% 48%;             /* #0EA5E9 */
+    --primary-foreground: 213 69% 7%;
+    --primary-hover: 200 98% 39%;       /* #0284C7 */
+    
+    /* Secondary */
+    --secondary: 207 45% 18%;
+    --secondary-foreground: 206 47% 95%;
+    
+    /* Muted */
+    --muted: 207 56% 13%;
+    --muted-foreground: 209 24% 78%;    /* #B7C7D6 */
+    
+    /* Accents */
+    --accent: 168 76% 50%;              /* #2DD4BF - Teal */
+    --accent-foreground: 213 69% 7%;
+    --accent-2: 353 94% 72%;            /* #FB7185 - Coral */
+    
+    /* States */
+    --destructive: 0 84% 60%;           /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+    --warning: 45 93% 56%;              /* #FBBF24 - Gold reward */
+    --success: 168 76% 50%;
+    
+    /* Borders & Inputs */
+    --border: 207 35% 25%;
+    --input: 207 56% 13%;
+    --ring: 199 89% 48%;
+    
+    --radius: 0.75rem;
+    
+    /* Gold for rewards */
+    --gold: 45 93% 56%;
+    --gold-hover: 43 96% 50%;
+    
+    /* Glow effects */
+    --glow-primary: 199 89% 48% / 0.3;
+    --glow-accent: 168 76% 50% / 0.2;
+    
+    --shadow-glow: 0 0 30px hsl(199 89% 48% / 0.15);
+    --shadow-card: 0 8px 32px hsl(213 69% 7% / 0.5);
+    
+    /* Sidebar */
+    --sidebar-background: 207 56% 13%;
+    --sidebar-foreground: 206 47% 95%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary-foreground: 213 69% 7%;
+    --sidebar-accent: 207 45% 18%;
+    --sidebar-accent-foreground: 206 47% 95%;
+    --sidebar-border: 207 35% 25%;
+    --sidebar-ring: 199 89% 48%;
+  }
+
+  /* ============================================
+     THEME: LA FORÊT DE NDOGMOABENG
+     Nature/Runes green theme
+     ============================================ */
+  .theme-foret {
+    /* Backgrounds */
+    --background: 150 31% 5%;           /* #07110C */
+    --background-gradient-to: 152 35% 8%; /* #0C1F16 */
+    --foreground: 130 16% 96%;          /* #F1F5F2 */
+    
+    /* Surfaces */
+    --card: 152 35% 8%;                 /* #0C1F16 */
+    --card-foreground: 130 16% 96%;
+    --surface-2: 152 30% 12%;
+    
+    --popover: 152 35% 8%;
+    --popover-foreground: 130 16% 96%;
+    
+    /* Primary - Forest Green */
+    --primary: 142 71% 45%;             /* #22C55E */
+    --primary-foreground: 150 31% 5%;
+    --primary-hover: 142 76% 36%;       /* #16A34A */
+    
+    /* Secondary */
+    --secondary: 152 30% 12%;
+    --secondary-foreground: 130 16% 96%;
+    
+    /* Muted */
+    --muted: 152 35% 8%;
+    --muted-foreground: 140 12% 74%;    /* #B8C5BD */
+    
+    /* Accents */
+    --accent: 38 92% 50%;               /* #F59E0B - Amber */
+    --accent-foreground: 150 31% 5%;
+    --accent-2: 24 44% 27%;             /* #7C4A2D - Earth brown */
+    
+    /* States */
+    --destructive: 0 72% 51%;           /* #DC2626 */
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --success: 142 71% 45%;
+    
+    /* Mystic touch (very limited use) */
+    --mystic: 80 85% 56%;               /* #A3E635 */
+    
+    /* Borders & Inputs */
+    --border: 150 25% 18%;
+    --input: 152 35% 8%;
+    --ring: 142 71% 45%;
+    
+    --radius: 0.75rem;
+    
+    --gold: 38 92% 50%;
+    --gold-hover: 36 91% 45%;
+    
+    /* Glow effects */
+    --glow-primary: 142 71% 45% / 0.3;
+    --glow-accent: 38 92% 50% / 0.2;
+    
+    --shadow-glow: 0 0 30px hsl(142 71% 45% / 0.15);
+    --shadow-card: 0 8px 32px hsl(150 31% 5% / 0.5);
+    
+    /* Sidebar */
+    --sidebar-background: 152 35% 8%;
+    --sidebar-foreground: 130 16% 96%;
+    --sidebar-primary: 142 71% 45%;
+    --sidebar-primary-foreground: 150 31% 5%;
+    --sidebar-accent: 152 30% 12%;
+    --sidebar-accent-foreground: 130 16% 96%;
+    --sidebar-border: 150 25% 18%;
+    --sidebar-ring: 142 71% 45%;
+  }
+
+  /* ============================================
+     THEME: INFECTION À NDOGMOABENG
+     Biotech/Toxic theme
+     ============================================ */
+  .theme-infection {
+    /* Backgrounds */
+    --background: 220 14% 2%;           /* #050607 */
+    --background-gradient-to: 220 26% 11%; /* #111827 */
+    --foreground: 210 40% 98%;          /* #F8FAFC */
+    
+    /* Surfaces */
+    --card: 220 26% 11%;                /* #111827 */
+    --card-foreground: 210 40% 98%;
+    --surface-2: 220 20% 16%;
+    
+    --popover: 220 26% 11%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Primary - Toxic Green */
+    --primary: 80 85% 56%;              /* #A3E635 */
+    --primary-foreground: 220 14% 2%;
+    --primary-hover: 84 81% 44%;        /* #84CC16 */
+    
+    /* Secondary */
+    --secondary: 220 20% 16%;
+    --secondary-foreground: 210 40% 98%;
+    
+    /* Muted */
+    --muted: 220 26% 11%;
+    --muted-foreground: 215 16% 82%;    /* #C7CED9 */
+    
+    /* Accents */
+    --accent: 188 94% 47%;              /* #22D3EE - Scan cyan */
+    --accent-foreground: 220 14% 2%;
+    --accent-2: 215 21% 62%;            /* #94A3B8 - Neutral medical */
+    
+    /* States */
+    --destructive: 350 89% 60%;         /* #F43F5E - Critical */
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;              /* #F59E0B - Quarantine */
+    --success: 80 85% 56%;
+    
+    /* Borders & Inputs */
+    --border: 220 18% 20%;
+    --input: 220 26% 11%;
+    --ring: 80 85% 56%;
+    
+    --radius: 0.75rem;
+    
+    --gold: 38 92% 50%;
+    --gold-hover: 36 91% 45%;
+    
+    /* Glow effects */
+    --glow-primary: 80 85% 56% / 0.3;
+    --glow-accent: 188 94% 47% / 0.2;
+    
+    --shadow-glow: 0 0 30px hsl(80 85% 56% / 0.15);
+    --shadow-card: 0 8px 32px hsl(220 14% 2% / 0.5);
+    
+    /* Sidebar */
+    --sidebar-background: 220 26% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 80 85% 56%;
+    --sidebar-primary-foreground: 220 14% 2%;
+    --sidebar-accent: 220 20% 16%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 220 18% 20%;
+    --sidebar-ring: 80 85% 56%;
   }
 }
 
+/* ============================================
+   BASE STYLES
+   ============================================ */
 @layer base {
   * {
     @apply border-border;
@@ -76,9 +313,11 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: 
-      radial-gradient(ellipse at 20% 0%, hsl(145, 40%, 15% / 0.15) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 100%, hsl(145, 50%, 10% / 0.2) 0%, transparent 50%);
+    background: linear-gradient(
+      135deg,
+      hsl(var(--background)) 0%,
+      hsl(var(--background-gradient-to)) 100%
+    );
     min-height: 100vh;
   }
 
@@ -88,27 +327,66 @@
   }
 }
 
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
 @layer utilities {
+  /* Text glow effect */
   .text-glow {
-    text-shadow: 0 0 20px hsl(145, 80%, 50% / 0.5);
+    text-shadow: 0 0 20px hsl(var(--glow-primary));
   }
   
+  /* Box glow effect */
   .box-glow {
     box-shadow: var(--shadow-glow);
   }
   
-  .forest-gradient {
-    background: var(--gradient-forest);
+  /* Premium glow for interactive elements */
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--glow-primary)), inset 0 1px 0 hsl(var(--primary) / 0.2);
   }
   
-  .card-gradient {
-    background: var(--gradient-card);
+  .glow-accent {
+    box-shadow: 0 0 15px hsl(var(--glow-accent));
   }
   
-  .btn-glow {
-    box-shadow: 0 0 20px hsl(145, 80%, 50% / 0.4), inset 0 1px 0 hsl(145, 80%, 60% / 0.2);
+  /* Card shadow */
+  .card-shadow {
+    box-shadow: var(--shadow-card);
   }
   
+  /* Surface utilities */
+  .surface-card {
+    @apply bg-card border border-border;
+  }
+  
+  .surface-2 {
+    background-color: hsl(var(--surface-2));
+  }
+  
+  /* Gold accent (for Village theme primarily) */
+  .text-gold {
+    color: hsl(var(--gold));
+  }
+  
+  .bg-gold {
+    background-color: hsl(var(--gold));
+  }
+  
+  .border-gold {
+    border-color: hsl(var(--gold));
+  }
+  
+  /* Accent 2 utilities */
+  .text-accent-2 {
+    color: hsl(var(--accent-2));
+  }
+  
+  .bg-accent-2 {
+    background-color: hsl(var(--accent-2));
+  }
+  
+  /* Animations */
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
   }
@@ -116,14 +394,31 @@
   .animate-float {
     animation: float 3s ease-in-out infinite;
   }
+  
+  /* Hover effects */
+  .hover-glow {
+    @apply transition-shadow duration-300;
+  }
+  
+  .hover-glow:hover {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  /* Focus ring with theme color */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background;
+  }
 }
 
+/* ============================================
+   KEYFRAME ANIMATIONS
+   ============================================ */
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 20px hsl(145, 80%, 50% / 0.4);
+    box-shadow: 0 0 20px hsl(var(--glow-primary));
   }
   50% {
-    box-shadow: 0 0 40px hsl(145, 80%, 50% / 0.6);
+    box-shadow: 0 0 40px hsl(var(--glow-primary));
   }
 }
 
@@ -134,4 +429,65 @@
   50% {
     transform: translateY(-10px);
   }
+}
+
+/* ============================================
+   COMPONENT-SPECIFIC OVERRIDES
+   ============================================ */
+
+/* Premium button glow */
+.btn-premium {
+  @apply relative overflow-hidden;
+  box-shadow: 0 0 20px hsl(var(--glow-primary)), inset 0 1px 0 hsl(var(--primary) / 0.3);
+}
+
+.btn-premium::before {
+  content: '';
+  @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.2) 0%,
+    transparent 50%,
+    hsl(var(--primary) / 0.1) 100%
+  );
+}
+
+.btn-premium:hover::before {
+  @apply opacity-100;
+}
+
+/* Card hover effect */
+.card-interactive {
+  @apply transition-all duration-300;
+}
+
+.card-interactive:hover {
+  background-color: hsl(var(--surface-2));
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
+}
+
+/* Tab active state glow */
+.tab-active {
+  box-shadow: 0 2px 8px hsl(var(--glow-primary));
+}
+
+/* Badge MJ (gold in Village) */
+.badge-mj {
+  @apply bg-gold text-primary-foreground font-semibold;
+  box-shadow: 0 0 10px hsl(var(--gold) / 0.3);
+}
+
+/* Input focus glow */
+.input-glow:focus {
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 15px hsl(var(--glow-accent));
+}
+
+/* Table styles */
+.table-header {
+  background-color: hsl(var(--surface-2));
+}
+
+.table-row-hover:hover {
+  background-color: hsl(var(--surface-2) / 0.5);
 }

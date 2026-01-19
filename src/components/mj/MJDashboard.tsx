@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useGameTheme } from '@/contexts/ThemeContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
@@ -78,6 +79,9 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [deleting, setDeleting] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
   const [totalAdventureSteps, setTotalAdventureSteps] = useState(3);
+  
+  // Apply game-specific theme
+  useGameTheme(game.selected_game_type_code);
   
   // Start animation state
   const [showStartAnimation, setShowStartAnimation] = useState(false);
