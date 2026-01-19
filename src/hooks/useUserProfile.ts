@@ -29,6 +29,7 @@ export interface CurrentGame {
   status: string;
   join_code: string;
   is_host: boolean;
+  player_count: number;
 }
 
 export function useUserProfile() {
@@ -112,6 +113,36 @@ export function useUserProfile() {
         .eq('host_user_id', user.id)
         .in('status', ['LOBBY', 'RUNNING', 'IN_GAME']);
 
+      // Get all game IDs to fetch player counts
+      const allGameIds: string[] = [];
+      if (playerGames) {
+        playerGames.forEach((pg: any) => {
+          if (pg.games && ['LOBBY', 'RUNNING', 'IN_GAME'].includes(pg.games.status)) {
+            allGameIds.push(pg.games.id);
+          }
+        });
+      }
+      if (hostGames) {
+        hostGames.forEach((g: any) => allGameIds.push(g.id));
+      }
+
+      // Fetch player counts for all games
+      const playerCounts: Record<string, number> = {};
+      if (allGameIds.length > 0) {
+        const { data: playersData } = await supabase
+          .from('game_players')
+          .select('game_id')
+          .in('game_id', allGameIds)
+          .eq('is_host', false)
+          .is('removed_at', null);
+
+        if (playersData) {
+          playersData.forEach((p: any) => {
+            playerCounts[p.game_id] = (playerCounts[p.game_id] || 0) + 1;
+          });
+        }
+      }
+
       const games: CurrentGame[] = [];
       
       if (playerGames) {
@@ -123,6 +154,7 @@ export function useUserProfile() {
               status: pg.games.status,
               join_code: pg.games.join_code,
               is_host: false,
+              player_count: playerCounts[pg.games.id] || 0,
             });
           }
         });
@@ -136,6 +168,7 @@ export function useUserProfile() {
             status: g.status,
             join_code: g.join_code,
             is_host: true,
+            player_count: playerCounts[g.id] || 0,
           });
         });
       }
