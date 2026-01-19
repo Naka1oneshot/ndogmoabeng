@@ -2435,6 +2435,7 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: undefined
       }
+      get_user_email: { Args: { user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
