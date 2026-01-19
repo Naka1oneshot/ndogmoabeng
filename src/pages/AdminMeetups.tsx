@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 
 export default function AdminMeetups() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
   const { events, loading: eventsLoading, archiveEvent, updateEvent } = useAdminMeetups();
@@ -48,7 +49,7 @@ export default function AdminMeetups() {
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <p className="text-muted-foreground">Veuillez vous connecter pour accéder à cette page</p>
         <div className="flex gap-2">
-          <Button onClick={() => navigate('/auth')}>Se connecter</Button>
+          <Button onClick={() => navigate('/auth', { state: { from: location.pathname } })}>Se connecter</Button>
           <Button variant="outline" onClick={() => navigate('/')}>Retour à l'accueil</Button>
         </div>
       </div>
