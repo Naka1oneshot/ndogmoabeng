@@ -8,7 +8,6 @@ import {
   getTierBadgeVariant,
   formatChatAccess,
   formatGamesCreatable,
-  formatGamesJoinable,
   SubscriptionTier 
 } from '@/lib/subscriptionTiers';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +19,6 @@ import {
   Crown, 
   Sparkles, 
   Users, 
-  Gamepad2, 
   Shield, 
   Clock, 
   Zap,
@@ -175,20 +173,7 @@ export function SubscriptionSection() {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Current limits display with usage */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-muted/50 rounded-lg">
-          <div className="text-center">
-            <Gamepad2 className="w-6 h-6 mx-auto mb-1 text-primary" />
-            <div className="text-lg font-bold">
-              {limits.games_joinable === -1 ? '∞' : limits.games_joinable}
-              {max_limits && limits.games_joinable !== -1 && (
-                <span className="text-xs text-muted-foreground font-normal">/{max_limits.games_joinable}</span>
-              )}
-            </div>
-            <div className="text-xs text-muted-foreground">Parties jouables restantes</div>
-            {usage && usage.games_joined > 0 && (
-              <div className="text-xs text-muted-foreground mt-1">({usage.games_joined} utilisées)</div>
-            )}
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
           <div className="text-center">
             <Crown className="w-6 h-6 mx-auto mb-1 text-primary" />
             <div className="text-lg font-bold">
@@ -220,12 +205,12 @@ export function SubscriptionSection() {
         </div>
 
         {/* Token bonus if any */}
-        {(token_bonus.games_joinable > 0 || token_bonus.games_creatable > 0) && (
+        {token_bonus.games_creatable > 0 && (
           <div className="p-3 bg-accent/10 border border-accent/20 rounded-lg">
             <div className="flex items-center gap-2 text-accent">
               <Zap className="w-4 h-4" />
               <span className="font-medium">Bonus Token actif:</span>
-              <span>+{token_bonus.games_joinable} parties jouables, +{token_bonus.games_creatable} parties créables</span>
+              <span>+{token_bonus.games_creatable} parties animables</span>
             </div>
           </div>
         )}
@@ -277,10 +262,6 @@ export function SubscriptionSection() {
                     <CollapsibleContent className="pt-2">
                       <ul className="space-y-1 text-sm">
                         <li className="flex items-center gap-2">
-                          <Gamepad2 className="w-4 h-4 text-muted-foreground" />
-                          {formatLimitValue(tierData.features.games_joinable)} parties jouables
-                        </li>
-                        <li className="flex items-center gap-2">
                           <Crown className="w-4 h-4 text-muted-foreground" />
                           {formatLimitValue(tierData.features.games_creatable)} parties animables
                         </li>
@@ -331,7 +312,7 @@ export function SubscriptionSection() {
                 <div>
                   <h3 className="font-semibold">{TOKEN_NDOGMOABENG.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    +{TOKEN_NDOGMOABENG.features.games_joinable} parties jouables, +{TOKEN_NDOGMOABENG.features.games_creatable} parties créables
+                    +{TOKEN_NDOGMOABENG.features.games_creatable} parties animables
                   </p>
                 </div>
               </div>
