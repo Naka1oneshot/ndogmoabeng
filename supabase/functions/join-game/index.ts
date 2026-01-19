@@ -84,13 +84,40 @@ async function getUserClanBenefits(supabase: any, userId: string, userEmail: str
   return TIER_CLAN_BENEFITS[effectiveTier] ?? false;
 }
 
+// Get user token balance
+async function getUserTokenBalance(supabase: any, userId: string): Promise<number> {
+  const { data } = await supabase
+    .from("user_subscription_bonuses")
+    .select("token_balance")
+    .eq("user_id", userId)
+    .single();
+  
+  return data?.token_balance || 0;
+}
+
+// Consume a token for clan usage
+async function consumeTokenForClan(supabase: any, userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("user_subscription_bonuses")
+    .update({ 
+      token_balance: supabase.raw('token_balance - 1'),
+      tokens_used_for_clan: supabase.raw('COALESCE(tokens_used_for_clan, 0) + 1'),
+    })
+    .eq("user_id", userId)
+    .gte("token_balance", 1)
+    .select()
+    .single();
+  
+  return !error && data !== null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { joinCode, displayName, clan, deviceId, reconnectKey } = await req.json();
+    const { joinCode, displayName, clan, deviceId, reconnectKey, useTokenForClan, lockClan } = await req.json();
 
     if (!joinCode || !displayName) {
       return new Response(
@@ -179,13 +206,13 @@ serve(async (req) => {
     }
 
     const nameNormalized = normalizeName(displayName);
-    console.log("Join attempt:", { displayName, nameNormalized, deviceId, hasReconnectKey: !!reconnectKey, userId });
+    console.log("Join attempt:", { displayName, nameNormalized, deviceId, hasReconnectKey: !!reconnectKey, userId, useTokenForClan, lockClan });
 
     // Priority 1: Try to reconnect by reconnect_key (player_token) if provided
     if (reconnectKey) {
       const { data: tokenPlayer, error: tokenError } = await supabase
         .from("game_players")
-        .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan")
+        .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan, clan_locked, clan_token_used")
         .eq("game_id", game.id)
         .eq("player_token", reconnectKey)
         .maybeSingle();
@@ -228,6 +255,8 @@ serve(async (req) => {
               jetons: tokenPlayer.jetons,
               recompenses: tokenPlayer.recompenses,
               clan: tokenPlayer.clan,
+              clanLocked: tokenPlayer.clan_locked,
+              clanTokenUsed: tokenPlayer.clan_token_used,
               reconnected: true,
             }),
             { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -239,7 +268,7 @@ serve(async (req) => {
     // Priority 2: Check if participant already exists for this device in this game
     const { data: existingPlayer, error: existingError } = await supabase
       .from("game_players")
-      .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan")
+      .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan, clan_locked, clan_token_used")
       .eq("game_id", game.id)
       .eq("device_id", deviceId)
       .maybeSingle();
@@ -252,14 +281,20 @@ serve(async (req) => {
     if (existingPlayer && existingPlayer.status === "ACTIVE") {
       console.log("Returning existing ACTIVE player by device:", existingPlayer.display_name);
       
-      // Update last_seen and optionally display_name
+      // Update last_seen and optionally display_name (but NOT clan if locked)
+      const updateData: any = { 
+        last_seen: new Date().toISOString(),
+        display_name: displayName.trim(),
+      };
+      
+      // Only update clan if not locked
+      if (!existingPlayer.clan_locked) {
+        updateData.clan = clan || null;
+      }
+      
       await supabase
         .from("game_players")
-        .update({ 
-          last_seen: new Date().toISOString(),
-          display_name: displayName.trim(),
-          clan: clan || null,
-        })
+        .update(updateData)
         .eq("id", existingPlayer.id);
 
       return new Response(
@@ -274,6 +309,8 @@ serve(async (req) => {
           jetons: existingPlayer.jetons,
           recompenses: existingPlayer.recompenses,
           clan: existingPlayer.clan,
+          clanLocked: existingPlayer.clan_locked,
+          clanTokenUsed: existingPlayer.clan_token_used,
           reconnected: true,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -281,16 +318,9 @@ serve(async (req) => {
     }
 
     // Priority 3: Try to find existing player by normalized name
-    const { data: namePlayer, error: nameError } = await supabase
-      .from("game_players")
-      .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan, device_id")
-      .eq("game_id", game.id)
-      .maybeSingle();
-
-    // We need to manually filter by normalized name since Supabase doesn't have ilike on computed fields
     const { data: allPlayers } = await supabase
       .from("game_players")
-      .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan, device_id")
+      .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan, device_id, clan_locked, clan_token_used")
       .eq("game_id", game.id);
 
     const matchingPlayerByName = (allPlayers || []).find(
@@ -371,6 +401,8 @@ serve(async (req) => {
               jetons: matchingPlayerByName.jetons,
               recompenses: matchingPlayerByName.recompenses,
               clan: matchingPlayerByName.clan,
+              clanLocked: matchingPlayerByName.clan_locked,
+              clanTokenUsed: matchingPlayerByName.clan_token_used,
               reactivated: true,
             }),
             { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -380,13 +412,19 @@ serve(async (req) => {
         // ACTIVE player reconnecting by name (different device)
         console.log("Reconnecting ACTIVE player by name (new device):", matchingPlayerByName.display_name);
         
-        // Update device_id and last_seen
+        // Update device_id and last_seen (but NOT clan if locked)
+        const updateData: any = { 
+          last_seen: new Date().toISOString(),
+          device_id: deviceId,
+        };
+        
+        if (!matchingPlayerByName.clan_locked) {
+          updateData.clan = clan || null;
+        }
+        
         await supabase
           .from("game_players")
-          .update({ 
-            last_seen: new Date().toISOString(),
-            device_id: deviceId,
-          })
+          .update(updateData)
           .eq("id", matchingPlayerByName.id);
 
         return new Response(
@@ -401,6 +439,8 @@ serve(async (req) => {
             jetons: matchingPlayerByName.jetons,
             recompenses: matchingPlayerByName.recompenses,
             clan: matchingPlayerByName.clan,
+            clanLocked: matchingPlayerByName.clan_locked,
+            clanTokenUsed: matchingPlayerByName.clan_token_used,
             reconnected: true,
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -481,8 +521,21 @@ serve(async (req) => {
     // Case 3: No existing player -> create new one
     // Check clan benefits for authenticated users
     let hasClanBenefits = false;
+    let clanTokenUsed = false;
+    
     if (userId) {
       hasClanBenefits = await getUserClanBenefits(supabase, userId, userEmail);
+      
+      // If user wants to use a token for clan benefits and doesn't have subscription benefits
+      if (!hasClanBenefits && useTokenForClan && clan) {
+        const tokenBalance = await getUserTokenBalance(supabase, userId);
+        if (tokenBalance >= 1) {
+          // Don't consume yet - will be consumed at game start
+          hasClanBenefits = true;
+          clanTokenUsed = true;
+          console.log("Player will use token for clan benefits:", displayName);
+        }
+      }
     }
 
     // Get smallest available player number
@@ -514,6 +567,7 @@ serve(async (req) => {
 
     // Determine if player can have clan benefits
     const effectiveClan = hasClanBenefits ? (clan || null) : null;
+    const shouldLockClan = lockClan && effectiveClan !== null;
     
     // Insert new player with starting tokens from game
     const baseTokens = game.starting_tokens ?? 50;
@@ -536,6 +590,8 @@ serve(async (req) => {
         recompenses: 0,
         is_alive: true,
         last_seen: new Date().toISOString(),
+        clan_locked: shouldLockClan,
+        clan_token_used: clanTokenUsed,
       })
       .select("id")
       .single();
@@ -557,7 +613,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("New player joined:", displayName, "as player #", playerNumber, "device:", deviceId, "clan:", effectiveClan);
+    console.log("New player joined:", displayName, "as player #", playerNumber, "device:", deviceId, "clan:", effectiveClan, "clanLocked:", shouldLockClan, "clanTokenUsed:", clanTokenUsed);
 
     return new Response(
       JSON.stringify({
@@ -569,6 +625,8 @@ serve(async (req) => {
         playerNumber,
         clan: effectiveClan,
         hasClanBenefits,
+        clanLocked: shouldLockClan,
+        clanTokenUsed,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

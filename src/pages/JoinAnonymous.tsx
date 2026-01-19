@@ -6,9 +6,12 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User, AlertCircle, Loader2, Smartphone, Users, Ban } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { User, AlertCircle, Loader2, Smartphone, Users, Ban, Coins, Lock, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDeviceId } from '@/hooks/useDeviceId';
+import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
@@ -23,15 +26,32 @@ const PLAYER_TOKEN_PREFIX = 'ndogmoabeng_player_';
 export default function JoinAnonymous() {
   const navigate = useNavigate();
   const { code } = useParams<{ code: string }>();
+  const { user } = useAuth();
+  const { token_bonus, hasClanBenefits, loading: subscriptionLoading } = useSubscription();
 
   const [displayName, setDisplayName] = useState('');
   const [clan, setClan] = useState<string>('none');
+  const [useTokenForClan, setUseTokenForClan] = useState(false);
+  const [lockClan, setLockClan] = useState(false);
   const [game, setGame] = useState<Game | null>(null);
   const [error, setError] = useState('');
   const [banReason, setBanReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
+
+  // Determine if user can select clan
+  const userHasClanBenefits = hasClanBenefits();
+  const userTokenBalance = token_bonus?.token_balance || 0;
+  const canSelectClan = userHasClanBenefits || useTokenForClan;
+  
+  // Reset clan selection if no access
+  useEffect(() => {
+    if (!canSelectClan && clan !== 'none') {
+      setClan('none');
+      setLockClan(false);
+    }
+  }, [canSelectClan, clan]);
 
   useEffect(() => {
     if (code) {
@@ -173,9 +193,11 @@ export default function JoinAnonymous() {
         body: { 
           joinCode: code, 
           displayName: displayName.trim(),
-          clan: clan !== 'none' ? clan : null,
+          clan: canSelectClan && clan !== 'none' ? clan : null,
           deviceId,
           reconnectKey: existingToken || undefined,
+          useTokenForClan: useTokenForClan && !userHasClanBenefits,
+          lockClan: lockClan && canSelectClan && clan !== 'none',
         },
       });
 
@@ -306,10 +328,45 @@ export default function JoinAnonymous() {
                     </div>
                   </div>
 
+                  {/* Token usage for clan (only if user is logged in and has tokens but no subscription benefits) */}
+                  {user && !userHasClanBenefits && userTokenBalance > 0 && !subscriptionLoading && (
+                    <div className="p-3 rounded-md bg-forest-gold/10 border border-forest-gold/30 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Coins className="h-4 w-4 text-forest-gold" />
+                        <span className="text-sm font-medium text-forest-gold">
+                          Vous avez {userTokenBalance} Token{userTokenBalance > 1 ? 's' : ''} Ndogmoabeng
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="useToken"
+                          checked={useTokenForClan}
+                          onCheckedChange={(checked) => setUseTokenForClan(checked === true)}
+                        />
+                        <label
+                          htmlFor="useToken"
+                          className="text-sm text-muted-foreground cursor-pointer"
+                        >
+                          Utiliser 1 Token pour activer les avantages de Clan
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clan selection - disabled if no benefits and no token used */}
                   <div className="space-y-2">
-                    <Label htmlFor="clan">Clan (optionnel)</Label>
-                    <Select value={clan} onValueChange={setClan}>
-                      <SelectTrigger id="clan">
+                    <Label htmlFor="clan" className="flex items-center gap-2">
+                      Clan
+                      {!canSelectClan && (
+                        <span className="text-xs text-muted-foreground">(abonnement ou Token requis)</span>
+                      )}
+                    </Label>
+                    <Select 
+                      value={canSelectClan ? clan : 'none'} 
+                      onValueChange={setClan}
+                      disabled={!canSelectClan}
+                    >
+                      <SelectTrigger id="clan" className={!canSelectClan ? 'opacity-50' : ''}>
                         <SelectValue placeholder="Choisir un clan" />
                       </SelectTrigger>
                       <SelectContent>
@@ -324,6 +381,34 @@ export default function JoinAnonymous() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Lock clan option - only if clan is selected */}
+                  {canSelectClan && clan !== 'none' && (
+                    <div className="flex items-center space-x-2 p-2 rounded-md bg-secondary/30">
+                      <Checkbox
+                        id="lockClan"
+                        checked={lockClan}
+                        onCheckedChange={(checked) => setLockClan(checked === true)}
+                      />
+                      <label
+                        htmlFor="lockClan"
+                        className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1"
+                      >
+                        <Lock className="h-3 w-3" />
+                        Verrouiller mon clan (empêche le MJ de le changer)
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Info about clan benefits */}
+                  {canSelectClan && clan !== 'none' && (
+                    <div className="p-2 rounded-md bg-primary/10 border border-primary/30">
+                      <div className="flex items-center gap-2 text-xs text-primary">
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Avantages de clan actifs pour cette partie</span>
+                      </div>
+                    </div>
+                  )}
 
                   <ForestButton 
                     className="w-full" 

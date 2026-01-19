@@ -4,9 +4,10 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { KickPlayerModal } from '@/components/game/KickPlayerModal';
+import { useUserRole } from '@/hooks/useUserRole';
 import { 
   User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, 
-  Users, UserX, Play
+  Users, UserX, Play, Lock, Coins, ShieldCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -22,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Player {
   id: string;
@@ -37,6 +39,9 @@ interface Player {
   status: string;
   joined_at: string;
   last_seen: string | null;
+  clan_locked: boolean;
+  clan_token_used: boolean;
+  user_id: string | null;
 }
 
 interface Game {
@@ -52,6 +57,7 @@ interface MJPlayersTabProps {
 }
 
 export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
+  const { isAdmin } = useUserRole();
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -96,7 +102,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
       .order('player_number', { ascending: true, nullsFirst: false });
 
     if (!error && data) {
-      setPlayers(data);
+      setPlayers(data as Player[]);
     }
     setLoading(false);
   };
@@ -199,17 +205,52 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     setEditForm({});
   };
 
+  // Check if MJ can edit clan for this player
+  const canEditClan = (player: Player): boolean => {
+    // Admin can always edit
+    if (isAdmin) return true;
+    
+    // If player has no clan and no token used, MJ can assign (no advantage)
+    if (!player.clan && !player.clan_token_used) return true;
+    
+    // If clan is locked, MJ cannot edit
+    if (player.clan_locked) return false;
+    
+    // If player used a token for clan, MJ cannot edit (they paid for it)
+    if (player.clan_token_used) return false;
+    
+    // If player has a user_id (registered user), check if they have subscription benefits
+    // For simplicity, we allow MJ to edit if not locked and not token-used
+    return true;
+  };
+
+  const getClanEditTooltip = (player: Player): string | null => {
+    if (isAdmin) return null;
+    if (player.clan_locked) return 'Clan verrouillé par le joueur';
+    if (player.clan_token_used) return 'Token utilisé pour les avantages de clan';
+    return null;
+  };
+
   const handleSave = async (playerId: string) => {
+    const player = players.find(p => p.id === playerId);
+    if (!player) return;
+
     setSaving(true);
     try {
+      const updateData: any = {
+        display_name: editForm.display_name,
+        mate_num: editForm.mate_num || null,
+        jetons: editForm.jetons || 0,
+      };
+
+      // Only update clan if allowed
+      if (canEditClan(player)) {
+        updateData.clan = editForm.clan || null;
+      }
+
       const { error } = await supabase
         .from('game_players')
-        .update({
-          display_name: editForm.display_name,
-          clan: editForm.clan || null,
-          mate_num: editForm.mate_num || null,
-          jetons: editForm.jetons || 0,
-        })
+        .update(updateData)
         .eq('id', playerId);
 
       if (error) throw error;
@@ -267,239 +308,297 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   const kickedPlayers = players.filter(p => p.status === 'REMOVED');
   const availablePlayerNumbers = activePlayers.map(p => p.player_number).filter(Boolean) as number[];
 
+  // Get available clans for dropdown (exclude clans with advantages if player can't have them)
+  const getAvailableClans = (player: Player) => {
+    const allClans = [
+      { value: 'none', label: 'Aucun' },
+      { value: 'Royaux', label: '👑 Royaux' },
+      { value: 'Zoulous', label: '💰 Zoulous' },
+      { value: 'Keryndes', label: '🧭 Keryndes' },
+      { value: 'Akandé', label: '⚔️ Akandé' },
+      { value: 'Aseyra', label: '📜 Aséyra' },
+      { value: 'Akila', label: '🔬 Akila' },
+      { value: 'Ezkar', label: '💥 Ezkar' },
+    ];
+    return allClans;
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Actions principales */}
-      <div className="flex flex-wrap gap-3">
-        {isLobby && (
-          <ForestButton
-            onClick={handleStartGame}
-            disabled={starting || activePlayers.length === 0}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {starting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-            Démarrer la partie ({activePlayers.length} joueurs)
-          </ForestButton>
-        )}
-      </div>
+    <TooltipProvider>
+      <div className="space-y-6">
+        {/* Actions principales */}
+        <div className="flex flex-wrap gap-3">
+          {isLobby && (
+            <ForestButton
+              onClick={handleStartGame}
+              disabled={starting || activePlayers.length === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {starting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+              Démarrer la partie ({activePlayers.length} joueurs)
+            </ForestButton>
+          )}
+        </div>
 
-      {/* Liste des joueurs actifs */}
-      <div className="card-gradient rounded-lg border border-border p-4">
-        <h3 className="font-display text-lg mb-4 flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          Joueurs actifs ({activePlayers.length})
-        </h3>
+        {/* Liste des joueurs actifs */}
+        <div className="card-gradient rounded-lg border border-border p-4">
+          <h3 className="font-display text-lg mb-4 flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Joueurs actifs ({activePlayers.length})
+          </h3>
 
-        {activePlayers.length === 0 ? (
-          <p className="text-muted-foreground text-sm text-center py-4">
-            Aucun joueur n'a encore rejoint la partie
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {/* Header */}
-            <div className="hidden lg:grid grid-cols-12 gap-2 text-xs text-muted-foreground px-3 py-1">
-              <div className="col-span-1">#</div>
-              <div className="col-span-2">Nom</div>
-              <div className="col-span-1">Clan</div>
-              <div className="col-span-1">Mate</div>
-              <div className="col-span-1">Jetons</div>
-              <div className="col-span-2">Rejoint</div>
-              <div className="col-span-1">Statut</div>
-              <div className="col-span-3 text-right">Actions</div>
-            </div>
+          {activePlayers.length === 0 ? (
+            <p className="text-muted-foreground text-sm text-center py-4">
+              Aucun joueur n'a encore rejoint la partie
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {/* Header */}
+              <div className="hidden lg:grid grid-cols-12 gap-2 text-xs text-muted-foreground px-3 py-1">
+                <div className="col-span-1">#</div>
+                <div className="col-span-2">Nom</div>
+                <div className="col-span-2">Clan</div>
+                <div className="col-span-1">Mate</div>
+                <div className="col-span-1">Jetons</div>
+                <div className="col-span-2">Rejoint</div>
+                <div className="col-span-1">Statut</div>
+                <div className="col-span-2 text-right">Actions</div>
+              </div>
 
-            {activePlayers.map((player) => (
-              <div
-                key={player.id}
-                className={`p-3 rounded-md bg-secondary/50 ${!player.is_alive ? 'opacity-50' : ''}`}
-              >
-                {editingId === player.id ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground">Nom</label>
-                        <Input
-                          value={editForm.display_name || ''}
-                          onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Clan</label>
-                        <Select
-                          value={editForm.clan || 'none'}
-                          onValueChange={(val) => setEditForm({ ...editForm, clan: val === 'none' ? '' : val })}
-                        >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue placeholder="Clan" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Aucun</SelectItem>
-                            <SelectItem value="Akila">Akila</SelectItem>
-                            <SelectItem value="Akandé">Akandé</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Coéquipier</label>
-                        <Select
-                          value={editForm.mate_num?.toString() || 'none'}
-                          onValueChange={(val) => setEditForm({ ...editForm, mate_num: val === 'none' ? null : parseInt(val) })}
-                        >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue placeholder="Mate" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Aucun</SelectItem>
-                            {availablePlayerNumbers
-                              .filter(n => n !== player.player_number)
-                              .map(n => (
-                                <SelectItem key={n} value={n.toString()}>
-                                  Joueur {n}
-                                </SelectItem>
+              {activePlayers.map((player) => (
+                <div
+                  key={player.id}
+                  className={`p-3 rounded-md bg-secondary/50 ${!player.is_alive ? 'opacity-50' : ''}`}
+                >
+                  {editingId === player.id ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Nom</label>
+                          <Input
+                            value={editForm.display_name || ''}
+                            onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground flex items-center gap-1">
+                            Clan
+                            {!canEditClan(player) && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Lock className="h-3 w-3 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {getClanEditTooltip(player)}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </label>
+                          <Select
+                            value={editForm.clan || 'none'}
+                            onValueChange={(val) => setEditForm({ ...editForm, clan: val === 'none' ? '' : val })}
+                            disabled={!canEditClan(player)}
+                          >
+                            <SelectTrigger className={`h-8 text-sm ${!canEditClan(player) ? 'opacity-50' : ''}`}>
+                              <SelectValue placeholder="Clan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getAvailableClans(player).map(c => (
+                                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                               ))}
-                          </SelectContent>
-                        </Select>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Coéquipier</label>
+                          <Select
+                            value={editForm.mate_num?.toString() || 'none'}
+                            onValueChange={(val) => setEditForm({ ...editForm, mate_num: val === 'none' ? null : parseInt(val) })}
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue placeholder="Mate" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Aucun</SelectItem>
+                              {availablePlayerNumbers
+                                .filter(n => n !== player.player_number)
+                                .map(n => (
+                                  <SelectItem key={n} value={n.toString()}>
+                                    Joueur {n}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Jetons</label>
+                          <Input
+                            type="number"
+                            value={editForm.jetons || 0}
+                            onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                            className="h-8 text-sm"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Jetons</label>
-                        <Input
-                          type="number"
-                          value={editForm.jetons || 0}
-                          onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
-                          className="h-8 text-sm"
-                        />
+                      <div className="flex justify-end gap-2">
+                        <ForestButton variant="ghost" size="sm" onClick={cancelEditing}>
+                          <X className="h-4 w-4" />
+                          Annuler
+                        </ForestButton>
+                        <ForestButton size="sm" onClick={() => handleSave(player.id)} disabled={saving}>
+                          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                          Sauvegarder
+                        </ForestButton>
                       </div>
                     </div>
-                    <div className="flex justify-end gap-2">
-                      <ForestButton variant="ghost" size="sm" onClick={cancelEditing}>
-                        <X className="h-4 w-4" />
-                        Annuler
-                      </ForestButton>
-                      <ForestButton size="sm" onClick={() => handleSave(player.id)} disabled={saving}>
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Sauvegarder
-                      </ForestButton>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-12 gap-2 items-center">
-                    <div className="col-span-1">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                        <span className="text-sm font-medium text-primary">
-                          {player.player_number || '?'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="font-medium text-sm truncate block">{player.display_name}</span>
-                    </div>
-                    <div className="col-span-1 text-sm text-muted-foreground">
-                      {player.clan || '-'}
-                    </div>
-                    <div className="col-span-1 text-sm text-muted-foreground">
-                      {player.mate_num || '-'}
-                    </div>
-                    <div className="col-span-1 text-sm font-medium text-forest-gold">
-                      {player.jetons}
-                    </div>
-                    <div className="col-span-2 text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(player.joined_at), { addSuffix: true, locale: fr })}
-                    </div>
-                    <div className="col-span-1">
-                      {(() => {
-                        const badge = getPresenceBadge(player.last_seen);
-                        return (
-                          <span className={`inline-flex items-center gap-1 text-xs ${badge.textColor}`}>
-                            <span className={`w-2 h-2 rounded-full ${badge.color}`} />
-                            {badge.label}
+                  ) : (
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-1">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                          <span className="text-sm font-medium text-primary">
+                            {player.player_number || '?'}
                           </span>
-                        );
-                      })()}
-                    </div>
-                    <div className="col-span-3 flex items-center justify-end gap-1">
-                      <ForestButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => startEditing(player)}
-                        title="Modifier le joueur"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </ForestButton>
-                      {player.player_token && (
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="font-medium text-sm truncate block">{player.display_name}</span>
+                      </div>
+                      <div className="col-span-2 text-sm text-muted-foreground flex items-center gap-1">
+                        {player.clan || '-'}
+                        {player.clan && (
+                          <>
+                            {player.clan_locked && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Lock className="h-3 w-3 text-primary" />
+                                </TooltipTrigger>
+                                <TooltipContent>Verrouillé par le joueur</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {player.clan_token_used && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Coins className="h-3 w-3 text-forest-gold" />
+                                </TooltipTrigger>
+                                <TooltipContent>Token utilisé</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {(player.clan_locked || player.clan_token_used) && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <ShieldCheck className="h-3 w-3 text-green-500" />
+                                </TooltipTrigger>
+                                <TooltipContent>Avantages de clan actifs</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      <div className="col-span-1 text-sm text-muted-foreground">
+                        {player.mate_num || '-'}
+                      </div>
+                      <div className="col-span-1 text-sm font-medium text-forest-gold">
+                        {player.jetons}
+                      </div>
+                      <div className="col-span-2 text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(player.joined_at), { addSuffix: true, locale: fr })}
+                      </div>
+                      <div className="col-span-1">
+                        {(() => {
+                          const badge = getPresenceBadge(player.last_seen);
+                          return (
+                            <span className={`inline-flex items-center gap-1 text-xs ${badge.textColor}`}>
+                              <span className={`w-2 h-2 rounded-full ${badge.color}`} />
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                      <div className="col-span-2 flex items-center justify-end gap-1">
                         <ForestButton
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
-                          title="Copier le lien de reconnexion"
+                          onClick={() => startEditing(player)}
+                          title="Modifier le joueur"
                         >
-                          {copiedId === player.id ? (
-                            <Check className="h-4 w-4 text-green-500" />
+                          <Pencil className="h-4 w-4" />
+                        </ForestButton>
+                        {player.player_token && (
+                          <ForestButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
+                            title="Copier le lien de reconnexion"
+                          >
+                            {copiedId === player.id ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </ForestButton>
+                        )}
+                        <ForestButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleResetToken(player.id, player.display_name)}
+                          disabled={resettingId === player.id}
+                          title="Réinitialiser le token"
+                        >
+                          {resettingId === player.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <Copy className="h-4 w-4" />
+                            <RefreshCw className="h-4 w-4" />
                           )}
                         </ForestButton>
-                      )}
-                      <ForestButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleResetToken(player.id, player.display_name)}
-                        disabled={resettingId === player.id}
-                        title="Réinitialiser le token"
-                      >
-                        {resettingId === player.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <RefreshCw className="h-4 w-4" />
-                        )}
-                      </ForestButton>
-                      <ForestButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openKickModal(player.id, player.display_name)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        title="Expulser le joueur"
-                      >
-                        <UserX className="h-4 w-4" />
-                      </ForestButton>
+                        <ForestButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openKickModal(player.id, player.display_name)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="Expulser le joueur"
+                        >
+                          <UserX className="h-4 w-4" />
+                        </ForestButton>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Joueurs expulsés */}
+        {kickedPlayers.length > 0 && (
+          <div className="card-gradient rounded-lg border border-border/50 p-4 opacity-75">
+            <h3 className="font-display text-sm mb-3 flex items-center gap-2 text-muted-foreground">
+              <UserX className="h-4 w-4" />
+              Joueurs expulsés ({kickedPlayers.length})
+            </h3>
+            <div className="space-y-1">
+              {kickedPlayers.map((player) => (
+                <div key={player.id} className="text-sm text-muted-foreground flex items-center gap-2">
+                  <span>{player.display_name}</span>
+                  <span className="text-xs">-</span>
+                  <span className="text-xs text-destructive/70">{player.status}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
+
+        {selectedPlayer && (
+          <KickPlayerModal
+            open={kickModalOpen}
+            onOpenChange={setKickModalOpen}
+            playerId={selectedPlayer.id}
+            playerName={selectedPlayer.name}
+            gameId={game.id}
+            onSuccess={fetchPlayers}
+          />
+        )}
       </div>
-
-      {/* Joueurs expulsés */}
-      {kickedPlayers.length > 0 && (
-        <div className="card-gradient rounded-lg border border-border/50 p-4 opacity-75">
-          <h3 className="font-display text-sm mb-3 flex items-center gap-2 text-muted-foreground">
-            <UserX className="h-4 w-4" />
-            Joueurs expulsés ({kickedPlayers.length})
-          </h3>
-          <div className="space-y-1">
-            {kickedPlayers.map((player) => (
-              <div key={player.id} className="text-sm text-muted-foreground flex items-center gap-2">
-                <span>{player.display_name}</span>
-                <span className="text-xs">-</span>
-                <span className="text-xs text-destructive/70">{player.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {selectedPlayer && (
-        <KickPlayerModal
-          open={kickModalOpen}
-          onOpenChange={setKickModalOpen}
-          playerId={selectedPlayer.id}
-          playerName={selectedPlayer.name}
-          gameId={game.id}
-          onSuccess={fetchPlayers}
-        />
-      )}
-    </div>
+    </TooltipProvider>
   );
 }
