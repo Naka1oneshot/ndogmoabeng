@@ -135,7 +135,8 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
       }
 
       // Generate the reconnection link with the new token
-      const reconnectUrl = `${window.location.origin}/player/${game.id}?token=${data.newToken}`;
+      const { getPlayerReconnectUrl } = await import('@/lib/urlHelpers');
+      const reconnectUrl = getPlayerReconnectUrl(game.id, data.newToken);
       
       // Copy to clipboard
       try {
@@ -171,7 +172,8 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   };
 
   const handleCopyJoinLink = async (playerId: string, token: string) => {
-    const joinUrl = `${window.location.origin}/player/${game.id}?token=${token}`;
+    const { getPlayerReconnectUrl } = await import('@/lib/urlHelpers');
+    const joinUrl = getPlayerReconnectUrl(game.id, token);
     try {
       await navigator.clipboard.writeText(joinUrl);
       setCopiedId(playerId);
