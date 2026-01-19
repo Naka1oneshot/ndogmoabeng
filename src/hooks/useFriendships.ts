@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useSubscription } from './useSubscription';
 import { toast } from 'sonner';
 
 interface Friend {
@@ -45,6 +46,7 @@ interface GameTogether {
 
 export function useFriendships() {
   const { user } = useAuth();
+  const { limits, max_limits } = useSubscription();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
   const [sentRequests, setSentRequests] = useState<Friend[]>([]);
@@ -181,6 +183,13 @@ export function useFriendships() {
   const sendFriendRequest = async (addresseeId: string) => {
     if (!user) return { error: 'Not authenticated' };
 
+    // Check friend limit
+    const maxFriends = max_limits?.max_friends ?? 2;
+    if (maxFriends !== -1 && friends.length >= maxFriends) {
+      toast.error(`Vous avez atteint la limite de ${maxFriends} amis. Passez à un abonnement supérieur pour ajouter plus d'amis.`);
+      return { error: 'Friend limit reached' };
+    }
+
     try {
       const { error } = await supabase
         .from('friendships')
@@ -203,6 +212,13 @@ export function useFriendships() {
   };
 
   const acceptFriendRequest = async (friendshipId: string) => {
+    // Check friend limit before accepting
+    const maxFriends = max_limits?.max_friends ?? 2;
+    if (maxFriends !== -1 && friends.length >= maxFriends) {
+      toast.error(`Vous avez atteint la limite de ${maxFriends} amis. Passez à un abonnement supérieur pour ajouter plus d'amis.`);
+      return { error: 'Friend limit reached' };
+    }
+
     try {
       const { error } = await supabase
         .from('friendships')

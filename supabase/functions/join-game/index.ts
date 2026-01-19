@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,109 @@ function generatePlayerToken(): string {
 // Normalize name for matching (trim + lowercase)
 function normalizeName(name: string): string {
   return name.trim().toLowerCase();
+}
+
+// Product ID to tier mapping (same as check-subscription)
+const PRODUCT_TO_TIER: Record<string, string> = {
+  "prod_Tp3VRqayJwZs5D": "starter",
+  "prod_Tp3VDl938PAQx0": "premium",
+  "prod_Tp3W1ER13T1Qss": "royal",
+};
+
+// Tier limits configuration
+const TIER_LIMITS: Record<string, {
+  games_joinable: number;
+  clan_benefits: boolean;
+}> = {
+  freemium: { games_joinable: 10, clan_benefits: false },
+  starter: { games_joinable: 30, clan_benefits: true },
+  premium: { games_joinable: 100, clan_benefits: true },
+  royal: { games_joinable: -1, clan_benefits: true }, // unlimited
+};
+
+// Get start of current month in ISO format
+function getMonthStart(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+}
+
+// Check user subscription limits
+async function getUserSubscriptionLimits(supabase: any, userId: string, userEmail: string | null): Promise<{ 
+  canJoin: boolean; 
+  hasClanBenefits: boolean; 
+  reason?: string 
+}> {
+  const monthStart = getMonthStart();
+  
+  // Count games joined this month (only initialized games)
+  const { count: gamesJoinedCount } = await supabase
+    .from("game_players")
+    .select("*, games!inner(status)", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("is_host", false)
+    .gte("joined_at", monthStart)
+    .is("removed_at", null)
+    .neq("games.status", "LOBBY");
+
+  const usedJoinable = gamesJoinedCount || 0;
+  
+  let effectiveTier = "freemium";
+  let tokenBonus = 0;
+
+  // Check Stripe subscription if user has email
+  if (userEmail) {
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (stripeKey) {
+      try {
+        const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+        const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
+        
+        if (customers.data.length > 0) {
+          const subscriptions = await stripe.subscriptions.list({
+            customer: customers.data[0].id,
+            status: "active",
+            limit: 1,
+          });
+          
+          if (subscriptions.data.length > 0) {
+            const productId = subscriptions.data[0].items.data[0].price.product as string;
+            effectiveTier = PRODUCT_TO_TIER[productId] || "freemium";
+          }
+        }
+      } catch (e) {
+        console.error("Stripe check error:", e);
+      }
+    }
+  }
+
+  // Check for trial or token bonuses
+  const { data: bonusData } = await supabase
+    .from("user_subscription_bonuses")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (bonusData) {
+    const trialEndDate = new Date(bonusData.trial_end_at);
+    if (trialEndDate > new Date()) {
+      effectiveTier = bonusData.trial_tier || effectiveTier;
+    }
+    tokenBonus = bonusData.token_games_joinable || 0;
+  }
+
+  const limits = TIER_LIMITS[effectiveTier] || TIER_LIMITS.freemium;
+  const totalJoinable = limits.games_joinable === -1 ? -1 : limits.games_joinable + tokenBonus;
+  const remaining = totalJoinable === -1 ? 999 : totalJoinable - usedJoinable;
+
+  if (remaining <= 0) {
+    return { 
+      canJoin: false, 
+      hasClanBenefits: limits.clan_benefits,
+      reason: "Vous avez atteint votre limite de parties jouables ce mois-ci. Passez à un abonnement supérieur ou achetez des tokens." 
+    };
+  }
+
+  return { canJoin: true, hasClanBenefits: limits.clan_benefits };
 }
 
 serve(async (req) => {
@@ -101,8 +205,26 @@ serve(async (req) => {
       );
     }
 
+    // Check subscription limits for authenticated users (new joins only, not reconnections)
+    // We'll check this before allowing new player creation
+    let subscriptionLimits: { canJoin: boolean; hasClanBenefits: boolean; reason?: string } | null = null;
+    
+    // Try to get authenticated user from authorization header
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+    let userEmail: string | null = null;
+    
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData } = await supabase.auth.getUser(token);
+      if (userData?.user) {
+        userId = userData.user.id;
+        userEmail = userData.user.email || null;
+      }
+    }
+
     const nameNormalized = normalizeName(displayName);
-    console.log("Join attempt:", { displayName, nameNormalized, deviceId, hasReconnectKey: !!reconnectKey });
+    console.log("Join attempt:", { displayName, nameNormalized, deviceId, hasReconnectKey: !!reconnectKey, userId });
 
     // Priority 1: Try to reconnect by reconnect_key (player_token) if provided
     if (reconnectKey) {
@@ -402,6 +524,22 @@ serve(async (req) => {
     }
 
     // Case 3: No existing player -> create new one
+    // First check subscription limits for authenticated users
+    if (userId) {
+      subscriptionLimits = await getUserSubscriptionLimits(supabase, userId, userEmail);
+      if (!subscriptionLimits.canJoin) {
+        console.log("Subscription limit reached for user:", userId);
+        return new Response(
+          JSON.stringify({ 
+            error: "LIMIT_REACHED",
+            reason: subscriptionLimits.reason,
+            limitReached: true 
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Get smallest available player number
     const { data: activePlayers } = await supabase
       .from("game_players")
@@ -429,20 +567,25 @@ serve(async (req) => {
     // Generate player token
     const playerToken = generatePlayerToken();
 
+    // Determine if player can have clan benefits
+    const hasClanBenefits = subscriptionLimits?.hasClanBenefits ?? false;
+    const effectiveClan = hasClanBenefits ? (clan || null) : null;
+    
     // Insert new player with starting tokens from game
     const baseTokens = game.starting_tokens ?? 50;
-    // Royaux clan bonus: 1.5x starting tokens
-    const startingTokens = clan === 'Royaux' ? Math.floor(baseTokens * 1.5) : baseTokens;
+    // Royaux clan bonus: 1.5x starting tokens (only if clan benefits available)
+    const startingTokens = (hasClanBenefits && effectiveClan === 'Royaux') ? Math.floor(baseTokens * 1.5) : baseTokens;
     
     const { data: newPlayer, error: insertError } = await supabase
       .from("game_players")
       .insert({
         game_id: game.id,
         display_name: displayName.trim(),
-        clan: clan || null,
+        clan: effectiveClan,
         player_number: playerNumber,
         player_token: playerToken,
         device_id: deviceId,
+        user_id: userId || null,
         status: "ACTIVE",
         is_host: false,
         jetons: startingTokens,
@@ -470,7 +613,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("New player joined:", displayName, "as player #", playerNumber, "device:", deviceId);
+    console.log("New player joined:", displayName, "as player #", playerNumber, "device:", deviceId, "clan:", effectiveClan);
 
     return new Response(
       JSON.stringify({
@@ -480,6 +623,8 @@ serve(async (req) => {
         playerId: newPlayer.id,
         playerToken,
         playerNumber,
+        clan: effectiveClan,
+        hasClanBenefits,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
