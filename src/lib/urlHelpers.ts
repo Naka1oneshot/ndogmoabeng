@@ -4,7 +4,7 @@
  */
 export function getPublicBaseUrl(): string {
   // Use the published app URL (always accessible without auth)
-  return 'https://ndogmoabeng.lovable';
+  return 'https://ndogmoabeng.com';
 }
 
 /**
