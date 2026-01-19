@@ -123,7 +123,7 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
                 )}
               </button>
               <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">🎵 Générique Ndogmoabeng</p>
+                <p className="text-sm font-medium text-foreground">🎵 Générique La carte trouvée de Ndogmoabeng</p>
                 <p className="text-xs text-muted-foreground">Écouter l'ambiance</p>
               </div>
               <button
