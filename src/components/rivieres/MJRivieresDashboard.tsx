@@ -792,16 +792,13 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         </div>
       )}
 
-      <Tabs defaultValue={isGameFinished ? "players" : "actions"} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-[#20232A]">
-          <TabsTrigger value="actions" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
-            <Play className="h-4 w-4 mr-1" /> Actions
-          </TabsTrigger>
-          <TabsTrigger value="danger-calc" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
-            <Calculator className="h-4 w-4 mr-1" /> Calcul
-          </TabsTrigger>
+      <Tabs defaultValue={isGameFinished ? "players" : "players"} className="w-full">
+        <TabsList className="grid w-full grid-cols-4 bg-[#20232A]">
           <TabsTrigger value="players" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
             <Users className="h-4 w-4 mr-1" /> Joueurs
+          </TabsTrigger>
+          <TabsTrigger value="actions" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
+            <Play className="h-4 w-4 mr-1" /> Actions
           </TabsTrigger>
           <TabsTrigger value="decisions" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
             <Anchor className="h-4 w-4 mr-1" /> Décisions
@@ -811,108 +808,8 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           </TabsTrigger>
         </TabsList>
 
-        {/* Actions Tab */}
+        {/* Actions Tab (merged with Calcul) */}
         <TabsContent value="actions" className="space-y-4 mt-4">
-          {/* Danger Section */}
-          <div className={`${rivieresCardStyle} p-4`}>
-            <h3 className="font-bold text-[#D4AF37] mb-3 flex items-center gap-2">
-              <Dice6 className="h-5 w-5" /> Définir le Danger
-            </h3>
-            <div className="flex flex-wrap gap-3 items-end">
-              <div>
-                <label className="text-xs text-[#9CA3AF]">Nb dés</label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={diceCount}
-                  onChange={(e) => setDiceCount(Number(e.target.value))}
-                  className="w-20 bg-[#0B1020] border-[#D4AF37]/30 text-white"
-                />
-              </div>
-              <ForestButton
-                onClick={handleRollDanger}
-                disabled={actionLoading === 'roll'}
-                className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
-              >
-                {actionLoading === 'roll' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Dice6 className="h-4 w-4 mr-1" />}
-                Lancer
-              </ForestButton>
-              <div className="text-[#9CA3AF]">ou</div>
-              <div>
-                <label className="text-xs text-[#9CA3AF]">Danger manuel</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={manualDanger}
-                  onChange={(e) => setManualDanger(Number(e.target.value))}
-                  className="w-24 bg-[#0B1020] border-[#D4AF37]/30 text-white"
-                />
-              </div>
-              <ForestButton
-                onClick={handleManualDanger}
-                disabled={actionLoading === 'manual'}
-                variant="outline"
-                className="border-[#D4AF37] text-[#D4AF37]"
-              >
-                {actionLoading === 'manual' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Définir'}
-              </ForestButton>
-            </div>
-            {state.danger_raw !== null && (
-              <div className="mt-3 flex gap-4 text-sm">
-                <span className="text-[#9CA3AF]">Danger brut: <strong className="text-[#FF6B6B]">{state.danger_raw}</strong></span>
-                {state.danger_effectif !== state.danger_raw && (
-                  <span className="text-[#9CA3AF]">Effectif: <strong className="text-[#FF6B6B]">{state.danger_effectif}</strong></span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Lock & Resolve Section */}
-          <div className={`${rivieresCardStyle} p-4`}>
-            <h3 className="font-bold text-[#D4AF37] mb-3 flex items-center gap-2">
-              <Lock className="h-5 w-5" /> Actions MJ
-            </h3>
-            <div className="flex gap-3 flex-wrap">
-              <ForestButton
-                onClick={handleLockDecisions}
-                disabled={actionLoading === 'lock' || allLocked}
-                className="bg-amber-600 hover:bg-amber-700"
-              >
-                {actionLoading === 'lock' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4 mr-1" />}
-                Clôturer décisions
-              </ForestButton>
-
-              <ForestButton
-                onClick={handleResolveLevel}
-                disabled={actionLoading === 'resolve' || !canResolve}
-                className={canResolve ? 'bg-[#1B4D3E] hover:bg-[#1B4D3E]/80' : 'bg-gray-600'}
-              >
-                {actionLoading === 'resolve' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 mr-1" />}
-                Résoudre le niveau
-              </ForestButton>
-            </div>
-
-            {!canResolve && (
-              <div className="mt-3 text-sm text-amber-400 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                {!dangerSet && 'Danger non défini. '}
-                {!allLocked && 'Décisions non verrouillées.'}
-              </div>
-            )}
-
-            {canResolve && (
-              <div className="mt-3 text-sm text-[#4ADE80] flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Total mises: {totalMises}💎 vs Danger: {state.danger_effectif}
-                {totalMises > (state.danger_effectif || 0) ? ' → SUCCÈS' : ' → ÉCHEC'}
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Danger Calculation Tab */}
-        <TabsContent value="danger-calc" className="space-y-4 mt-4">
           {(() => {
             const dangerCalc = calculateDangerRange(enBateauPlayers.length, state.manche_active, state.niveau_active);
             const explanation = getDangerCalculationExplanation(dangerCalc);
@@ -920,7 +817,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
             
             return (
               <>
-                {/* Current situation summary */}
+                {/* Danger Calculation Section */}
                 <div className={`${rivieresCardStyle} p-4`}>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-[#D4AF37] flex items-center gap-2">
@@ -948,78 +845,160 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Danger Range Display */}
-                <div className={`${rivieresCardStyle} p-4 border-2 ${dangerCalc.range.isLevel5 ? 'border-[#FF6B6B]' : 'border-[#D4AF37]/50'}`}>
-                  <h4 className="text-[#9CA3AF] text-sm mb-2 text-center">Plage de danger recommandée</h4>
-                  <div className="flex items-center justify-center gap-4">
-                    <div className="text-center">
-                      <div className="text-xs text-[#9CA3AF]">Min</div>
-                      <div className="text-3xl font-bold text-[#4ADE80]">{dangerCalc.range.min}</div>
+                  {/* Danger Range Display */}
+                  <div className={`p-4 rounded-lg border-2 ${dangerCalc.range.isLevel5 ? 'border-[#FF6B6B] bg-[#FF6B6B]/5' : 'border-[#D4AF37]/50 bg-[#D4AF37]/5'}`}>
+                    <h4 className="text-[#9CA3AF] text-sm mb-2 text-center">Plage de danger recommandée</h4>
+                    <div className="flex items-center justify-center gap-4">
+                      <div className="text-center">
+                        <div className="text-xs text-[#9CA3AF]">Min</div>
+                        <div className="text-3xl font-bold text-[#4ADE80]">{dangerCalc.range.min}</div>
+                      </div>
+                      <div className="text-4xl text-[#9CA3AF]">—</div>
+                      <div className="text-center">
+                        <div className="text-xs text-[#9CA3AF]">Max</div>
+                        <div className="text-3xl font-bold text-[#FF6B6B]">{dangerCalc.range.max}</div>
+                      </div>
                     </div>
-                    <div className="text-4xl text-[#9CA3AF]">—</div>
-                    <div className="text-center">
-                      <div className="text-xs text-[#9CA3AF]">Max</div>
-                      <div className="text-3xl font-bold text-[#FF6B6B]">{dangerCalc.range.max}</div>
+                    <div className="text-center mt-3">
+                      <span className="text-[#9CA3AF] text-sm">Suggestion: </span>
+                      <span className="text-xl font-bold text-[#D4AF37]">{dangerCalc.range.suggested}</span>
                     </div>
                   </div>
-                  <div className="text-center mt-3">
-                    <span className="text-[#9CA3AF] text-sm">Suggestion: </span>
-                    <span className="text-xl font-bold text-[#D4AF37]">{dangerCalc.range.suggested}</span>
-                  </div>
                 </div>
 
-                {/* Auto-generate button */}
+                {/* Danger Definition Section */}
                 <div className={`${rivieresCardStyle} p-4`}>
-                  <h4 className="font-bold text-[#D4AF37] mb-3 flex items-center gap-2">
-                    <Zap className="h-5 w-5" /> Génération automatique
-                  </h4>
-                  <div className="flex gap-3 flex-wrap">
+                  <h3 className="font-bold text-[#D4AF37] mb-3 flex items-center gap-2">
+                    <Dice6 className="h-5 w-5" /> Définir le Danger
+                  </h3>
+                  <div className="flex flex-wrap gap-3 items-end mb-4">
+                    <div>
+                      <label className="text-xs text-[#9CA3AF]">Nb dés</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={diceCount}
+                        onChange={(e) => setDiceCount(Number(e.target.value))}
+                        className="w-20 bg-[#0B1020] border-[#D4AF37]/30 text-white"
+                      />
+                    </div>
+                    <ForestButton
+                      onClick={handleRollDanger}
+                      disabled={actionLoading === 'roll'}
+                      className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
+                    >
+                      {actionLoading === 'roll' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Dice6 className="h-4 w-4 mr-1" />}
+                      Lancer
+                    </ForestButton>
+                    <div className="text-[#9CA3AF]">ou</div>
+                    <div>
+                      <label className="text-xs text-[#9CA3AF]">Danger manuel</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={manualDanger}
+                        onChange={(e) => setManualDanger(Number(e.target.value))}
+                        className="w-24 bg-[#0B1020] border-[#D4AF37]/30 text-white"
+                      />
+                    </div>
+                    <ForestButton
+                      onClick={handleManualDanger}
+                      disabled={actionLoading === 'manual'}
+                      variant="outline"
+                      className="border-[#D4AF37] text-[#D4AF37]"
+                    >
+                      {actionLoading === 'manual' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Définir'}
+                    </ForestButton>
+                  </div>
+                  
+                  {/* Auto-generate buttons */}
+                  <div className="flex gap-3 flex-wrap mb-3">
                     <ForestButton
                       onClick={() => {
                         const suggestedDanger = generateSuggestedDanger(enBateauPlayers.length, state.manche_active, state.niveau_active);
                         setManualDanger(suggestedDanger);
                         toast.info(`Danger suggéré: ${suggestedDanger} (dans la plage ${dangerCalc.range.min}-${dangerCalc.range.max})`);
                       }}
-                      className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
+                      size="sm"
+                      variant="outline"
+                      className="border-[#D4AF37]/50 text-[#D4AF37]"
                     >
-                      <Dice6 className="h-4 w-4 mr-2" />
-                      Générer danger aléatoire
+                      <Zap className="h-4 w-4 mr-2" />
+                      Générer aléatoire
                     </ForestButton>
                     <ForestButton
                       onClick={() => {
                         setManualDanger(dangerCalc.range.suggested);
                         toast.info(`Danger défini: ${dangerCalc.range.suggested}`);
                       }}
+                      size="sm"
                       variant="outline"
-                      className="border-[#D4AF37] text-[#D4AF37]"
+                      className="border-[#9CA3AF]/50 text-[#9CA3AF]"
                     >
-                      Utiliser la suggestion ({dangerCalc.range.suggested})
+                      Utiliser suggestion ({dangerCalc.range.suggested})
                     </ForestButton>
                   </div>
-                  {manualDanger > 0 && (
-                    <div className="mt-3 p-3 bg-[#0B1020] rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#9CA3AF]">Danger en attente de validation:</span>
-                        <span className="text-2xl font-bold text-[#FF6B6B]">{manualDanger}</span>
-                      </div>
-                      <ForestButton
-                        onClick={handleManualDanger}
-                        disabled={actionLoading === 'manual'}
-                        className="w-full mt-2 bg-[#1B4D3E] hover:bg-[#1B4D3E]/80"
-                      >
-                        {actionLoading === 'manual' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                        Valider ce danger
-                      </ForestButton>
+
+                  {state.danger_raw !== null && (
+                    <div className="mt-3 flex gap-4 text-sm">
+                      <span className="text-[#9CA3AF]">Danger brut: <strong className="text-[#FF6B6B]">{state.danger_raw}</strong></span>
+                      {state.danger_effectif !== state.danger_raw && (
+                        <span className="text-[#9CA3AF]">Effectif: <strong className="text-[#FF6B6B]">{state.danger_effectif}</strong></span>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Calculation explanation */}
+                {/* Lock & Resolve Section */}
                 <div className={`${rivieresCardStyle} p-4`}>
-                  <h4 className="font-bold text-[#9CA3AF] mb-3 text-sm">Détail du calcul</h4>
-                  <div className="bg-[#0B1020] rounded-lg p-3 font-mono text-xs text-[#9CA3AF] space-y-1">
+                  <h3 className="font-bold text-[#D4AF37] mb-3 flex items-center gap-2">
+                    <Lock className="h-5 w-5" /> Actions MJ
+                  </h3>
+                  <div className="flex gap-3 flex-wrap">
+                    <ForestButton
+                      onClick={handleLockDecisions}
+                      disabled={actionLoading === 'lock' || allLocked}
+                      className="bg-amber-600 hover:bg-amber-700"
+                    >
+                      {actionLoading === 'lock' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4 mr-1" />}
+                      Clôturer décisions
+                    </ForestButton>
+
+                    <ForestButton
+                      onClick={handleResolveLevel}
+                      disabled={actionLoading === 'resolve' || !canResolve}
+                      className={canResolve ? 'bg-[#1B4D3E] hover:bg-[#1B4D3E]/80' : 'bg-gray-600'}
+                    >
+                      {actionLoading === 'resolve' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 mr-1" />}
+                      Résoudre le niveau
+                    </ForestButton>
+                  </div>
+
+                  {!canResolve && (
+                    <div className="mt-3 text-sm text-amber-400 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      {!dangerSet && 'Danger non défini. '}
+                      {!allLocked && 'Décisions non verrouillées.'}
+                    </div>
+                  )}
+
+                  {canResolve && (
+                    <div className="mt-3 text-sm text-[#4ADE80] flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4" />
+                      Total mises: {totalMises}💎 vs Danger: {state.danger_effectif}
+                      {totalMises > (state.danger_effectif || 0) ? ' → SUCCÈS' : ' → ÉCHEC'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Calculation explanation (collapsible) */}
+                <details className={`${rivieresCardStyle} p-4`}>
+                  <summary className="font-bold text-[#9CA3AF] cursor-pointer text-sm">
+                    📊 Détail du calcul
+                  </summary>
+                  <div className="mt-3 bg-[#0B1020] rounded-lg p-3 font-mono text-xs text-[#9CA3AF] space-y-1">
                     {explanation.map((line, idx) => (
                       <div key={idx}>{line || '\u00A0'}</div>
                     ))}
@@ -1033,7 +1012,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                       <li>Niveau 5: Multiplicateur supplémentaire ×1.8</li>
                     </ul>
                   </div>
-                </div>
+                </details>
               </>
             );
           })()}
