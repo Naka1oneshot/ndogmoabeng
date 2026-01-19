@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,10 @@ export default function Login() {
   
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the redirect path from state, default to home page
+  const from = (location.state as { from?: string })?.from || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +53,7 @@ export default function Login() {
         }
         return;
       }
-      navigate('/mj');
+      navigate(from);
     } finally {
       setLoading(false);
     }
@@ -81,7 +85,7 @@ export default function Login() {
         return;
       }
 
-      navigate('/mj');
+      navigate(from);
     } catch (err) {
       console.error('Error creating test admin:', err);
       setError('Erreur inattendue lors de la création du compte');
