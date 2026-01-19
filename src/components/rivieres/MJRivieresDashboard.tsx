@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, Dice6, Lock, Play, Users, History, 
   AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship, Waves,
-  RefreshCw, Copy, Check, UserX
+  RefreshCw, Copy, Check, UserX, Calculator, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -28,6 +28,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { KickPlayerModal } from '@/components/game/KickPlayerModal';
+import {
+  calculateDangerRange,
+  generateSuggestedDanger,
+  getDangerCalculationExplanation,
+  getDifficultyLabel,
+} from '@/lib/rivieresDangerCalculator';
 
 interface RiverSessionState {
   id: string;
@@ -787,9 +793,12 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       )}
 
       <Tabs defaultValue={isGameFinished ? "players" : "actions"} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-[#20232A]">
+        <TabsList className="grid w-full grid-cols-5 bg-[#20232A]">
           <TabsTrigger value="actions" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
             <Play className="h-4 w-4 mr-1" /> Actions
+          </TabsTrigger>
+          <TabsTrigger value="danger-calc" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
+            <Calculator className="h-4 w-4 mr-1" /> Calcul
           </TabsTrigger>
           <TabsTrigger value="players" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
             <Users className="h-4 w-4 mr-1" /> Joueurs
@@ -900,6 +909,134 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
               </div>
             )}
           </div>
+        </TabsContent>
+
+        {/* Danger Calculation Tab */}
+        <TabsContent value="danger-calc" className="space-y-4 mt-4">
+          {(() => {
+            const dangerCalc = calculateDangerRange(enBateauPlayers.length, state.manche_active, state.niveau_active);
+            const explanation = getDangerCalculationExplanation(dangerCalc);
+            const difficulty = getDifficultyLabel(state.manche_active, state.niveau_active);
+            
+            return (
+              <>
+                {/* Current situation summary */}
+                <div className={`${rivieresCardStyle} p-4`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-[#D4AF37] flex items-center gap-2">
+                      <Calculator className="h-5 w-5" /> Calcul du Danger
+                    </h3>
+                    <Badge className={`${difficulty.color} bg-transparent border border-current`}>
+                      {difficulty.label}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="text-center">
+                      <div className="text-[#9CA3AF] text-xs">Joueurs en bateau</div>
+                      <div className="text-2xl font-bold text-[#E8E8E8]">{enBateauPlayers.length}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-[#9CA3AF] text-xs">Manche</div>
+                      <div className="text-2xl font-bold text-[#D4AF37]">{state.manche_active}/3</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-[#9CA3AF] text-xs">Niveau</div>
+                      <div className={`text-2xl font-bold ${dangerCalc.range.isLevel5 ? 'text-[#FF6B6B]' : 'text-[#E8E8E8]'}`}>
+                        {state.niveau_active}/5
+                        {dangerCalc.range.isLevel5 && <span className="text-sm ml-1">⚠️</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Danger Range Display */}
+                <div className={`${rivieresCardStyle} p-4 border-2 ${dangerCalc.range.isLevel5 ? 'border-[#FF6B6B]' : 'border-[#D4AF37]/50'}`}>
+                  <h4 className="text-[#9CA3AF] text-sm mb-2 text-center">Plage de danger recommandée</h4>
+                  <div className="flex items-center justify-center gap-4">
+                    <div className="text-center">
+                      <div className="text-xs text-[#9CA3AF]">Min</div>
+                      <div className="text-3xl font-bold text-[#4ADE80]">{dangerCalc.range.min}</div>
+                    </div>
+                    <div className="text-4xl text-[#9CA3AF]">—</div>
+                    <div className="text-center">
+                      <div className="text-xs text-[#9CA3AF]">Max</div>
+                      <div className="text-3xl font-bold text-[#FF6B6B]">{dangerCalc.range.max}</div>
+                    </div>
+                  </div>
+                  <div className="text-center mt-3">
+                    <span className="text-[#9CA3AF] text-sm">Suggestion: </span>
+                    <span className="text-xl font-bold text-[#D4AF37]">{dangerCalc.range.suggested}</span>
+                  </div>
+                </div>
+
+                {/* Auto-generate button */}
+                <div className={`${rivieresCardStyle} p-4`}>
+                  <h4 className="font-bold text-[#D4AF37] mb-3 flex items-center gap-2">
+                    <Zap className="h-5 w-5" /> Génération automatique
+                  </h4>
+                  <div className="flex gap-3 flex-wrap">
+                    <ForestButton
+                      onClick={() => {
+                        const suggestedDanger = generateSuggestedDanger(enBateauPlayers.length, state.manche_active, state.niveau_active);
+                        setManualDanger(suggestedDanger);
+                        toast.info(`Danger suggéré: ${suggestedDanger} (dans la plage ${dangerCalc.range.min}-${dangerCalc.range.max})`);
+                      }}
+                      className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
+                    >
+                      <Dice6 className="h-4 w-4 mr-2" />
+                      Générer danger aléatoire
+                    </ForestButton>
+                    <ForestButton
+                      onClick={() => {
+                        setManualDanger(dangerCalc.range.suggested);
+                        toast.info(`Danger défini: ${dangerCalc.range.suggested}`);
+                      }}
+                      variant="outline"
+                      className="border-[#D4AF37] text-[#D4AF37]"
+                    >
+                      Utiliser la suggestion ({dangerCalc.range.suggested})
+                    </ForestButton>
+                  </div>
+                  {manualDanger > 0 && (
+                    <div className="mt-3 p-3 bg-[#0B1020] rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#9CA3AF]">Danger en attente de validation:</span>
+                        <span className="text-2xl font-bold text-[#FF6B6B]">{manualDanger}</span>
+                      </div>
+                      <ForestButton
+                        onClick={handleManualDanger}
+                        disabled={actionLoading === 'manual'}
+                        className="w-full mt-2 bg-[#1B4D3E] hover:bg-[#1B4D3E]/80"
+                      >
+                        {actionLoading === 'manual' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                        Valider ce danger
+                      </ForestButton>
+                    </div>
+                  )}
+                </div>
+
+                {/* Calculation explanation */}
+                <div className={`${rivieresCardStyle} p-4`}>
+                  <h4 className="font-bold text-[#9CA3AF] mb-3 text-sm">Détail du calcul</h4>
+                  <div className="bg-[#0B1020] rounded-lg p-3 font-mono text-xs text-[#9CA3AF] space-y-1">
+                    {explanation.map((line, idx) => (
+                      <div key={idx}>{line || '\u00A0'}</div>
+                    ))}
+                  </div>
+                  <div className="mt-3 text-xs text-[#9CA3AF]">
+                    <p><strong>Légende:</strong></p>
+                    <ul className="list-disc list-inside mt-1 space-y-0.5">
+                      <li>Manche 1: Multiplicateur ×0.7-1.1 (facile)</li>
+                      <li>Manche 2: Multiplicateur ×0.9-1.4 (modéré)</li>
+                      <li>Manche 3: Multiplicateur ×1.1-1.7 (difficile)</li>
+                      <li>Niveau 5: Multiplicateur supplémentaire ×1.8</li>
+                    </ul>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </TabsContent>
 
         {/* Players Tab */}
