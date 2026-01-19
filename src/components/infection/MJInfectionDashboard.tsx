@@ -103,11 +103,15 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   useEffect(() => {
     fetchData();
     
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates - comprehensive for all Infection tables
     const channel = supabase
       .channel(`infection-mj-${game.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_round_state', filter: `game_id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_inputs', filter: `game_id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_shots', filter: `game_id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_chat_messages', filter: `game_id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${game.id}` }, fetchData)
       .subscribe();
 
     return () => {

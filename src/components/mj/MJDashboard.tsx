@@ -180,6 +180,30 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           onBack();
         }
       )
+      // Listen to game_players changes for player count updates
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` },
+        async () => {
+          const { count } = await supabase
+            .from('game_players')
+            .select('*', { count: 'exact', head: true })
+            .eq('game_id', game.id)
+            .eq('is_host', false)
+            .eq('status', 'ACTIVE');
+          setPlayerCount(count || 0);
+        }
+      )
+      // Listen to session_games for stage transitions
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'session_games', filter: `session_id=eq.${game.id}` },
+        async () => {
+          // Refetch game to get updated current_session_game_id
+          const { data } = await supabase.from('games').select('*').eq('id', game.id).single();
+          if (data) setGame(data as Game);
+        }
+      )
       .subscribe();
 
     return () => {
