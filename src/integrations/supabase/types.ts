@@ -1738,30 +1738,36 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           created_at: string
           display_name: string
           first_name: string
           id: string
+          last_display_name_change: string | null
           last_name: string
           phone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          address?: string | null
           created_at?: string
           display_name: string
           first_name: string
           id?: string
+          last_display_name_change?: string | null
           last_name: string
           phone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          address?: string | null
           created_at?: string
           display_name?: string
           first_name?: string
           id?: string
+          last_display_name_change?: string | null
           last_name?: string
           phone?: string | null
           updated_at?: string
@@ -2468,11 +2474,20 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: undefined
       }
+      can_change_display_name: { Args: { p_user_id: string }; Returns: boolean }
       get_event_registration_count: {
         Args: { p_event_id: string }
         Returns: number
       }
       get_user_email: { Args: { user_id: string }; Returns: string }
+      get_user_game_stats: {
+        Args: { p_user_id: string }
+        Returns: {
+          games_created: number
+          games_played: number
+          games_won: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
