@@ -14,9 +14,10 @@ import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdminBadge } from '@/components/game/AdminBadge';
 import { MJDashboard } from '@/components/mj/MJDashboard';
 import { 
-  Plus, LogOut, Loader2, 
+  Plus, Loader2, 
   ChevronLeft, Trash2, Eye, Users, Map, Gamepad2, Globe, Lock, Crown
 } from 'lucide-react';
+import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
@@ -508,12 +509,9 @@ export default function MJ() {
           )}
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-          <ThemeToggle />
           {isAdmin && <AdminBadge email={user?.email} />}
-          <ForestButton variant="ghost" size="sm" onClick={handleSignOut}>
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Déconnexion</span>
-          </ForestButton>
+          <ThemeToggle />
+          <UserAvatarButton size="sm" />
         </div>
       </header>
 

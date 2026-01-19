@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { User, Coins, Lock } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
@@ -20,6 +21,7 @@ interface Player {
 interface PlayerHeaderProps {
   game: Game;
   player: Player;
+  onLeaveGame?: () => void;
 }
 
 const phaseLabels: Record<string, string> = {
@@ -30,7 +32,7 @@ const phaseLabels: Record<string, string> = {
   RESOLUTION: 'Résolution',
 };
 
-export function PlayerHeader({ game, player }: PlayerHeaderProps) {
+export function PlayerHeader({ game, player, onLeaveGame }: PlayerHeaderProps) {
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border px-4 py-3">
       <div className="max-w-6xl mx-auto">
@@ -45,10 +47,11 @@ export function PlayerHeader({ game, player }: PlayerHeaderProps) {
             <span className="font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">
               {game.join_code}
             </span>
-            <span className="text-muted-foreground">
+            <span className="text-muted-foreground hidden sm:inline">
               Manche <strong className="text-forest-gold">{game.manche_active}</strong>
             </span>
             <ThemeToggle />
+            <UserAvatarButton size="sm" onLeaveGame={onLeaveGame} />
           </div>
         </div>
 

@@ -27,6 +27,8 @@ import {
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
   Bug, Store, Swords, Target, SkipForward, Trash2, FastForward
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import {
@@ -503,6 +505,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
               {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </ForestButton>
           </div>
+          <ThemeToggle />
+          <UserAvatarButton size="sm" onLeaveGame={onBack} />
         </div>
       </div>
 

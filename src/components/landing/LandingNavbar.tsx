@@ -100,9 +100,10 @@ export function LandingNavbar() {
               <UserAvatarButton size="sm" />
             </div>
 
-            {/* Mobile: Theme toggle + menu button */}
+            {/* Mobile: Theme toggle + avatar + menu button */}
             <div className="md:hidden flex items-center gap-2">
               <ThemeToggle />
+              <UserAvatarButton size="sm" />
               <button 
                 className="p-2"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

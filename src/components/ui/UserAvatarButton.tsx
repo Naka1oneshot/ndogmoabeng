@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, DoorOpen } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,9 +14,10 @@ import {
 interface UserAvatarButtonProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  onLeaveGame?: () => void;
 }
 
-export function UserAvatarButton({ size = 'md', className = '' }: UserAvatarButtonProps) {
+export function UserAvatarButton({ size = 'md', className = '', onLeaveGame }: UserAvatarButtonProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
@@ -75,6 +76,15 @@ export function UserAvatarButton({ size = 'md', className = '' }: UserAvatarButt
           <User className="mr-2 h-4 w-4" />
           Profil
         </DropdownMenuItem>
+        {onLeaveGame && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onLeaveGame} className="cursor-pointer text-amber-500 focus:text-amber-500">
+              <DoorOpen className="mr-2 h-4 w-4" />
+              Quitter la partie
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-500 focus:text-red-500">
           <LogOut className="mr-2 h-4 w-4" />
