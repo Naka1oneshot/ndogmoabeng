@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { GAMES_DATA } from '@/data/ndogmoabengData';
-import { MapPin, Users, Gamepad2 } from 'lucide-react';
+import { MapPin, Users, Gamepad2, UsersRound } from 'lucide-react';
 
 import rivieresImage from '@/assets/games/rivieres-ndogmoabeng.png';
 import foretImage from '@/assets/games/foret-ndogmoabeng.png';
@@ -68,6 +68,10 @@ export function GamesSection() {
               </CardHeader>
 
               <CardContent className="space-y-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <UsersRound className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground font-medium">{game.minPlayers} joueurs minimum</span>
+                </div>
                 <div className="flex items-start gap-2">
                   <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <span className="text-muted-foreground">{game.lieu}</span>
