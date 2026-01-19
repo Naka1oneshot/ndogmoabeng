@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -37,6 +37,10 @@ export default function Auth() {
   
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the redirect path from location state or default to /mj
+  const from = (location.state as { from?: string })?.from || '/mj';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +80,7 @@ export default function Auth() {
           }
           return;
         }
-        navigate('/mj');
+        navigate(from);
       } else {
         const { error: signUpError } = await signUp(email, password);
         if (signUpError) {
@@ -110,7 +114,7 @@ export default function Auth() {
           }
         }
         
-        navigate('/mj');
+        navigate(from);
       }
     } finally {
       setLoading(false);

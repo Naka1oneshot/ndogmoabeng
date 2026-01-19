@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +31,7 @@ import { fr } from 'date-fns/locale';
 
 export default function Profile() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading, signOut } = useAuth();
   const { profile, stats, currentGames, loading, canChangeDisplayName, updateProfile } = useUserProfile();
   
@@ -108,7 +109,7 @@ export default function Profile() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={() => navigate('/auth')}>
+            <Button onClick={() => navigate('/auth', { state: { from: location.pathname } })}>
               Se connecter
             </Button>
           </CardContent>
