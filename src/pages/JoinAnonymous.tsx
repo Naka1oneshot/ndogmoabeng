@@ -308,8 +308,13 @@ export default function JoinAnonymous() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Aucun clan</SelectItem>
-                        <SelectItem value="Akila">🌙 Akila</SelectItem>
-                        <SelectItem value="Akandé">☀️ Akandé</SelectItem>
+                        <SelectItem value="Royaux">👑 Maison Royale</SelectItem>
+                        <SelectItem value="Zoulous">💰 Fraternité Zoulous</SelectItem>
+                        <SelectItem value="Keryndes">🧭 Maison des Keryndes</SelectItem>
+                        <SelectItem value="Akandé">⚔️ Akandé</SelectItem>
+                        <SelectItem value="Aseyra">📜 Cercle d'Aséyra</SelectItem>
+                        <SelectItem value="Akila">🔬 Les Sources d'Akila</SelectItem>
+                        <SelectItem value="Ezkar">💥 Ezkar</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
