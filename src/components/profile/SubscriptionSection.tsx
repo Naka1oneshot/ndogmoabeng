@@ -220,14 +220,15 @@ export function SubscriptionSection() {
           </div>
         </div>
 
-        {/* Token bonus if any */}
-        {token_bonus.games_creatable > 0 && (
+        {/* Token balance if any */}
+        {token_bonus.token_balance > 0 && (
           <div className="p-3 bg-accent/10 border border-accent/20 rounded-lg">
             <div className="flex items-center gap-2 text-accent">
               <Zap className="w-4 h-4" />
-              <span className="font-medium">Bonus Token actif:</span>
-              <span>+{token_bonus.games_creatable} initialisations de parties</span>
+              <span className="font-medium">Solde Tokens:</span>
+              <span>{token_bonus.token_balance} token{token_bonus.token_balance > 1 ? 's' : ''} disponible{token_bonus.token_balance > 1 ? 's' : ''}</span>
             </div>
+            <p className="text-xs text-muted-foreground mt-1">1 Token = 1 init OU 1 partie avec avantage clan</p>
           </div>
         )}
 
@@ -328,7 +329,7 @@ export function SubscriptionSection() {
                 <div>
                   <h3 className="font-semibold">{TOKEN_NDOGMOABENG.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    +{TOKEN_NDOGMOABENG.features.games_creatable} initialisations de parties
+                    {TOKEN_NDOGMOABENG.tokens_per_pack} Tokens (1 Token = 1 init OU 1 partie avec clan)
                   </p>
                 </div>
               </div>

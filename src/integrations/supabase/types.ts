@@ -2502,34 +2502,40 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          token_games_creatable: number
-          token_games_joinable: number
+          token_balance: number
+          tokens_used_for_clan: number | null
+          tokens_used_for_init: number | null
           trial_end_at: string
           trial_start_at: string
           trial_tier: string
           updated_at: string
+          usage_reset_at: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          token_games_creatable?: number
-          token_games_joinable?: number
+          token_balance?: number
+          tokens_used_for_clan?: number | null
+          tokens_used_for_init?: number | null
           trial_end_at: string
           trial_start_at?: string
           trial_tier?: string
           updated_at?: string
+          usage_reset_at?: string | null
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          token_games_creatable?: number
-          token_games_joinable?: number
+          token_balance?: number
+          tokens_used_for_clan?: number | null
+          tokens_used_for_init?: number | null
           trial_end_at?: string
           trial_start_at?: string
           trial_tier?: string
           updated_at?: string
+          usage_reset_at?: string | null
           user_id?: string
         }
         Relationships: []

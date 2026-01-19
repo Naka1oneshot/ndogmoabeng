@@ -54,16 +54,15 @@ export const SUBSCRIPTION_TIERS = {
   },
 } as const;
 
-// Token Ndogmoabeng (one-time purchase)
+// Token Ndogmoabeng (one-time purchase) - Pack of 10 tokens
+// Each token = 1 game init OR 1 game with clan advantage
 export const TOKEN_NDOGMOABENG = {
-  name: "Token Ndogmoabeng",
+  name: "Pack 10 Tokens Ndogmoabeng",
   price: 2,
+  tokens_per_pack: 10,
   price_id: "price_1SrPPRPyhxZzp6zsoBe1jPHl",
   product_id: "prod_Tp3WOdPrY0clzC",
-  features: {
-    games_creatable: 10,
-  },
-  description: "Pack unique d'initialisations de parties supplémentaires",
+  description: "10 Tokens utilisables unitairement (1 Token = 1 init OU 1 partie avec avantage clan)",
 };
 
 export type SubscriptionTier = keyof typeof SUBSCRIPTION_TIERS;
@@ -87,7 +86,7 @@ export function formatGamesCreatable(value: number): string {
 }
 
 export interface TokenBonus {
-  games_creatable: number;
+  token_balance: number;
 }
 
 export interface UsageStats {

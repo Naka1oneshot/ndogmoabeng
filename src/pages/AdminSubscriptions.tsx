@@ -27,7 +27,7 @@ import { fr } from 'date-fns/locale';
 interface UserBonus {
   user_id: string;
   display_name: string;
-  token_games_creatable: number;
+  token_balance: number;
   trial_tier: string;
   trial_end_at: string;
   updated_at: string;
@@ -74,8 +74,8 @@ export default function AdminSubscriptions() {
     try {
       const { data: bonuses, error } = await supabase
         .from('user_subscription_bonuses')
-        .select('user_id, token_games_creatable, trial_tier, trial_end_at, updated_at')
-        .gt('token_games_creatable', 0)
+        .select('user_id, token_balance, trial_tier, trial_end_at, updated_at')
+        .gt('token_balance', 0)
         .order('updated_at', { ascending: false })
         .limit(20);
 
@@ -136,7 +136,7 @@ export default function AdminSubscriptions() {
       const response = await supabase.functions.invoke('admin-grant-tokens', {
         body: {
           display_name: targetDisplayName.trim(),
-          tokens_creatable: tokensToGrant,
+          tokens_count: tokensToGrant,
         },
       });
 
@@ -254,7 +254,7 @@ export default function AdminSubscriptions() {
             <div className="flex items-center justify-between pt-2">
               <p className="text-sm text-muted-foreground">
                 <Zap className="inline w-4 h-4 mr-1 text-accent" />
-                1 Token = 10 initialisations de parties
+                1 Token = 1 initialisation OU 1 partie avec avantage clan
               </p>
               <Button 
                 onClick={handleGrantTokens} 
@@ -321,11 +321,11 @@ export default function AdminSubscriptions() {
                       <TableCell className="text-center">
                         <Badge variant="secondary">
                           <Zap className="w-3 h-3 mr-1" />
-                          {Math.ceil(bonus.token_games_creatable / 10)}
+                          {bonus.token_balance}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
-                        +{bonus.token_games_creatable} parties
+                        {bonus.token_balance} tokens
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
                         {format(new Date(bonus.updated_at), 'dd MMM yyyy', { locale: fr })}
