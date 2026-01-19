@@ -843,7 +843,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                   <th className="p-2 text-right text-[#9CA3AF]">Jetons</th>
                   <th className="p-2 text-center text-[#9CA3AF]">Statut</th>
                   <th className="p-2 text-center text-[#9CA3AF]">Niveaux</th>
-                  <th className="p-2 text-center text-[#9CA3AF]">Récomp. pot.</th>
+                  <th className="p-2 text-center text-[#9CA3AF]">PV pot.</th>
                   <th className="p-2 text-center text-[#9CA3AF]">Keryndes</th>
                   <th className="p-2 text-right text-[#9CA3AF]">Actions</th>
                 </tr>
