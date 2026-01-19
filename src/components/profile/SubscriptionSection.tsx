@@ -38,6 +38,8 @@ export function SubscriptionSection() {
   const {
     tier,
     limits,
+    max_limits,
+    usage,
     subscription_end,
     source,
     trial_active,
@@ -172,17 +174,33 @@ export function SubscriptionSection() {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Current limits display */}
+        {/* Current limits display with usage */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-muted/50 rounded-lg">
           <div className="text-center">
             <Gamepad2 className="w-6 h-6 mx-auto mb-1 text-primary" />
-            <div className="text-lg font-bold">{formatLimitValue(limits.games_joinable)}</div>
-            <div className="text-xs text-muted-foreground">Parties jouables/mois</div>
+            <div className="text-lg font-bold">
+              {limits.games_joinable === -1 ? '∞' : limits.games_joinable}
+              {max_limits && limits.games_joinable !== -1 && (
+                <span className="text-xs text-muted-foreground font-normal">/{max_limits.games_joinable}</span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">Parties jouables restantes</div>
+            {usage && usage.games_joined > 0 && (
+              <div className="text-xs text-muted-foreground mt-1">({usage.games_joined} utilisées)</div>
+            )}
           </div>
           <div className="text-center">
             <Crown className="w-6 h-6 mx-auto mb-1 text-primary" />
-            <div className="text-lg font-bold">{formatLimitValue(limits.games_creatable)}</div>
-            <div className="text-xs text-muted-foreground">Parties animables/mois</div>
+            <div className="text-lg font-bold">
+              {limits.games_creatable}
+              {max_limits && (
+                <span className="text-xs text-muted-foreground font-normal">/{max_limits.games_creatable}</span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">Parties animables restantes</div>
+            {usage && usage.games_created > 0 && (
+              <div className="text-xs text-muted-foreground mt-1">({usage.games_created} utilisées)</div>
+            )}
           </div>
           <div className="text-center">
             <Users className="w-6 h-6 mx-auto mb-1 text-primary" />
