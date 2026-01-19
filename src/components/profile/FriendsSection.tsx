@@ -158,7 +158,7 @@ export function FriendsSection() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="friends" className="mt-4 space-y-3">
+            <TabsContent value="friends" className="mt-4">
               {friends.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -173,74 +173,76 @@ export function FriendsSection() {
                   </Button>
                 </div>
               ) : (
-                friends.map((friend) => (
-                  <div
-                    key={friend.friendship_id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src={friend.avatar_url || undefined} />
-                        <AvatarFallback className="bg-primary/20 text-primary">
-                          {getInitials(friend.display_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">{friend.display_name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openInvite(friend)}
-                        title="Inviter à une partie"
-                      >
-                        <Gamepad2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openComparison(friend)}
-                      >
-                        <BarChart3 className="w-4 h-4 mr-1" />
-                        Comparer
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            disabled={actionLoading === friend.friendship_id}
-                          >
-                            {actionLoading === friend.friendship_id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Supprimer cet ami ?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {friend.display_name} sera retiré de votre liste d'amis. 
-                              Vous pourrez l'ajouter à nouveau plus tard.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Annuler</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleRemove(friend.friendship_id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
+                  {friends.map((friend) => (
+                    <div
+                      key={friend.friendship_id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={friend.avatar_url || undefined} />
+                          <AvatarFallback className="bg-primary/20 text-primary">
+                            {getInitials(friend.display_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{friend.display_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openInvite(friend)}
+                          title="Inviter à une partie"
+                        >
+                          <Gamepad2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openComparison(friend)}
+                        >
+                          <BarChart3 className="w-4 h-4 mr-1" />
+                          Comparer
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              disabled={actionLoading === friend.friendship_id}
                             >
-                              Supprimer
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              {actionLoading === friend.friendship_id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Supprimer cet ami ?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {friend.display_name} sera retiré de votre liste d'amis. 
+                                Vous pourrez l'ajouter à nouveau plus tard.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleRemove(friend.friendship_id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </TabsContent>
 
