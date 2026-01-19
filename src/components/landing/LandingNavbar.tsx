@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveGames } from '@/hooks/useActiveGames';
+import { useTranslation } from '@/i18n';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -13,6 +14,7 @@ export function LandingNavbar() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { gamesCount } = useActiveGames();
+  const { t, language } = useTranslation();
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -23,6 +25,10 @@ export function LandingNavbar() {
     }
     setMobileMenuOpen(false);
   };
+
+  const gamesInProgress = language === 'fr' 
+    ? `${gamesCount} partie${gamesCount > 1 ? 's' : ''} en cours`
+    : `${gamesCount} game${gamesCount > 1 ? 's' : ''} in progress`;
 
   return (
     <>
@@ -40,7 +46,7 @@ export function LandingNavbar() {
                 className="w-10 h-10 object-contain" 
               />
               <span className="font-display text-lg hidden sm:block text-foreground">
-                Le Village de Ndogmoabeng
+                {language === 'fr' ? 'Le Village de Ndogmoabeng' : 'The Village of Ndogmoabeng'}
               </span>
             </div>
 
@@ -50,31 +56,31 @@ export function LandingNavbar() {
                 onClick={() => scrollToSection('concept')}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
-                Concept
+                {t.landing.concept}
               </button>
               <button 
                 onClick={() => scrollToSection('jeux')}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
-                Jeux
+                {t.landing.games}
               </button>
               <button 
                 onClick={() => scrollToSection('clans')}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
-                Clans
+                {t.landing.clans}
               </button>
               <button 
                 onClick={() => scrollToSection('meetups')}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
-                Participer
+                {t.landing.meetups}
               </button>
               
               {gamesCount > 0 && (
                 <div className="flex items-center gap-2 text-primary text-sm">
                   <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                  <span>{gamesCount} partie{gamesCount > 1 ? 's' : ''} en cours</span>
+                  <span>{gamesInProgress}</span>
                 </div>
               )}
             </div>
@@ -88,14 +94,14 @@ export function LandingNavbar() {
                 onClick={() => setJoinModalOpen(true)}
               >
                 <LogIn className="h-4 w-4" />
-                Rejoindre
+                {t.landing.joinGame}
               </ForestButton>
               <ForestButton 
                 size="sm"
                 onClick={() => navigate(user ? '/mj' : '/auth')}
               >
                 <Gamepad2 className="h-4 w-4" />
-                Créer
+                {t.landing.createGame}
               </ForestButton>
               <UserAvatarButton size="sm" />
             </div>
@@ -124,37 +130,37 @@ export function LandingNavbar() {
                 {/* Profile at the top of mobile menu */}
                 <div className="flex items-center gap-3 pb-3 border-b border-border">
                   <UserAvatarButton size="md" />
-                  <span className="text-sm text-muted-foreground">Mon profil</span>
+                  <span className="text-sm text-muted-foreground">{t.nav.profile}</span>
                 </div>
                 
                 <button 
                   onClick={() => scrollToSection('concept')}
                   className="text-left text-muted-foreground hover:text-foreground transition-colors py-2"
                 >
-                  Concept
+                  {t.landing.concept}
                 </button>
                 <button 
                   onClick={() => scrollToSection('jeux')}
                   className="text-left text-muted-foreground hover:text-foreground transition-colors py-2"
                 >
-                  Jeux
+                  {t.landing.games}
                 </button>
                 <button 
                   onClick={() => scrollToSection('clans')}
                   className="text-left text-muted-foreground hover:text-foreground transition-colors py-2"
                 >
-                  Clans
+                  {t.landing.clans}
                 </button>
                 <button 
                   onClick={() => scrollToSection('meetups')}
                   className="text-left text-muted-foreground hover:text-foreground transition-colors py-2"
                 >
-                  Participer
+                  {t.landing.meetups}
                 </button>
                 {gamesCount > 0 && (
                   <div className="flex items-center gap-2 text-primary text-sm py-2">
                     <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                    <span>{gamesCount} partie{gamesCount > 1 ? 's' : ''} en cours</span>
+                    <span>{gamesInProgress}</span>
                   </div>
                 )}
               </div>

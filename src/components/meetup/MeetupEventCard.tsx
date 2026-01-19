@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Calendar, MapPin, Users, Trophy, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useTranslation } from '@/i18n';
 import { MeetupEvent } from '@/hooks/useMeetupEvents';
 import { MeetupRegistrationModal } from './MeetupRegistrationModal';
 
@@ -17,6 +18,7 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const { t, language } = useTranslation();
 
   const isFull = (event.registration_count || 0) >= event.expected_players;
   
@@ -24,7 +26,7 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
   const endDate = new Date(event.end_at);
   
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('fr-FR', { 
+    return date.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { 
       day: 'numeric', 
       month: 'long', 
       year: 'numeric' 
@@ -32,10 +34,17 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
   };
   
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    }).replace(':', 'h');
+    if (language === 'fr') {
+      return date.toLocaleTimeString('fr-FR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }).replace(':', 'h');
+    }
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
   };
 
   const toggleVideo = () => {
@@ -96,14 +105,14 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
             </>
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-accent/20 via-surface-2 to-primary/20 flex items-center justify-center">
-              <span className="text-muted-foreground">Aperçu vidéo à venir</span>
+              <span className="text-muted-foreground">{t.meetup.videoPreviewSoon}</span>
             </div>
           )}
           
           {/* Status Badge */}
           {isFull && (
             <Badge className="absolute top-4 right-4 bg-destructive text-destructive-foreground">
-              Complet
+              {t.meetup.full}
             </Badge>
           )}
         </div>
@@ -123,8 +132,10 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
                 )}
               </button>
               <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">🎵 Générique La carte trouvée de Ndogmoabeng</p>
-                <p className="text-xs text-muted-foreground">Écouter l'ambiance</p>
+                <p className="text-sm font-medium text-foreground">
+                  🎵 {language === 'fr' ? 'Générique La carte trouvée de Ndogmoabeng' : 'Theme: The Found Map of Ndogmoabeng'}
+                </p>
+                <p className="text-xs text-muted-foreground">{t.meetup.listenAmbiance}</p>
               </div>
               <button
                 onClick={toggleMute}
@@ -147,7 +158,7 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
               <div className="w-10 h-10 rounded-full bg-surface flex items-center justify-center">
                 <Volume2 className="w-5 h-5 text-muted-foreground" />
               </div>
-              <p className="text-sm text-muted-foreground">Générique à venir</p>
+              <p className="text-sm text-muted-foreground">{t.meetup.themeSoon}</p>
             </div>
           )}
         </div>
@@ -177,7 +188,7 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
             </Badge>
             <Badge variant="outline" className="bg-surface-2/50 border-border/50">
               <Users className="w-3 h-3 mr-1.5" />
-              {event.registration_count || 0}/{event.expected_players} joueurs
+              {event.registration_count || 0}/{event.expected_players} {t.meetup.players}
             </Badge>
           </div>
 
@@ -186,13 +197,16 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
               <span className="text-2xl font-bold text-primary">{event.price_eur} €</span>
               <span className="text-xs text-muted-foreground">
-                dont {event.pot_contribution_eur} € cagnotte
+                {language === 'fr' 
+                  ? `dont ${event.pot_contribution_eur} € cagnotte`
+                  : `incl. ${event.pot_contribution_eur}€ prize pool`
+                }
               </span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent/10 border border-accent/20">
               <Trophy className="w-5 h-5 text-accent" />
               <span className="text-sm font-medium text-foreground">
-                Cagnotte potentielle : <span className="text-accent font-bold">{event.pot_potential_eur} €</span>
+                {t.meetup.potPrize} : <span className="text-accent font-bold">{event.pot_potential_eur} €</span>
               </span>
             </div>
           </div>
@@ -204,11 +218,11 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
               disabled={isFull}
               className="w-full h-12 text-lg font-semibold bg-primary hover:bg-primary-hover text-primary-foreground shadow-lg shadow-primary/30 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02]"
             >
-              {isFull ? 'Événement complet' : 'Rejoindre l\'aventure'}
+              {isFull ? t.meetup.eventFull : t.meetup.joinAdventure}
             </Button>
             {!isFull && (
               <p className="text-center text-xs text-muted-foreground mt-2">
-                Inscris-toi pour être rappelé(e)
+                {t.meetup.callbackInfo}
               </p>
             )}
           </div>
