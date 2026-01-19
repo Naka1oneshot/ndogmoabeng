@@ -42,6 +42,7 @@ export function useActiveGames(refreshInterval = 10000): ActiveGamesStats {
             .from('game_players')
             .select('*', { count: 'exact', head: true })
             .in('game_id', gameIds)
+            .eq('is_host', false)
             .is('removed_at', null);
 
           if (!playersError) {
