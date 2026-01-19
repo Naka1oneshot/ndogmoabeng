@@ -4,6 +4,7 @@ import { useSpectatorFeed, FeedEntry } from '@/hooks/useSpectatorFeed';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ForestButton } from '@/components/ui/ForestButton';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -226,6 +227,7 @@ export default function WatchGame() {
                 <Eye className="w-3 h-3 mr-1" />
                 Spectateur
               </Badge>
+              <ThemeToggle />
             </div>
           </div>
         </div>

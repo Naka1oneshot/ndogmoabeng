@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ForestButton } from '@/components/ui/ForestButton';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { 
   Eye, 
   Search, 
@@ -59,10 +60,13 @@ export default function WatchList() {
                 <span className="font-display text-lg hidden sm:block">Ndogmoabeng</span>
               </Link>
             </div>
-            <ForestButton variant="ghost" onClick={() => navigate('/')}>
-              <ArrowLeft className="w-4 h-4" />
-              Retour
-            </ForestButton>
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <ForestButton variant="ghost" onClick={() => navigate('/')}>
+                <ArrowLeft className="w-4 h-4" />
+                Retour
+              </ForestButton>
+            </div>
           </div>
         </div>
       </header>
