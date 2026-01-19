@@ -26,6 +26,8 @@ import TeamChat from '@/components/player/TeamChat';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { PlayerRivieresDashboard } from '@/components/rivieres/PlayerRivieresDashboard';
 import { PlayerInfectionDashboard } from '@/components/infection/PlayerInfectionDashboard';
+import LobbyChat from '@/components/lobby/LobbyChat';
+import LobbyPlayerList from '@/components/lobby/LobbyPlayerList';
 
 // Implemented game types
 const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION'];
@@ -376,24 +378,49 @@ export default function PlayerDashboard() {
     return (
       <div className="min-h-screen flex flex-col">
         <PlayerHeader game={game} player={player} />
-        <main className="flex-1 flex items-center justify-center p-4">
-          <div className="card-gradient rounded-lg border border-border p-8 text-center max-w-md">
-            <Clock className="h-12 w-12 text-primary mx-auto mb-4 animate-pulse" />
-            <h2 className="font-display text-xl mb-2">Salle d'attente</h2>
-            <p className="text-muted-foreground mb-4">
-              En attente du Maître du Jeu pour démarrer la partie...
-            </p>
-            <p className="text-sm text-primary">
-              Vous êtes le joueur <strong>#{player.playerNumber}</strong>
-            </p>
-            <button
-              type="button"
-              onClick={handleLeave}
-              className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors mx-auto"
-            >
-              <LogOut className="h-4 w-4" />
-              Quitter la partie
-            </button>
+        <main className="flex-1 p-4">
+          <div className="max-w-4xl mx-auto space-y-4">
+            {/* Header card */}
+            <div className="card-gradient rounded-lg border border-border p-6 text-center">
+              <Clock className="h-10 w-10 text-primary mx-auto mb-3 animate-pulse" />
+              <h2 className="font-display text-xl mb-2">Salle d'attente</h2>
+              <p className="text-muted-foreground mb-2">
+                En attente du Maître du Jeu pour démarrer la partie...
+              </p>
+              <p className="text-sm text-primary">
+                Vous êtes le joueur <strong>#{player.playerNumber}</strong>
+              </p>
+            </div>
+
+            {/* Players list and Chat grid */}
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Player list */}
+              <div className="card-gradient rounded-lg border border-border p-4">
+                <LobbyPlayerList gameId={game.id} currentPlayerNum={player.playerNumber} />
+              </div>
+
+              {/* Chat */}
+              <div className="card-gradient rounded-lg border border-border overflow-hidden" style={{ minHeight: '350px' }}>
+                <LobbyChat
+                  gameId={game.id}
+                  playerNum={player.playerNumber}
+                  playerName={player.displayName}
+                  maxHeight="280px"
+                />
+              </div>
+            </div>
+
+            {/* Leave button */}
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handleLeave}
+                className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors mx-auto"
+              >
+                <LogOut className="h-4 w-4" />
+                Quitter la partie
+              </button>
+            </div>
           </div>
         </main>
       </div>
