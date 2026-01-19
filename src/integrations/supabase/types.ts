@@ -1547,8 +1547,12 @@ export type Database = {
           display_name: string
           id: string
           meetup_event_id: string
+          paid_amount_cents: number | null
+          paid_at: string | null
+          payment_status: string
           phone: string
           status: string
+          stripe_session_id: string | null
           user_note: string | null
         }
         Insert: {
@@ -1559,8 +1563,12 @@ export type Database = {
           display_name: string
           id?: string
           meetup_event_id: string
+          paid_amount_cents?: number | null
+          paid_at?: string | null
+          payment_status?: string
           phone: string
           status?: string
+          stripe_session_id?: string | null
           user_note?: string | null
         }
         Update: {
@@ -1571,8 +1579,12 @@ export type Database = {
           display_name?: string
           id?: string
           meetup_event_id?: string
+          paid_amount_cents?: number | null
+          paid_at?: string | null
+          payment_status?: string
           phone?: string
           status?: string
+          stripe_session_id?: string | null
           user_note?: string | null
         }
         Relationships: [

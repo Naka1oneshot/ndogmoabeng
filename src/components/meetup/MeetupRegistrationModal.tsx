@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Plus, Minus, Users } from 'lucide-react';
+import { Loader2, Plus, Minus, Users, CreditCard, Euro } from 'lucide-react';
 import { toast } from 'sonner';
-import { MeetupEvent, useMeetupRegistration } from '@/hooks/useMeetupEvents';
+import { MeetupEvent } from '@/hooks/useMeetupEvents';
+import { useMeetupPayment } from '@/hooks/useMeetupPayment';
 
 interface MeetupRegistrationModalProps {
   open: boolean;
@@ -28,7 +29,11 @@ export function MeetupRegistrationModal({
   const [companionsNames, setCompanionsNames] = useState<string[]>([]);
   const [userNote, setUserNote] = useState('');
   const [consent, setConsent] = useState(false);
-  const { register, loading, error, clearError } = useMeetupRegistration();
+  const { createCheckout, loading, error, clearError } = useMeetupPayment();
+
+  const totalPlayers = 1 + companionsCount;
+  const totalPrice = event.price_eur * totalPlayers;
+  const isFreeEvent = event.price_eur === 0;
 
   const handleCompanionsCountChange = (delta: number) => {
     const newCount = Math.max(0, Math.min(10, companionsCount + delta));
@@ -66,36 +71,31 @@ export function MeetupRegistrationModal({
       return;
     }
 
-    // Format event date for notification
-    const eventDate = new Date(event.start_at).toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    const success = await register({
+    const success = await createCheckout({
       eventId: event.id,
-      data: {
-        displayName: displayName.trim(),
-        phone: phone.trim(),
-        companionsCount,
-        companionsNames,
-        userNote,
-      },
       eventTitle: event.title,
-      eventDate,
+      priceEur: event.price_eur,
+      displayName: displayName.trim(),
+      phone: phone.trim(),
+      companionsCount,
+      companionsNames,
+      userNote,
     });
     
     if (success) {
-      const totalPlayers = 1 + companionsCount;
-      toast.success(`Inscription enregistrée pour ${totalPlayers} joueur${totalPlayers > 1 ? 's' : ''} ! Nous te recontactons bientôt.`);
-      resetForm();
-      onSuccess();
-    } else if (error) {
-      toast.error(error);
+      if (isFreeEvent) {
+        // Free event - already confirmed
+        resetForm();
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        // Paid event - redirect to payment
+        toast.success('Redirection vers le paiement...', {
+          description: 'Complète le paiement pour confirmer ton inscription.',
+        });
+        resetForm();
+        onOpenChange(false);
+      }
     }
   };
 
@@ -124,11 +124,37 @@ export function MeetupRegistrationModal({
             Rejoindre « {event.title} »
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Remplis ce formulaire pour t'inscrire. Nous te recontacterons pour confirmer ta participation.
+            {isFreeEvent 
+              ? 'Remplis ce formulaire pour t\'inscrire gratuitement.'
+              : 'Remplis ce formulaire puis procède au paiement pour confirmer ta place.'
+            }
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          {/* Price Summary */}
+          {!isFreeEvent && (
+            <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Euro className="w-5 h-5 text-primary" />
+                  <span className="font-medium text-foreground">Prix par personne</span>
+                </div>
+                <span className="text-lg font-bold text-primary">{event.price_eur} €</span>
+              </div>
+              {companionsCount > 0 && (
+                <div className="mt-2 pt-2 border-t border-primary/20">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {totalPlayers} places × {event.price_eur} €
+                    </span>
+                    <span className="text-xl font-bold text-primary">{totalPrice} €</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Nom / Pseudo */}
           <div className="space-y-2">
             <Label htmlFor="displayName" className="text-foreground">
@@ -212,7 +238,12 @@ export function MeetupRegistrationModal({
             )}
             
             <p className="text-xs text-muted-foreground">
-              Total joueurs : <span className="font-semibold text-primary">{1 + companionsCount}</span>
+              Total joueurs : <span className="font-semibold text-primary">{totalPlayers}</span>
+              {!isFreeEvent && (
+                <span className="ml-2">
+                  → Total : <span className="font-semibold text-primary">{totalPrice} €</span>
+                </span>
+              )}
             </p>
           </div>
 
@@ -256,17 +287,28 @@ export function MeetupRegistrationModal({
           <Button
             type="submit"
             disabled={loading || !consent}
-            className="w-full h-11 bg-primary hover:bg-primary-hover text-primary-foreground font-semibold shadow-lg shadow-primary/30"
+            className="w-full h-12 bg-primary hover:bg-primary-hover text-primary-foreground font-semibold shadow-lg shadow-primary/30"
           >
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Inscription...
+                Préparation...
               </>
+            ) : isFreeEvent ? (
+              `S'inscrire (${totalPlayers} joueur${totalPlayers > 1 ? 's' : ''})`
             ) : (
-              `Envoyer (${1 + companionsCount} joueur${1 + companionsCount > 1 ? 's' : ''})`
+              <>
+                <CreditCard className="w-4 h-4 mr-2" />
+                Payer {totalPrice} € ({totalPlayers} place{totalPlayers > 1 ? 's' : ''})
+              </>
             )}
           </Button>
+
+          {!isFreeEvent && (
+            <p className="text-center text-xs text-muted-foreground">
+              🔒 Paiement sécurisé par Stripe
+            </p>
+          )}
         </form>
       </DialogContent>
     </Dialog>
