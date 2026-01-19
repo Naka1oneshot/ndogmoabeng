@@ -118,7 +118,7 @@ export function MeetupRegistrationModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md bg-surface border-border max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md border-border max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'hsl(var(--card))' }}>
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-foreground">
             Rejoindre « {event.title} »
