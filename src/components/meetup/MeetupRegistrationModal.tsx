@@ -66,12 +66,27 @@ export function MeetupRegistrationModal({
       return;
     }
 
-    const success = await register(event.id, {
-      displayName: displayName.trim(),
-      phone: phone.trim(),
-      companionsCount,
-      companionsNames,
-      userNote,
+    // Format event date for notification
+    const eventDate = new Date(event.start_at).toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const success = await register({
+      eventId: event.id,
+      data: {
+        displayName: displayName.trim(),
+        phone: phone.trim(),
+        companionsCount,
+        companionsNames,
+        userNote,
+      },
+      eventTitle: event.title,
+      eventDate,
     });
     
     if (success) {
