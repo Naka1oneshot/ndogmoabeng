@@ -49,6 +49,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { FriendsSection } from '@/components/profile/FriendsSection';
 import { GameInvitationsSection } from '@/components/profile/GameInvitationsSection';
+import { SubscriptionSection } from '@/components/profile/SubscriptionSection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -275,6 +276,9 @@ export default function Profile() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Subscription Section */}
+        <SubscriptionSection />
 
         {/* Game Invitations */}
         <GameInvitationsSection />

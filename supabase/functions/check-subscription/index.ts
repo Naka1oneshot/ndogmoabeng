@@ -15,7 +15,12 @@ const PRODUCT_TO_TIER: Record<string, string> = {
 };
 
 // Tier limits configuration
-const TIER_LIMITS = {
+const TIER_LIMITS: Record<string, {
+  games_joinable: number;
+  games_creatable: number;
+  clan_benefits: boolean;
+  max_friends: number;
+}> = {
   freemium: {
     games_joinable: 10,
     games_creatable: 2,
@@ -78,54 +83,104 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Check for active Stripe subscription first
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
-    if (customers.data.length === 0) {
-      logStep("No customer found, returning freemium state");
+    let stripeSubscription = null;
+    let stripeTier = null;
+    let subscriptionEnd = null;
+
+    if (customers.data.length > 0) {
+      const customerId = customers.data[0].id;
+      logStep("Found Stripe customer", { customerId });
+
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "active",
+        limit: 1,
+      });
+      
+      if (subscriptions.data.length > 0) {
+        stripeSubscription = subscriptions.data[0];
+        subscriptionEnd = new Date(stripeSubscription.current_period_end * 1000).toISOString();
+        const productId = stripeSubscription.items.data[0].price.product as string;
+        stripeTier = PRODUCT_TO_TIER[productId] || null;
+        logStep("Active Stripe subscription found", { tier: stripeTier, endDate: subscriptionEnd });
+      }
+    }
+
+    // If user has an active Stripe subscription, return that
+    if (stripeTier) {
+      const limits = TIER_LIMITS[stripeTier] || TIER_LIMITS.freemium;
       return new Response(JSON.stringify({
-        subscribed: false,
-        tier: "freemium",
-        limits: TIER_LIMITS.freemium,
-        subscription_end: null,
+        subscribed: true,
+        tier: stripeTier,
+        limits,
+        subscription_end: subscriptionEnd,
+        source: "stripe",
+        trial_active: false,
+        token_bonus: { games_joinable: 0, games_creatable: 0 },
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
 
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+    // Check for trial or token bonuses in database
+    const { data: bonusData, error: bonusError } = await supabaseClient
+      .from("user_subscription_bonuses")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
 
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
-    
-    const hasActiveSub = subscriptions.data.length > 0;
-    let tier = "freemium";
-    let subscriptionEnd = null;
-
-    if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
-      
-      const productId = subscription.items.data[0].price.product as string;
-      tier = PRODUCT_TO_TIER[productId] || "freemium";
-      logStep("Determined subscription tier", { productId, tier });
-    } else {
-      logStep("No active subscription found");
+    if (bonusError && bonusError.code !== "PGRST116") {
+      logStep("Error fetching bonus data", { error: bonusError });
     }
 
-    const limits = TIER_LIMITS[tier as keyof typeof TIER_LIMITS] || TIER_LIMITS.freemium;
+    let effectiveTier = "freemium";
+    let trialActive = false;
+    let trialEnd = null;
+    let tokenBonus = { games_joinable: 0, games_creatable: 0 };
+
+    if (bonusData) {
+      // Check if trial is still active
+      const trialEndDate = new Date(bonusData.trial_end_at);
+      const now = new Date();
+      
+      if (trialEndDate > now) {
+        effectiveTier = bonusData.trial_tier;
+        trialActive = true;
+        trialEnd = bonusData.trial_end_at;
+        logStep("Trial active", { tier: effectiveTier, endDate: trialEnd });
+      }
+
+      // Add token bonuses
+      tokenBonus = {
+        games_joinable: bonusData.token_games_joinable || 0,
+        games_creatable: bonusData.token_games_creatable || 0,
+      };
+      logStep("Token bonus", tokenBonus);
+    }
+
+    const limits = TIER_LIMITS[effectiveTier] || TIER_LIMITS.freemium;
+
+    // If freemium, add token bonuses to limits
+    const effectiveLimits = {
+      ...limits,
+      games_joinable: limits.games_joinable === -1 ? -1 : limits.games_joinable + tokenBonus.games_joinable,
+      games_creatable: limits.games_creatable + tokenBonus.games_creatable,
+    };
 
     return new Response(JSON.stringify({
-      subscribed: hasActiveSub,
-      tier,
-      limits,
-      subscription_end: subscriptionEnd,
+      subscribed: trialActive,
+      tier: effectiveTier,
+      limits: effectiveLimits,
+      subscription_end: trialEnd,
+      source: trialActive ? "trial" : "freemium",
+      trial_active: trialActive,
+      trial_end: trialEnd,
+      token_bonus: tokenBonus,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

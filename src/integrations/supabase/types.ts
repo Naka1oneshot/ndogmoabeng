@@ -2498,6 +2498,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_subscription_bonuses: {
+        Row: {
+          created_at: string
+          id: string
+          token_games_creatable: number
+          token_games_joinable: number
+          trial_end_at: string
+          trial_start_at: string
+          trial_tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          token_games_creatable?: number
+          token_games_joinable?: number
+          trial_end_at: string
+          trial_start_at?: string
+          trial_tier?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          token_games_creatable?: number
+          token_games_joinable?: number
+          trial_end_at?: string
+          trial_start_at?: string
+          trial_tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
