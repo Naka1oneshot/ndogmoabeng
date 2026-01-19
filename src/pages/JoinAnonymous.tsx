@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 import { User, AlertCircle, Loader2, Smartphone, Users, Ban, Coins, Lock, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDeviceId } from '@/hooks/useDeviceId';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { useSubscription } from '@/hooks/useSubscription';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
@@ -19,6 +21,9 @@ interface Game {
   name: string;
   status: string;
   x_nb_joueurs: number;
+  mode: string;
+  current_step_index: number;
+  selected_game_type_code: string | null;
 }
 
 const PLAYER_TOKEN_PREFIX = 'ndogmoabeng_player_';
@@ -26,7 +31,8 @@ const PLAYER_TOKEN_PREFIX = 'ndogmoabeng_player_';
 export default function JoinAnonymous() {
   const navigate = useNavigate();
   const { code } = useParams<{ code: string }>();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { profile, loading: profileLoading } = useUserProfile();
   const { token_bonus, hasClanBenefits, loading: subscriptionLoading } = useSubscription();
 
   const [displayName, setDisplayName] = useState('');
@@ -39,6 +45,16 @@ export default function JoinAnonymous() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
+
+  // Determine if user is logged in with a profile
+  const isLoggedIn = !!user && !!profile;
+
+  // Set display name from profile when loaded
+  useEffect(() => {
+    if (profile?.display_name && !displayName) {
+      setDisplayName(profile.display_name);
+    }
+  }, [profile]);
 
   // Determine if user can select clan
   const userHasClanBenefits = hasClanBenefits();
@@ -103,7 +119,7 @@ export default function JoinAnonymous() {
     try {
       const { data, error: fetchError } = await supabase
         .from('games')
-        .select('id, name, status, x_nb_joueurs')
+        .select('id, name, status, x_nb_joueurs, mode, current_step_index, selected_game_type_code')
         .eq('join_code', joinCode.toUpperCase())
         .maybeSingle();
 
@@ -295,10 +311,22 @@ export default function JoinAnonymous() {
 
           {game && !banReason && (
             <>
-              <div className="text-center p-4 bg-secondary/50 rounded-md">
-                <p className="text-sm text-muted-foreground mb-1">Partie</p>
-                <p className="font-display text-lg">{game.name}</p>
-                <div className="flex items-center justify-center gap-2 mt-2 text-sm text-muted-foreground">
+              <div className="text-center p-4 bg-secondary/50 rounded-md space-y-3">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Partie</p>
+                  <p className="font-display text-lg">{game.name}</p>
+                </div>
+                
+                {/* Adventure Progress Display */}
+                <div className="flex justify-center">
+                  <AdventureProgressDisplay
+                    mode={game.mode}
+                    currentStepIndex={game.current_step_index}
+                    currentGameTypeCode={game.selected_game_type_code}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <Users className="h-4 w-4" />
                   <span>
                     {playerCount} / {game.x_nb_joueurs || '∞'} joueurs
@@ -324,8 +352,15 @@ export default function JoinAnonymous() {
                         onChange={(e) => setDisplayName(e.target.value)}
                         className="pl-10"
                         onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                        disabled={isLoggedIn}
+                        readOnly={isLoggedIn}
                       />
                     </div>
+                    {isLoggedIn && (
+                      <p className="text-xs text-muted-foreground">
+                        Pseudo lié à votre compte
+                      </p>
+                    )}
                   </div>
 
                   {/* Token usage for clan (only if user is logged in and has tokens but no subscription benefits) */}
