@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useUserRole } from '@/hooks/useUserRole';
 import { 
   SUBSCRIPTION_TIERS, 
   TOKEN_NDOGMOABENG, 
@@ -26,13 +28,16 @@ import {
   Loader2,
   ExternalLink,
   ChevronDown,
-  MessageCircle
+  MessageCircle,
+  Settings
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 
 export function SubscriptionSection() {
+  const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
   const {
     tier,
     limits,
@@ -144,6 +149,17 @@ export function SubscriptionSection() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/admin/subscriptions')}
+                className="border-accent text-accent"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Gérer les tokens
+              </Button>
+            )}
             <Badge variant={getTierBadgeVariant(tier)} className="text-sm px-3 py-1">
               {getTierDisplayName(tier)}
             </Badge>

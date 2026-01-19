@@ -94,6 +94,39 @@ serve(async (req) => {
     if (!userId || !userEmail) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId, email: userEmail });
 
+    // Check if user is admin - admins get unlimited access
+    const { data: adminRole } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (adminRole) {
+      logStep("Admin user detected, returning unlimited access");
+      const unlimitedLimits = {
+        games_creatable: -1, // unlimited
+        clan_benefits: true,
+        max_friends: -1, // unlimited
+        chat_access: "full",
+      };
+      return new Response(JSON.stringify({
+        subscribed: true,
+        tier: "admin",
+        limits: unlimitedLimits,
+        max_limits: unlimitedLimits,
+        usage: { games_created: 0, friends_count: 0 },
+        subscription_end: null,
+        source: "admin",
+        trial_active: false,
+        token_bonus: { games_creatable: 0 },
+        is_admin: true,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     const monthStart = getMonthStart();
     logStep("Month start for usage count", { monthStart });
 

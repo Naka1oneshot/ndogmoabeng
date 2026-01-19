@@ -15,6 +15,7 @@ import PlayerDashboard from "./pages/PlayerDashboard";
 import AdminGames from "./pages/AdminGames";
 import AdminGameDetails from "./pages/AdminGameDetails";
 import AdminMeetups from "./pages/AdminMeetups";
+import AdminSubscriptions from "./pages/AdminSubscriptions";
 import WatchList from "./pages/WatchList";
 import WatchGame from "./pages/WatchGame";
 import Profile from "./pages/Profile";
@@ -43,6 +44,7 @@ const App = () => (
                 <Route path="/admin/games" element={<AdminGames />} />
                 <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
                 <Route path="/admin/meetups" element={<AdminMeetups />} />
+                <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
                 <Route path="/watch" element={<WatchList />} />
                 <Route path="/watch/:gameId" element={<WatchGame />} />
                 <Route path="/profile" element={<Profile />} />
