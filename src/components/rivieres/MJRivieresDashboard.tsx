@@ -776,18 +776,6 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       )}
 
       {/* Status bar */}
-      <div className="flex items-center gap-2 mb-2">
-        <div className="flex-1" />
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => { fetchData(); toast.success('Données actualisées'); }}
-          className="border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/10"
-        >
-          <RefreshCw className="h-4 w-4 mr-1" />
-          Actualiser
-        </Button>
-      </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className={`${rivieresCardStyle} p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Manche</div>
@@ -846,6 +834,30 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
 
         {/* Actions Tab (merged with Calcul) */}
         <TabsContent value="actions" className="space-y-4 mt-4">
+          <div className="flex justify-end mb-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                const { data: stateData } = await supabase
+                  .from('river_session_state')
+                  .select('*')
+                  .eq('session_game_id', sessionGameId)
+                  .single();
+                if (stateData) setState(stateData);
+                const { data: statsData } = await supabase
+                  .from('river_player_stats')
+                  .select('*')
+                  .eq('session_game_id', sessionGameId)
+                  .order('player_num');
+                if (statsData) setPlayerStats(statsData);
+                toast.success('Actions actualisées');
+              }}
+              className="text-[#D4AF37] hover:bg-[#D4AF37]/10"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
           {(() => {
             const dangerCalc = calculateDangerRange(enBateauPlayers.length, state.manche_active, state.niveau_active);
             const explanation = getDangerCalculationExplanation(dangerCalc);
@@ -1035,6 +1047,31 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
 
         {/* Players Tab */}
         <TabsContent value="players" className="mt-4">
+          <div className="flex justify-end mb-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                const { data } = await supabase
+                  .from('game_players')
+                  .select('id, display_name, player_number, clan, jetons, is_host, player_token')
+                  .eq('game_id', gameId)
+                  .eq('status', 'ACTIVE')
+                  .order('player_number');
+                if (data) setPlayers(data.filter(p => !p.is_host && p.player_number !== null));
+                const { data: statsData } = await supabase
+                  .from('river_player_stats')
+                  .select('*')
+                  .eq('session_game_id', sessionGameId)
+                  .order('player_num');
+                if (statsData) setPlayerStats(statsData);
+                toast.success('Joueurs actualisés');
+              }}
+              className="text-[#D4AF37] hover:bg-[#D4AF37]/10"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
           <div className={`${rivieresCardStyle} overflow-hidden`}>
             <table className="w-full text-sm">
               <thead className="bg-[#0B1020]">
@@ -1141,9 +1178,19 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         {/* Decisions Tab */}
         <TabsContent value="decisions" className="mt-4">
           <div className={`${rivieresCardStyle} p-4`}>
-            <h3 className="font-bold text-[#D4AF37] mb-3">
-              Décisions Niveau {state.niveau_active} - Manche {state.manche_active}
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-[#D4AF37]">
+                Décisions Niveau {state.niveau_active} - Manche {state.manche_active}
+              </h3>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { fetchDecisions(); toast.success('Décisions actualisées'); }}
+                className="text-[#D4AF37] hover:bg-[#D4AF37]/10"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
             <div className="space-y-2">
               {enBateauPlayers.map((stats) => {
                 const player = getPlayerById(stats.player_id);
@@ -1185,7 +1232,26 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         {/* Logs Tab */}
         <TabsContent value="logs" className="mt-4">
           <div className={`${rivieresCardStyle} p-4 max-h-96 overflow-y-auto`}>
-            <h3 className="font-bold text-[#D4AF37] mb-3">Logs MJ</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-[#D4AF37]">Logs MJ</h3>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  const { data: logsData } = await supabase
+                    .from('logs_mj')
+                    .select('id, action, details, manche')
+                    .eq('session_game_id', sessionGameId)
+                    .order('timestamp', { ascending: false })
+                    .limit(50);
+                  if (logsData) setLogs(logsData);
+                  toast.success('Logs actualisés');
+                }}
+                className="text-[#D4AF37] hover:bg-[#D4AF37]/10"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
             <div className="space-y-2 text-sm">
               {logs.map((log) => (
                 <div key={log.id} className="p-2 bg-[#0B1020] rounded flex gap-3">
