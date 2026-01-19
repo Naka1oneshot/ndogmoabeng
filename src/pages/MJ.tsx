@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,6 +68,7 @@ export default function MJ() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
+  const { gameId: urlGameId } = useParams<{ gameId?: string }>();
   
   // View mode: 'list' | 'create' | 'detail'
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'detail'>('list');
@@ -117,6 +118,45 @@ export default function MJ() {
       return cleanup;
     }
   }, [user, authLoading, isAdmin]);
+
+  // Handle URL gameId parameter - load the game directly
+  useEffect(() => {
+    if (urlGameId && games.length > 0 && !loadingGames) {
+      const game = games.find(g => g.id === urlGameId);
+      if (game) {
+        setSelectedGame(game);
+        setViewMode('detail');
+      } else {
+        // Game not found in user's games, check if it exists and user is the host
+        const checkGame = async () => {
+          const { data } = await supabase
+            .from('games')
+            .select('*')
+            .eq('id', urlGameId)
+            .eq('host_user_id', user?.id)
+            .maybeSingle();
+          
+          if (data) {
+            // Fetch player count
+            const { count } = await supabase
+              .from('game_players')
+              .select('*', { count: 'exact', head: true })
+              .eq('game_id', data.id)
+              .eq('status', 'ACTIVE')
+              .eq('is_host', false);
+            
+            const gameWithCount = { ...data, active_players: count || 0 } as Game;
+            setSelectedGame(gameWithCount);
+            setViewMode('detail');
+          } else {
+            toast.error('Partie non trouvée ou accès non autorisé');
+            navigate('/mj');
+          }
+        };
+        checkGame();
+      }
+    }
+  }, [urlGameId, games, loadingGames, user]);
 
   const fetchGames = async () => {
     if (!user) return;
