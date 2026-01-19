@@ -283,7 +283,15 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
         body: { playerId },
       });
 
-      if (error || !data?.success) {
+      console.log('[MJ] reset-player-token response:', { data, error });
+
+      if (error) {
+        console.error('[MJ] reset-player-token error:', error);
+        toast.error(error.message || 'Erreur lors de la réinitialisation');
+        return;
+      }
+
+      if (!data?.success) {
         toast.error(data?.error || 'Erreur lors de la réinitialisation');
         return;
       }
@@ -306,7 +314,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
       
       fetchData();
     } catch (err) {
-      console.error('Reset error:', err);
+      console.error('[MJ] reset-player-token exception:', err);
       toast.error('Erreur lors de la réinitialisation');
     } finally {
       setResettingId(null);
