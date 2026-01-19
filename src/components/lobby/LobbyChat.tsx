@@ -111,8 +111,10 @@ const LobbyChat: React.FC<LobbyChatProps> = ({
     }
   };
 
+  const hasFlexHeight = maxHeight === 'none';
+
   return (
-    <div className="flex flex-col h-full">
+    <div className={`flex flex-col ${hasFlexHeight ? 'h-full' : ''}`}>
       {/* Header */}
       <div className="flex items-center gap-2 p-3 border-b border-border/50 bg-card/50">
         <MessageCircle className="h-4 w-4 text-primary" />
@@ -124,8 +126,8 @@ const LobbyChat: React.FC<LobbyChatProps> = ({
 
       {/* Messages */}
       <div 
-        className="flex-1 overflow-y-auto p-3"
-        style={{ maxHeight }}
+        className={`overflow-y-auto p-3 ${hasFlexHeight ? 'flex-1' : ''}`}
+        style={hasFlexHeight ? undefined : { maxHeight }}
       >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-24 text-muted-foreground">
@@ -165,7 +167,7 @@ const LobbyChat: React.FC<LobbyChatProps> = ({
 
       {/* Input - only if not read-only */}
       {!isReadOnly && (
-        <div className="p-3 border-t border-border/50">
+        <div className="p-3 border-t border-border/50 mt-auto">
           <div className="flex gap-2">
             <Input
               placeholder="Écrire un message..."
