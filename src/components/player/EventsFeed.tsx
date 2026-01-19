@@ -96,14 +96,14 @@ export function EventsFeed({ gameId, className }: EventsFeedProps) {
   }
 
   return (
-    <div className={`card-gradient rounded-lg border border-border ${className}`}>
-      <div className="p-3 border-b border-border flex items-center gap-2">
+    <div className={`card-gradient rounded-lg border border-border flex flex-col overflow-hidden ${className}`}>
+      <div className="p-3 border-b border-border flex items-center gap-2 flex-shrink-0">
         <MessageSquare className="h-4 w-4 text-primary" />
         <h3 className="font-display text-sm">Événements</h3>
       </div>
       
       <ScrollArea 
-        className="h-[300px] md:h-[calc(100vh-200px)]"
+        className="flex-1 min-h-0"
         onScroll={handleScroll}
         ref={scrollRef}
       >

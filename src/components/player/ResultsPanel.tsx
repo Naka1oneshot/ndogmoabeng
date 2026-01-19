@@ -133,13 +133,13 @@ export function ResultsPanel({ gameId, sessionGameId, manche, selectedManche, ph
   }
 
   return (
-    <div className={`card-gradient rounded-lg border border-border ${className}`}>
-      <div className="p-3 border-b border-border flex items-center gap-2">
+    <div className={`card-gradient rounded-lg border border-border flex flex-col overflow-hidden ${className}`}>
+      <div className="p-3 border-b border-border flex items-center gap-2 flex-shrink-0">
         <Trophy className="h-4 w-4 text-amber-400" />
         <h3 className="font-display text-sm">Résultats</h3>
       </div>
 
-      <ScrollArea className="max-h-[300px]">
+      <ScrollArea className="flex-1 min-h-0 max-h-[400px]">
         <div className="p-4 space-y-4">
           {/* Priority Rankings (Phase 1 classement) */}
           {showBetRankings && priorityRankings.length > 0 && (

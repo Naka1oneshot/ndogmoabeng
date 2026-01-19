@@ -548,10 +548,10 @@ export default function PlayerDashboard() {
         <main className="flex-1 p-4">
           <div className="max-w-7xl mx-auto grid grid-cols-3 gap-4 h-[calc(100vh-120px)]">
             {/* Left column: Events + Team Chat */}
-            <div className="space-y-4 overflow-hidden flex flex-col">
-              <EventsFeed gameId={game.id} className="flex-1 min-h-0" />
+            <div className="flex flex-col overflow-hidden h-full">
+              <EventsFeed gameId={game.id} className="flex-1 min-h-0 overflow-hidden" />
               {player.mateNum && (
-                <div className="h-64 card-gradient rounded-lg border border-border overflow-hidden relative">
+                <div className="h-64 flex-shrink-0 mt-4 card-gradient rounded-lg border border-border overflow-hidden relative">
                   {unreadChatCount > 0 && (
                     <div className="absolute top-2 right-2 z-10 bg-destructive text-destructive-foreground text-xs font-bold px-2 py-1 rounded-full animate-pulse">
                       {unreadChatCount} nouveau{unreadChatCount > 1 ? 'x' : ''} message{unreadChatCount > 1 ? 's' : ''}
