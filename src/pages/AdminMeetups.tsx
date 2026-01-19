@@ -43,7 +43,19 @@ export default function AdminMeetups() {
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <p className="text-muted-foreground">Veuillez vous connecter pour accéder à cette page</p>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate('/auth')}>Se connecter</Button>
+          <Button variant="outline" onClick={() => navigate('/')}>Retour à l'accueil</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <p className="text-destructive">Accès réservé aux administrateurs</p>
