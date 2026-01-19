@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, Loader2 } from 'lucide-react';
+import { Trophy, Users } from 'lucide-react';
 
 interface GamePlayer {
   id: string;
@@ -8,6 +8,13 @@ interface GamePlayer {
   player_number: number;
   jetons: number;
   recompenses: number;
+  mate_num: number | null;
+}
+
+interface Team {
+  members: GamePlayer[];
+  teamScore: number;
+  teamName: string;
 }
 
 interface ForestFinalRankingProps {
@@ -66,7 +73,7 @@ export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber 
         // Fetch players for ranking
         const { data: playersData } = await supabase
           .from('game_players')
-          .select('id, display_name, player_number, jetons, recompenses')
+          .select('id, display_name, player_number, jetons, recompenses, mate_num')
           .eq('game_id', gameId)
           .is('removed_at', null)
           .order('player_number', { ascending: true });
@@ -76,6 +83,7 @@ export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber 
             ...p,
             jetons: p.jetons ?? 0,
             recompenses: p.recompenses ?? 0,
+            mate_num: p.mate_num ?? null,
           })));
         }
       }
@@ -92,13 +100,57 @@ export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber 
     return null;
   }
 
-  // Calculate ranking
-  const ranking = players
-    .map(p => ({
-      ...p,
-      score: p.jetons + p.recompenses,
-    }))
-    .sort((a, b) => b.score - a.score);
+  // Build teams from mate relationships
+  const buildTeams = (): Team[] => {
+    const teams: Team[] = [];
+    const processedPlayers = new Set<number>();
+
+    for (const player of players) {
+      if (processedPlayers.has(player.player_number)) continue;
+
+      const teammates: GamePlayer[] = [player];
+      processedPlayers.add(player.player_number);
+
+      // Find mate if exists
+      if (player.mate_num) {
+        const mate = players.find(p => p.player_number === player.mate_num);
+        if (mate && !processedPlayers.has(mate.player_number)) {
+          teammates.push(mate);
+          processedPlayers.add(mate.player_number);
+        }
+      }
+
+      // Also check if anyone has this player as their mate
+      const reverseMatches = players.filter(
+        p => p.mate_num === player.player_number && !processedPlayers.has(p.player_number)
+      );
+      for (const rm of reverseMatches) {
+        teammates.push(rm);
+        processedPlayers.add(rm.player_number);
+      }
+
+      // Calculate team score (sum of individual scores)
+      const teamScore = teammates.reduce((sum, p) => sum + p.jetons + p.recompenses, 0);
+      
+      // Generate team name
+      const teamName = teammates.length === 1 
+        ? teammates[0].display_name 
+        : teammates.map(t => t.display_name).join(' & ');
+
+      teams.push({
+        members: teammates,
+        teamScore,
+        teamName,
+      });
+    }
+
+    return teams.sort((a, b) => b.teamScore - a.teamScore);
+  };
+
+  const teams = buildTeams();
+  const currentPlayerTeam = teams.find(t => 
+    t.members.some(m => m.player_number === currentPlayerNumber)
+  );
 
   return (
     <div className="card-gradient rounded-lg border-2 border-amber-500/50 bg-amber-500/10 p-6">
@@ -108,7 +160,7 @@ export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber 
       </div>
 
       <p className="text-center text-muted-foreground text-sm mb-4">
-        La forêt est libérée ! Voici le classement final.
+        La forêt est libérée ! Voici le classement final par équipe.
       </p>
 
       <div className="overflow-x-auto">
@@ -116,20 +168,20 @@ export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber 
           <thead>
             <tr className="border-b border-border">
               <th className="text-left py-2 px-3">Rang</th>
-              <th className="text-left py-2 px-3">Joueur</th>
-              <th className="text-right py-2 px-3">Jetons</th>
-              <th className="text-right py-2 px-3">Récompenses</th>
-              <th className="text-right py-2 px-3">Score</th>
+              <th className="text-left py-2 px-3">Équipe</th>
+              <th className="text-right py-2 px-3">Score Total</th>
             </tr>
           </thead>
           <tbody>
-            {ranking.map((player, index) => {
-              const isCurrentPlayer = player.player_number === currentPlayerNumber;
+            {teams.map((team, index) => {
+              const isCurrentTeam = team === currentPlayerTeam;
+              const isSoloPlayer = team.members.length === 1;
+              
               return (
                 <tr 
-                  key={player.id} 
+                  key={team.teamName} 
                   className={`border-b border-border/50 ${
-                    isCurrentPlayer ? 'bg-primary/20 font-bold' : index < 3 ? 'bg-primary/5' : ''
+                    isCurrentTeam ? 'bg-primary/20 font-bold' : index < 3 ? 'bg-primary/5' : ''
                   }`}
                 >
                   <td className="py-3 px-3">
@@ -142,12 +194,24 @@ export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber 
                     </span>
                   </td>
                   <td className="py-3 px-3">
-                    {player.display_name}
-                    {isCurrentPlayer && <span className="ml-2 text-primary">(vous)</span>}
+                    <div className="flex items-center gap-2">
+                      {!isSoloPlayer && <Users className="h-4 w-4 text-primary" />}
+                      <div>
+                        <div className="font-medium">
+                          {team.teamName}
+                          {isCurrentTeam && <span className="ml-2 text-primary">(vous)</span>}
+                        </div>
+                        {!isSoloPlayer && (
+                          <div className="text-xs text-muted-foreground">
+                            {team.members.map(m => `${m.display_name}: ${m.jetons + m.recompenses}`).join(' | ')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </td>
-                  <td className="py-3 px-3 text-right">{player.jetons}</td>
-                  <td className="py-3 px-3 text-right text-amber-500">+{player.recompenses}</td>
-                  <td className="py-3 px-3 text-right font-bold text-lg">{player.score}</td>
+                  <td className="py-3 px-3 text-right font-bold text-lg text-amber-500">
+                    {team.teamScore}
+                  </td>
                 </tr>
               );
             })}

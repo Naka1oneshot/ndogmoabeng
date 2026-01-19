@@ -962,11 +962,12 @@ serve(async (req) => {
       }
     }
 
-    // Update player rewards
+    // Update player rewards (also give reward to mate for cooperative gameplay)
     for (const reward of rewardUpdates) {
+      // Give reward to the killer
       const { data: playerData } = await supabase
         .from('game_players')
-        .select('recompenses')
+        .select('recompenses, mate_num')
         .eq('game_id', gameId)
         .eq('player_number', reward.playerNum)
         .single();
@@ -977,6 +978,26 @@ serve(async (req) => {
           .update({ recompenses: (playerData.recompenses || 0) + reward.reward })
           .eq('game_id', gameId)
           .eq('player_number', reward.playerNum);
+        
+        // Also give reward to mate (cooperative gameplay)
+        if (playerData.mate_num) {
+          const { data: mateData } = await supabase
+            .from('game_players')
+            .select('recompenses')
+            .eq('game_id', gameId)
+            .eq('player_number', playerData.mate_num)
+            .single();
+          
+          if (mateData) {
+            await supabase
+              .from('game_players')
+              .update({ recompenses: (mateData.recompenses || 0) + reward.reward })
+              .eq('game_id', gameId)
+              .eq('player_number', playerData.mate_num);
+            
+            console.log(`[resolve-combat] Cooperative reward: mate #${playerData.mate_num} also receives ${reward.reward} recompenses`);
+          }
+        }
       }
     }
 
