@@ -6,12 +6,14 @@ import {
   formatLimitValue, 
   getTierDisplayName, 
   getTierBadgeVariant,
+  formatChatAccess,
   SubscriptionTier 
 } from '@/lib/subscriptionTiers';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Crown, 
   Sparkles, 
@@ -22,7 +24,9 @@ import {
   Zap,
   Check,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  ChevronDown,
+  MessageCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -35,7 +39,6 @@ export function SubscriptionSection() {
     subscription_end,
     source,
     trial_active,
-    trial_end,
     token_bonus,
     loading,
     createCheckout,
@@ -45,6 +48,19 @@ export function SubscriptionSection() {
   } = useSubscription();
 
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [expandedTiers, setExpandedTiers] = useState<Set<string>>(new Set());
+
+  const toggleTierExpanded = (tierKey: string) => {
+    setExpandedTiers(prev => {
+      const next = new Set(prev);
+      if (next.has(tierKey)) {
+        next.delete(tierKey);
+      } else {
+        next.add(tierKey);
+      }
+      return next;
+    });
+  };
 
   const handleSubscribe = async (selectedTier: 'starter' | 'premium' | 'royal') => {
     setCheckoutLoading(selectedTier);
@@ -118,7 +134,7 @@ export function SubscriptionSection() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Crown className="w-5 h-5 text-yellow-500" />
+              <Crown className="w-5 h-5 text-accent" />
               Mon Abonnement
             </CardTitle>
             <CardDescription>
@@ -130,7 +146,7 @@ export function SubscriptionSection() {
               {getTierDisplayName(tier)}
             </Badge>
             {trial_active && (
-              <Badge variant="outline" className="text-sm px-3 py-1 border-yellow-500 text-yellow-600">
+              <Badge variant="outline" className="text-sm px-3 py-1 border-accent text-accent">
                 <Clock className="w-3 h-3 mr-1" />
                 Essai: {remainingDays}j restants
               </Badge>
@@ -155,33 +171,38 @@ export function SubscriptionSection() {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Current limits display */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-muted/50 rounded-lg">
           <div className="text-center">
             <Gamepad2 className="w-6 h-6 mx-auto mb-1 text-primary" />
             <div className="text-lg font-bold">{formatLimitValue(limits.games_joinable)}</div>
             <div className="text-xs text-muted-foreground">Parties jouables/mois</div>
           </div>
           <div className="text-center">
-            <Crown className="w-6 h-6 mx-auto mb-1 text-purple-500" />
+            <Crown className="w-6 h-6 mx-auto mb-1 text-primary" />
             <div className="text-lg font-bold">{formatLimitValue(limits.games_creatable)}</div>
             <div className="text-xs text-muted-foreground">Parties créables/mois</div>
           </div>
           <div className="text-center">
-            <Users className="w-6 h-6 mx-auto mb-1 text-blue-500" />
+            <Users className="w-6 h-6 mx-auto mb-1 text-primary" />
             <div className="text-lg font-bold">{formatLimitValue(limits.max_friends)}</div>
             <div className="text-xs text-muted-foreground">Amis max</div>
           </div>
           <div className="text-center">
-            <Shield className="w-6 h-6 mx-auto mb-1 text-green-500" />
+            <Shield className="w-6 h-6 mx-auto mb-1 text-primary" />
             <div className="text-lg font-bold">{limits.clan_benefits ? 'Oui' : 'Non'}</div>
             <div className="text-xs text-muted-foreground">Avantages clan</div>
+          </div>
+          <div className="text-center">
+            <MessageCircle className="w-6 h-6 mx-auto mb-1 text-primary" />
+            <div className="text-lg font-bold">{limits.chat_access === 'full' ? 'Complet' : 'Lecture'}</div>
+            <div className="text-xs text-muted-foreground">Accès chat</div>
           </div>
         </div>
 
         {/* Token bonus if any */}
         {(token_bonus.games_joinable > 0 || token_bonus.games_creatable > 0) && (
-          <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-            <div className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+          <div className="p-3 bg-accent/10 border border-accent/20 rounded-lg">
+            <div className="flex items-center gap-2 text-accent">
               <Zap className="w-4 h-4" />
               <span className="font-medium">Bonus Token actif:</span>
               <span>+{token_bonus.games_joinable} parties jouables, +{token_bonus.games_creatable} parties créables</span>
@@ -201,6 +222,7 @@ export function SubscriptionSection() {
           {tiers.map(([tierKey, tierData]) => {
             const isCurrentTier = tier === tierKey;
             const isUpgrade = tiers.findIndex(([k]) => k === tierKey) > tiers.findIndex(([k]) => k === tier);
+            const isExpanded = expandedTiers.has(tierKey);
             
             return (
               <Card 
@@ -224,24 +246,40 @@ export function SubscriptionSection() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground">{tierData.description}</p>
-                  <ul className="space-y-1 text-sm">
-                    <li className="flex items-center gap-2">
-                      <Gamepad2 className="w-4 h-4 text-muted-foreground" />
-                      {formatLimitValue(tierData.features.games_joinable)} parties jouables
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Crown className="w-4 h-4 text-muted-foreground" />
-                      {formatLimitValue(tierData.features.games_creatable)} parties créables
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-muted-foreground" />
-                      {formatLimitValue(tierData.features.max_friends)} amis
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-muted-foreground" />
-                      {tierData.features.clan_benefits ? 'Avantages clan' : 'Pas d\'avantages clan'}
-                    </li>
-                  </ul>
+                  
+                  <Collapsible open={isExpanded} onOpenChange={() => toggleTierExpanded(tierKey)}>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="w-full justify-between px-0 h-8">
+                        <span className="text-xs text-muted-foreground">Voir les détails</span>
+                        <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-2">
+                      <ul className="space-y-1 text-sm">
+                        <li className="flex items-center gap-2">
+                          <Gamepad2 className="w-4 h-4 text-muted-foreground" />
+                          {formatLimitValue(tierData.features.games_joinable)} parties jouables
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <Crown className="w-4 h-4 text-muted-foreground" />
+                          {formatLimitValue(tierData.features.games_creatable)} parties créables
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-muted-foreground" />
+                          {formatLimitValue(tierData.features.max_friends)} amis
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-muted-foreground" />
+                          {tierData.features.clan_benefits ? 'Avantages clan' : 'Pas d\'avantages clan'}
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <MessageCircle className="w-4 h-4 text-muted-foreground" />
+                          {formatChatAccess(tierData.features.chat_access)}
+                        </li>
+                      </ul>
+                    </CollapsibleContent>
+                  </Collapsible>
+
                   {tierKey !== 'freemium' && !isCurrentTier && isUpgrade && (
                     <Button 
                       className="w-full" 
@@ -263,12 +301,12 @@ export function SubscriptionSection() {
         </div>
 
         {/* Token purchase */}
-        <Card className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/20">
+        <Card className="bg-gradient-to-r from-accent/10 to-primary/10 border-accent/20">
           <CardContent className="p-4">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-yellow-500" />
+                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-accent" />
                 </div>
                 <div>
                   <h3 className="font-semibold">{TOKEN_NDOGMOABENG.name}</h3>
@@ -283,7 +321,7 @@ export function SubscriptionSection() {
                   onClick={handleBuyToken}
                   disabled={checkoutLoading === 'token'}
                   variant="outline"
-                  className="border-yellow-500 text-yellow-600 hover:bg-yellow-500/10"
+                  className="border-accent text-accent hover:bg-accent/10"
                 >
                   {checkoutLoading === 'token' ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

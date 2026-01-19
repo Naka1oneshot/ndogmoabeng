@@ -10,8 +10,9 @@ export const SUBSCRIPTION_TIERS = {
       games_creatable: 2,
       clan_benefits: false,
       max_friends: 2,
+      chat_access: "read_only" as const,
     },
-    description: "Accès basique gratuit",
+    description: "Découvre l'univers de Ndogmoabeng",
   },
   starter: {
     name: "Starter",
@@ -23,8 +24,9 @@ export const SUBSCRIPTION_TIERS = {
       games_creatable: 10,
       clan_benefits: true,
       max_friends: 10,
+      chat_access: "full" as const,
     },
-    description: "Pour les joueurs réguliers",
+    description: "Entre dans la communauté",
   },
   premium: {
     name: "Premium",
@@ -36,8 +38,9 @@ export const SUBSCRIPTION_TIERS = {
       games_creatable: 50,
       clan_benefits: true,
       max_friends: 20,
+      chat_access: "full" as const,
     },
-    description: "Pour les passionnés",
+    description: "Joue sans contrainte, anime sans limite frustrante",
   },
   royal: {
     name: "Royal",
@@ -49,8 +52,9 @@ export const SUBSCRIPTION_TIERS = {
       games_creatable: 200,
       clan_benefits: true,
       max_friends: -1, // unlimited
+      chat_access: "full" as const,
     },
-    description: "L'expérience ultime",
+    description: "Deviens un pilier de Ndogmoabeng",
   },
 } as const;
 
@@ -69,11 +73,18 @@ export const TOKEN_NDOGMOABENG = {
 
 export type SubscriptionTier = keyof typeof SUBSCRIPTION_TIERS;
 
+export type ChatAccess = "read_only" | "full";
+
 export interface SubscriptionLimits {
   games_joinable: number;
   games_creatable: number;
   clan_benefits: boolean;
   max_friends: number;
+  chat_access: ChatAccess;
+}
+
+export function formatChatAccess(access: ChatAccess): string {
+  return access === "read_only" ? "En lecture partout" : "Lecture et écriture partout";
 }
 
 export interface TokenBonus {
