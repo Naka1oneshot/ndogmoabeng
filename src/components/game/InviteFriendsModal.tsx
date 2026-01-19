@@ -53,20 +53,15 @@ export function InviteFriendsModal({
     setInvitingFriend(friendUserId);
     
     try {
-      // Insert a game invitation event (using session_events table)
+      // Insert into game_invitations table
       const { error } = await supabase
-        .from('session_events')
+        .from('game_invitations')
         .insert({
           game_id: gameId,
-          type: 'game_invite',
-          audience: 'private',
-          message: `${friendName} a été invité à rejoindre la partie`,
-          payload: {
-            invited_user_id: friendUserId,
-            invited_by_user_id: user.id,
-            join_code: joinCode,
-            game_name: gameName,
-          },
+          invited_by_user_id: user.id,
+          invited_user_id: friendUserId,
+          game_name: gameName,
+          join_code: joinCode,
         });
 
       if (error) throw error;
