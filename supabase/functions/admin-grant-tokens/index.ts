@@ -50,12 +50,12 @@ serve(async (req) => {
     }
     logStep("Admin role verified");
 
-    const { display_name, tokens_creatable } = await req.json();
+    const { display_name, tokens_count } = await req.json();
     
-    if (!display_name || typeof tokens_creatable !== 'number' || tokens_creatable <= 0) {
-      throw new Error("Invalid request: display_name and positive tokens_creatable required");
+    if (!display_name || typeof tokens_count !== 'number' || tokens_count <= 0) {
+      throw new Error("Invalid request: display_name and positive tokens_count required");
     }
-    logStep("Request params", { display_name, tokens_creatable });
+    logStep("Request params", { display_name, tokens_count });
 
     // Find user by display_name
     const { data: targetProfile, error: profileError } = await supabaseClient
@@ -72,18 +72,18 @@ serve(async (req) => {
     // Upsert the bonus tokens
     const { data: existingBonus } = await supabaseClient
       .from("user_subscription_bonuses")
-      .select("token_games_creatable")
+      .select("token_balance")
       .eq("user_id", targetProfile.user_id)
       .maybeSingle();
 
-    const currentTokens = existingBonus?.token_games_creatable || 0;
-    const newTokens = currentTokens + tokens_creatable;
+    const currentTokens = existingBonus?.token_balance || 0;
+    const newTokens = currentTokens + tokens_count;
 
     const { error: upsertError } = await supabaseClient
       .from("user_subscription_bonuses")
       .upsert({
         user_id: targetProfile.user_id,
-        token_games_creatable: newTokens,
+        token_balance: newTokens,
         trial_tier: "freemium",
         trial_start_at: new Date().toISOString(),
         trial_end_at: new Date().toISOString(), // Already expired, so no trial benefit
@@ -98,7 +98,7 @@ serve(async (req) => {
     logStep("Tokens granted successfully", { 
       targetUser: targetProfile.display_name, 
       previousTokens: currentTokens, 
-      addedTokens: tokens_creatable, 
+      addedTokens: tokens_count, 
       newTotal: newTokens 
     });
 
@@ -106,7 +106,7 @@ serve(async (req) => {
       success: true,
       target_user: targetProfile.display_name,
       previous_tokens: currentTokens,
-      added_tokens: tokens_creatable,
+      added_tokens: tokens_count,
       new_total: newTokens,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -119,7 +119,7 @@ serve(async (req) => {
         subscription_end: null,
         source: "admin",
         trial_active: false,
-        token_bonus: { games_creatable: 0 },
+        token_bonus: { token_balance: 0 },
         is_admin: true,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -203,7 +203,7 @@ serve(async (req) => {
         subscription_end: subscriptionEnd,
         source: "stripe",
         trial_active: false,
-        token_bonus: { games_creatable: 0 },
+        token_bonus: { token_balance: 0 },
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -224,7 +224,7 @@ serve(async (req) => {
     let effectiveTier = "freemium";
     let trialActive = false;
     let trialEnd = null;
-    let tokenBonus = { games_creatable: 0 };
+    let tokenBonus = { token_balance: 0 };
 
     if (bonusData) {
       // Check if trial is still active
@@ -238,29 +238,28 @@ serve(async (req) => {
         logStep("Trial active", { tier: effectiveTier, endDate: trialEnd });
       }
 
-      // Add token bonuses
+      // Token balance (each token = 1 init or 1 game with clan)
       tokenBonus = {
-        games_creatable: bonusData.token_games_creatable || 0,
+        token_balance: bonusData.token_balance || 0,
       };
-      logStep("Token bonus", tokenBonus);
+      logStep("Token balance", tokenBonus);
     }
 
     const limits = TIER_LIMITS[effectiveTier] || TIER_LIMITS.freemium;
 
-    // Calculate total limits including token bonuses
-    const totalCreatable = limits.games_creatable + tokenBonus.games_creatable;
+    // Token balance is separate from subscription limits
+    // Tokens can be used for: 1 init OR 1 game with clan advantage
     const remainingFriends = limits.max_friends === -1 ? -1 : Math.max(0, limits.max_friends - currentFriendsCount);
 
     // Calculate remaining limits after usage
     const remainingLimits = {
       ...limits,
-      games_creatable: Math.max(0, totalCreatable - usedCreatable),
+      games_creatable: Math.max(0, limits.games_creatable - usedCreatable),
       max_friends: remainingFriends,
     };
 
     const maxLimits = {
       ...limits,
-      games_creatable: totalCreatable,
     };
 
     return new Response(JSON.stringify({

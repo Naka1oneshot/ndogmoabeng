@@ -13,7 +13,7 @@ const DEFAULT_STATUS: SubscriptionStatus = {
   source: 'freemium',
   trial_active: false,
   trial_end: null,
-  token_bonus: { games_creatable: 0 },
+  token_bonus: { token_balance: 0 },
 };
 
 export function useSubscription() {
@@ -50,7 +50,7 @@ export function useSubscription() {
           source: data.source || 'freemium',
           trial_active: data.trial_active || false,
           trial_end: data.trial_end || null,
-          token_bonus: data.token_bonus || { games_creatable: 0 },
+          token_bonus: data.token_bonus || { token_balance: 0 },
         });
       }
     } catch (err) {
