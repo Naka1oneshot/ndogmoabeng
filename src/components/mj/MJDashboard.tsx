@@ -19,6 +19,7 @@ import { MJMonstersConfigTab } from './MJMonstersConfigTab';
 import { MJItemsShopTab } from './MJItemsShopTab';
 import { MJShopPhaseTab } from './MJShopPhaseTab';
 import MJTeamChatViewer from './MJTeamChatViewer';
+import MJLobbyChatViewer from './MJLobbyChatViewer';
 import { MJRivieresDashboard } from '@/components/rivieres/MJRivieresDashboard';
 import { MJInfectionDashboard } from '@/components/infection/MJInfectionDashboard';
 import {
@@ -600,6 +601,11 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           </div>
         </details>
       )}
+
+      {/* Lobby Chat Viewer - available for all game types */}
+      <div className="card-gradient rounded-lg border border-border p-4">
+        <MJLobbyChatViewer gameId={game.id} />
+      </div>
       {/* RIVIERES Dashboard */}
       {game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id && (
         <MJRivieresDashboard 

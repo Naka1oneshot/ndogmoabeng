@@ -1231,6 +1231,41 @@ export type Database = {
         }
         Relationships: []
       }
+      lobby_chat_messages: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          message: string
+          sender_name: string
+          sender_num: number
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          message: string
+          sender_name: string
+          sender_num: number
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          message?: string
+          sender_name?: string
+          sender_num?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lobby_chat_messages_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       logs_joueurs: {
         Row: {
           game_id: string
