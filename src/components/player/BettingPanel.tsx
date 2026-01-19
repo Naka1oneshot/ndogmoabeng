@@ -34,7 +34,22 @@ export function BettingPanel({ game, player, className }: BettingPanelProps) {
 
   useEffect(() => {
     fetchCurrentBet();
-  }, [game.id, game.manche_active]);
+
+    // Subscribe to real-time bet updates
+    const channel = supabase
+      .channel(`player-bets-${game.id}-${player.playerNumber}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'round_bets', 
+        filter: `game_id=eq.${game.id}` 
+      }, fetchCurrentBet)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [game.id, game.manche_active, player.playerNumber]);
 
   const fetchCurrentBet = async () => {
     const { data } = await supabase

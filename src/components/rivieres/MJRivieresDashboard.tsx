@@ -217,7 +217,11 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` },
         () => fetchData())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs_mj', filter: `session_game_id=eq.${sessionGameId}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'logs_mj', filter: `session_game_id=eq.${sessionGameId}` },
+        () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'river_level_history', filter: `session_game_id=eq.${sessionGameId}` },
+        () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
         () => fetchData())
       .subscribe();
   };

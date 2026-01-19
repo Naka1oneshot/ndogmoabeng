@@ -115,7 +115,7 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
     fetchCurrentAction();
 
     const channel = supabase
-      .channel(`combat-panel-${game.id}`)
+      .channel(`combat-panel-${game.id}-${player.playerNumber}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` },
         () => { fetchActivePlayerCount(); }
@@ -123,6 +123,10 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'inventory', filter: `game_id=eq.${game.id}` },
         () => { fetchInventory(); }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'actions', filter: `game_id=eq.${game.id}` },
+        () => { fetchCurrentAction(); }
       )
       .subscribe();
 
