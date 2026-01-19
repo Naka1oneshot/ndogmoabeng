@@ -5,6 +5,7 @@ import { useActiveGames } from '@/hooks/useActiveGames';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { Menu, X, Gamepad2, LogIn } from 'lucide-react';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
@@ -96,6 +97,7 @@ export function LandingNavbar() {
                 <Gamepad2 className="h-4 w-4" />
                 Créer
               </ForestButton>
+              <UserAvatarButton size="sm" />
             </div>
 
             {/* Mobile: Theme toggle + menu button */}
@@ -118,6 +120,12 @@ export function LandingNavbar() {
           {mobileMenuOpen && (
             <div className="md:hidden py-4 border-t border-border">
               <div className="flex flex-col gap-4">
+                {/* Profile at the top of mobile menu */}
+                <div className="flex items-center gap-3 pb-3 border-b border-border">
+                  <UserAvatarButton size="md" />
+                  <span className="text-sm text-muted-foreground">Mon profil</span>
+                </div>
+                
                 <button 
                   onClick={() => scrollToSection('concept')}
                   className="text-left text-muted-foreground hover:text-foreground transition-colors py-2"
