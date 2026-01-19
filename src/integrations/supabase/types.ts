@@ -1390,30 +1390,39 @@ export type Database = {
       meetup_registrations: {
         Row: {
           admin_note: string | null
+          companions_count: number
+          companions_names: string[] | null
           created_at: string
           display_name: string
           id: string
           meetup_event_id: string
           phone: string
           status: string
+          user_note: string | null
         }
         Insert: {
           admin_note?: string | null
+          companions_count?: number
+          companions_names?: string[] | null
           created_at?: string
           display_name: string
           id?: string
           meetup_event_id: string
           phone: string
           status?: string
+          user_note?: string | null
         }
         Update: {
           admin_note?: string | null
+          companions_count?: number
+          companions_names?: string[] | null
           created_at?: string
           display_name?: string
           id?: string
           meetup_event_id?: string
           phone?: string
           status?: string
+          user_note?: string | null
         }
         Relationships: [
           {

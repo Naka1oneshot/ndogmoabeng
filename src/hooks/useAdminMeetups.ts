@@ -29,6 +29,9 @@ export interface MeetupRegistration {
   phone: string;
   status: string;
   admin_note: string | null;
+  companions_count: number;
+  companions_names: string[];
+  user_note: string | null;
   created_at: string;
 }
 
@@ -189,13 +192,16 @@ export function useAdminRegistrations(eventId: string | null) {
   function exportToCSV() {
     if (registrations.length === 0) return;
     
-    const headers = ['Date', 'Nom', 'Téléphone', 'Statut', 'Note'];
+    const headers = ['Date', 'Nom', 'Téléphone', 'Accompagnants', 'Noms accompagnants', 'Note utilisateur', 'Statut', 'Note admin'];
     const rows = registrations.map(r => [
       new Date(r.created_at).toLocaleDateString('fr-FR'),
       r.display_name,
       r.phone,
+      r.companions_count.toString(),
+      (r.companions_names || []).join(' / '),
+      (r.user_note || '').replace(/,/g, ';'),
       r.status,
-      r.admin_note || ''
+      (r.admin_note || '').replace(/,/g, ';')
     ]);
     
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');

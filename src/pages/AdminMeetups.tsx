@@ -271,13 +271,18 @@ export default function AdminMeetups() {
             </div>
 
             {/* Stats */}
-            <div className="flex gap-4 text-sm">
+            <div className="flex flex-wrap gap-4 text-sm">
               <span className="text-muted-foreground">
-                Total: <span className="text-foreground font-medium">{registrations.length}</span>
+                Inscriptions: <span className="text-foreground font-medium">{registrations.length}</span>
+              </span>
+              <span className="text-muted-foreground">
+                Total joueurs: <span className="text-primary font-medium">
+                  {registrations.reduce((acc, r) => acc + 1 + (r.companions_count || 0), 0)}
+                </span>
               </span>
               <span className="text-muted-foreground">
                 Confirmés: <span className="text-green-400 font-medium">
-                  {registrations.filter(r => r.status === 'CONFIRMED').length}
+                  {registrations.filter(r => r.status === 'CONFIRMED').reduce((acc, r) => acc + 1 + (r.companions_count || 0), 0)}
                 </span>
               </span>
             </div>
@@ -288,58 +293,83 @@ export default function AdminMeetups() {
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border">
-                    <TableHead className="text-muted-foreground">Date</TableHead>
-                    <TableHead className="text-muted-foreground">Nom</TableHead>
-                    <TableHead className="text-muted-foreground">Téléphone</TableHead>
-                    <TableHead className="text-muted-foreground">Statut</TableHead>
-                    <TableHead className="text-muted-foreground">Note</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {registrations.map((reg) => (
-                    <TableRow key={reg.id} className="border-border">
-                      <TableCell className="text-muted-foreground text-xs">
-                        {formatDate(reg.created_at)}
-                      </TableCell>
-                      <TableCell className="font-medium text-foreground">
-                        {reg.display_name}
-                      </TableCell>
-                      <TableCell className="text-foreground">{reg.phone}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={reg.status}
-                          onValueChange={(value) => handleStatusChange(reg.id, value)}
-                        >
-                          <SelectTrigger className="w-28 h-8 bg-surface-2 border-border">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-surface border-border">
-                            <SelectItem value="NEW">NEW</SelectItem>
-                            <SelectItem value="CONTACTED">CONTACTED</SelectItem>
-                            <SelectItem value="CONFIRMED">CONFIRMED</SelectItem>
-                            <SelectItem value="CANCELLED">CANCELLED</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
+              <div className="space-y-4">
+                {registrations.map((reg) => (
+                  <Card key={reg.id} className="bg-surface-2 border-border">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Header row */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-foreground">{reg.display_name}</p>
+                          <p className="text-sm text-muted-foreground">{reg.phone}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={reg.status}
+                            onValueChange={(value) => handleStatusChange(reg.id, value)}
+                          >
+                            <SelectTrigger className="w-28 h-8 bg-surface border-border text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-surface border-border">
+                              <SelectItem value="NEW">NEW</SelectItem>
+                              <SelectItem value="CONTACTED">CONTACTED</SelectItem>
+                              <SelectItem value="CONFIRMED">CONFIRMED</SelectItem>
+                              <SelectItem value="CANCELLED">CANCELLED</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Companions */}
+                      {reg.companions_count > 0 && (
+                        <div className="p-2 rounded bg-accent/10 border border-accent/20">
+                          <p className="text-sm text-accent font-medium flex items-center gap-2">
+                            <Users className="w-4 h-4" />
+                            +{reg.companions_count} accompagnant{reg.companions_count > 1 ? 's' : ''}
+                            <span className="text-muted-foreground font-normal">
+                              (Total: {1 + reg.companions_count} joueurs)
+                            </span>
+                          </p>
+                          {reg.companions_names && reg.companions_names.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {reg.companions_names.filter(n => n).join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* User note */}
+                      {reg.user_note && (
+                        <div className="p-2 rounded bg-blue-500/10 border border-blue-500/20">
+                          <p className="text-xs text-blue-400 font-medium mb-1">💬 Note utilisateur:</p>
+                          <p className="text-sm text-foreground">{reg.user_note}</p>
+                        </div>
+                      )}
+
+                      {/* Admin note */}
+                      <div className="pt-2 border-t border-border/50">
+                        <Label className="text-xs text-muted-foreground">Note admin:</Label>
                         <Input
                           defaultValue={reg.admin_note || ''}
-                          placeholder="Note..."
-                          className="h-8 text-xs bg-surface-2 border-border"
+                          placeholder="Ajouter une note..."
+                          className="mt-1 h-8 text-xs bg-surface border-border"
                           onBlur={(e) => {
                             if (e.target.value !== (reg.admin_note || '')) {
                               handleNoteChange(reg.id, e.target.value);
                             }
                           }}
                         />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+
+                      {/* Date */}
+                      <p className="text-xs text-muted-foreground">
+                        Inscrit le {formatDate(reg.created_at)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </div>
         </SheetContent>
