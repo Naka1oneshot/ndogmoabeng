@@ -181,10 +181,10 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           onBack();
         }
       )
-      // Listen to game_players changes for player count updates
+      // Listen to game_players changes for player count updates (INSERT/DELETE only, skip heartbeat updates)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` },
+        { event: 'INSERT', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` },
         async () => {
           const { count } = await supabase
             .from('game_players')
@@ -193,6 +193,37 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             .eq('is_host', false)
             .eq('status', 'ACTIVE');
           setPlayerCount(count || 0);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` },
+        async () => {
+          const { count } = await supabase
+            .from('game_players')
+            .select('*', { count: 'exact', head: true })
+            .eq('game_id', game.id)
+            .eq('is_host', false)
+            .eq('status', 'ACTIVE');
+          setPlayerCount(count || 0);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` },
+        async (payload) => {
+          // Only recount if status changed (player kicked/removed), skip last_seen updates
+          const newPlayer = payload.new as any;
+          const oldPlayer = payload.old as any;
+          if (newPlayer.status !== oldPlayer.status) {
+            const { count } = await supabase
+              .from('game_players')
+              .select('*', { count: 'exact', head: true })
+              .eq('game_id', game.id)
+              .eq('is_host', false)
+              .eq('status', 'ACTIVE');
+            setPlayerCount(count || 0);
+          }
         }
       )
       // Listen to session_games for stage transitions

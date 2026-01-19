@@ -56,10 +56,23 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
   useEffect(() => {
     fetchData();
     
-    // Comprehensive realtime subscriptions for player view
+    // Optimized realtime subscriptions - avoid refreshing on last_seen updates
     const channel = supabase
       .channel(`infection-player-${game.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, 
+        (payload) => {
+          // Skip if only last_seen changed
+          if (payload.new && payload.old) {
+            const newPlayer = payload.new as any;
+            const oldPlayer = payload.old as any;
+            if (newPlayer.last_seen !== oldPlayer.last_seen && 
+                newPlayer.is_alive === oldPlayer.is_alive &&
+                newPlayer.role_code === oldPlayer.role_code) {
+              return;
+            }
+          }
+          fetchData();
+        })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_round_state', filter: `game_id=eq.${game.id}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_inputs', filter: `game_id=eq.${game.id}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_shots', filter: `game_id=eq.${game.id}` }, fetchData)
