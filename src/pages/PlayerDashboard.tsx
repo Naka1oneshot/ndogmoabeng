@@ -543,7 +543,7 @@ export default function PlayerDashboard() {
   if (!isMobile) {
     return (
       <div className="min-h-screen flex flex-col">
-        <PlayerHeader game={game} player={player} />
+        <PlayerHeader game={game} player={player} onLeaveGame={handleLeave} />
 
         <main className="flex-1 p-4">
           <div className="max-w-7xl mx-auto grid grid-cols-3 gap-4 h-[calc(100vh-120px)]">
@@ -622,17 +622,6 @@ export default function PlayerDashboard() {
           </div>
         </main>
 
-        {/* Leave button */}
-        <div className="fixed bottom-4 right-4">
-          <button
-            type="button"
-            onClick={handleLeave}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors bg-background/80 backdrop-blur px-3 py-2 rounded-lg border border-border"
-          >
-            <LogOut className="h-4 w-4" />
-            Quitter
-          </button>
-        </div>
       </div>
     );
   }
@@ -640,7 +629,7 @@ export default function PlayerDashboard() {
   // In-game view - Mobile with tabs
   return (
     <div className="min-h-screen flex flex-col">
-      <PlayerHeader game={game} player={player} />
+      <PlayerHeader game={game} player={player} onLeaveGame={handleLeave} />
 
       <main className="flex-1 pb-16">
         <Tabs value={mobileTab} onValueChange={setMobileTab} className="h-full">

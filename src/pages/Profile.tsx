@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,8 +31,7 @@ import {
   Calendar, 
   Edit2, 
   Save, 
-  X, 
-  LogOut,
+  X,
   MapPin,
   Phone,
   Mail,
@@ -226,14 +226,11 @@ export default function Profile() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigate('/')}>
                 Accueil
               </Button>
-              <Button variant="destructive" size="sm" onClick={handleSignOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Déconnexion
-              </Button>
+              <UserAvatarButton size="sm" />
             </div>
           </div>
         </div>
