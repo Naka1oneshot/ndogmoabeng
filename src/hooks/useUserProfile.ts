@@ -52,17 +52,38 @@ export function useUserProfile() {
       setLoading(true);
       try {
         // Fetch profile
-        const { data: profileData, error: profileError } = await supabase
+        let { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (profileError && profileError.code !== 'PGRST116') {
+        // If no profile exists, create one
+        if (!profileData && (!profileError || profileError.code === 'PGRST116')) {
+          const userEmail = user.email || '';
+          const defaultDisplayName = userEmail.split('@')[0] || 'Joueur';
+          
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: user.id,
+              first_name: '',
+              last_name: '',
+              display_name: defaultDisplayName,
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Error creating profile:', createError);
+          } else {
+            profileData = newProfile;
+          }
+        } else if (profileError && profileError.code !== 'PGRST116') {
           console.error('Error fetching profile:', profileError);
-        } else {
-          setProfile(profileData);
         }
+        
+        setProfile(profileData);
 
         // Check if can change display name
         const { data: canChange } = await supabase
