@@ -19,7 +19,7 @@ export function useActiveGamesList() {
   useEffect(() => {
     const fetchGames = async () => {
       try {
-        // Fetch active public games for landing page
+        // Fetch all active games (public and private)
         const { data, error: gamesError } = await supabase
           .from('games')
           .select('*')
@@ -30,8 +30,7 @@ export function useActiveGamesList() {
 
         if (gamesError) throw gamesError;
 
-        // Filter public games (is_public column might not be in types yet)
-        const activeGames = (data || []).filter((game) => (game as any).is_public === true);
+        const activeGames = data || [];
 
         if (activeGames.length === 0) {
           setGames([]);
