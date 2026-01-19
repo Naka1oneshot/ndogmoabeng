@@ -4,7 +4,17 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { GAMES_DATA } from '@/data/ndogmoabengData';
-import { MapPin, Users, Swords, Gamepad2 } from 'lucide-react';
+import { MapPin, Users, Gamepad2 } from 'lucide-react';
+
+import rivieresImage from '@/assets/games/rivieres-ndogmoabeng.png';
+import foretImage from '@/assets/games/foret-ndogmoabeng.png';
+import infectionImage from '@/assets/games/infection-ndogmoabeng.png';
+
+const GAME_IMAGES: Record<string, string> = {
+  RIVIERES: rivieresImage,
+  FORET: foretImage,
+  INFECTION: infectionImage,
+};
 
 export function GamesSection() {
   const navigate = useNavigate();
@@ -38,10 +48,14 @@ export function GamesSection() {
               key={game.id} 
               className="card-gradient border-border/50 hover:border-primary/50 transition-colors group overflow-hidden"
             >
-              {/* Image placeholder */}
-              <div className="aspect-video bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-                <Swords className="w-16 h-16 text-primary/50 group-hover:scale-110 transition-transform" />
+              {/* Game image */}
+              <div className="aspect-[3/4] relative overflow-hidden">
+                <img 
+                  src={GAME_IMAGES[game.code]} 
+                  alt={game.name} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
               </div>
 
               <CardHeader className="pb-2">

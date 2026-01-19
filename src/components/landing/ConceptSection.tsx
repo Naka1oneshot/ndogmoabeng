@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { LORE } from '@/data/ndogmoabengData';
 import { BookOpen, Eye, Shield, Compass, Brain } from 'lucide-react';
+import villageImage from '@/assets/games/village-ndogmoabeng.png';
 
 const icons = [BookOpen, Eye, Shield, Compass, Brain];
 
@@ -9,21 +10,14 @@ export function ConceptSection() {
     <section id="concept" className="py-20 scroll-mt-20">
       <div className="container mx-auto px-4">
         <div className="grid md:grid-cols-2 gap-12 items-center">
-          {/* Left: Image placeholder */}
+          {/* Left: Village illustration */}
           <div className="order-2 md:order-1">
             <Card className="overflow-hidden border-border/50">
-              <div className="aspect-square bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center">
-                <div className="text-center p-8">
-                  <div className="w-32 h-32 mx-auto mb-4 rounded-full bg-primary/20 flex items-center justify-center">
-                    <BookOpen className="w-16 h-16 text-primary" />
-                  </div>
-                  <p className="text-muted-foreground text-sm">
-                    Illustration du village
-                    <br />
-                    <span className="text-xs">(Image remplaçable)</span>
-                  </p>
-                </div>
-              </div>
+              <img 
+                src={villageImage} 
+                alt="Village de Ndogmoabeng" 
+                className="w-full aspect-square object-cover"
+              />
             </Card>
           </div>
 
