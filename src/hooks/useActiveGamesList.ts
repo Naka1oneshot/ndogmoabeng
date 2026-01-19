@@ -9,6 +9,7 @@ interface ActiveGame {
   join_code: string;
   playerCount: number;
   status: string;
+  is_public: boolean;
 }
 
 export function useActiveGamesList() {
@@ -18,18 +19,21 @@ export function useActiveGamesList() {
   useEffect(() => {
     const fetchGames = async () => {
       try {
-        // Fetch active games
-        const { data: activeGames, error: gamesError } = await supabase
+        // Fetch active public games for landing page
+        const { data, error: gamesError } = await supabase
           .from('games')
-          .select('id, name, mode, selected_game_type_code, join_code, status')
+          .select('*')
           .in('status', ['LOBBY', 'IN_GAME', 'RUNNING'])
           .eq('winner_declared', false)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(20);
 
         if (gamesError) throw gamesError;
 
-        if (!activeGames || activeGames.length === 0) {
+        // Filter public games (is_public column might not be in types yet)
+        const activeGames = (data || []).filter((game) => (game as any).is_public === true);
+
+        if (activeGames.length === 0) {
           setGames([]);
           setLoading(false);
           return;
@@ -37,7 +41,7 @@ export function useActiveGamesList() {
 
         // Fetch player counts for each game
         const gamesWithCounts = await Promise.all(
-          activeGames.map(async (game) => {
+          activeGames.slice(0, 10).map(async (game) => {
             const { count } = await supabase
               .from('game_players')
               .select('*', { count: 'exact', head: true })
@@ -46,7 +50,13 @@ export function useActiveGamesList() {
               .is('removed_at', null);
 
             return {
-              ...game,
+              id: game.id,
+              name: game.name,
+              mode: game.mode,
+              selected_game_type_code: game.selected_game_type_code,
+              join_code: game.join_code,
+              status: game.status,
+              is_public: (game as any).is_public || false,
               playerCount: count || 0,
             };
           })

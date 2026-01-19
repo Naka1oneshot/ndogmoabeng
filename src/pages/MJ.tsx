@@ -8,13 +8,14 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { AdventureSelector } from '@/components/mj/AdventureSelector';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdminBadge } from '@/components/game/AdminBadge';
 import { MJDashboard } from '@/components/mj/MJDashboard';
 import { 
   Plus, LogOut, Loader2, ShieldAlert, 
-  ChevronLeft, Trash2, Eye, Users, Map, Gamepad2
+  ChevronLeft, Trash2, Eye, Users, Map, Gamepad2, Globe, Lock
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -49,6 +50,7 @@ interface Game {
   adventure_id: string | null;
   current_step_index: number;
   selected_game_type_code: string | null;
+  is_public?: boolean;
 }
 
 function generateJoinCode(): string {
@@ -81,6 +83,7 @@ export default function MJ() {
   const [gameMode, setGameMode] = useState<'SINGLE_GAME' | 'ADVENTURE'>('SINGLE_GAME');
   const [selectedAdventureId, setSelectedAdventureId] = useState<string | null>(null);
   const [selectedGameTypeCode, setSelectedGameTypeCode] = useState<string | null>('FORET');
+  const [isPublic, setIsPublic] = useState(false);
   const [creating, setCreating] = useState(false);
   
   // Game actions
@@ -257,6 +260,7 @@ export default function MJ() {
           adventure_id: gameMode === 'ADVENTURE' ? selectedAdventureId : null,
           selected_game_type_code: gameMode === 'SINGLE_GAME' ? selectedGameTypeCode : null,
           current_step_index: 1,
+          is_public: isPublic,
         })
         .select()
         .single();
@@ -496,6 +500,17 @@ export default function MJ() {
                             </Badge>
                           )}
                           <GameStatusBadge status={game.status} />
+                          {(game as any).is_public ? (
+                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20">
+                              <Globe className="h-3 w-3 mr-1" />
+                              Publique
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 hover:bg-slate-500/20">
+                              <Lock className="h-3 w-3 mr-1" />
+                              Privée
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span className="font-mono text-primary">{game.join_code}</span>
@@ -635,6 +650,24 @@ export default function MJ() {
                   <SelectItem value="DESC">Descendant (DESC)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border">
+              <div className="space-y-0.5">
+                <Label htmlFor="isPublic" className="text-base font-medium cursor-pointer">
+                  Partie publique
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {isPublic 
+                    ? "Visible par tous, les joueurs peuvent rejoindre sans code" 
+                    : "Privée, nécessite le code pour rejoindre"}
+                </p>
+              </div>
+              <Switch
+                id="isPublic"
+                checked={isPublic}
+                onCheckedChange={setIsPublic}
+              />
             </div>
 
             <ForestButton 

@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { useActiveGamesList } from '@/hooks/useActiveGamesList';
-import { Users, Gamepad2, Clock, LogIn } from 'lucide-react';
+import { Users, Gamepad2, Clock, LogIn, Globe } from 'lucide-react';
 
 const gameTypeLabels: Record<string, string> = {
   FORET: 'La Forêt',
@@ -24,8 +25,14 @@ const statusLabels: Record<string, { label: string; variant: 'default' | 'second
 };
 
 export function ActiveGamesSection() {
+  const navigate = useNavigate();
   const { games, loading } = useActiveGamesList();
   const [joinModalOpen, setJoinModalOpen] = useState(false);
+
+  const handleJoinPublicGame = (joinCode: string) => {
+    // Navigate directly to join page with the code pre-filled
+    navigate(`/join/${joinCode}`);
+  };
 
   if (loading) {
     return (
@@ -50,14 +57,14 @@ export function ActiveGamesSection() {
             <CardContent className="py-12 text-center">
               <Gamepad2 className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="font-display text-xl mb-2">
-                Aucune partie en cours
+                Aucune partie publique en cours
               </h3>
               <p className="text-muted-foreground mb-6">
-                Soyez le premier à créer une partie et invitez vos amis !
+                Rejoignez une partie privée avec un code ou créez la vôtre !
               </p>
               <ForestButton onClick={() => setJoinModalOpen(true)}>
                 <LogIn className="h-4 w-4" />
-                Rejoindre ou créer une partie
+                Rejoindre avec un code
               </ForestButton>
             </CardContent>
           </Card>
@@ -72,10 +79,10 @@ export function ActiveGamesSection() {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="font-display text-3xl md:text-4xl text-glow mb-4">
-            Parties en cours
+            Parties publiques en cours
           </h2>
           <p className="text-muted-foreground">
-            Rejoignez une partie existante
+            Rejoignez une partie ouverte à tous
           </p>
         </div>
 
@@ -91,8 +98,9 @@ export function ActiveGamesSection() {
                     <Clock className="w-3 h-3 mr-1" />
                     {statusLabels[game.status]?.label || game.status}
                   </Badge>
-                  <Badge variant="outline">
-                    {modeLabels[game.mode] || game.mode}
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                    <Globe className="w-3 h-3 mr-1" />
+                    Publique
                   </Badge>
                 </div>
                 <CardTitle className="font-display text-lg">
@@ -117,9 +125,8 @@ export function ActiveGamesSection() {
                 </div>
 
                 <ForestButton 
-                  variant="secondary" 
                   className="w-full"
-                  onClick={() => setJoinModalOpen(true)}
+                  onClick={() => handleJoinPublicGame(game.join_code)}
                 >
                   <LogIn className="h-4 w-4" />
                   Rejoindre
@@ -127,6 +134,13 @@ export function ActiveGamesSection() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        <div className="text-center mt-8">
+          <ForestButton variant="outline" onClick={() => setJoinModalOpen(true)}>
+            <LogIn className="h-4 w-4" />
+            Rejoindre une partie privée avec un code
+          </ForestButton>
         </div>
       </div>
 
