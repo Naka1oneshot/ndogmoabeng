@@ -14,8 +14,8 @@ import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdminBadge } from '@/components/game/AdminBadge';
 import { MJDashboard } from '@/components/mj/MJDashboard';
 import { 
-  Plus, LogOut, Loader2, ShieldAlert, 
-  ChevronLeft, Trash2, Eye, Users, Map, Gamepad2, Globe, Lock
+  Plus, LogOut, Loader2, 
+  ChevronLeft, Trash2, Eye, Users, Map, Gamepad2, Globe, Lock, Crown
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -51,6 +51,8 @@ interface Game {
   current_step_index: number;
   selected_game_type_code: string | null;
   is_public?: boolean;
+  host_user_id?: string;
+  host_email?: string;
 }
 
 function generateJoinCode(): string {
@@ -89,6 +91,18 @@ export default function MJ() {
   // Game actions
   const [deleting, setDeleting] = useState<string | null>(null);
 
+  // Check if user can create a new game (non-admins limited to 1 active game)
+  const canCreateNewGame = (): boolean => {
+    if (isAdmin) return true;
+    // Non-admins can only have 1 active game (not FINISHED)
+    const activeGames = games.filter(g => g.status !== 'FINISHED');
+    return activeGames.length === 0;
+  };
+
+  const getActiveGameCount = (): number => {
+    return games.filter(g => g.status !== 'FINISHED').length;
+  };
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/login');
@@ -96,32 +110,30 @@ export default function MJ() {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (!authLoading && !roleLoading && user && !isAdmin) {
-      navigate('/login');
-    }
-  }, [user, authLoading, roleLoading, isAdmin, navigate]);
-
-  useEffect(() => {
-    if (user && isAdmin) {
+    // All authenticated users can access MJ now
+    if (user && !authLoading) {
       fetchGames();
       const cleanup = subscribeToGames();
       return cleanup;
     }
-  }, [user, isAdmin]);
+  }, [user, authLoading, isAdmin]);
 
   const fetchGames = async () => {
     if (!user) return;
     
     try {
-      const { data: gamesData, error } = await supabase
-        .from('games')
-        .select('*')
-        .eq('host_user_id', user.id)
-        .order('created_at', { ascending: false });
+      let query = supabase.from('games').select('*').order('created_at', { ascending: false });
+      
+      // Non-admins only see their own games
+      if (!isAdmin) {
+        query = query.eq('host_user_id', user.id);
+      }
+
+      const { data: gamesData, error } = await query;
 
       if (error) throw error;
 
-      // Count active players for each game
+      // Count active players and get host email for each game
       const gamesWithCounts = await Promise.all(
         (gamesData || []).map(async (game) => {
           const { count } = await supabase
@@ -131,9 +143,18 @@ export default function MJ() {
             .eq('status', 'ACTIVE')
             .eq('is_host', false);
 
+          // For admins, get the host's email
+          let hostEmail: string | null = null;
+          if (isAdmin && game.host_user_id) {
+            const { data: emailData } = await supabase
+              .rpc('get_user_email', { user_id: game.host_user_id });
+            hostEmail = emailData || null;
+          }
+
           return {
             ...game,
             active_players: count || 0,
+            host_email: hostEmail,
           } as Game;
         })
       );
@@ -205,6 +226,12 @@ export default function MJ() {
     if (!user) return;
     if (!gameName.trim()) {
       toast.error('Veuillez entrer un nom de partie');
+      return;
+    }
+
+    // Check if user can create a new game
+    if (!canCreateNewGame()) {
+      toast.error('Vous avez déjà une partie active. Supprimez-la ou terminez-la avant d\'en créer une nouvelle.');
       return;
     }
 
@@ -423,19 +450,8 @@ export default function MJ() {
     );
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
-        <ShieldAlert className="h-16 w-16 text-destructive" />
-        <h1 className="font-display text-xl text-center">Accès refusé</h1>
-        <p className="text-muted-foreground text-center">
-          Seuls les administrateurs peuvent accéder à cette page.
-        </p>
-        <ForestButton onClick={() => navigate('/login')}>
-          Retour à la connexion
-        </ForestButton>
-      </div>
-    );
+  if (!user) {
+    return null; // Will redirect via useEffect
   }
 
   return (
@@ -444,10 +460,16 @@ export default function MJ() {
         <div className="flex items-center gap-3">
           <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain cursor-pointer" onClick={() => navigate('/')} />
           <h1 className="font-display text-xl">Tableau MJ</h1>
+          {isAdmin && (
+            <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30">
+              <Crown className="h-3 w-3 mr-1" />
+              Admin
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           <ThemeToggle />
-          <AdminBadge email={user?.email} />
+          {isAdmin && <AdminBadge email={user?.email} />}
           <ForestButton variant="ghost" size="sm" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" />
             <span className="hidden sm:inline">Déconnexion</span>
@@ -460,12 +482,33 @@ export default function MJ() {
           <>
             {/* Header avec bouton créer */}
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg">Mes Parties</h2>
-              <ForestButton onClick={() => setViewMode('create')}>
+              <div>
+                <h2 className="font-display text-lg">
+                  {isAdmin ? 'Toutes les Parties' : 'Mes Parties'}
+                </h2>
+                {!isAdmin && (
+                  <p className="text-sm text-muted-foreground">
+                    {getActiveGameCount() === 0 
+                      ? 'Vous pouvez créer 1 partie'
+                      : 'Limite atteinte (1 partie active)'}
+                  </p>
+                )}
+              </div>
+              <ForestButton 
+                onClick={() => setViewMode('create')}
+                disabled={!canCreateNewGame()}
+              >
                 <Plus className="h-5 w-5" />
                 Nouvelle partie
               </ForestButton>
             </div>
+
+            {/* Info message for non-admins who can't create */}
+            {!isAdmin && !canCreateNewGame() && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 text-amber-400 text-sm">
+                <p>Vous avez atteint la limite de 1 partie active. Supprimez votre partie existante ou terminez-la pour en créer une nouvelle.</p>
+              </div>
+            )}
 
             {/* Liste des parties */}
             <div className="space-y-3">
@@ -512,7 +555,7 @@ export default function MJ() {
                             </Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                           <span className="font-mono text-primary">{game.join_code}</span>
                           <span className="flex items-center gap-1">
                             <Users className="h-3 w-3" />
@@ -521,6 +564,13 @@ export default function MJ() {
                           <span>
                             {new Date(game.created_at).toLocaleDateString('fr-FR')}
                           </span>
+                          {/* Show host email for admins */}
+                          {isAdmin && game.host_email && game.host_user_id !== user?.id && (
+                            <span className="flex items-center gap-1 text-amber-400">
+                              <Crown className="h-3 w-3" />
+                              {game.host_email}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
