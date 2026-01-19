@@ -97,33 +97,47 @@ serve(async (req) => {
     const monthStart = getMonthStart();
     logStep("Month start for usage count", { monthStart });
 
-    // Count games joined this month (as player, not host)
+    // Count games joined this month (as player, not host) - only games that were initialized (status != LOBBY)
     const { count: gamesJoinedCount, error: joinedError } = await supabaseClient
       .from("game_players")
-      .select("*", { count: "exact", head: true })
+      .select("*, games!inner(status)", { count: "exact", head: true })
       .eq("user_id", user.id)
       .eq("is_host", false)
       .gte("joined_at", monthStart)
-      .is("removed_at", null);
+      .is("removed_at", null)
+      .neq("games.status", "LOBBY");
 
     if (joinedError) {
       logStep("Error counting joined games", { error: joinedError });
     }
 
-    // Count games created/animated this month (as host)
+    // Count games animated this month (as host) - only games that were initialized (status != LOBBY)
     const { count: gamesCreatedCount, error: createdError } = await supabaseClient
       .from("games")
       .select("*", { count: "exact", head: true })
       .eq("host_user_id", user.id)
-      .gte("created_at", monthStart);
+      .gte("created_at", monthStart)
+      .neq("status", "LOBBY");
 
     if (createdError) {
       logStep("Error counting created games", { error: createdError });
     }
 
+    // Count current friends (accepted friendships)
+    const { count: friendsCount, error: friendsError } = await supabaseClient
+      .from("friendships")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "accepted")
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+
+    if (friendsError) {
+      logStep("Error counting friends", { error: friendsError });
+    }
+
     const usedJoinable = gamesJoinedCount || 0;
     const usedCreatable = gamesCreatedCount || 0;
-    logStep("Usage counts", { usedJoinable, usedCreatable });
+    const currentFriendsCount = friendsCount || 0;
+    logStep("Usage counts", { usedJoinable, usedCreatable, currentFriendsCount });
 
     // Check for active Stripe subscription first
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
@@ -155,10 +169,12 @@ serve(async (req) => {
     // If user has an active Stripe subscription, return that with usage
     if (stripeTier) {
       const limits = TIER_LIMITS[stripeTier] || TIER_LIMITS.freemium;
+      const remainingFriends = limits.max_friends === -1 ? -1 : Math.max(0, limits.max_friends - currentFriendsCount);
       const remainingLimits = {
         ...limits,
         games_joinable: limits.games_joinable === -1 ? -1 : Math.max(0, limits.games_joinable - usedJoinable),
         games_creatable: Math.max(0, limits.games_creatable - usedCreatable),
+        max_friends: remainingFriends,
       };
       
       return new Response(JSON.stringify({
@@ -166,7 +182,7 @@ serve(async (req) => {
         tier: stripeTier,
         limits: remainingLimits,
         max_limits: limits,
-        usage: { games_joined: usedJoinable, games_created: usedCreatable },
+        usage: { games_joined: usedJoinable, games_created: usedCreatable, friends_count: currentFriendsCount },
         subscription_end: subscriptionEnd,
         source: "stripe",
         trial_active: false,
@@ -218,12 +234,14 @@ serve(async (req) => {
     // Calculate total limits including token bonuses
     const totalJoinable = limits.games_joinable === -1 ? -1 : limits.games_joinable + tokenBonus.games_joinable;
     const totalCreatable = limits.games_creatable + tokenBonus.games_creatable;
+    const remainingFriends = limits.max_friends === -1 ? -1 : Math.max(0, limits.max_friends - currentFriendsCount);
 
     // Calculate remaining limits after usage
     const remainingLimits = {
       ...limits,
       games_joinable: totalJoinable === -1 ? -1 : Math.max(0, totalJoinable - usedJoinable),
       games_creatable: Math.max(0, totalCreatable - usedCreatable),
+      max_friends: remainingFriends,
     };
 
     const maxLimits = {
@@ -237,7 +255,7 @@ serve(async (req) => {
       tier: effectiveTier,
       limits: remainingLimits,
       max_limits: maxLimits,
-      usage: { games_joined: usedJoinable, games_created: usedCreatable },
+      usage: { games_joined: usedJoinable, games_created: usedCreatable, friends_count: currentFriendsCount },
       subscription_end: trialEnd,
       source: trialActive ? "trial" : "freemium",
       trial_active: trialActive,

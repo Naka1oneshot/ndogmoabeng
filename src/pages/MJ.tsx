@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -93,16 +94,25 @@ export default function MJ() {
   // Game actions
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  // Check if user can create a new game (non-admins limited to 1 active game)
+  // Check if user can create a new game based on subscription limits
+  const { canCreateGame, limits, max_limits } = useSubscription();
+  
   const canCreateNewGame = (): boolean => {
     if (isAdmin) return true;
-    // Non-admins can only have 1 active game (not FINISHED)
-    const activeGames = games.filter(g => g.status !== 'FINISHED');
-    return activeGames.length === 0;
+    // Check subscription limits for games creatable
+    return canCreateGame();
   };
 
   const getActiveGameCount = (): number => {
     return games.filter(g => g.status !== 'FINISHED').length;
+  };
+  
+  const getRemainingCreatable = (): number => {
+    return limits.games_creatable;
+  };
+  
+  const getMaxCreatable = (): number => {
+    return max_limits?.games_creatable ?? limits.games_creatable;
   };
 
   useEffect(() => {
@@ -272,7 +282,7 @@ export default function MJ() {
 
     // Check if user can create a new game
     if (!canCreateNewGame()) {
-      toast.error('Vous avez déjà une partie active. Supprimez-la ou terminez-la avant d\'en créer une nouvelle.');
+      toast.error('Vous avez atteint votre limite de parties animables ce mois-ci. Passez à un abonnement supérieur ou achetez des tokens.');
       return;
     }
 
@@ -529,9 +539,9 @@ export default function MJ() {
                 </h2>
                 {!isAdmin && (
                   <p className="text-sm text-muted-foreground">
-                    {getActiveGameCount() === 0 
-                      ? 'Vous pouvez créer 1 partie'
-                      : 'Limite atteinte (1 partie active)'}
+                    {getRemainingCreatable() > 0 
+                      ? `${getRemainingCreatable()}/${getMaxCreatable()} parties animables restantes`
+                      : 'Limite atteinte ce mois-ci'}
                   </p>
                 )}
               </div>
@@ -546,8 +556,8 @@ export default function MJ() {
 
             {/* Info message for non-admins who can't create */}
             {!isAdmin && !canCreateNewGame() && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 text-amber-400 text-sm">
-                <p>Vous avez atteint la limite de 1 partie active. Supprimez votre partie existante ou terminez-la pour en créer une nouvelle.</p>
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-destructive text-sm">
+                <p>Vous avez atteint votre limite de parties animables ce mois-ci. Passez à un abonnement supérieur ou achetez des tokens.</p>
               </div>
             )}
 
