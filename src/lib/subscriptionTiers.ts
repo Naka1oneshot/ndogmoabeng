@@ -87,6 +87,16 @@ export function formatChatAccess(access: ChatAccess): string {
   return access === "read_only" ? "En lecture partout" : "Lecture et écriture partout";
 }
 
+export function formatGamesCreatable(value: number): string {
+  if (value === -1) return "Illimité";
+  return `${value} parties animables`;
+}
+
+export function formatGamesJoinable(value: number): string {
+  if (value === -1) return "Illimité";
+  return `${value} parties jouables`;
+}
+
 export interface TokenBonus {
   games_joinable: number;
   games_creatable: number;

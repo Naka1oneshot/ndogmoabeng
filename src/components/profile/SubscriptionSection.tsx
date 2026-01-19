@@ -7,6 +7,8 @@ import {
   getTierDisplayName, 
   getTierBadgeVariant,
   formatChatAccess,
+  formatGamesCreatable,
+  formatGamesJoinable,
   SubscriptionTier 
 } from '@/lib/subscriptionTiers';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -180,7 +182,7 @@ export function SubscriptionSection() {
           <div className="text-center">
             <Crown className="w-6 h-6 mx-auto mb-1 text-primary" />
             <div className="text-lg font-bold">{formatLimitValue(limits.games_creatable)}</div>
-            <div className="text-xs text-muted-foreground">Parties créables/mois</div>
+            <div className="text-xs text-muted-foreground">Parties animables/mois</div>
           </div>
           <div className="text-center">
             <Users className="w-6 h-6 mx-auto mb-1 text-primary" />
@@ -262,7 +264,7 @@ export function SubscriptionSection() {
                         </li>
                         <li className="flex items-center gap-2">
                           <Crown className="w-4 h-4 text-muted-foreground" />
-                          {formatLimitValue(tierData.features.games_creatable)} parties créables
+                          {formatLimitValue(tierData.features.games_creatable)} parties animables
                         </li>
                         <li className="flex items-center gap-2">
                           <Users className="w-4 h-4 text-muted-foreground" />
