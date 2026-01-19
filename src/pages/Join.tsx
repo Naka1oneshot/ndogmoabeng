@@ -1,14 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, AlertCircle, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { User, AlertCircle, Loader2, Shield, Lock, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
+
+// Import clan images
+import maisonRoyaleImg from '@/assets/clans/maison-royale.png';
+import fraterniteZoulouImg from '@/assets/clans/fraternite-zoulous.png';
+import maisonKeryndesImg from '@/assets/clans/maison-keryndes.png';
+import akandeImg from '@/assets/clans/akande.png';
+import cercleAseyraImg from '@/assets/clans/cercle-aseyra.png';
+import sourcesAkilaImg from '@/assets/clans/sources-akila.png';
+import ezkarImg from '@/assets/clans/ezkar.png';
 
 interface Game {
   id: string;
@@ -17,18 +30,49 @@ interface Game {
   status: 'LOBBY' | 'IN_GAME' | 'ENDED';
 }
 
+const CLANS = [
+  { value: 'maison-royale', label: 'Maison Royale', image: maisonRoyaleImg },
+  { value: 'fraternite-zoulous', label: 'Fraternité Zoulous', image: fraterniteZoulouImg },
+  { value: 'maison-keryndes', label: 'Maison des Keryndes', image: maisonKeryndesImg },
+  { value: 'akande', label: 'Akandé', image: akandeImg },
+  { value: 'cercle-aseyra', label: "Cercle d'Aséyra", image: cercleAseyraImg },
+  { value: 'sources-akila', label: "Les Sources d'Akila", image: sourcesAkilaImg },
+  { value: 'ezkar', label: 'Ezkar', image: ezkarImg },
+];
+
 export default function Join() {
   const { user, loading: authLoading } = useAuth();
+  const { profile, loading: profileLoading } = useUserProfile();
+  const subscription = useSubscription();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const codeFromUrl = searchParams.get('code') || '';
 
   const [code, setCode] = useState(codeFromUrl);
   const [displayName, setDisplayName] = useState('');
+  const [selectedClan, setSelectedClan] = useState('');
+  const [useTokenForClan, setUseTokenForClan] = useState(false);
+  const [lockClan, setLockClan] = useState(false);
   const [game, setGame] = useState<Game | null>(null);
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(!!codeFromUrl);
   const [joining, setJoining] = useState(false);
+
+  // Determine if user is anonymous (no profile means anonymous)
+  const isAnonymous = !user || !profile;
+
+  // Check subscription benefits
+  const hasClanBenefits = subscription.tier && subscription.tier !== 'freemium';
+  const tokenBalance = subscription.token_bonus?.token_balance || 0;
+  const canUseToken = tokenBalance > 0 && !hasClanBenefits;
+  const canSelectClan = hasClanBenefits || useTokenForClan;
+
+  // Set display name from profile when loaded
+  useEffect(() => {
+    if (profile?.display_name && !isAnonymous) {
+      setDisplayName(profile.display_name);
+    }
+  }, [profile, isAnonymous]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -41,6 +85,14 @@ export default function Join() {
       checkGame(codeFromUrl);
     }
   }, [codeFromUrl, user]);
+
+  // Reset clan selection when token usage changes
+  useEffect(() => {
+    if (!canSelectClan) {
+      setSelectedClan('');
+      setLockClan(false);
+    }
+  }, [canSelectClan]);
 
   const checkGame = async (joinCode: string) => {
     setChecking(true);
@@ -88,34 +140,33 @@ export default function Join() {
 
     setJoining(true);
     try {
-      // Check if already joined
-      const { data: existing } = await supabase
-        .from('game_players')
-        .select('id')
-        .eq('game_id', game.id)
-        .eq('user_id', user.id)
-        .single();
+      // Use edge function for atomic join
+      const { data, error: joinError } = await supabase.functions.invoke('join-game', {
+        body: {
+          joinCode: game.join_code,
+          displayName: displayName.trim(),
+          clan: canSelectClan ? selectedClan : null,
+          useTokenForClan: useTokenForClan && canUseToken,
+          lockClan: lockClan && canSelectClan,
+        },
+      });
 
-      if (existing) {
-        navigate(`/lobby?game=${game.id}`);
-        return;
+      if (joinError) {
+        throw joinError;
       }
 
-      const { error: insertError } = await supabase
-        .from('game_players')
-        .insert({
-          game_id: game.id,
-          user_id: user.id,
-          display_name: displayName.trim(),
-          is_host: false,
-        });
-
-      if (insertError) {
-        if (insertError.code === '23505') {
+      if (data?.error) {
+        if (data.error === 'BANNED') {
+          toast.error('Vous avez été banni de cette partie');
+        } else if (data.error === 'ALREADY_JOINED') {
           toast.info('Vous avez déjà rejoint cette partie');
         } else {
-          throw insertError;
+          toast.error(data.error);
         }
+        if (data.gameId) {
+          navigate(`/lobby?game=${data.gameId}`);
+        }
+        return;
       }
 
       navigate(`/lobby?game=${game.id}`);
@@ -127,7 +178,9 @@ export default function Join() {
     }
   };
 
-  if (authLoading) {
+  const isLoading = authLoading || profileLoading || subscription.loading;
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -196,6 +249,7 @@ export default function Join() {
                 <p className="font-display text-lg">{game.name}</p>
               </div>
 
+              {/* Display Name */}
               <div className="space-y-2">
                 <Label htmlFor="displayName">Votre pseudo</Label>
                 <div className="relative">
@@ -206,9 +260,104 @@ export default function Join() {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     className="pl-10"
+                    disabled={!isAnonymous}
+                    readOnly={!isAnonymous}
                   />
                 </div>
+                {!isAnonymous && (
+                  <p className="text-xs text-muted-foreground">
+                    Pseudo lié à votre compte
+                  </p>
+                )}
               </div>
+
+              {/* Token Usage Option */}
+              {canUseToken && (
+                <div className="p-3 rounded-md bg-primary/10 border border-primary/30 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Coins className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium text-primary">
+                      Tokens disponibles : {tokenBalance}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="useToken"
+                      checked={useTokenForClan}
+                      onCheckedChange={(checked) => setUseTokenForClan(checked === true)}
+                    />
+                    <label
+                      htmlFor="useToken"
+                      className="text-sm cursor-pointer leading-tight"
+                    >
+                      Utiliser 1 Token pour activer la sélection du clan
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Le token sera consommé lorsque le MJ lancera la partie
+                  </p>
+                </div>
+              )}
+
+              {/* Clan Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="clan" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Clan
+                  {!canSelectClan && (
+                    <span className="text-xs text-muted-foreground font-normal">
+                      (Avantage Clan requis)
+                    </span>
+                  )}
+                </Label>
+                <Select
+                  value={selectedClan}
+                  onValueChange={setSelectedClan}
+                  disabled={!canSelectClan}
+                >
+                  <SelectTrigger className={!canSelectClan ? 'opacity-50' : ''}>
+                    <SelectValue placeholder={canSelectClan ? "Sélectionnez votre clan" : "Non disponible"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CLANS.map((clan) => (
+                      <SelectItem key={clan.value} value={clan.value}>
+                        <div className="flex items-center gap-2">
+                          <img src={clan.image} alt={clan.label} className="w-6 h-6 rounded object-cover" />
+                          <span>{clan.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!canSelectClan && !canUseToken && (
+                  <p className="text-xs text-muted-foreground">
+                    Abonnez-vous ou utilisez des Tokens pour sélectionner un clan
+                  </p>
+                )}
+              </div>
+
+              {/* Lock Clan Option */}
+              {canSelectClan && selectedClan && (
+                <div className="flex items-center space-x-2 p-3 rounded-md bg-secondary/50">
+                  <Checkbox
+                    id="lockClan"
+                    checked={lockClan}
+                    onCheckedChange={(checked) => setLockClan(checked === true)}
+                  />
+                  <div className="flex-1">
+                    <label
+                      htmlFor="lockClan"
+                      className="text-sm font-medium cursor-pointer flex items-center gap-2"
+                    >
+                      <Lock className="h-3 w-3" />
+                      Verrouiller mon choix de clan
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      Le MJ ne pourra pas modifier votre clan
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <ForestButton 
                 className="w-full" 
@@ -228,6 +377,9 @@ export default function Join() {
                   setGame(null);
                   setCode('');
                   setError('');
+                  setSelectedClan('');
+                  setUseTokenForClan(false);
+                  setLockClan(false);
                 }}
                 className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
