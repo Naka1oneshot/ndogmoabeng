@@ -2,7 +2,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User } from 'lucide-react';
+import { User, LogOut } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface UserAvatarButtonProps {
   size?: 'sm' | 'md' | 'lg';
@@ -11,7 +18,7 @@ interface UserAvatarButtonProps {
 
 export function UserAvatarButton({ size = 'md', className = '' }: UserAvatarButtonProps) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
 
   if (!user) {
@@ -43,18 +50,37 @@ export function UserAvatarButton({ size = 'md', className = '' }: UserAvatarButt
     lg: 'w-12 h-12 text-base',
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
   return (
-    <button
-      onClick={() => navigate('/profile')}
-      className={`rounded-full ring-2 ring-transparent hover:ring-primary/50 transition-all ${className}`}
-      aria-label="Mon profil"
-    >
-      <Avatar className={sizeClasses[size]}>
-        <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.display_name || 'Avatar'} />
-        <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-          {getInitials()}
-        </AvatarFallback>
-      </Avatar>
-    </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className={`rounded-full ring-2 ring-transparent hover:ring-primary/50 transition-all ${className}`}
+          aria-label="Mon profil"
+        >
+          <Avatar className={sizeClasses[size]}>
+            <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.display_name || 'Avatar'} />
+            <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+              {getInitials()}
+            </AvatarFallback>
+          </Avatar>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+          <User className="mr-2 h-4 w-4" />
+          Profil
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-500 focus:text-red-500">
+          <LogOut className="mr-2 h-4 w-4" />
+          Se déconnecter
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
