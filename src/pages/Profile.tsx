@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { FriendsSection } from '@/components/profile/FriendsSection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -405,7 +406,8 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* Profile Information */}
+        {/* Friends Section */}
+        <FriendsSection />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>

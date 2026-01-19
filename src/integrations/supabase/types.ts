@@ -356,6 +356,33 @@ export type Database = {
           },
         ]
       }
+      friendships: {
+        Row: {
+          addressee_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          responded_at: string | null
+          status: string
+        }
+        Insert: {
+          addressee_id: string
+          created_at?: string
+          id?: string
+          requester_id: string
+          responded_at?: string | null
+          status?: string
+        }
+        Update: {
+          addressee_id?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       game_events: {
         Row: {
           created_at: string
@@ -2489,6 +2516,31 @@ export type Database = {
         Args: { p_event_id: string }
         Returns: number
       }
+      get_friend_comparison: {
+        Args: { p_friend_user_id: string }
+        Returns: {
+          friend_games_played: number
+          friend_games_won: number
+          friend_wins_together: number
+          games_together: number
+          my_games_played: number
+          my_games_won: number
+          my_wins_together: number
+        }[]
+      }
+      get_games_together: {
+        Args: { p_friend_user_id: string; p_limit?: number }
+        Returns: {
+          friend_display_name: string
+          friend_result: string
+          game_id: string
+          game_name: string
+          game_type_code: string
+          my_display_name: string
+          my_result: string
+          played_at: string
+        }[]
+      }
       get_user_email: { Args: { user_id: string }; Returns: string }
       get_user_game_stats: {
         Args: { p_user_id: string }
@@ -2569,6 +2621,17 @@ export type Database = {
       replace_num_by_name: {
         Args: { p_game_id: string; p_message: string }
         Returns: string
+      }
+      search_users_for_friendship: {
+        Args: { p_limit?: number; p_search_term: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          friendship_id: string
+          friendship_status: string
+          is_requester: boolean
+          user_id: string
+        }[]
       }
     }
     Enums: {
