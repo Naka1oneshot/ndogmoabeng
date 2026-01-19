@@ -2435,6 +2435,10 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: undefined
       }
+      get_event_registration_count: {
+        Args: { p_event_id: string }
+        Returns: number
+      }
       get_user_email: { Args: { user_id: string }; Returns: string }
       has_role: {
         Args: {
