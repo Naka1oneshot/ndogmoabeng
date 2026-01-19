@@ -164,9 +164,14 @@ serve(async (req) => {
           }
         }
 
+        // Royaux clan bonus: 1.5x starting tokens
+        const playerTokens = p.clan === 'Royaux' 
+          ? Math.floor(startingTokens * 1.5) 
+          : startingTokens;
+
         await supabase
           .from("game_players")
-          .update({ jetons: startingTokens })
+          .update({ jetons: playerTokens })
           .eq("id", p.id);
       }
     }

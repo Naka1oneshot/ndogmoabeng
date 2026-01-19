@@ -173,11 +173,16 @@ Deno.serve(async (req) => {
       const role = shuffledRoles[index];
       const team = ROLE_TO_TEAM[role] || 'CITOYEN';
       
+      // Royaux clan bonus: 1.5x starting tokens
+      const playerTokens = player.clan === 'Royaux' 
+        ? Math.floor(tokens * 1.5) 
+        : tokens;
+      
       return {
         id: player.id,
         role_code: role,
         team_code: team,
-        jetons: tokens,
+        jetons: playerTokens,
         pvic: 0,
         is_alive: true,
         immune_permanent: false,

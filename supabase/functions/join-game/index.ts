@@ -430,7 +430,10 @@ serve(async (req) => {
     const playerToken = generatePlayerToken();
 
     // Insert new player with starting tokens from game
-    const startingTokens = game.starting_tokens ?? 50;
+    const baseTokens = game.starting_tokens ?? 50;
+    // Royaux clan bonus: 1.5x starting tokens
+    const startingTokens = clan === 'Royaux' ? Math.floor(baseTokens * 1.5) : baseTokens;
+    
     const { data: newPlayer, error: insertError } = await supabase
       .from("game_players")
       .insert({
