@@ -1327,6 +1327,104 @@ export type Database = {
           },
         ]
       }
+      meetup_events: {
+        Row: {
+          audio_url: string | null
+          city: string
+          cover_image_url: string | null
+          created_at: string
+          description: string
+          end_at: string
+          expected_players: number
+          id: string
+          pot_contribution_eur: number
+          pot_potential_eur: number
+          price_eur: number
+          slug: string
+          start_at: string
+          status: string
+          title: string
+          venue: string | null
+          video_url: string | null
+        }
+        Insert: {
+          audio_url?: string | null
+          city: string
+          cover_image_url?: string | null
+          created_at?: string
+          description: string
+          end_at: string
+          expected_players?: number
+          id?: string
+          pot_contribution_eur?: number
+          pot_potential_eur?: number
+          price_eur?: number
+          slug: string
+          start_at: string
+          status?: string
+          title: string
+          venue?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          audio_url?: string | null
+          city?: string
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string
+          end_at?: string
+          expected_players?: number
+          id?: string
+          pot_contribution_eur?: number
+          pot_potential_eur?: number
+          price_eur?: number
+          slug?: string
+          start_at?: string
+          status?: string
+          title?: string
+          venue?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      meetup_registrations: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          display_name: string
+          id: string
+          meetup_event_id: string
+          phone: string
+          status: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          display_name: string
+          id?: string
+          meetup_event_id: string
+          phone: string
+          status?: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          meetup_event_id?: string
+          phone?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetup_registrations_meetup_event_id_fkey"
+            columns: ["meetup_event_id"]
+            isOneToOne: false
+            referencedRelation: "meetup_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monster_catalog: {
         Row: {
           created_at: string

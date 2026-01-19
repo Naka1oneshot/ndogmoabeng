@@ -13,6 +13,7 @@ import JoinAnonymous from "./pages/JoinAnonymous";
 import PlayerDashboard from "./pages/PlayerDashboard";
 import AdminGames from "./pages/AdminGames";
 import AdminGameDetails from "./pages/AdminGameDetails";
+import AdminMeetups from "./pages/AdminMeetups";
 import WatchList from "./pages/WatchList";
 import WatchGame from "./pages/WatchGame";
 import NotFound from "./pages/NotFound";
@@ -36,6 +37,7 @@ const App = () => (
               <Route path="/player/:gameId" element={<PlayerDashboard />} />
               <Route path="/admin/games" element={<AdminGames />} />
               <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
+              <Route path="/admin/meetups" element={<AdminMeetups />} />
               <Route path="/watch" element={<WatchList />} />
               <Route path="/watch/:gameId" element={<WatchGame />} />
               <Route path="*" element={<NotFound />} />

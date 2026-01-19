@@ -5,6 +5,7 @@ import { ConceptSection } from '@/components/landing/ConceptSection';
 import { GamesSection } from '@/components/landing/GamesSection';
 import { ClansSection } from '@/components/landing/ClansSection';
 import { ActiveGamesSection } from '@/components/landing/ActiveGamesSection';
+import { MeetupSection } from '@/components/landing/MeetupSection';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 
 export default function Index() {
@@ -17,6 +18,7 @@ export default function Index() {
         <ConceptSection />
         <GamesSection />
         <ClansSection />
+        <MeetupSection />
         <ActiveGamesSection />
       </main>
 
