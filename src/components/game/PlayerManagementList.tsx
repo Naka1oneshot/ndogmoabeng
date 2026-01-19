@@ -99,7 +99,8 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
   };
 
   const handleCopyJoinLink = async (playerId: string, token: string) => {
-    const joinUrl = `${window.location.origin}/player/${gameId}?token=${token}`;
+    const { getPlayerReconnectUrl } = await import('@/lib/urlHelpers');
+    const joinUrl = getPlayerReconnectUrl(gameId, token);
     try {
       await navigator.clipboard.writeText(joinUrl);
       setCopiedId(playerId);
