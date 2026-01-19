@@ -203,7 +203,10 @@ serve(async (req) => {
         let newJetons = player.jetons; // INHERIT by default
         
         if (nextStep.token_policy === "RESET_TO_DEFAULT" || nextStep.token_policy === "CUSTOM") {
-          newJetons = newStartingTokens;
+          // Royaux clan bonus: 1.5x starting tokens
+          newJetons = player.clan === 'Royaux' 
+            ? Math.floor(newStartingTokens * 1.5) 
+            : newStartingTokens;
         }
         
         await supabase
