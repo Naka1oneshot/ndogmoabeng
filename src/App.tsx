@@ -36,8 +36,10 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/mj" element={<MJ />} />
+                <Route path="/mj/:gameId" element={<MJ />} />
                 <Route path="/join/:code" element={<JoinAnonymous />} />
                 <Route path="/player/:gameId" element={<PlayerDashboard />} />
+                <Route path="/play/:gameId" element={<PlayerDashboard />} />
                 <Route path="/admin/games" element={<AdminGames />} />
                 <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
                 <Route path="/admin/meetups" element={<AdminMeetups />} />
