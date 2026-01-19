@@ -72,11 +72,19 @@ export function useMeetupEvents() {
   return { events, loading, error, refetch: fetchEvents };
 }
 
+export interface RegistrationData {
+  displayName: string;
+  phone: string;
+  companionsCount: number;
+  companionsNames: string[];
+  userNote: string;
+}
+
 export function useMeetupRegistration() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function register(eventId: string, displayName: string, phone: string) {
+  async function register(eventId: string, data: RegistrationData) {
     try {
       setLoading(true);
       setError(null);
@@ -86,7 +94,7 @@ export function useMeetupRegistration() {
         .from('meetup_registrations')
         .select('id, status')
         .eq('meetup_event_id', eventId)
-        .eq('phone', phone)
+        .eq('phone', data.phone)
         .neq('status', 'CANCELLED')
         .maybeSingle();
 
@@ -100,8 +108,11 @@ export function useMeetupRegistration() {
         .from('meetup_registrations')
         .insert({
           meetup_event_id: eventId,
-          display_name: displayName,
-          phone: phone,
+          display_name: data.displayName,
+          phone: data.phone,
+          companions_count: data.companionsCount,
+          companions_names: data.companionsNames.filter(n => n.trim() !== ''),
+          user_note: data.userNote.trim() || null,
         });
 
       if (insertError) throw insertError;
