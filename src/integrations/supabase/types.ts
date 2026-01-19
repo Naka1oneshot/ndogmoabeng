@@ -797,6 +797,7 @@ export type Database = {
           current_step_index: number
           host_user_id: string
           id: string
+          is_public: boolean
           join_code: string
           manche_active: number | null
           mode: string
@@ -817,6 +818,7 @@ export type Database = {
           current_step_index?: number
           host_user_id: string
           id?: string
+          is_public?: boolean
           join_code: string
           manche_active?: number | null
           mode?: string
@@ -837,6 +839,7 @@ export type Database = {
           current_step_index?: number
           host_user_id?: string
           id?: string
+          is_public?: boolean
           join_code?: string
           manche_active?: number | null
           mode?: string
