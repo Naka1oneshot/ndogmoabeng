@@ -26,6 +26,7 @@ interface ItemCatalog {
   consumable: boolean | null;
   notes: string | null;
   purchasable: boolean | null;
+  detailed_description: string | null;
 }
 
 interface ShopPrice {
@@ -146,6 +147,13 @@ export function MJItemsShopTab({ game }: MJItemsShopTabProps) {
         </AccordionTrigger>
         <AccordionContent>
           <div className="pl-7 space-y-2 text-sm">
+            {/* Description détaillée */}
+            {item.detailed_description && (
+              <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                <p className="text-sm font-medium">{item.detailed_description}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {item.target && (
                 <div>
@@ -174,8 +182,8 @@ export function MJItemsShopTab({ game }: MJItemsShopTabProps) {
             </div>
 
             {item.special_effect && item.special_effect !== 'AUCUN' && (
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <span className="text-primary font-medium">Effet spécial:</span>{' '}
+              <div className="p-2 bg-secondary/50 rounded-lg">
+                <span className="text-muted-foreground font-medium">Effet spécial:</span>{' '}
                 {item.special_effect}
                 {item.special_value && item.special_value !== '0' && (
                   <span className="ml-1 text-muted-foreground">({item.special_value})</span>
