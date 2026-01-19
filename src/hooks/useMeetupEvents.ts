@@ -44,18 +44,15 @@ export function useMeetupEvents() {
 
       if (eventsError) throw eventsError;
 
-      // For each event, get registration count
+      // For each event, get registration count using secure RPC function
       const eventsWithCounts = await Promise.all(
         (eventsData || []).map(async (event) => {
-          const { count } = await supabase
-            .from('meetup_registrations')
-            .select('*', { count: 'exact', head: true })
-            .eq('meetup_event_id', event.id)
-            .neq('status', 'CANCELLED');
+          const { data: countData } = await supabase
+            .rpc('get_event_registration_count', { p_event_id: event.id });
           
           return {
             ...event,
-            registration_count: count || 0,
+            registration_count: countData || 0,
           } as MeetupEvent;
         })
       );
