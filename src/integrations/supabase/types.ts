@@ -1478,6 +1478,69 @@ export type Database = {
           },
         ]
       }
+      loyalty_points: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          total_earned: number
+          total_spent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          total_earned?: number
+          total_spent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          total_earned?: number
+          total_spent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      loyalty_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          granted_by: string | null
+          id: string
+          note: string | null
+          source: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          note?: string | null
+          source: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          note?: string | null
+          source?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       meetup_events: {
         Row: {
           audio_url: string | null
@@ -2640,6 +2703,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_loyalty_points: {
+        Args: {
+          p_amount: number
+          p_granted_by?: string
+          p_note?: string
+          p_source: string
+          p_transaction_type: string
+          p_user_id: string
+        }
+        Returns: number
+      }
       assign_admin_role: {
         Args: { target_user_id: string }
         Returns: undefined
@@ -2685,6 +2759,14 @@ export type Database = {
           games_created: number
           games_played: number
           games_won: number
+        }[]
+      }
+      get_user_loyalty_info: {
+        Args: { p_user_id: string }
+        Returns: {
+          balance: number
+          total_earned: number
+          total_spent: number
         }[]
       }
       has_role: {

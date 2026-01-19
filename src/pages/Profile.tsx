@@ -50,6 +50,7 @@ import { fr } from 'date-fns/locale';
 import { FriendsSection } from '@/components/profile/FriendsSection';
 import { GameInvitationsSection } from '@/components/profile/GameInvitationsSection';
 import { SubscriptionSection } from '@/components/profile/SubscriptionSection';
+import { LoyaltyPointsSection } from '@/components/profile/LoyaltyPointsSection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -282,6 +283,9 @@ export default function Profile() {
 
         {/* Subscription Section */}
         <SubscriptionSection />
+
+        {/* Loyalty Points */}
+        <LoyaltyPointsSection />
 
         {/* Game Invitations */}
         <GameInvitationsSection />
