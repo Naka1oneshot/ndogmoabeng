@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ColorModeProvider } from "@/contexts/ColorModeContext";
+import { GlobalChatPanel } from "@/components/chat/GlobalChatPanel";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Login from "./pages/Login";
@@ -48,8 +49,9 @@ const App = () => (
                 <Route path="/watch" element={<WatchList />} />
                 <Route path="/watch/:gameId" element={<WatchGame />} />
                 <Route path="/profile" element={<Profile />} />
-                <Route path="*" element={<NotFound />} />
+              <Route path="*" element={<NotFound />} />
               </Routes>
+              <GlobalChatPanel />
             </ThemeProvider>
           </BrowserRouter>
         </ColorModeProvider>
