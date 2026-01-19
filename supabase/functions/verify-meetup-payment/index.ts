@@ -93,11 +93,13 @@ serve(async (req) => {
 
     if (session.payment_status === 'paid') {
       // Update registration as paid
+      const amountPaidCents = session.amount_total || 0;
       const { error: updateError } = await supabaseClient
         .from('meetup_registrations')
         .update({ 
           payment_status: 'paid',
           paid_at: new Date().toISOString(),
+          paid_amount_cents: amountPaidCents,
           status: 'CONFIRMED'
         })
         .eq('id', registrationId);
@@ -106,6 +108,39 @@ serve(async (req) => {
         logStep("Error updating registration", { error: updateError });
       } else {
         logStep("Registration marked as paid");
+      }
+
+      // Add loyalty points: 1€ = 1 point NDG
+      if (amountPaidCents > 0 && session.customer_email) {
+        try {
+          // Find user by email
+          const { data: userData } = await supabaseClient
+            .from('profiles')
+            .select('user_id')
+            .ilike('display_name', session.customer_details?.name || '%')
+            .limit(1);
+
+          // Try to find user by customer email in auth.users
+          const { data: authUsers } = await supabaseClient.auth.admin.listUsers();
+          const matchingUser = authUsers?.users?.find(u => u.email === session.customer_email);
+
+          if (matchingUser) {
+            const pointsToAdd = Math.floor(amountPaidCents / 100); // 1€ = 1 point
+            if (pointsToAdd > 0) {
+              await supabaseClient.rpc('add_loyalty_points', {
+                p_user_id: matchingUser.id,
+                p_amount: pointsToAdd,
+                p_source: 'meetup_payment',
+                p_note: `Paiement meetup: ${(amountPaidCents / 100).toFixed(2)}€`
+              });
+              logStep("Loyalty points added", { userId: matchingUser.id, points: pointsToAdd });
+            }
+          } else {
+            logStep("No matching user found for loyalty points", { email: session.customer_email });
+          }
+        } catch (loyaltyError) {
+          logStep("Error adding loyalty points", { error: loyaltyError });
+        }
       }
 
       // Send admin notification

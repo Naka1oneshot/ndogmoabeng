@@ -181,6 +181,43 @@ serve(async (req) => {
         const productId = stripeSubscription.items.data[0].price.product as string;
         stripeTier = PRODUCT_TO_TIER[productId] || null;
         logStep("Active Stripe subscription found", { tier: stripeTier, endDate: subscriptionEnd });
+
+        // Check for recent invoice payments and add loyalty points if not already credited
+        try {
+          const invoices = await stripe.invoices.list({
+            customer: customerId,
+            status: 'paid',
+            limit: 5,
+          });
+
+          for (const invoice of invoices.data) {
+            if (invoice.amount_paid > 0) {
+              // Check if this invoice was already credited for loyalty points
+              const invoiceId = invoice.id;
+              const { data: existingTransaction } = await supabaseClient
+                .from('loyalty_transactions')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('note', `Abonnement Stripe: ${invoiceId}`)
+                .maybeSingle();
+
+              if (!existingTransaction) {
+                const pointsToAdd = Math.floor(invoice.amount_paid / 100); // 1€ = 1 point
+                if (pointsToAdd > 0) {
+                  await supabaseClient.rpc('add_loyalty_points', {
+                    p_user_id: userId,
+                    p_amount: pointsToAdd,
+                    p_source: 'subscription_payment',
+                    p_note: `Abonnement Stripe: ${invoiceId}`
+                  });
+                  logStep("Loyalty points added for subscription", { userId, points: pointsToAdd, invoiceId });
+                }
+              }
+            }
+          }
+        } catch (loyaltyError) {
+          logStep("Error processing loyalty points for subscription", { error: loyaltyError });
+        }
       }
     }
 
