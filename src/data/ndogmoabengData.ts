@@ -11,6 +11,7 @@ export interface GameData {
   personnages?: string[];
   objetCle?: string;
   image: string;
+  minPlayers: number;
 }
 
 export interface ClanData {
@@ -31,6 +32,7 @@ export const GAMES_DATA: GameData[] = [
     clan: 'Maison des Keryndes',
     personnages: ['Capitaine du nord'],
     image: '/placeholder.svg',
+    minPlayers: 4,
   },
   {
     id: 'foret',
@@ -41,6 +43,7 @@ export const GAMES_DATA: GameData[] = [
     clan: 'Cercle d\'Aséyra',
     objetCle: 'L\'Essence de Ndogmoabeng',
     image: '/placeholder.svg',
+    minPlayers: 4,
   },
   {
     id: 'infection',
@@ -51,6 +54,7 @@ export const GAMES_DATA: GameData[] = [
     clan: 'La ligue d\'Ezkar',
     personnages: ['Bras armé', 'Capitaine du nord', 'Sans cercle', 'Oeil du crépuscule', 'Synthétiste'],
     image: '/placeholder.svg',
+    minPlayers: 7,
   },
 ];
 
