@@ -2305,6 +2305,59 @@ export type Database = {
         Args: { p_game_id: string }
         Returns: undefined
       }
+      public_game_feed: {
+        Args: { p_game_id: string }
+        Returns: {
+          entry_id: string
+          event_timestamp: string
+          manche: number
+          message: string
+          phase_label: string
+          source_type: string
+        }[]
+      }
+      public_game_info: {
+        Args: { p_game_id: string }
+        Returns: {
+          current_step_index: number
+          game_id: string
+          game_type_code: string
+          game_type_name: string
+          is_ended: boolean
+          manche_active: number
+          mode: string
+          name: string
+          phase: string
+          player_count: number
+          status: string
+        }[]
+      }
+      public_game_participants: {
+        Args: { p_game_id: string }
+        Returns: {
+          clan: string
+          display_name: string
+          is_alive: boolean
+          player_number: number
+        }[]
+      }
+      public_list_live_games: {
+        Args: never
+        Returns: {
+          current_session_game_id: string
+          current_step_index: number
+          game_id: string
+          game_type_name: string
+          manche_active: number
+          mode: string
+          name: string
+          phase: string
+          player_count: number
+          selected_game_type_code: string
+          status: string
+          updated_at: string
+        }[]
+      }
       replace_num_by_name: {
         Args: { p_game_id: string; p_message: string }
         Returns: string
