@@ -39,6 +39,115 @@ export function useUserProfile() {
   const [loading, setLoading] = useState(true);
   const [canChangeDisplayName, setCanChangeDisplayName] = useState(true);
 
+  const fetchData = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      // Fetch profile
+      let { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      // If no profile exists, create one
+      if (!profileData && (!profileError || profileError.code === 'PGRST116')) {
+        const userEmail = user.email || '';
+        const defaultDisplayName = userEmail.split('@')[0] || 'Joueur';
+        
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            first_name: '',
+            last_name: '',
+            display_name: defaultDisplayName,
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating profile:', createError);
+        } else {
+          profileData = newProfile;
+        }
+      } else if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', profileError);
+      }
+      
+      setProfile(profileData);
+
+      // Check if can change display name
+      const { data: canChange } = await supabase
+        .rpc('can_change_display_name', { p_user_id: user.id });
+      setCanChangeDisplayName(canChange ?? true);
+
+      // Fetch game stats
+      const { data: statsData, error: statsError } = await supabase
+        .rpc('get_user_game_stats', { p_user_id: user.id });
+
+      if (statsError) {
+        console.error('Error fetching stats:', statsError);
+      } else if (statsData && statsData.length > 0) {
+        setStats({
+          games_played: Number(statsData[0].games_played) || 0,
+          games_won: Number(statsData[0].games_won) || 0,
+          games_created: Number(statsData[0].games_created) || 0,
+        });
+      }
+
+      // Fetch current games (as player)
+      const { data: playerGames, error: playerGamesError } = await supabase
+        .from('game_players')
+        .select('game_id, games!inner(id, name, status, join_code)')
+        .eq('user_id', user.id)
+        .eq('is_host', false)
+        .is('removed_at', null);
+
+      // Fetch current games (as host)
+      const { data: hostGames, error: hostGamesError } = await supabase
+        .from('games')
+        .select('id, name, status, join_code')
+        .eq('host_user_id', user.id)
+        .in('status', ['LOBBY', 'RUNNING', 'IN_GAME']);
+
+      const games: CurrentGame[] = [];
+      
+      if (playerGames) {
+        playerGames.forEach((pg: any) => {
+          if (pg.games && ['LOBBY', 'RUNNING', 'IN_GAME'].includes(pg.games.status)) {
+            games.push({
+              id: pg.games.id,
+              name: pg.games.name,
+              status: pg.games.status,
+              join_code: pg.games.join_code,
+              is_host: false,
+            });
+          }
+        });
+      }
+
+      if (hostGames) {
+        hostGames.forEach((g: any) => {
+          games.push({
+            id: g.id,
+            name: g.name,
+            status: g.status,
+            join_code: g.join_code,
+            is_host: true,
+          });
+        });
+      }
+
+      setCurrentGames(games);
+    } catch (err) {
+      console.error('Error in useUserProfile:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       setProfile(null);
@@ -48,114 +157,43 @@ export function useUserProfile() {
       return;
     }
 
-    async function fetchData() {
-      setLoading(true);
-      try {
-        // Fetch profile
-        let { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        // If no profile exists, create one
-        if (!profileData && (!profileError || profileError.code === 'PGRST116')) {
-          const userEmail = user.email || '';
-          const defaultDisplayName = userEmail.split('@')[0] || 'Joueur';
-          
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert({
-              user_id: user.id,
-              first_name: '',
-              last_name: '',
-              display_name: defaultDisplayName,
-            })
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Error creating profile:', createError);
-          } else {
-            profileData = newProfile;
-          }
-        } else if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Error fetching profile:', profileError);
-        }
-        
-        setProfile(profileData);
-
-        // Check if can change display name
-        const { data: canChange } = await supabase
-          .rpc('can_change_display_name', { p_user_id: user.id });
-        setCanChangeDisplayName(canChange ?? true);
-
-        // Fetch game stats
-        const { data: statsData, error: statsError } = await supabase
-          .rpc('get_user_game_stats', { p_user_id: user.id });
-
-        if (statsError) {
-          console.error('Error fetching stats:', statsError);
-        } else if (statsData && statsData.length > 0) {
-          setStats({
-            games_played: Number(statsData[0].games_played) || 0,
-            games_won: Number(statsData[0].games_won) || 0,
-            games_created: Number(statsData[0].games_created) || 0,
-          });
-        }
-
-        // Fetch current games (as player)
-        const { data: playerGames, error: playerGamesError } = await supabase
-          .from('game_players')
-          .select('game_id, games!inner(id, name, status, join_code)')
-          .eq('user_id', user.id)
-          .eq('is_host', false)
-          .is('removed_at', null);
-
-        // Fetch current games (as host)
-        const { data: hostGames, error: hostGamesError } = await supabase
-          .from('games')
-          .select('id, name, status, join_code')
-          .eq('host_user_id', user.id)
-          .in('status', ['LOBBY', 'RUNNING', 'IN_GAME']);
-
-        const games: CurrentGame[] = [];
-        
-        if (playerGames) {
-          playerGames.forEach((pg: any) => {
-            if (pg.games && ['LOBBY', 'RUNNING', 'IN_GAME'].includes(pg.games.status)) {
-              games.push({
-                id: pg.games.id,
-                name: pg.games.name,
-                status: pg.games.status,
-                join_code: pg.games.join_code,
-                is_host: false,
-              });
-            }
-          });
-        }
-
-        if (hostGames) {
-          hostGames.forEach((g: any) => {
-            games.push({
-              id: g.id,
-              name: g.name,
-              status: g.status,
-              join_code: g.join_code,
-              is_host: true,
-            });
-          });
-        }
-
-        setCurrentGames(games);
-      } catch (err) {
-        console.error('Error in useUserProfile:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchData();
+
+    // Subscribe to real-time updates for games (stats updates)
+    const gamesChannel = supabase
+      .channel('profile-games-stats')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'games',
+        },
+        (payload) => {
+          // Refetch stats when a game status changes
+          console.log('Game change detected, refetching stats...');
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_players',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // Refetch when player data changes
+          console.log('Player data change detected, refetching...');
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(gamesChannel);
+    };
   }, [user]);
 
   const updateProfile = async (updates: Partial<Pick<UserProfile, 'first_name' | 'last_name' | 'display_name' | 'phone' | 'address'>>) => {
