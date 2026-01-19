@@ -54,6 +54,8 @@ interface RiverDecision {
   id: string;
   player_id: string;
   player_num: number;
+  manche: number;
+  niveau: number;
   decision: string;
   mise_demandee: number;
   keryndes_choice: string;
@@ -212,15 +214,84 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       .on('postgres_changes', { event: '*', schema: 'public', table: 'river_session_state', filter: `session_game_id=eq.${sessionGameId}` }, 
         (payload) => { if (payload.new) setState(payload.new as RiverSessionState); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'river_player_stats', filter: `session_game_id=eq.${sessionGameId}` },
-        () => fetchData())
+        (payload) => {
+          // Update specific player stats instead of refetching all
+          if (payload.new) {
+            const newStats = payload.new as RiverPlayerStats;
+            setPlayerStats(prev => {
+              const idx = prev.findIndex(s => s.id === newStats.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = newStats;
+                return updated;
+              }
+              return [...prev, newStats];
+            });
+          }
+        })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'river_decisions', filter: `session_game_id=eq.${sessionGameId}` },
-        () => fetchData())
+        (payload) => {
+          // Update specific decision instead of refetching all
+          if (payload.new) {
+            const newDecision = payload.new as RiverDecision;
+            setDecisions(prev => {
+              const idx = prev.findIndex(d => d.id === newDecision.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = newDecision;
+                return updated;
+              }
+              // Only add if it's for current manche/niveau
+              if (state && newDecision.manche === state.manche_active && newDecision.niveau === state.niveau_active) {
+                return [...prev, newDecision];
+              }
+              return prev;
+            });
+          }
+        })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` },
-        () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'logs_mj', filter: `session_game_id=eq.${sessionGameId}` },
-        () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'river_level_history', filter: `session_game_id=eq.${sessionGameId}` },
-        () => fetchData())
+        (payload) => {
+          // Only update if it's not just a last_seen update
+          if (payload.new && payload.old) {
+            const newPlayer = payload.new as any;
+            const oldPlayer = payload.old as any;
+            // Skip if only last_seen changed
+            if (newPlayer.last_seen !== oldPlayer.last_seen && 
+                newPlayer.jetons === oldPlayer.jetons && 
+                newPlayer.status === oldPlayer.status) {
+              return;
+            }
+          }
+          // Update player in list
+          if (payload.new) {
+            const newPlayer = payload.new as Player;
+            setPlayers(prev => {
+              const idx = prev.findIndex(p => p.id === newPlayer.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = newPlayer;
+                return updated.filter(p => !p.is_host && p.player_number !== null);
+              }
+              if (!newPlayer.is_host && newPlayer.player_number !== null) {
+                return [...prev, newPlayer];
+              }
+              return prev;
+            });
+          }
+        })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs_mj', filter: `session_game_id=eq.${sessionGameId}` },
+        (payload) => {
+          // Append new log instead of refetching
+          if (payload.new) {
+            const newLog = payload.new as any;
+            setLogs(prev => [{ id: newLog.id, action: newLog.action, details: newLog.details, manche: newLog.manche }, ...prev].slice(0, 50));
+          }
+        })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'river_level_history', filter: `session_game_id=eq.${sessionGameId}` },
+        () => {
+          // Level resolved - full refresh needed for scores etc.
+          fetchData();
+        })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
         () => fetchData())
       .subscribe();

@@ -103,14 +103,29 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   useEffect(() => {
     fetchData();
     
-    // Subscribe to realtime updates - comprehensive for all Infection tables
+    // Subscribe to realtime updates - optimized to avoid unnecessary refreshes
     const channel = supabase
       .channel(`infection-mj-${game.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, 
+        (payload) => {
+          // Skip if only last_seen changed
+          if (payload.new && payload.old) {
+            const newPlayer = payload.new as any;
+            const oldPlayer = payload.old as any;
+            if (newPlayer.last_seen !== oldPlayer.last_seen && 
+                newPlayer.jetons === oldPlayer.jetons && 
+                newPlayer.status === oldPlayer.status &&
+                newPlayer.is_alive === oldPlayer.is_alive &&
+                newPlayer.role_code === oldPlayer.role_code) {
+              return;
+            }
+          }
+          fetchData();
+        })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_round_state', filter: `game_id=eq.${game.id}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_inputs', filter: `game_id=eq.${game.id}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_shots', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_chat_messages', filter: `game_id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'infection_chat_messages', filter: `game_id=eq.${game.id}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${game.id}` }, fetchData)
       .subscribe();
 

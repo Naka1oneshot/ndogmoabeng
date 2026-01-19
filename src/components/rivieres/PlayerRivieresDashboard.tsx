@@ -164,17 +164,48 @@ export function PlayerRivieresDashboard({
     return supabase
       .channel(`player-rivieres-${sessionGameId}-${playerId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'river_session_state', filter: `session_game_id=eq.${sessionGameId}` },
-        (payload) => { if (payload.new) { setState(payload.new as RiverSessionState); fetchData(); }})
+        (payload) => { 
+          if (payload.new) { 
+            setState(payload.new as RiverSessionState); 
+          }
+        })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'river_player_stats', filter: `session_game_id=eq.${sessionGameId}` },
-        () => fetchData())
+        (payload) => {
+          // Only update if it's our player's stats
+          const newStats = payload.new as any;
+          if (newStats && newStats.player_id === playerId) {
+            setPlayerStats({
+              validated_levels: newStats.validated_levels,
+              keryndes_available: newStats.keryndes_available,
+              current_round_status: newStats.current_round_status,
+              descended_level: newStats.descended_level,
+            });
+          }
+        })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'river_decisions', filter: `session_game_id=eq.${sessionGameId}` },
-        () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'logs_joueurs', filter: `session_game_id=eq.${sessionGameId}` },
-        () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'river_level_history', filter: `session_game_id=eq.${sessionGameId}` },
-        () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` },
-        () => fetchData())
+        (payload) => {
+          // Only refetch decision if it affects current player
+          const newDecision = payload.new as any;
+          if (newDecision && newDecision.player_id === playerId) {
+            setCurrentDecision(newDecision);
+            setDecision(newDecision.decision as 'RESTE' | 'DESCENDS');
+            setMise(newDecision.mise_demandee);
+            setKeryndesChoice(newDecision.keryndes_choice as any);
+          }
+        })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs_joueurs', filter: `session_game_id=eq.${sessionGameId}` },
+        (payload) => {
+          // Append new log instead of refetching all
+          if (payload.new) {
+            const newLog = payload.new as any;
+            setLogs(prev => [{ id: newLog.id, type: newLog.type, message: newLog.message, manche: newLog.manche }, ...prev].slice(0, 30));
+          }
+        })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'river_level_history', filter: `session_game_id=eq.${sessionGameId}` },
+        () => {
+          // Level resolved - refetch player stats and decision
+          fetchData();
+        })
       .subscribe();
   };
 
