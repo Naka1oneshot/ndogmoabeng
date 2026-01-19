@@ -56,6 +56,7 @@ interface ItemCatalog {
   base_heal: number | null;
   notes: string | null;
   restockable: boolean;
+  detailed_description: string | null;
 }
 
 interface ShopRequest {
@@ -106,7 +107,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
           .eq('manche', game.manche_active)
           .maybeSingle(),
         supabase.from('shop_prices').select('*'),
-        supabase.from('item_catalog').select('name, category, base_damage, base_heal, notes, restockable'),
+        supabase.from('item_catalog').select('name, category, base_damage, base_heal, notes, restockable, detailed_description'),
         supabase
           .from('shop_requests')
           .select('want_buy, item_name')
@@ -305,7 +306,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
           const cost = getCost(itemName);
 
           return (
-            <div
+            <details
               key={`${itemName}-${index}`}
               className={`p-2 rounded-lg border transition-colors ${
                 selectedItem === itemName && wantBuy
@@ -313,7 +314,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
                   : 'bg-secondary/30 border-border/50'
               }`}
             >
-              <div className="flex items-center justify-between">
+              <summary className="flex items-center justify-between cursor-pointer list-none">
                 <div className="flex items-center gap-2">
                   {info && getCategoryIcon(info.category)}
                   <span className="font-medium text-sm">{itemName}</span>
@@ -327,11 +328,13 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
                     {cost}
                   </span>
                 </div>
-              </div>
-              {info?.notes && (
-                <p className="text-xs text-muted-foreground mt-1 pl-6">{info.notes}</p>
+              </summary>
+              {info?.detailed_description && (
+                <p className="text-xs text-primary mt-2 pt-2 border-t border-border/50">
+                  {info.detailed_description}
+                </p>
               )}
-            </div>
+            </details>
           );
         })}
       </div>

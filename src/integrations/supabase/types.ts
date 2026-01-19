@@ -1184,6 +1184,7 @@ export type Database = {
           category: Database["public"]["Enums"]["item_category"]
           consumable: boolean | null
           created_at: string
+          detailed_description: string | null
           id: string
           ignore_protection: boolean | null
           name: string
@@ -1202,6 +1203,7 @@ export type Database = {
           category: Database["public"]["Enums"]["item_category"]
           consumable?: boolean | null
           created_at?: string
+          detailed_description?: string | null
           id?: string
           ignore_protection?: boolean | null
           name: string
@@ -1220,6 +1222,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["item_category"]
           consumable?: boolean | null
           created_at?: string
+          detailed_description?: string | null
           id?: string
           ignore_protection?: boolean | null
           name?: string
