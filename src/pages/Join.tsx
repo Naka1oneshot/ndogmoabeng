@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
+import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,9 @@ interface Game {
   name: string;
   join_code: string;
   status: 'LOBBY' | 'IN_GAME' | 'ENDED';
+  mode: string;
+  current_step_index: number;
+  selected_game_type_code: string | null;
 }
 
 const CLANS = [
@@ -244,9 +248,20 @@ export default function Join() {
             </>
           ) : (
             <>
-              <div className="text-center p-4 bg-secondary/50 rounded-md">
-                <p className="text-sm text-muted-foreground mb-1">Partie trouvée</p>
-                <p className="font-display text-lg">{game.name}</p>
+              <div className="text-center p-4 bg-secondary/50 rounded-md space-y-3">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Partie trouvée</p>
+                  <p className="font-display text-lg">{game.name}</p>
+                </div>
+                
+                {/* Adventure Progress Display */}
+                <div className="flex justify-center">
+                  <AdventureProgressDisplay
+                    mode={game.mode}
+                    currentStepIndex={game.current_step_index}
+                    currentGameTypeCode={game.selected_game_type_code}
+                  />
+                </div>
               </div>
 
               {/* Display Name */}

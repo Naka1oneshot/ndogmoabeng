@@ -4,14 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
+import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 import { useActiveGamesList } from '@/hooks/useActiveGamesList';
 import { Users, Gamepad2, Clock, LogIn, Globe, Lock, Eye } from 'lucide-react';
-
-const gameTypeLabels: Record<string, string> = {
-  FORET: 'La Forêt',
-  RIVIERES: 'Les Rivières',
-  INFECTION: 'Infection',
-};
 
 const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
   LOBBY: { label: 'En attente', variant: 'secondary' },
@@ -110,15 +105,14 @@ export function ActiveGamesSection() {
               </CardHeader>
 
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Gamepad2 className="w-4 h-4" />
-                    <span>
-                      {game.selected_game_type_code 
-                        ? gameTypeLabels[game.selected_game_type_code] || game.selected_game_type_code
-                        : 'Non défini'}
-                    </span>
-                  </div>
+                {/* Adventure/Game Type Display */}
+                <AdventureProgressDisplay
+                  mode={game.mode}
+                  currentStepIndex={game.current_step_index}
+                  currentGameTypeCode={game.selected_game_type_code}
+                />
+
+                <div className="flex items-center justify-end text-sm">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Users className="w-4 h-4" />
                     <span>{game.playerCount} joueur{game.playerCount > 1 ? 's' : ''}</span>
