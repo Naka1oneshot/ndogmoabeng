@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   User, 
   Trophy, 
@@ -24,7 +25,9 @@ import {
   Mail,
   Clock,
   Play,
-  Users
+  Users,
+  Camera,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -33,7 +36,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading, signOut } = useAuth();
-  const { profile, stats, currentGames, loading, canChangeDisplayName, updateProfile } = useUserProfile();
+  const { profile, stats, currentGames, loading, canChangeDisplayName, updateProfile, uploadAvatar } = useUserProfile();
   
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -44,6 +47,8 @@ export default function Profile() {
     address: '',
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startEditing = () => {
     if (profile) {
@@ -80,6 +85,36 @@ export default function Profile() {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      return;
+    }
+
+    setUploadingAvatar(true);
+    await uploadAvatar(file);
+    setUploadingAvatar(false);
+  };
+
+  const getInitials = () => {
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase();
+    }
+    return profile?.display_name?.[0]?.toUpperCase() || 'U';
   };
 
   if (authLoading || loading) {
@@ -129,8 +164,34 @@ export default function Profile() {
         <div className="max-w-4xl mx-auto p-4 md:p-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary/20 flex items-center justify-center">
-                <User className="w-8 h-8 md:w-10 md:h-10 text-primary" />
+              <div className="relative group">
+                <Avatar 
+                  className="w-16 h-16 md:w-20 md:h-20 cursor-pointer border-2 border-primary/30 hover:border-primary transition-colors"
+                  onClick={handleAvatarClick}
+                >
+                  <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.display_name} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-xl md:text-2xl font-bold">
+                    {getInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <button
+                  onClick={handleAvatarClick}
+                  disabled={uploadingAvatar}
+                  className="absolute bottom-0 right-0 w-6 h-6 md:w-7 md:h-7 bg-primary rounded-full flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {uploadingAvatar ? (
+                    <Loader2 className="w-3 h-3 md:w-4 md:h-4 text-primary-foreground animate-spin" />
+                  ) : (
+                    <Camera className="w-3 h-3 md:w-4 md:h-4 text-primary-foreground" />
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
               </div>
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold">
