@@ -171,7 +171,7 @@ export function JoinGameModal({ open, onOpenChange }: JoinGameModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-card border-primary/20">
+      <DialogContent className="sm:max-w-md bg-card/100 backdrop-blur-none border-primary/20" style={{ backgroundColor: 'hsl(var(--card))' }}>
         <DialogHeader>
           <DialogTitle className="text-xl font-display text-glow">
             Rejoindre une partie
