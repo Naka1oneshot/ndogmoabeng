@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ColorModeProvider } from "@/contexts/ColorModeContext";
+import { LanguageProvider } from "@/i18n";
 import { GlobalChatPanel } from "@/components/chat/GlobalChatPanel";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -27,35 +28,37 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <ColorModeProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <ThemeProvider>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/mj" element={<MJ />} />
-                <Route path="/mj/:gameId" element={<MJ />} />
-                <Route path="/join/:code" element={<JoinAnonymous />} />
-                <Route path="/player/:gameId" element={<PlayerDashboard />} />
-                <Route path="/play/:gameId" element={<PlayerDashboard />} />
-                <Route path="/admin/games" element={<AdminGames />} />
-                <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
-                <Route path="/admin/meetups" element={<AdminMeetups />} />
-                <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
-                <Route path="/watch" element={<WatchList />} />
-                <Route path="/watch/:gameId" element={<WatchGame />} />
-                <Route path="/profile" element={<Profile />} />
-              <Route path="*" element={<NotFound />} />
-              </Routes>
-              <GlobalChatPanel />
-            </ThemeProvider>
-          </BrowserRouter>
-        </ColorModeProvider>
-      </TooltipProvider>
+      <LanguageProvider>
+        <TooltipProvider>
+          <ColorModeProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <ThemeProvider>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/mj" element={<MJ />} />
+                  <Route path="/mj/:gameId" element={<MJ />} />
+                  <Route path="/join/:code" element={<JoinAnonymous />} />
+                  <Route path="/player/:gameId" element={<PlayerDashboard />} />
+                  <Route path="/play/:gameId" element={<PlayerDashboard />} />
+                  <Route path="/admin/games" element={<AdminGames />} />
+                  <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
+                  <Route path="/admin/meetups" element={<AdminMeetups />} />
+                  <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
+                  <Route path="/watch" element={<WatchList />} />
+                  <Route path="/watch/:gameId" element={<WatchGame />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <GlobalChatPanel />
+              </ThemeProvider>
+            </BrowserRouter>
+          </ColorModeProvider>
+        </TooltipProvider>
+      </LanguageProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
