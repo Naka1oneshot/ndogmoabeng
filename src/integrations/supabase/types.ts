@@ -2481,6 +2481,10 @@ export type Database = {
         Returns: undefined
       }
       can_change_display_name: { Args: { p_user_id: string }; Returns: boolean }
+      generate_unique_display_name: {
+        Args: { p_display_name: string; p_user_id?: string }
+        Returns: string
+      }
       get_event_registration_count: {
         Args: { p_event_id: string }
         Returns: number
