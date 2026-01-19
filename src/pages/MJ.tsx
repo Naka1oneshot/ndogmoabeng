@@ -170,6 +170,28 @@ export default function MJ() {
     };
   };
 
+  // Check if current selection requires minimum 7 players (INFECTION)
+  const requiresMinimum7Players = (): boolean => {
+    if (gameMode === 'SINGLE_GAME') {
+      return selectedGameTypeCode === 'INFECTION';
+    }
+    // For adventure mode, we don't know the steps here, so we'll check in handleCreateGame
+    return false;
+  };
+
+  // Get minimum players based on game type
+  const getMinimumPlayers = (): number => {
+    return requiresMinimum7Players() ? 7 : 2;
+  };
+
+  // Auto-adjust player count when selecting INFECTION
+  useEffect(() => {
+    if (selectedGameTypeCode === 'INFECTION' && gameMode === 'SINGLE_GAME' && xNbJoueurs < 7) {
+      setXNbJoueurs(7);
+      toast.info('INFECTION nécessite minimum 7 joueurs');
+    }
+  }, [selectedGameTypeCode, gameMode]);
+
   const handleCreateGame = async () => {
     if (!user) return;
     if (!gameName.trim()) {
@@ -185,6 +207,28 @@ export default function MJ() {
     if (gameMode === 'SINGLE_GAME' && !selectedGameTypeCode) {
       toast.error('Veuillez sélectionner un type de jeu');
       return;
+    }
+
+    // Validate minimum players for INFECTION (single game mode)
+    if (gameMode === 'SINGLE_GAME' && selectedGameTypeCode === 'INFECTION' && xNbJoueurs < 7) {
+      toast.error('INFECTION nécessite minimum 7 joueurs');
+      setXNbJoueurs(7);
+      return;
+    }
+
+    // Validate minimum players for adventures containing INFECTION
+    if (gameMode === 'ADVENTURE' && selectedAdventureId && xNbJoueurs < 7) {
+      const { data: adventureSteps } = await supabase
+        .from('adventure_steps')
+        .select('game_type_code')
+        .eq('adventure_id', selectedAdventureId);
+      
+      const hasInfection = adventureSteps?.some(step => step.game_type_code === 'INFECTION');
+      if (hasInfection) {
+        toast.error('Cette aventure contient INFECTION qui nécessite minimum 7 joueurs');
+        setXNbJoueurs(7);
+        return;
+      }
     }
 
     setCreating(true);
@@ -540,14 +584,23 @@ export default function MJ() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="xNbJoueurs">Nombre de joueurs (X)</Label>
+                <Label htmlFor="xNbJoueurs">
+                  Nombre de joueurs (X)
+                  {requiresMinimum7Players() && (
+                    <span className="text-xs text-amber-500 ml-2">(min. 7 pour INFECTION)</span>
+                  )}
+                </Label>
                 <Input
                   id="xNbJoueurs"
                   type="number"
-                  min={2}
+                  min={getMinimumPlayers()}
                   max={20}
                   value={xNbJoueurs}
-                  onChange={(e) => setXNbJoueurs(parseInt(e.target.value) || 6)}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || getMinimumPlayers();
+                    const minPlayers = getMinimumPlayers();
+                    setXNbJoueurs(Math.max(minPlayers, value));
+                  }}
                 />
               </div>
 
