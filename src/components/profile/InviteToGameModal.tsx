@@ -77,7 +77,7 @@ export function InviteToGameModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Gamepad2 className="w-5 h-5" />
@@ -88,7 +88,7 @@ export function InviteToGameModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="flex-1 overflow-hidden">
           {gamesLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -100,17 +100,17 @@ export function InviteToGameModal({
               <p className="text-xs mt-1">Créez une partie pour inviter des amis</p>
             </div>
           ) : (
-            <ScrollArea className="max-h-[250px]">
+            <ScrollArea className="h-full max-h-[50vh]">
               <div className="space-y-2 pr-3">
                 {lobbyGames.map((game) => (
                   <div
                     key={game.id}
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                   >
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <Crown className="w-4 h-4 text-amber-500" />
-                        <span className="font-medium">{game.name}</span>
+                        <Crown className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                        <span className="font-medium truncate">{game.name}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                         <Badge variant="outline" className="text-xs">
@@ -126,6 +126,7 @@ export function InviteToGameModal({
                       size="sm"
                       onClick={() => handleInvite(game)}
                       disabled={invitingTo === game.id}
+                      className="flex-shrink-0 ml-2"
                     >
                       {invitingTo === game.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
