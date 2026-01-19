@@ -234,6 +234,8 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       });
       if (error) throw error;
       toast.success(`Danger lancé: ${data.danger_raw} (${diceCount} dés)`);
+      // Force immediate refresh
+      await fetchData();
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du lancer');
     } finally {
@@ -249,6 +251,8 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       });
       if (error) throw error;
       toast.success(`Danger défini: ${data.danger_raw}`);
+      // Force immediate refresh
+      await fetchData();
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors de la définition');
     } finally {
@@ -271,6 +275,8 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         setMissingPlayersDialog(true);
       } else {
         toast.success('Décisions verrouillées');
+        // Force immediate refresh after successful lock
+        await fetchData();
       }
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du verrouillage');
@@ -294,6 +300,8 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       if (error) throw error;
       toast.success('Décisions verrouillées');
       setMissingPlayersDialog(false);
+      // Force immediate refresh after successful lock
+      await fetchData();
     } catch (error: any) {
       toast.error(error.message || 'Erreur');
     } finally {
@@ -315,6 +323,8 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       } else {
         toast.error('⛵ Le bateau chavire !');
       }
+      // Force immediate refresh after resolution
+      await fetchData();
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors de la résolution');
     } finally {
