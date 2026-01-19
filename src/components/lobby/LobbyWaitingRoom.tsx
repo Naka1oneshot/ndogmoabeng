@@ -39,12 +39,12 @@ const LobbyWaitingRoom: React.FC<LobbyWaitingRoomProps> = ({
             <LobbyPlayerList gameId={gameId} currentPlayerNum={playerNum} />
           </TabsContent>
           
-          <TabsContent value="chat" className="mt-0" style={{ minHeight: '350px' }}>
+          <TabsContent value="chat" className="mt-0 h-[calc(100vh-280px)] min-h-[300px] flex flex-col">
             <LobbyChat
               gameId={gameId}
               playerNum={playerNum}
               playerName={playerName}
-              maxHeight="300px"
+              maxHeight="none"
             />
           </TabsContent>
         </Tabs>
