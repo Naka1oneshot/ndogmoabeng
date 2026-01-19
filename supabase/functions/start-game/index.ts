@@ -115,7 +115,7 @@ serve(async (req) => {
     // Fetch all active players (non-host) ordered by joined_at
     const { data: players, error: playersError } = await supabase
       .from("game_players")
-      .select("id, display_name, status, joined_at, clan")
+      .select("id, display_name, status, joined_at, clan, user_id, clan_token_used")
       .eq("game_id", gameId)
       .eq("is_host", false)
       .in("status", ["ACTIVE", "WAITING"])
@@ -131,6 +131,63 @@ serve(async (req) => {
 
     const activePlayers = players || [];
     console.log(`Starting game with ${activePlayers.length} players`);
+
+    // Consume tokens for players who marked clan_token_used
+    for (const player of activePlayers) {
+      if (player.clan_token_used && player.user_id && player.clan) {
+        // Consume the token
+        const { error: tokenError } = await supabase
+          .from("user_subscription_bonuses")
+          .update({ 
+            token_balance: supabase.rpc('decrement_token_balance'),
+          })
+          .eq("user_id", player.user_id)
+          .gte("token_balance", 1);
+
+        // Use raw SQL for atomic decrement
+        const { error: decrementError } = await supabase.rpc('raw_query', {
+          query: `UPDATE user_subscription_bonuses 
+                  SET token_balance = token_balance - 1, 
+                      tokens_used_for_clan = COALESCE(tokens_used_for_clan, 0) + 1 
+                  WHERE user_id = '${player.user_id}' AND token_balance >= 1`
+        });
+
+        // Fallback: direct SQL update
+        if (decrementError) {
+          await supabase
+            .from("user_subscription_bonuses")
+            .update({ 
+              tokens_used_for_clan: 1, // Will be incremented
+            })
+            .eq("user_id", player.user_id);
+          
+          // Manual decrement via direct query
+          const { data: bonus } = await supabase
+            .from("user_subscription_bonuses")
+            .select("token_balance, tokens_used_for_clan")
+            .eq("user_id", player.user_id)
+            .single();
+          
+          if (bonus && bonus.token_balance >= 1) {
+            await supabase
+              .from("user_subscription_bonuses")
+              .update({ 
+                token_balance: bonus.token_balance - 1,
+                tokens_used_for_clan: (bonus.tokens_used_for_clan || 0) + 1,
+              })
+              .eq("user_id", player.user_id);
+            console.log(`Token consumed for player ${player.display_name} (clan: ${player.clan})`);
+          } else {
+            // Token was not available - remove clan
+            await supabase
+              .from("game_players")
+              .update({ clan: null, clan_token_used: false })
+              .eq("id", player.id);
+            console.log(`Token not available for player ${player.display_name}, clan removed`);
+          }
+        }
+      }
+    }
 
     // Assign player numbers 1..N based on joined_at order
     const playerUpdates = activePlayers.map((player, index) => ({

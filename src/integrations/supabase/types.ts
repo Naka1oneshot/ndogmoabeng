@@ -570,6 +570,8 @@ export type Database = {
       game_players: {
         Row: {
           clan: string | null
+          clan_locked: boolean | null
+          clan_token_used: boolean | null
           device_id: string | null
           display_name: string
           game_id: string
@@ -601,6 +603,8 @@ export type Database = {
         }
         Insert: {
           clan?: string | null
+          clan_locked?: boolean | null
+          clan_token_used?: boolean | null
           device_id?: string | null
           display_name: string
           game_id: string
@@ -632,6 +636,8 @@ export type Database = {
         }
         Update: {
           clan?: string | null
+          clan_locked?: boolean | null
+          clan_token_used?: boolean | null
           device_id?: string | null
           display_name?: string
           game_id?: string
