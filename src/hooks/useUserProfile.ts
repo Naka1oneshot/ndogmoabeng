@@ -11,6 +11,7 @@ export interface UserProfile {
   display_name: string;
   phone: string | null;
   address: string | null;
+  avatar_url: string | null;
   last_display_name_change: string | null;
   created_at: string;
   updated_at: string;
@@ -178,6 +179,54 @@ export function useUserProfile() {
     return { error: null };
   };
 
+  const uploadAvatar = async (file: File) => {
+    if (!user) return { error: new Error('Not authenticated'), url: null };
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/avatar.${fileExt}`;
+
+    // Upload the file
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(fileName, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error('Erreur lors de l\'upload de l\'image');
+      return { error: uploadError, url: null };
+    }
+
+    // Get the public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(fileName);
+
+    // Update profile with avatar URL
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('user_id', user.id);
+
+    if (updateError) {
+      toast.error('Erreur lors de la mise à jour du profil');
+      return { error: updateError, url: null };
+    }
+
+    toast.success('Photo de profil mise à jour');
+
+    // Refresh profile
+    const { data: updatedProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (updatedProfile) {
+      setProfile(updatedProfile);
+    }
+
+    return { error: null, url: publicUrl };
+  };
+
   return {
     profile,
     stats,
@@ -185,5 +234,6 @@ export function useUserProfile() {
     loading,
     canChangeDisplayName,
     updateProfile,
+    uploadAvatar,
   };
 }
