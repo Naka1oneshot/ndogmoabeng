@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Calendar, MapPin, Users, Trophy, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Calendar, MapPin, Users, Trophy, Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MeetupEvent } from '@/hooks/useMeetupEvents';
@@ -67,6 +67,18 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
     }
   };
 
+  const toggleFullscreen = () => {
+    if (videoRef.current) {
+      if (videoRef.current.requestFullscreen) {
+        videoRef.current.requestFullscreen();
+      } else if ((videoRef.current as any).webkitRequestFullscreen) {
+        (videoRef.current as any).webkitRequestFullscreen();
+      } else if ((videoRef.current as any).msRequestFullscreen) {
+        (videoRef.current as any).msRequestFullscreen();
+      }
+    }
+  };
+
   return (
     <>
       <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-surface via-surface to-surface-2 shadow-xl transition-all duration-300 hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/30">
@@ -92,6 +104,17 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
                     <Play className="w-8 h-8 text-primary-foreground ml-1" />
                   )}
                 </div>
+              </button>
+              {/* Fullscreen Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFullscreen();
+                }}
+                className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-black/60 flex items-center justify-center transition-all duration-300 hover:bg-black/80 hover:scale-110"
+                title="Plein écran"
+              >
+                <Maximize className="w-5 h-5 text-white" />
               </button>
             </>
           ) : (
