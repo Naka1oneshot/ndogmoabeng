@@ -254,7 +254,7 @@ export default function AdminSubscriptions() {
             <div className="flex items-center justify-between pt-2">
               <p className="text-sm text-muted-foreground">
                 <Zap className="inline w-4 h-4 mr-1 text-accent" />
-                1 Token = 10 parties animables
+                1 Token = 10 initialisations de parties
               </p>
               <Button 
                 onClick={handleGrantTokens} 

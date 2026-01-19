@@ -282,7 +282,7 @@ export default function MJ() {
 
     // Check if user can create a new game
     if (!canCreateNewGame()) {
-      toast.error('Vous avez atteint votre limite de parties animables ce mois-ci. Passez à un abonnement supérieur ou achetez des tokens.');
+      toast.error('Vous avez atteint votre limite d\'initialisations de parties ce mois-ci. Passez à un abonnement supérieur ou achetez des tokens.');
       return;
     }
 
@@ -540,7 +540,7 @@ export default function MJ() {
                 {!isAdmin && (
                   <p className="text-sm text-muted-foreground">
                     {getRemainingCreatable() > 0 
-                      ? `${getRemainingCreatable()}/${getMaxCreatable()} parties animables restantes`
+                      ? `${getRemainingCreatable()}/${getMaxCreatable()} initialisations restantes`
                       : 'Limite atteinte ce mois-ci'}
                   </p>
                 )}
@@ -557,7 +557,7 @@ export default function MJ() {
             {/* Info message for non-admins who can't create */}
             {!isAdmin && !canCreateNewGame() && (
               <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-destructive text-sm">
-                <p>Vous avez atteint votre limite de parties animables ce mois-ci. Passez à un abonnement supérieur ou achetez des tokens.</p>
+                <p>Vous avez atteint votre limite d'initialisations de parties ce mois-ci. Passez à un abonnement supérieur ou achetez des tokens.</p>
               </div>
             )}
 
