@@ -198,7 +198,7 @@ export function SubscriptionSection() {
                 <span className="text-xs text-muted-foreground font-normal">/{max_limits.games_creatable}</span>
               )}
             </div>
-            <div className="text-xs text-muted-foreground">Parties animables restantes</div>
+            <div className="text-xs text-muted-foreground">Initialisations restantes</div>
             {usage && usage.games_created > 0 && (
               <div className="text-xs text-muted-foreground mt-1">({usage.games_created} utilisées)</div>
             )}
@@ -226,7 +226,7 @@ export function SubscriptionSection() {
             <div className="flex items-center gap-2 text-accent">
               <Zap className="w-4 h-4" />
               <span className="font-medium">Bonus Token actif:</span>
-              <span>+{token_bonus.games_creatable} parties animables</span>
+              <span>+{token_bonus.games_creatable} initialisations de parties</span>
             </div>
           </div>
         )}
@@ -279,7 +279,7 @@ export function SubscriptionSection() {
                       <ul className="space-y-1 text-sm">
                         <li className="flex items-center gap-2">
                           <Crown className="w-4 h-4 text-muted-foreground" />
-                          {formatLimitValue(tierData.features.games_creatable)} parties animables
+                          {formatLimitValue(tierData.features.games_creatable)} initialisations de parties
                         </li>
                         <li className="flex items-center gap-2">
                           <Users className="w-4 h-4 text-muted-foreground" />
@@ -328,7 +328,7 @@ export function SubscriptionSection() {
                 <div>
                   <h3 className="font-semibold">{TOKEN_NDOGMOABENG.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    +{TOKEN_NDOGMOABENG.features.games_creatable} parties animables
+                    +{TOKEN_NDOGMOABENG.features.games_creatable} initialisations de parties
                   </p>
                 </div>
               </div>

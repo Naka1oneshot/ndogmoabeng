@@ -63,7 +63,7 @@ export const TOKEN_NDOGMOABENG = {
   features: {
     games_creatable: 10,
   },
-  description: "Pack unique de parties animables supplémentaires",
+  description: "Pack unique d'initialisations de parties supplémentaires",
 };
 
 export type SubscriptionTier = keyof typeof SUBSCRIPTION_TIERS;
@@ -83,7 +83,7 @@ export function formatChatAccess(access: ChatAccess): string {
 
 export function formatGamesCreatable(value: number): string {
   if (value === -1) return "Illimité";
-  return `${value} parties animables`;
+  return `${value} initialisations de parties`;
 }
 
 export interface TokenBonus {
