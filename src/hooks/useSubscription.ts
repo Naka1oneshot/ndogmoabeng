@@ -1,13 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { SubscriptionStatus, SUBSCRIPTION_TIERS } from '@/lib/subscriptionTiers';
+import { SubscriptionStatus, SUBSCRIPTION_TIERS, SubscriptionTier } from '@/lib/subscriptionTiers';
 
 const DEFAULT_STATUS: SubscriptionStatus = {
   subscribed: false,
   tier: 'freemium',
   limits: SUBSCRIPTION_TIERS.freemium.features,
   subscription_end: null,
+  source: 'freemium',
+  trial_active: false,
+  trial_end: null,
+  token_bonus: { games_joinable: 0, games_creatable: 0 },
 };
 
 export function useSubscription() {
@@ -36,9 +40,13 @@ export function useSubscription() {
       } else if (data) {
         setStatus({
           subscribed: data.subscribed,
-          tier: data.tier || 'freemium',
+          tier: (data.tier as SubscriptionTier) || 'freemium',
           limits: data.limits || SUBSCRIPTION_TIERS.freemium.features,
           subscription_end: data.subscription_end,
+          source: data.source || 'freemium',
+          trial_active: data.trial_active || false,
+          trial_end: data.trial_end || null,
+          token_bonus: data.token_bonus || { games_joinable: 0, games_creatable: 0 },
         });
       }
     } catch (err) {
@@ -109,6 +117,27 @@ export function useSubscription() {
     }
   };
 
+  // Helper to check if user can perform an action
+  const canJoinGame = useCallback(() => {
+    return status.limits.games_joinable === -1 || status.limits.games_joinable > 0;
+  }, [status.limits.games_joinable]);
+
+  const canCreateGame = useCallback(() => {
+    return status.limits.games_creatable > 0;
+  }, [status.limits.games_creatable]);
+
+  const hasClanBenefits = useCallback(() => {
+    return status.limits.clan_benefits;
+  }, [status.limits.clan_benefits]);
+
+  const getRemainingTrialDays = useCallback(() => {
+    if (!status.trial_active || !status.trial_end) return 0;
+    const end = new Date(status.trial_end);
+    const now = new Date();
+    const diff = end.getTime() - now.getTime();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }, [status.trial_active, status.trial_end]);
+
   return {
     ...status,
     loading,
@@ -117,5 +146,9 @@ export function useSubscription() {
     createCheckout,
     createTokenPayment,
     openCustomerPortal,
+    canJoinGame,
+    canCreateGame,
+    hasClanBenefits,
+    getRemainingTrialDays,
   };
 }

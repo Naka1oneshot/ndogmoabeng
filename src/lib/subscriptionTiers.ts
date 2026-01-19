@@ -11,6 +11,7 @@ export const SUBSCRIPTION_TIERS = {
       clan_benefits: false,
       max_friends: 2,
     },
+    description: "Accès basique gratuit",
   },
   starter: {
     name: "Starter",
@@ -23,6 +24,7 @@ export const SUBSCRIPTION_TIERS = {
       clan_benefits: true,
       max_friends: 10,
     },
+    description: "Pour les joueurs réguliers",
   },
   premium: {
     name: "Premium",
@@ -35,6 +37,7 @@ export const SUBSCRIPTION_TIERS = {
       clan_benefits: true,
       max_friends: 20,
     },
+    description: "Pour les passionnés",
   },
   royal: {
     name: "Royal",
@@ -47,6 +50,7 @@ export const SUBSCRIPTION_TIERS = {
       clan_benefits: true,
       max_friends: -1, // unlimited
     },
+    description: "L'expérience ultime",
   },
 } as const;
 
@@ -60,6 +64,7 @@ export const TOKEN_NDOGMOABENG = {
     games_joinable: 30,
     games_creatable: 10,
   },
+  description: "Pack unique de parties supplémentaires",
 };
 
 export type SubscriptionTier = keyof typeof SUBSCRIPTION_TIERS;
@@ -71,9 +76,51 @@ export interface SubscriptionLimits {
   max_friends: number;
 }
 
+export interface TokenBonus {
+  games_joinable: number;
+  games_creatable: number;
+}
+
 export interface SubscriptionStatus {
   subscribed: boolean;
   tier: SubscriptionTier;
   limits: SubscriptionLimits;
   subscription_end: string | null;
+  source: "stripe" | "trial" | "freemium";
+  trial_active: boolean;
+  trial_end: string | null;
+  token_bonus: TokenBonus;
+}
+
+export function formatLimitValue(value: number): string {
+  return value === -1 ? "Illimité" : value.toString();
+}
+
+export function getTierDisplayName(tier: SubscriptionTier): string {
+  return SUBSCRIPTION_TIERS[tier]?.name || "Freemium";
+}
+
+export function getTierColor(tier: SubscriptionTier): string {
+  switch (tier) {
+    case "royal":
+      return "text-yellow-500";
+    case "premium":
+      return "text-purple-500";
+    case "starter":
+      return "text-blue-500";
+    default:
+      return "text-muted-foreground";
+  }
+}
+
+export function getTierBadgeVariant(tier: SubscriptionTier): "default" | "secondary" | "destructive" | "outline" {
+  switch (tier) {
+    case "royal":
+    case "premium":
+      return "default";
+    case "starter":
+      return "secondary";
+    default:
+      return "outline";
+  }
 }
