@@ -130,7 +130,9 @@ export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber 
       }
 
       // Calculate team score (sum of individual scores)
-      const teamScore = teammates.reduce((sum, p) => sum + p.jetons + p.recompenses, 0);
+      // Solo players get their score doubled to balance against teams of 2
+      const rawScore = teammates.reduce((sum, p) => sum + p.jetons + p.recompenses, 0);
+      const teamScore = teammates.length === 1 ? rawScore * 2 : rawScore;
       
       // Generate team name
       const teamName = teammates.length === 1 
