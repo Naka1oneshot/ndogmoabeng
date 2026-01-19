@@ -1,12 +1,10 @@
 import { Sparkles } from 'lucide-react';
 import { useMeetupEvents } from '@/hooks/useMeetupEvents';
-import { useTranslation } from '@/i18n';
 import { MeetupEventCard } from '@/components/meetup/MeetupEventCard';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function MeetupSection() {
   const { events, loading, error, refetch } = useMeetupEvents();
-  const { t, language } = useTranslation();
 
   if (loading) {
     return (
@@ -30,15 +28,13 @@ export function MeetupSection() {
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">
-              {language === 'fr' ? 'Événements' : 'Events'}
-            </span>
+            <span className="text-sm font-medium text-primary">Événements</span>
           </div>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-            {t.meetup.title}
+            Rencontres jeux
           </h2>
           <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
-            {t.meetup.subtitle}
+            Rejoins-nous pour des soirées stratégie, mystère et convivialité
           </p>
         </div>
 
