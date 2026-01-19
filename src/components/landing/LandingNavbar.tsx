@@ -62,6 +62,12 @@ export function LandingNavbar() {
               >
                 Clans
               </button>
+              <button 
+                onClick={() => scrollToSection('meetups')}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Participer
+              </button>
               
               {gamesCount > 0 && (
                 <div className="flex items-center gap-2 text-primary text-sm">
@@ -124,6 +130,12 @@ export function LandingNavbar() {
                   className="text-left text-muted-foreground hover:text-foreground transition-colors py-2"
                 >
                   Clans
+                </button>
+                <button 
+                  onClick={() => scrollToSection('meetups')}
+                  className="text-left text-muted-foreground hover:text-foreground transition-colors py-2"
+                >
+                  Participer
                 </button>
                 {gamesCount > 0 && (
                   <div className="flex items-center gap-2 text-primary text-sm py-2">
