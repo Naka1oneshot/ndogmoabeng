@@ -11,8 +11,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFriendships } from '@/hooks/useFriendships';
+import { useFriendChat } from '@/hooks/useFriendChat';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
   Users, 
@@ -40,6 +40,7 @@ export function InviteFriendsModal({
 }: InviteFriendsModalProps) {
   const { user } = useAuth();
   const { friends, loading: friendsLoading } = useFriendships();
+  const { sendGameInvite } = useFriendChat();
   const [invitedFriends, setInvitedFriends] = useState<Set<string>>(new Set());
   const [invitingFriend, setInvitingFriend] = useState<string | null>(null);
 
@@ -53,18 +54,10 @@ export function InviteFriendsModal({
     setInvitingFriend(friendUserId);
     
     try {
-      // Insert into game_invitations table
-      const { error } = await supabase
-        .from('game_invitations')
-        .insert({
-          game_id: gameId,
-          invited_by_user_id: user.id,
-          invited_user_id: friendUserId,
-          game_name: gameName,
-          join_code: joinCode,
-        });
+      // Send game invite via friend chat
+      const { error } = await sendGameInvite(friendUserId, gameId, gameName, joinCode);
 
-      if (error) throw error;
+      if (error) throw new Error(error);
 
       setInvitedFriends(prev => new Set([...prev, friendUserId]));
       toast.success(`Invitation envoyée à ${friendName} !`);
