@@ -43,6 +43,28 @@ function shuffleArray<T>(array: T[]): T[] {
   return result;
 }
 
+// Retry helper with exponential backoff
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelayMs = 500
+): Promise<T> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(`[start-infection] Attempt ${attempt + 1} failed:`, lastError.message);
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -57,19 +79,21 @@ Deno.serve(async (req) => {
 
     console.log('[start-infection] Starting with:', { gameId, sessionGameId, roleConfig, startingTokens });
 
-    // 1. Fetch active players (with player_number assigned)
-    const { data: playersRaw, error: playersError } = await supabase
-      .from('game_players')
-      .select('id, player_number, display_name, clan, jetons')
-      .eq('game_id', gameId)
-      .is('removed_at', null)
-      .not('player_number', 'is', null)
-      .order('player_number', { ascending: true });
-
-    if (playersError) {
-      console.error('[start-infection] Error fetching players:', playersError);
-      throw new Error(`Failed to fetch players: ${playersError.message}`);
-    }
+    // 1. Fetch active players (with player_number assigned) - with retry
+    const playersRaw = await withRetry(async () => {
+      const result = await supabase
+        .from('game_players')
+        .select('id, player_number, display_name, clan, jetons')
+        .eq('game_id', gameId)
+        .is('removed_at', null)
+        .not('player_number', 'is', null)
+        .order('player_number', { ascending: true });
+      
+      if (result.error) {
+        throw new Error(`Failed to fetch players: ${result.error.message}`);
+      }
+      return result.data;
+    });
 
     const players = playersRaw || [];
 
