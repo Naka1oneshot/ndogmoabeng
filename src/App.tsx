@@ -17,6 +17,7 @@ import AdminGameDetails from "./pages/AdminGameDetails";
 import AdminMeetups from "./pages/AdminMeetups";
 import WatchList from "./pages/WatchList";
 import WatchGame from "./pages/WatchGame";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
                 <Route path="/admin/meetups" element={<AdminMeetups />} />
                 <Route path="/watch" element={<WatchList />} />
                 <Route path="/watch/:gameId" element={<WatchGame />} />
+                <Route path="/profile" element={<Profile />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </ThemeProvider>
