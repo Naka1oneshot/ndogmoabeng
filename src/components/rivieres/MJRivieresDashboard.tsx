@@ -872,27 +872,34 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                   <h3 className="font-bold text-[#D4AF37] mb-3 flex items-center gap-2">
                     <Dice6 className="h-5 w-5" /> Définir le Danger
                   </h3>
-                  <div className="flex flex-wrap gap-3 items-end mb-4">
-                    <div>
-                      <label className="text-xs text-[#9CA3AF]">Nb dés</label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={20}
-                        value={diceCount}
-                        onChange={(e) => setDiceCount(Number(e.target.value))}
-                        className="w-20 bg-[#0B1020] border-[#D4AF37]/30 text-white"
-                      />
-                    </div>
+                  
+                  {/* Auto-generate buttons */}
+                  <div className="flex gap-3 flex-wrap mb-4">
                     <ForestButton
-                      onClick={handleRollDanger}
-                      disabled={actionLoading === 'roll'}
+                      onClick={() => {
+                        const suggestedDanger = generateSuggestedDanger(enBateauPlayers.length, state.manche_active, state.niveau_active);
+                        setManualDanger(suggestedDanger);
+                        toast.info(`Danger suggéré: ${suggestedDanger} (dans la plage ${dangerCalc.range.min}-${dangerCalc.range.max})`);
+                      }}
                       className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
                     >
-                      {actionLoading === 'roll' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Dice6 className="h-4 w-4 mr-1" />}
-                      Lancer
+                      <Zap className="h-4 w-4 mr-2" />
+                      Générer aléatoire
                     </ForestButton>
-                    <div className="text-[#9CA3AF]">ou</div>
+                    <ForestButton
+                      onClick={() => {
+                        setManualDanger(dangerCalc.range.suggested);
+                        toast.info(`Danger défini: ${dangerCalc.range.suggested}`);
+                      }}
+                      variant="outline"
+                      className="border-[#D4AF37] text-[#D4AF37]"
+                    >
+                      Suggestion ({dangerCalc.range.suggested})
+                    </ForestButton>
+                  </div>
+
+                  {/* Manual input */}
+                  <div className="flex flex-wrap gap-3 items-end">
                     <div>
                       <label className="text-xs text-[#9CA3AF]">Danger manuel</label>
                       <Input
@@ -910,34 +917,6 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                       className="border-[#D4AF37] text-[#D4AF37]"
                     >
                       {actionLoading === 'manual' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Définir'}
-                    </ForestButton>
-                  </div>
-                  
-                  {/* Auto-generate buttons */}
-                  <div className="flex gap-3 flex-wrap mb-3">
-                    <ForestButton
-                      onClick={() => {
-                        const suggestedDanger = generateSuggestedDanger(enBateauPlayers.length, state.manche_active, state.niveau_active);
-                        setManualDanger(suggestedDanger);
-                        toast.info(`Danger suggéré: ${suggestedDanger} (dans la plage ${dangerCalc.range.min}-${dangerCalc.range.max})`);
-                      }}
-                      size="sm"
-                      variant="outline"
-                      className="border-[#D4AF37]/50 text-[#D4AF37]"
-                    >
-                      <Zap className="h-4 w-4 mr-2" />
-                      Générer aléatoire
-                    </ForestButton>
-                    <ForestButton
-                      onClick={() => {
-                        setManualDanger(dangerCalc.range.suggested);
-                        toast.info(`Danger défini: ${dangerCalc.range.suggested}`);
-                      }}
-                      size="sm"
-                      variant="outline"
-                      className="border-[#9CA3AF]/50 text-[#9CA3AF]"
-                    >
-                      Utiliser suggestion ({dangerCalc.range.suggested})
                     </ForestButton>
                   </div>
 
@@ -969,7 +948,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                     <ForestButton
                       onClick={handleResolveLevel}
                       disabled={actionLoading === 'resolve' || !canResolve}
-                      className={canResolve ? 'bg-[#1B4D3E] hover:bg-[#1B4D3E]/80' : 'bg-gray-600'}
+                      className={canResolve ? 'bg-[#4ADE80] hover:bg-[#4ADE80]/80 text-black font-bold shadow-lg shadow-[#4ADE80]/30' : 'bg-gray-600 text-gray-400'}
                     >
                       {actionLoading === 'resolve' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 mr-1" />}
                       Résoudre le niveau
