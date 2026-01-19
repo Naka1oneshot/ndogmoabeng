@@ -319,6 +319,52 @@ export function useUserProfile() {
     return { error: null, url: publicUrl };
   };
 
+  const leaveGame = async (gameId: string) => {
+    if (!user) return { error: new Error('Not authenticated') };
+
+    const { error } = await supabase
+      .from('game_players')
+      .update({ removed_at: new Date().toISOString(), removed_reason: 'left' })
+      .eq('game_id', gameId)
+      .eq('user_id', user.id)
+      .eq('is_host', false);
+
+    if (error) {
+      toast.error('Erreur lors de la sortie de la partie');
+      return { error };
+    }
+
+    toast.success('Vous avez quitté la partie');
+    await fetchData();
+    return { error: null };
+  };
+
+  const deleteGame = async (gameId: string) => {
+    if (!user) return { error: new Error('Not authenticated') };
+
+    // First, delete related data
+    await supabase.from('game_players').delete().eq('game_id', gameId);
+    await supabase.from('lobby_chat_messages').delete().eq('game_id', gameId);
+    await supabase.from('session_events').delete().eq('game_id', gameId);
+    await supabase.from('game_events').delete().eq('game_id', gameId);
+    
+    // Delete the game itself
+    const { error } = await supabase
+      .from('games')
+      .delete()
+      .eq('id', gameId)
+      .eq('host_user_id', user.id);
+
+    if (error) {
+      toast.error('Erreur lors de la suppression de la partie');
+      return { error };
+    }
+
+    toast.success('Partie supprimée');
+    await fetchData();
+    return { error: null };
+  };
+
   return {
     profile,
     stats,
@@ -327,5 +373,8 @@ export function useUserProfile() {
     canChangeDisplayName,
     updateProfile,
     uploadAvatar,
+    leaveGame,
+    deleteGame,
+    refetch: fetchData,
   };
 }

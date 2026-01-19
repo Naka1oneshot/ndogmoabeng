@@ -11,6 +11,17 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { 
   User, 
   Trophy, 
@@ -30,7 +41,9 @@ import {
   Camera,
   Loader2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Trash2,
+  DoorOpen
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -39,7 +52,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading, signOut } = useAuth();
-  const { profile, stats, currentGames, loading, canChangeDisplayName, updateProfile, uploadAvatar } = useUserProfile();
+  const { profile, stats, currentGames, loading, canChangeDisplayName, updateProfile, uploadAvatar, leaveGame, deleteGame } = useUserProfile();
   
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -52,6 +65,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [gamesPage, setGamesPage] = useState(1);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const gamesPerPage = 5;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -329,7 +343,7 @@ export default function Profile() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
                       <Badge variant={game.is_host ? 'default' : 'secondary'}>
                         {game.is_host ? 'Hôte' : 'Joueur'}
                       </Badge>
@@ -340,6 +354,52 @@ export default function Profile() {
                       >
                         Rejoindre
                       </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            disabled={actionLoading === game.id}
+                          >
+                            {actionLoading === game.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : game.is_host ? (
+                              <Trash2 className="w-4 h-4" />
+                            ) : (
+                              <DoorOpen className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              {game.is_host ? 'Supprimer la partie ?' : 'Quitter la partie ?'}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {game.is_host 
+                                ? 'Cette action est irréversible. Tous les joueurs seront déconnectés et les données de la partie seront supprimées.'
+                                : 'Vous pourrez rejoindre à nouveau la partie plus tard avec le code d\'accès.'}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={async () => {
+                                setActionLoading(game.id);
+                                if (game.is_host) {
+                                  await deleteGame(game.id);
+                                } else {
+                                  await leaveGame(game.id);
+                                }
+                                setActionLoading(null);
+                              }}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              {game.is_host ? 'Supprimer' : 'Quitter'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 ))}
