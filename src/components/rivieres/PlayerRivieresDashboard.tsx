@@ -508,22 +508,22 @@ export function PlayerRivieresDashboard({
           ) : (
             <div className={`${rivieresCardStyle} p-4 space-y-4`}>
               {/* Decision toggle */}
-              <div className="flex items-center justify-center gap-4 p-4 bg-[#0B1020] rounded-lg">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 p-3 sm:p-4 bg-[#0B1020] rounded-lg">
                 <ForestButton
                   size="lg"
                   onClick={() => setDecision('RESTE')}
-                  className={decision === 'RESTE' 
+                  className={`flex-1 min-w-[120px] max-w-[180px] text-sm sm:text-base ${decision === 'RESTE' 
                     ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
                 >
                   🚣 Je reste
                 </ForestButton>
                 <ForestButton
                   size="lg"
                   onClick={() => { setDecision('DESCENDS'); setKeryndesChoice('NONE'); }}
-                  className={decision === 'DESCENDS' 
+                  className={`flex-1 min-w-[120px] max-w-[180px] text-sm sm:text-base ${decision === 'DESCENDS' 
                     ? 'bg-amber-600 hover:bg-amber-700 text-white' 
-                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
                 >
                   🏝️ Je descends
                 </ForestButton>
