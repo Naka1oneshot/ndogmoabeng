@@ -130,11 +130,35 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   const [kickModalOpen, setKickModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; name: string } | null>(null);
 
+  // Refresh decisions when manche/niveau changes
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   useEffect(() => {
     fetchData();
     const channel = setupRealtime();
     return () => { supabase.removeChannel(channel); };
   }, [sessionGameId]);
+
+  // Refetch decisions when manche/niveau changes
+  useEffect(() => {
+    if (state) {
+      fetchDecisions();
+    }
+  }, [state?.manche_active, state?.niveau_active]);
+
+  const fetchDecisions = async () => {
+    if (!state) return;
+    const { data: decisionsData } = await supabase
+      .from('river_decisions')
+      .select('*')
+      .eq('session_game_id', sessionGameId)
+      .eq('manche', state.manche_active)
+      .eq('niveau', state.niveau_active);
+    if (decisionsData) setDecisions(decisionsData);
+  };
 
   // Detect game start transition for animation
   useEffect(() => {
@@ -752,6 +776,18 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       )}
 
       {/* Status bar */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex-1" />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => { fetchData(); toast.success('Données actualisées'); }}
+          className="border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/10"
+        >
+          <RefreshCw className="h-4 w-4 mr-1" />
+          Actualiser
+        </Button>
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className={`${rivieresCardStyle} p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Manche</div>
