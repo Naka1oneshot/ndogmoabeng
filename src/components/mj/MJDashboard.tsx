@@ -151,6 +151,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         .from('game_players')
         .select('*', { count: 'exact', head: true })
         .eq('game_id', game.id)
+        .eq('is_host', false)
         .eq('status', 'ACTIVE');
       setPlayerCount(count || 0);
     };

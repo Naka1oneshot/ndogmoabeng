@@ -42,6 +42,7 @@ export function useActiveGamesList() {
               .from('game_players')
               .select('*', { count: 'exact', head: true })
               .eq('game_id', game.id)
+              .eq('is_host', false)
               .is('removed_at', null);
 
             return {
