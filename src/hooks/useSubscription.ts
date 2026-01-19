@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { SubscriptionStatus, SUBSCRIPTION_TIERS, SubscriptionTier } from '@/lib/subscriptionTiers';
+import { toast } from 'sonner';
 
 const DEFAULT_STATUS: SubscriptionStatus = {
   subscribed: false,
@@ -18,9 +20,40 @@ const DEFAULT_STATUS: SubscriptionStatus = {
 
 export function useSubscription() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [status, setStatus] = useState<SubscriptionStatus>(DEFAULT_STATUS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle token payment callback - verify and add loyalty points
+  useEffect(() => {
+    const tokenStatus = searchParams.get('token');
+    const sessionId = searchParams.get('session_id');
+    
+    if (tokenStatus === 'success' && sessionId) {
+      // Clean URL
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('token');
+      newParams.delete('session_id');
+      setSearchParams(newParams, { replace: true });
+      
+      // Verify payment and add loyalty points
+      supabase.functions.invoke('verify-token-payment', {
+        body: { sessionId }
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error('Error verifying token payment:', error);
+          toast.error('Erreur lors de la vérification du paiement');
+        } else if (data?.status === 'paid') {
+          toast.success('Paiement confirmé ! Points de fidélité ajoutés 🎉');
+        }
+      });
+    } else if (tokenStatus === 'cancelled') {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('token');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const checkSubscription = useCallback(async () => {
     if (!user) {

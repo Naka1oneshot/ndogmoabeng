@@ -59,12 +59,13 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/profile?token=success`,
+      success_url: `${req.headers.get("origin")}/profile?token=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/profile?token=cancelled`,
       metadata: {
         user_id: user.id,
         type: "token",
         quantity: quantity.toString(),
+        add_loyalty_points: "true",
       },
     });
 
