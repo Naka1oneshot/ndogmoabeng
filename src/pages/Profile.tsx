@@ -52,15 +52,18 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startEditing = () => {
+    console.log('startEditing called, profile:', profile);
     if (profile) {
       setEditForm({
-        first_name: profile.first_name,
-        last_name: profile.last_name,
-        display_name: profile.display_name,
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        display_name: profile.display_name || '',
         phone: profile.phone || '',
         address: profile.address || '',
       });
       setIsEditing(true);
+    } else {
+      console.error('Cannot edit: profile is null');
     }
   };
 
