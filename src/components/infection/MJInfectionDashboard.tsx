@@ -138,8 +138,8 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
       return;
     }
 
-    if (activePlayers.length < 4) {
-      toast.error('Minimum 4 joueurs requis');
+    if (activePlayers.length < 7) {
+      toast.error('Minimum 7 joueurs requis pour INFECTION');
       return;
     }
 
