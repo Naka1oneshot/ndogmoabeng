@@ -6,13 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ArrowLeft, Users, Syringe, Target, MessageSquare, 
-  Activity, Play, Lock, CheckCircle, Settings, Skull
+  Activity, Play, Lock, CheckCircle, Settings, Skull,
+  RefreshCw, Copy, Check, UserX, Loader2
 } from 'lucide-react';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { toast } from 'sonner';
 import { MJActionsTab } from './MJActionsTab';
 import { MJChatsTab } from './MJChatsTab';
 import { MJRoundHistorySelector } from './MJRoundHistorySelector';
+import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 
 interface Game {
   id: string;
@@ -45,6 +47,8 @@ interface Player {
   will_die_at_manche: number | null;
   has_antibodies: boolean | null;
   last_seen: string | null;
+  is_host: boolean;
+  player_token: string | null;
 }
 
 interface RoundState {
@@ -69,6 +73,12 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('control');
   const [selectedManche, setSelectedManche] = useState(game.manche_active || 1);
+  
+  // Player management state
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [kickModalOpen, setKickModalOpen] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; name: string } | null>(null);
 
   // Reset selected manche when game.manche_active changes
   useEffect(() => {
@@ -233,7 +243,48 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
     }
   };
 
-  const activePlayers = players.filter(p => p.status === 'ACTIVE');
+  // Player management functions
+  const handleResetToken = async (playerId: string, playerName: string) => {
+    setResettingId(playerId);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-player-token', {
+        body: { playerId },
+      });
+
+      if (error || !data?.success) {
+        toast.error(data?.error || 'Erreur lors de la réinitialisation');
+        return;
+      }
+
+      toast.success(`Token de ${playerName} réinitialisé`);
+      fetchData();
+    } catch (err) {
+      console.error('Reset error:', err);
+      toast.error('Erreur lors de la réinitialisation');
+    } finally {
+      setResettingId(null);
+    }
+  };
+
+  const handleCopyJoinLink = async (playerId: string, token: string) => {
+    const joinUrl = `${window.location.origin}/player/${game.id}?token=${token}`;
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+      setCopiedId(playerId);
+      toast.success('Lien copié !');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.error('Erreur lors de la copie');
+    }
+  };
+
+  const openKickModal = (playerId: string, playerName: string) => {
+    setSelectedPlayer({ id: playerId, name: playerName });
+    setKickModalOpen(true);
+  };
+
+  // Filter out the host (MJ) from players
+  const activePlayers = players.filter(p => p.status === 'ACTIVE' && !p.is_host && p.player_number !== null);
   const alivePlayers = activePlayers.filter(p => p.is_alive !== false);
 
   // Lobby view
@@ -506,14 +557,57 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                         )}
                       </div>
                     </div>
-                    <div className="mt-2 flex items-center gap-4 text-xs text-[#6B7280]">
-                      <span>💰 {player.jetons || 0} jetons</span>
-                      <span>⭐ {player.pvic || 0} PVic</span>
-                      {player.infected_at_manche && (
-                        <span className="text-[#B00020]">
-                          Infecté M{player.infected_at_manche}
-                        </span>
-                      )}
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-xs text-[#6B7280]">
+                        <span>💰 {player.jetons || 0} jetons</span>
+                        <span>⭐ {player.pvic || 0} PVic</span>
+                        {player.infected_at_manche && (
+                          <span className="text-[#B00020]">
+                            Infecté M{player.infected_at_manche}
+                          </span>
+                        )}
+                      </div>
+                      {/* Player management actions */}
+                      <div className="flex items-center gap-1">
+                        {player.player_token && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
+                            title="Copier le lien de reconnexion"
+                            className="h-7 w-7 p-0"
+                          >
+                            {copiedId === player.id ? (
+                              <Check className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleResetToken(player.id, player.display_name)}
+                          disabled={resettingId === player.id}
+                          title="Réinitialiser le token"
+                          className="h-7 w-7 p-0"
+                        >
+                          {resettingId === player.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3 w-3" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openKickModal(player.id, player.display_name)}
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="Expulser le joueur"
+                        >
+                          <UserX className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -551,6 +645,18 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Kick Modal */}
+      {selectedPlayer && (
+        <KickPlayerModal
+          open={kickModalOpen}
+          onOpenChange={setKickModalOpen}
+          playerId={selectedPlayer.id}
+          playerName={selectedPlayer.name}
+          gameId={game.id}
+          onSuccess={fetchData}
+        />
+      )}
     </div>
   );
 }

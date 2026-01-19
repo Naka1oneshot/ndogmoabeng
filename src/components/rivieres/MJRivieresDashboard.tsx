@@ -3,10 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, Dice6, Lock, Play, Users, History, 
-  AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship, Waves
+  AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship, Waves,
+  RefreshCw, Copy, Check, UserX
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -25,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 
 interface RiverSessionState {
   id: string;
@@ -60,9 +63,11 @@ interface RiverDecision {
 interface Player {
   id: string;
   display_name: string;
-  player_number: number;
+  player_number: number | null;
   clan: string | null;
   jetons: number;
+  is_host: boolean;
+  player_token: string | null;
 }
 
 interface StageScore {
@@ -111,6 +116,12 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   const [showStartAnimation, setShowStartAnimation] = useState(false);
   const previousGameStatusRef = useRef<string | undefined>(gameStatus);
 
+  // Player management state
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [kickModalOpen, setKickModalOpen] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; name: string } | null>(null);
+
   useEffect(() => {
     fetchData();
     const channel = setupRealtime();
@@ -148,15 +159,15 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
 
       if (statsData) setPlayerStats(statsData);
 
-      // Fetch players
+      // Fetch players (excluding host)
       const { data: playersData } = await supabase
         .from('game_players')
-        .select('id, display_name, player_number, clan, jetons')
+        .select('id, display_name, player_number, clan, jetons, is_host, player_token')
         .eq('game_id', gameId)
         .eq('status', 'ACTIVE')
         .order('player_number');
 
-      if (playersData) setPlayers(playersData);
+      if (playersData) setPlayers(playersData.filter(p => !p.is_host && p.player_number !== null));
 
       // Fetch current level decisions
       if (stateData) {
@@ -305,6 +316,46 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
     } finally {
       setActionLoading(null);
     }
+  };
+
+  // Player management functions
+  const handleResetToken = async (playerId: string, playerName: string) => {
+    setResettingId(playerId);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-player-token', {
+        body: { playerId },
+      });
+
+      if (error || !data?.success) {
+        toast.error(data?.error || 'Erreur lors de la réinitialisation');
+        return;
+      }
+
+      toast.success(`Token de ${playerName} réinitialisé`);
+      fetchData();
+    } catch (err) {
+      console.error('Reset error:', err);
+      toast.error('Erreur lors de la réinitialisation');
+    } finally {
+      setResettingId(null);
+    }
+  };
+
+  const handleCopyJoinLink = async (playerId: string, token: string) => {
+    const joinUrl = `${window.location.origin}/player/${gameId}?token=${token}`;
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+      setCopiedId(playerId);
+      toast.success('Lien copié !');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.error('Erreur lors de la copie');
+    }
+  };
+
+  const openKickModal = (playerId: string, playerName: string) => {
+    setSelectedPlayer({ id: playerId, name: playerName });
+    setKickModalOpen(true);
   };
 
   if (loading) {
@@ -778,6 +829,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                   <th className="p-2 text-center text-[#9CA3AF]">Statut</th>
                   <th className="p-2 text-center text-[#9CA3AF]">Niveaux</th>
                   <th className="p-2 text-center text-[#9CA3AF]">Keryndes</th>
+                  <th className="p-2 text-right text-[#9CA3AF]">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -804,6 +856,48 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                             <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Utilisé</Badge>
                           )
                         ) : '-'}
+                      </td>
+                      <td className="p-2">
+                        <div className="flex items-center justify-end gap-1">
+                          {p.player_token && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleCopyJoinLink(p.id, p.player_token!)}
+                              title="Copier le lien de reconnexion"
+                              className="h-7 w-7 p-0"
+                            >
+                              {copiedId === p.id ? (
+                                <Check className="h-3 w-3 text-green-500" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleResetToken(p.id, p.display_name)}
+                            disabled={resettingId === p.id}
+                            title="Réinitialiser le token"
+                            className="h-7 w-7 p-0"
+                          >
+                            {resettingId === p.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openKickModal(p.id, p.display_name)}
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            title="Expulser le joueur"
+                          >
+                            <UserX className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -920,6 +1014,18 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Kick Modal */}
+      {selectedPlayer && (
+        <KickPlayerModal
+          open={kickModalOpen}
+          onOpenChange={setKickModalOpen}
+          playerId={selectedPlayer.id}
+          playerName={selectedPlayer.name}
+          gameId={gameId}
+          onSuccess={fetchData}
+        />
+      )}
     </div>
   );
 }
