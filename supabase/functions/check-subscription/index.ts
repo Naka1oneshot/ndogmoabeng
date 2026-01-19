@@ -83,11 +83,16 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     logStep("Authenticating user with token");
     
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    // Use getClaims for JWT validation (recommended approach per Lovable Cloud docs)
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      throw new Error(`Authentication error: ${claimsError?.message || "Invalid token"}`);
+    }
+    
+    const userId = claimsData.claims.sub as string;
+    const userEmail = claimsData.claims.email as string;
+    if (!userId || !userEmail) throw new Error("User not authenticated or email not available");
+    logStep("User authenticated", { userId, email: userEmail });
 
     const monthStart = getMonthStart();
     logStep("Month start for usage count", { monthStart });
@@ -96,7 +101,7 @@ serve(async (req) => {
     const { count: gamesCreatedCount, error: createdError } = await supabaseClient
       .from("games")
       .select("*", { count: "exact", head: true })
-      .eq("host_user_id", user.id)
+      .eq("host_user_id", userId)
       .gte("created_at", monthStart)
       .neq("status", "LOBBY");
 
@@ -109,7 +114,7 @@ serve(async (req) => {
       .from("friendships")
       .select("*", { count: "exact", head: true })
       .eq("status", "accepted")
-      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+      .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
 
     if (friendsError) {
       logStep("Error counting friends", { error: friendsError });
@@ -121,7 +126,7 @@ serve(async (req) => {
 
     // Check for active Stripe subscription first
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
     
     let stripeSubscription = null;
     let stripeTier = null;
@@ -176,7 +181,7 @@ serve(async (req) => {
     const { data: bonusData, error: bonusError } = await supabaseClient
       .from("user_subscription_bonuses")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
 
     if (bonusError && bonusError.code !== "PGRST116") {
