@@ -1,25 +1,23 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { CLANS_DATA } from '@/data/ndogmoabengData';
-import { Crown, Coins, Compass, Shield, BookOpen, FlaskConical, Hammer } from 'lucide-react';
 
-const clanIcons: Record<string, React.ElementType> = {
-  'maison-royale': Crown,
-  'fraternite-zoulous': Coins,
-  'maison-keryndes': Compass,
-  'akande': Shield,
-  'cercle-aseyra': BookOpen,
-  'sources-akila': FlaskConical,
-  'ezkar': Hammer,
-};
+// Import clan images
+import maisonRoyaleImg from '@/assets/clans/maison-royale.png';
+import fraterniteZoulousImg from '@/assets/clans/fraternite-zoulous.png';
+import maisonKeryndesImg from '@/assets/clans/maison-keryndes.png';
+import akandeImg from '@/assets/clans/akande.png';
+import cercleAseyraImg from '@/assets/clans/cercle-aseyra.png';
+import sourcesAkilaImg from '@/assets/clans/sources-akila.png';
+import ezkarImg from '@/assets/clans/ezkar.png';
 
-const clanColors: Record<string, string> = {
-  'maison-royale': 'from-amber-500/20 to-amber-600/10',
-  'fraternite-zoulous': 'from-emerald-500/20 to-emerald-600/10',
-  'maison-keryndes': 'from-blue-500/20 to-blue-600/10',
-  'akande': 'from-red-500/20 to-red-600/10',
-  'cercle-aseyra': 'from-purple-500/20 to-purple-600/10',
-  'sources-akila': 'from-cyan-500/20 to-cyan-600/10',
-  'ezkar': 'from-orange-500/20 to-orange-600/10',
+const clanImages: Record<string, string> = {
+  'maison-royale': maisonRoyaleImg,
+  'fraternite-zoulous': fraterniteZoulousImg,
+  'maison-keryndes': maisonKeryndesImg,
+  'akande': akandeImg,
+  'cercle-aseyra': cercleAseyraImg,
+  'sources-akila': sourcesAkilaImg,
+  'ezkar': ezkarImg,
 };
 
 export function ClansSection() {
@@ -37,18 +35,20 @@ export function ClansSection() {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {CLANS_DATA.map((clan) => {
-            const Icon = clanIcons[clan.id] || Crown;
-            const colorClass = clanColors[clan.id] || 'from-primary/20 to-accent/10';
+            const clanImage = clanImages[clan.id];
 
             return (
               <Card 
                 key={clan.id} 
                 className="card-gradient border-border/50 hover:border-primary/30 transition-all group overflow-hidden"
               >
-                {/* Image/Icon placeholder */}
-                <div className={`aspect-[4/3] bg-gradient-to-br ${colorClass} flex items-center justify-center relative`}>
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
-                  <Icon className="w-16 h-16 text-foreground/60 group-hover:scale-110 transition-transform relative z-10" />
+                {/* Clan emblem image */}
+                <div className="aspect-square bg-background/80 flex items-center justify-center p-6">
+                  <img 
+                    src={clanImage} 
+                    alt={`Emblème du clan ${clan.name}`}
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                  />
                 </div>
 
                 <CardContent className="p-4">
