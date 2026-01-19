@@ -139,7 +139,7 @@ export function ResultsPanel({ gameId, sessionGameId, manche, selectedManche, ph
         <h3 className="font-display text-sm">Résultats</h3>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0 max-h-[400px]">
+      <div className="flex-1 min-h-0 max-h-[350px] overflow-y-auto">
         <div className="p-4 space-y-4">
           {/* Priority Rankings (Phase 1 classement) */}
           {showBetRankings && priorityRankings.length > 0 && (
@@ -227,7 +227,7 @@ export function ResultsPanel({ gameId, sessionGameId, manche, selectedManche, ph
             </p>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
