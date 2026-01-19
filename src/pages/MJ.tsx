@@ -497,23 +497,26 @@ export default function MJ() {
 
   return (
     <div className="min-h-screen px-4 py-6">
-      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 max-w-5xl mx-auto">
-        <div className="flex items-center gap-3">
-          <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain cursor-pointer" onClick={() => navigate('/')} />
-          <h1 className="font-display text-xl">Tableau MJ</h1>
-          {isAdmin && (
-            <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30">
-              <Crown className="h-3 w-3 mr-1" />
-              Admin
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-          {isAdmin && <AdminBadge email={user?.email} />}
-          <ThemeToggle />
-          <UserAvatarButton size="sm" />
-        </div>
-      </header>
+      {/* Header - hidden when in detail view (MJDashboard has its own) */}
+      {viewMode !== 'detail' && (
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 max-w-5xl mx-auto">
+          <div className="flex items-center gap-3">
+            <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain cursor-pointer" onClick={() => navigate('/')} />
+            <h1 className="font-display text-xl">Tableau MJ</h1>
+            {isAdmin && (
+              <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30">
+                <Crown className="h-3 w-3 mr-1" />
+                Admin
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            {isAdmin && <AdminBadge email={user?.email} />}
+            <ThemeToggle />
+            <UserAvatarButton size="sm" />
+          </div>
+        </header>
+      )}
 
       <main className="max-w-5xl mx-auto space-y-6">
         {viewMode === 'list' && (
