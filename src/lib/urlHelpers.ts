@@ -1,22 +1,10 @@
 /**
  * Get the public base URL for player links.
- * Uses the published URL if available, otherwise falls back to the preview URL.
- * This avoids using lovableproject.com which requires Lovable authentication.
+ * Uses the published URL to ensure anonymous players can access without Lovable auth.
  */
 export function getPublicBaseUrl(): string {
-  // Published URL has priority
-  if (import.meta.env.VITE_PUBLISHED_URL) {
-    return import.meta.env.VITE_PUBLISHED_URL;
-  }
-  
-  // Fallback to preview URL using project ID
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  if (projectId) {
-    return `https://id-preview--${projectId}.lovable.app`;
-  }
-  
-  // Last resort: use current origin (may not work in internal preview)
-  return window.location.origin;
+  // Use the published app URL (always accessible without auth)
+  return 'https://ndogmoabeng.lovable.app';
 }
 
 /**
