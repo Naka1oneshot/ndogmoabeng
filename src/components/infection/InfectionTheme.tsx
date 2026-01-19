@@ -35,17 +35,17 @@ export const INFECTION_COLORS = {
 
 export const INFECTION_ROLE_LABELS: Record<string, { name: string; short: string; team: string; color: string }> = {
   BA: { name: 'Bras Armé', short: 'BA', team: 'PV', color: INFECTION_COLORS.teamPV },
-  PV: { name: 'Porteur de Virus', short: 'PV', team: 'PV', color: INFECTION_COLORS.teamPV },
-  SY: { name: 'Scientifique', short: 'SY', team: 'SY', color: INFECTION_COLORS.teamSY },
-  AE: { name: 'Agent Ennemi', short: 'AE', team: 'NEUTRE', color: INFECTION_COLORS.teamNeutre },
-  OC: { name: 'Oracle', short: 'OC', team: 'NEUTRE', color: INFECTION_COLORS.teamNeutre },
-  KK: { name: 'Kamikaze', short: 'KK', team: 'CITOYEN', color: INFECTION_COLORS.teamCitoyen },
+  PV: { name: 'Porte Venin', short: 'PV', team: 'PV', color: INFECTION_COLORS.teamPV },
+  SY: { name: 'Synthétiste', short: 'SY', team: 'SY', color: INFECTION_COLORS.teamSY },
+  AE: { name: "Agent de l'État", short: 'AE', team: 'NEUTRE', color: INFECTION_COLORS.teamNeutre },
+  OC: { name: 'Œil du Crépuscule', short: 'OC', team: 'NEUTRE', color: INFECTION_COLORS.teamNeutre },
+  KK: { name: 'Sans Cercle', short: 'KK', team: 'CITOYEN', color: INFECTION_COLORS.teamCitoyen },
   CV: { name: 'Citoyen', short: 'CV', team: 'CITOYEN', color: INFECTION_COLORS.teamCitoyen },
 };
 
 export const INFECTION_TEAM_LABELS: Record<string, { name: string; color: string }> = {
-  PV: { name: 'Porteurs de Virus', color: INFECTION_COLORS.teamPV },
-  SY: { name: 'Scientifiques', color: INFECTION_COLORS.teamSY },
+  PV: { name: 'Porte Venins', color: INFECTION_COLORS.teamPV },
+  SY: { name: 'Synthétistes', color: INFECTION_COLORS.teamSY },
   NEUTRE: { name: 'Neutres', color: INFECTION_COLORS.teamNeutre },
   CITOYEN: { name: 'Citoyens', color: INFECTION_COLORS.teamCitoyen },
 };
