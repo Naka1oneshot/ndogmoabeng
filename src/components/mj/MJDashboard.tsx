@@ -9,6 +9,7 @@ import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { GameStartAnimation } from '@/components/game/GameStartAnimation';
 import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
+import { InviteFriendsModal } from '@/components/game/InviteFriendsModal';
 import { MJPlayersTab } from './MJPlayersTab';
 import { MJBetsTab } from './MJBetsTab';
 import { MJPhase2Tab } from './MJPhase2Tab';
@@ -25,7 +26,7 @@ import { MJInfectionDashboard } from '@/components/infection/MJInfectionDashboar
 import {
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
-  Bug, Store, Swords, Target, SkipForward, Trash2, FastForward
+  Bug, Store, Swords, Target, SkipForward, Trash2, FastForward, UserPlus
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
@@ -82,6 +83,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [deleting, setDeleting] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
   const [totalAdventureSteps, setTotalAdventureSteps] = useState(3);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   
   // Apply game-specific theme
   useGameTheme(game.selected_game_type_code);
@@ -505,10 +507,24 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
               {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </ForestButton>
           </div>
+          {game.status === 'LOBBY' && (
+            <ForestButton variant="outline" size="sm" onClick={() => setInviteModalOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Inviter</span>
+            </ForestButton>
+          )}
           <ThemeToggle />
           <UserAvatarButton size="sm" onLeaveGame={onBack} />
         </div>
       </div>
+
+      <InviteFriendsModal
+        open={inviteModalOpen}
+        onOpenChange={setInviteModalOpen}
+        gameId={game.id}
+        gameName={game.name}
+        joinCode={game.join_code}
+      />
 
       {/* Game info bar */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
