@@ -72,7 +72,7 @@ export default function Auth() {
             <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />
           </Link>
           <h1 className="font-display text-2xl text-glow mb-2">
-            La Forêt de Ndogmoabeng
+            Le Village de Ndogmoabeng
           </h1>
           <p className="text-muted-foreground">
             {isLogin ? 'Connectez-vous pour continuer' : 'Créez votre compte'}
