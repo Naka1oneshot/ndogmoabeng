@@ -288,7 +288,22 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
         return;
       }
 
-      toast.success(`Token de ${playerName} réinitialisé`);
+      // Copy the new join link to clipboard
+      if (data.newToken) {
+        const { getPlayerReconnectUrl } = await import('@/lib/urlHelpers');
+        const joinUrl = getPlayerReconnectUrl(game.id, data.newToken);
+        try {
+          await navigator.clipboard.writeText(joinUrl);
+          setCopiedId(playerId);
+          toast.success(`Token de ${playerName} réinitialisé et lien copié !`);
+          setTimeout(() => setCopiedId(null), 2000);
+        } catch {
+          toast.success(`Token de ${playerName} réinitialisé`);
+        }
+      } else {
+        toast.success(`Token de ${playerName} réinitialisé`);
+      }
+      
       fetchData();
     } catch (err) {
       console.error('Reset error:', err);
