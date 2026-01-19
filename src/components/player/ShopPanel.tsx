@@ -4,7 +4,7 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, ShoppingBag, Coins, Sword, Shield, 
-  Check, Lock, AlertCircle, Clock, Send
+  Check, Lock, AlertCircle, Clock, Send, Info
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
@@ -321,6 +321,7 @@ export function ShopPanel({ game, player, className }: ShopPanelProps) {
                   {info?.restockable && (
                     <Badge variant="outline" className="text-xs">∞</Badge>
                   )}
+                  <Info className="h-3 w-3 text-muted-foreground" />
                 </div>
                 <div className="flex items-center gap-1">
                   <Coins className="h-3 w-3 text-yellow-500" />
