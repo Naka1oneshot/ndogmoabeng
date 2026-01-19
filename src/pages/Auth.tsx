@@ -5,19 +5,33 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, User, Phone } from 'lucide-react';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
-const authSchema = z.object({
+const loginSchema = z.object({
   email: z.string().email('Email invalide'),
   password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
+});
+
+const signupSchema = z.object({
+  email: z.string().email('Email invalide'),
+  password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
+  firstName: z.string().min(1, 'Le prénom est requis'),
+  lastName: z.string().min(1, 'Le nom est requis'),
+  displayName: z.string().min(1, 'Le pseudo est requis'),
+  phone: z.string().optional(),
 });
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -28,10 +42,25 @@ export default function Auth() {
     e.preventDefault();
     setError('');
     
-    const validation = authSchema.safeParse({ email, password });
-    if (!validation.success) {
-      setError(validation.error.errors[0].message);
-      return;
+    if (isLogin) {
+      const validation = loginSchema.safeParse({ email, password });
+      if (!validation.success) {
+        setError(validation.error.errors[0].message);
+        return;
+      }
+    } else {
+      const validation = signupSchema.safeParse({ 
+        email, 
+        password, 
+        firstName, 
+        lastName, 
+        displayName,
+        phone: phone || undefined
+      });
+      if (!validation.success) {
+        setError(validation.error.errors[0].message);
+        return;
+      }
     }
 
     setLoading(true);
@@ -49,20 +78,58 @@ export default function Auth() {
         }
         navigate('/mj');
       } else {
-        const { error } = await signUp(email, password);
-        if (error) {
-          if (error.message.includes('already registered')) {
+        const { error: signUpError } = await signUp(email, password);
+        if (signUpError) {
+          if (signUpError.message.includes('already registered')) {
             setError('Cet email est déjà utilisé');
           } else {
-            setError(error.message);
+            setError(signUpError.message);
           }
           return;
         }
+        
+        // Get the user after signup
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Create profile with additional information
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: user.id,
+              first_name: firstName,
+              last_name: lastName,
+              display_name: displayName,
+              phone: phone || null,
+            });
+          
+          if (profileError) {
+            console.error('Error creating profile:', profileError);
+            setError('Erreur lors de la création du profil');
+            return;
+          }
+        }
+        
         navigate('/mj');
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setEmail('');
+    setPassword('');
+    setFirstName('');
+    setLastName('');
+    setDisplayName('');
+    setPhone('');
+    setError('');
+  };
+
+  const toggleMode = () => {
+    setIsLogin(!isLogin);
+    resetForm();
   };
 
   return (
@@ -93,8 +160,77 @@ export default function Auth() {
             </div>
           )}
 
+          {!isLogin && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Nom *</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="lastName"
+                      type="text"
+                      placeholder="Dupont"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Prénom *</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="firstName"
+                      type="text"
+                      placeholder="Jean"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="displayName">Pseudo *</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="displayName"
+                    type="text"
+                    placeholder="MonPseudo"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Téléphone (facultatif)</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+33 6 12 34 56 78"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Email *</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -104,12 +240,13 @@ export default function Auth() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10"
+                required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Mot de passe</Label>
+            <Label htmlFor="password">Mot de passe *</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -119,6 +256,7 @@ export default function Auth() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-10"
+                required
               />
             </div>
           </div>
@@ -130,7 +268,7 @@ export default function Auth() {
           <div className="text-center">
             <button
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={toggleMode}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               {isLogin ? "Pas de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'}
