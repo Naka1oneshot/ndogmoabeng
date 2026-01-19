@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { PlayerList } from '@/components/game/PlayerList';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import LobbyLayout from '@/components/lobby/LobbyLayout';
 import { Loader2, Clock } from 'lucide-react';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
@@ -15,6 +15,11 @@ interface Game {
   status: 'LOBBY' | 'IN_GAME' | 'ENDED';
 }
 
+interface PlayerInfo {
+  player_number: number;
+  display_name: string;
+}
+
 export default function Lobby() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -22,6 +27,7 @@ export default function Lobby() {
   const gameId = searchParams.get('game');
 
   const [game, setGame] = useState<Game | null>(null);
+  const [playerInfo, setPlayerInfo] = useState<PlayerInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,23 +39,41 @@ export default function Lobby() {
   useEffect(() => {
     if (!gameId || !user) return;
 
-    const fetchGame = async () => {
-      const { data, error } = await supabase
+    const fetchGameAndPlayer = async () => {
+      // Fetch game
+      const { data: gameData, error: gameError } = await supabase
         .from('games')
         .select('*')
         .eq('id', gameId)
         .single();
 
-      if (error || !data) {
+      if (gameError || !gameData) {
         navigate('/join');
         return;
       }
 
-      setGame(data as Game);
+      setGame(gameData as Game);
+
+      // Fetch current player info
+      const { data: playerData } = await supabase
+        .from('game_players')
+        .select('player_number, display_name')
+        .eq('game_id', gameId)
+        .eq('user_id', user.id)
+        .eq('status', 'ACTIVE')
+        .maybeSingle();
+
+      if (playerData) {
+        setPlayerInfo({
+          player_number: playerData.player_number ?? 0,
+          display_name: playerData.display_name
+        });
+      }
+
       setLoading(false);
     };
 
-    fetchGame();
+    fetchGameAndPlayer();
 
     // Subscribe to game status changes
     const channel = supabase
@@ -100,7 +124,7 @@ export default function Lobby() {
         <GameStatusBadge status={game.status} />
       </header>
 
-      <main className="max-w-md mx-auto space-y-6">
+      <main className="max-w-3xl mx-auto space-y-6">
         {game.status === 'LOBBY' && (
           <div className="card-gradient rounded-lg border border-border p-6 text-center">
             <Clock className="h-8 w-8 text-primary mx-auto mb-3 animate-pulse" />
@@ -121,7 +145,14 @@ export default function Lobby() {
           </div>
         )}
 
-        <PlayerList gameId={game.id} />
+        {/* Lobby Layout with Players + Chat */}
+        {playerInfo && (
+          <LobbyLayout 
+            gameId={game.id}
+            playerNum={playerInfo.player_number}
+            playerName={playerInfo.display_name}
+          />
+        )}
       </main>
     </div>
   );
