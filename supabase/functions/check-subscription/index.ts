@@ -20,30 +20,35 @@ const TIER_LIMITS: Record<string, {
   games_creatable: number;
   clan_benefits: boolean;
   max_friends: number;
+  chat_access: string;
 }> = {
   freemium: {
     games_joinable: 10,
     games_creatable: 2,
     clan_benefits: false,
     max_friends: 2,
+    chat_access: "read_only",
   },
   starter: {
     games_joinable: 30,
     games_creatable: 10,
     clan_benefits: true,
     max_friends: 10,
+    chat_access: "full",
   },
   premium: {
     games_joinable: 100,
     games_creatable: 50,
     clan_benefits: true,
     max_friends: 20,
+    chat_access: "full",
   },
   royal: {
     games_joinable: -1, // unlimited
     games_creatable: 200,
     clan_benefits: true,
     max_friends: -1, // unlimited
+    chat_access: "full",
   },
 };
 
