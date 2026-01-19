@@ -319,7 +319,7 @@ export function PlayerRivieresDashboard({
   return (
     <div className="space-y-4 pb-6">
       {/* Status bar */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <div className={`${rivieresCardStyle} p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Manche</div>
           <div className="text-xl font-bold text-[#D4AF37]">{state.manche_active}/3</div>
@@ -327,6 +327,12 @@ export function PlayerRivieresDashboard({
         <div className={`${rivieresCardStyle} p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Niveau</div>
           <div className="text-xl font-bold text-[#E8E8E8]">{state.niveau_active}/5</div>
+        </div>
+        <div className={`${rivieresCardStyle} p-3 text-center`}>
+          <div className="text-[#9CA3AF] text-xs">Danger</div>
+          <div className="text-xl font-bold text-[#FF6B6B]">
+            {state.danger_effectif !== null ? state.danger_effectif : '—'}
+          </div>
         </div>
         <div className={`${rivieresCardStyle} p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Cagnotte</div>
