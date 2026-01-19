@@ -443,6 +443,50 @@ export type Database = {
           },
         ]
       }
+      game_invitations: {
+        Row: {
+          created_at: string
+          game_id: string
+          game_name: string
+          id: string
+          invited_by_user_id: string
+          invited_user_id: string
+          join_code: string
+          responded_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          game_name: string
+          id?: string
+          invited_by_user_id: string
+          invited_user_id: string
+          join_code: string
+          responded_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          game_name?: string
+          id?: string
+          invited_by_user_id?: string
+          invited_user_id?: string
+          join_code?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_invitations_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_item_purchases: {
         Row: {
           cost: number
