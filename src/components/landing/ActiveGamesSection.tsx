@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { useActiveGamesList } from '@/hooks/useActiveGamesList';
-import { Users, Gamepad2, Clock, LogIn, Globe, Lock } from 'lucide-react';
+import { Users, Gamepad2, Clock, LogIn, Globe, Lock, Eye } from 'lucide-react';
 
 const gameTypeLabels: Record<string, string> = {
   FORET: 'La Forêt',
@@ -125,7 +125,15 @@ export function ActiveGamesSection() {
                   </div>
                 </div>
 
-                {game.is_public ? (
+                {game.status === 'RUNNING' || game.status === 'IN_GAME' ? (
+                  <ForestButton 
+                    className="w-full"
+                    onClick={() => navigate(`/watch/${game.id}`)}
+                  >
+                    <Eye className="h-4 w-4" />
+                    Regarder
+                  </ForestButton>
+                ) : game.is_public ? (
                   <ForestButton 
                     className="w-full"
                     onClick={() => handleJoinPublicGame(game.join_code)}
