@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerList } from '@/components/game/PlayerList';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
+import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Loader2, Clock } from 'lucide-react';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
@@ -13,6 +14,9 @@ interface Game {
   name: string;
   join_code: string;
   status: 'LOBBY' | 'IN_GAME' | 'ENDED';
+  mode: string;
+  current_step_index: number;
+  selected_game_type_code: string | null;
 }
 
 export default function Lobby() {
@@ -97,7 +101,18 @@ export default function Lobby() {
           <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />
         </Link>
         <h1 className="font-display text-xl text-glow mb-2">{game.name}</h1>
-        <GameStatusBadge status={game.status} />
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <GameStatusBadge status={game.status} />
+        </div>
+        
+        {/* Adventure Progress Display */}
+        <div className="flex justify-center">
+          <AdventureProgressDisplay
+            mode={game.mode}
+            currentStepIndex={game.current_step_index}
+            currentGameTypeCode={game.selected_game_type_code}
+          />
+        </div>
       </header>
 
       <main className="max-w-md mx-auto space-y-6">

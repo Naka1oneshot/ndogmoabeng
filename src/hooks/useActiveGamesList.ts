@@ -10,6 +10,8 @@ interface ActiveGame {
   playerCount: number;
   status: string;
   is_public: boolean;
+  current_step_index: number;
+  adventure_id: string | null;
 }
 
 export function useActiveGamesList() {
@@ -57,6 +59,8 @@ export function useActiveGamesList() {
               status: game.status,
               is_public: (game as any).is_public || false,
               playerCount: count || 0,
+              current_step_index: game.current_step_index || 0,
+              adventure_id: game.adventure_id || null,
             };
           })
         );
