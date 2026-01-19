@@ -26,6 +26,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -42,6 +43,7 @@ export default {
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
+          2: "hsl(var(--accent-2))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",
@@ -61,17 +63,25 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        forest: {
-          glow: "hsl(var(--forest-glow))",
-          deep: "hsl(var(--forest-deep))",
-          mist: "hsl(var(--forest-mist))",
-          gold: "hsl(var(--forest-gold))",
+        // Semantic game colors
+        gold: "hsl(var(--gold))",
+        "gold-hover": "hsl(var(--gold-hover))",
+        warning: "hsl(var(--warning))",
+        success: "hsl(var(--success))",
+        surface: {
+          2: "hsl(var(--surface-2))",
         },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        glow: "var(--shadow-glow)",
+        card: "var(--shadow-card)",
+        "glow-primary": "0 0 20px hsl(var(--glow-primary))",
+        "glow-accent": "0 0 15px hsl(var(--glow-accent))",
       },
       keyframes: {
         "accordion-down": {
@@ -107,6 +117,10 @@ export default {
           "0%": { transform: "rotate(0deg)" },
           "100%": { transform: "rotate(360deg)" },
         },
+        "pulse-glow": {
+          "0%, 100%": { boxShadow: "0 0 20px hsl(var(--glow-primary))" },
+          "50%": { boxShadow: "0 0 40px hsl(var(--glow-primary))" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -117,6 +131,7 @@ export default {
         "wave": "wave 2s ease-in-out infinite",
         "bounce-x": "bounce-x 1s ease-in-out infinite",
         "spin-slow": "spin-slow 3s linear infinite",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
       },
     },
   },

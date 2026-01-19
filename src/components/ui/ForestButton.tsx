@@ -4,15 +4,16 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const forestButtonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        primary: 'bg-primary text-primary-foreground hover:bg-primary/90 btn-glow',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border',
+        primary: 'bg-primary text-primary-foreground hover:bg-primary-hover shadow-glow-primary',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-surface-2 border border-border',
         ghost: 'hover:bg-secondary hover:text-secondary-foreground',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        outline: 'border border-border bg-transparent hover:bg-secondary',
+        outline: 'border border-border bg-transparent hover:bg-secondary text-foreground',
+        gold: 'bg-gold text-primary-foreground hover:bg-gold-hover shadow-glow-primary font-semibold',
       },
       size: {
         sm: 'h-9 px-4 text-sm',

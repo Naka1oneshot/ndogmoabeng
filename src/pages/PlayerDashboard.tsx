@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useGameTheme } from '@/contexts/ThemeContext';
 import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock, ShoppingBag, Users } from 'lucide-react';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -70,6 +71,9 @@ export default function PlayerDashboard() {
   const [mobileTab, setMobileTab] = useState('battle');
   const [selectedManche, setSelectedManche] = useState<number>(1);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+  
+  // Apply game-specific theme
+  useGameTheme(game?.selected_game_type_code);
   
   // Start animation state for FORET
   const [showStartAnimation, setShowStartAnimation] = useState(false);
