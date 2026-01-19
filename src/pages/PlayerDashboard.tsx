@@ -26,8 +26,7 @@ import TeamChat from '@/components/player/TeamChat';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { PlayerRivieresDashboard } from '@/components/rivieres/PlayerRivieresDashboard';
 import { PlayerInfectionDashboard } from '@/components/infection/PlayerInfectionDashboard';
-import LobbyChat from '@/components/lobby/LobbyChat';
-import LobbyPlayerList from '@/components/lobby/LobbyPlayerList';
+import LobbyWaitingRoom from '@/components/lobby/LobbyWaitingRoom';
 
 // Implemented game types
 const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION'];
@@ -392,23 +391,12 @@ export default function PlayerDashboard() {
               </p>
             </div>
 
-            {/* Players list and Chat grid */}
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* Player list */}
-              <div className="card-gradient rounded-lg border border-border p-4">
-                <LobbyPlayerList gameId={game.id} currentPlayerNum={player.playerNumber} />
-              </div>
-
-              {/* Chat */}
-              <div className="card-gradient rounded-lg border border-border overflow-hidden" style={{ minHeight: '350px' }}>
-                <LobbyChat
-                  gameId={game.id}
-                  playerNum={player.playerNumber}
-                  playerName={player.displayName}
-                  maxHeight="280px"
-                />
-              </div>
-            </div>
+            {/* Players list and Chat */}
+            <LobbyWaitingRoom
+              gameId={game.id}
+              playerNum={player.playerNumber}
+              playerName={player.displayName}
+            />
 
             {/* Leave button */}
             <div className="text-center">
