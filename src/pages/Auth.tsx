@@ -44,8 +44,8 @@ export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Get the redirect path from location state or default to /mj
-  const from = (location.state as { from?: string })?.from || '/mj';
+  // Get the redirect path from location state or default to home page
+  const from = (location.state as { from?: string })?.from || '/';
 
   const checkDisplayNameAvailability = async () => {
     setCheckingDisplayName(true);

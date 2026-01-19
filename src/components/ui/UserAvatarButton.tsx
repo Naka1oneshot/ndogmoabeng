@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,13 +19,14 @@ interface UserAvatarButtonProps {
 
 export function UserAvatarButton({ size = 'md', className = '', onLeaveGame }: UserAvatarButtonProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
 
   if (!user) {
     return (
       <button
-        onClick={() => navigate('/auth')}
+        onClick={() => navigate('/auth', { state: { from: location.pathname } })}
         className={`flex items-center justify-center rounded-full bg-muted hover:bg-muted/80 transition-colors ${className}`}
         style={{ 
           width: size === 'sm' ? 32 : size === 'lg' ? 48 : 40, 
