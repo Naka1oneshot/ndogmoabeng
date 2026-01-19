@@ -28,7 +28,9 @@ import {
   Play,
   Users,
   Camera,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -49,6 +51,8 @@ export default function Profile() {
   });
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [gamesPage, setGamesPage] = useState(1);
+  const gamesPerPage = 5;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startEditing = () => {
@@ -262,10 +266,37 @@ export default function Profile() {
         {/* Current Games */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Play className="w-5 h-5" />
-              Parties en cours
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Play className="w-5 h-5" />
+                Parties en cours
+              </CardTitle>
+              {currentGames.length > gamesPerPage && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setGamesPage(p => Math.max(1, p - 1))}
+                    disabled={gamesPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground min-w-[40px] text-center">
+                    {gamesPage}/{Math.ceil(currentGames.length / gamesPerPage)}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setGamesPage(p => Math.min(Math.ceil(currentGames.length / gamesPerPage), p + 1))}
+                    disabled={gamesPage >= Math.ceil(currentGames.length / gamesPerPage)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {currentGames.length === 0 ? (
@@ -274,7 +305,9 @@ export default function Profile() {
               </p>
             ) : (
               <div className="space-y-3">
-                {currentGames.map((game) => (
+                {currentGames
+                  .slice((gamesPage - 1) * gamesPerPage, gamesPage * gamesPerPage)
+                  .map((game) => (
                   <div 
                     key={game.id}
                     className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
