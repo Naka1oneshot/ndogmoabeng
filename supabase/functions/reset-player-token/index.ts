@@ -93,11 +93,15 @@ serve(async (req) => {
       );
     }
 
-    // Check if current user is the host
-    console.log("[reset-player-token] Host check - game.host_user_id:", game.host_user_id, "user.id:", user.id);
-    if (game.host_user_id !== user.id) {
+    // Check if current user is the host OR an admin
+    const { data: isAdmin } = await supabase
+      .rpc('has_role', { _user_id: user.id, _role: 'admin' });
+    
+    console.log("[reset-player-token] Host check - game.host_user_id:", game.host_user_id, "user.id:", user.id, "isAdmin:", isAdmin);
+    
+    if (game.host_user_id !== user.id && !isAdmin) {
       return new Response(
-        JSON.stringify({ success: false, error: "Seul le MJ peut réinitialiser les tokens" }),
+        JSON.stringify({ success: false, error: "Seul le MJ ou un admin peut réinitialiser les tokens" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
