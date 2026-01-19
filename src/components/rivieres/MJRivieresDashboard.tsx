@@ -843,6 +843,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                   <th className="p-2 text-right text-[#9CA3AF]">Jetons</th>
                   <th className="p-2 text-center text-[#9CA3AF]">Statut</th>
                   <th className="p-2 text-center text-[#9CA3AF]">Niveaux</th>
+                  <th className="p-2 text-center text-[#9CA3AF]">Récomp. pot.</th>
                   <th className="p-2 text-center text-[#9CA3AF]">Keryndes</th>
                   <th className="p-2 text-right text-[#9CA3AF]">Actions</th>
                 </tr>
@@ -863,6 +864,19 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                         )}
                       </td>
                       <td className="p-2 text-center text-[#E8E8E8]">{stats?.validated_levels ?? 0}/15</td>
+                      <td className="p-2 text-center">
+                        {(() => {
+                          const levels = stats?.validated_levels ?? 0;
+                          const tokens = p.jetons;
+                          const potentialReward = levels >= 9 ? tokens : Math.round((levels * tokens) / 9);
+                          return (
+                            <span className={levels >= 9 ? 'text-[#4ADE80] font-bold' : 'text-amber-400'}>
+                              {potentialReward}
+                              {levels < 9 && <span className="text-xs ml-0.5">⚠️</span>}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="p-2 text-center">
                         {p.clan === 'Keryndes' ? (
                           stats?.keryndes_available ? (

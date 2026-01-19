@@ -353,7 +353,7 @@ export function PlayerRivieresDashboard({
           </div>
           <Badge className={statusDisplay.className}>{statusDisplay.label}</Badge>
         </div>
-        <div className="grid grid-cols-3 gap-3 text-center">
+        <div className="grid grid-cols-2 gap-3 text-center">
           <div>
             <div className="text-[#9CA3AF] text-xs">Jetons</div>
             <div className="text-lg font-bold text-[#4ADE80]">{jetons}💎</div>
@@ -361,6 +361,22 @@ export function PlayerRivieresDashboard({
           <div>
             <div className="text-[#9CA3AF] text-xs">Niveaux validés</div>
             <div className="text-lg font-bold text-[#E8E8E8]">{playerStats.validated_levels}/15</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 text-center mt-3">
+          <div>
+            <div className="text-[#9CA3AF] text-xs">Récompense potentielle</div>
+            <div className="text-lg font-bold">
+              {(() => {
+                const levels = playerStats.validated_levels;
+                const potentialReward = levels >= 9 ? jetons : Math.round((levels * jetons) / 9);
+                return (
+                  <span className={levels >= 9 ? 'text-[#4ADE80]' : 'text-amber-400'}>
+                    {potentialReward} pts {levels < 9 && '⚠️'}
+                  </span>
+                );
+              })()}
+            </div>
           </div>
           {isKeryndes && (
             <div>
