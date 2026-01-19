@@ -8,12 +8,12 @@ const DEFAULT_STATUS: SubscriptionStatus = {
   tier: 'freemium',
   limits: SUBSCRIPTION_TIERS.freemium.features,
   max_limits: SUBSCRIPTION_TIERS.freemium.features,
-  usage: { games_joined: 0, games_created: 0 },
+  usage: { games_created: 0 },
   subscription_end: null,
   source: 'freemium',
   trial_active: false,
   trial_end: null,
-  token_bonus: { games_joinable: 0, games_creatable: 0 },
+  token_bonus: { games_creatable: 0 },
 };
 
 export function useSubscription() {
@@ -45,12 +45,12 @@ export function useSubscription() {
           tier: (data.tier as SubscriptionTier) || 'freemium',
           limits: data.limits || SUBSCRIPTION_TIERS.freemium.features,
           max_limits: data.max_limits || data.limits || SUBSCRIPTION_TIERS.freemium.features,
-          usage: data.usage || { games_joined: 0, games_created: 0 },
+          usage: data.usage || { games_created: 0 },
           subscription_end: data.subscription_end,
           source: data.source || 'freemium',
           trial_active: data.trial_active || false,
           trial_end: data.trial_end || null,
-          token_bonus: data.token_bonus || { games_joinable: 0, games_creatable: 0 },
+          token_bonus: data.token_bonus || { games_creatable: 0 },
         });
       }
     } catch (err) {
@@ -122,13 +122,10 @@ export function useSubscription() {
   };
 
   // Helper to check if user can perform an action
-  const canJoinGame = useCallback(() => {
-    return status.limits.games_joinable === -1 || status.limits.games_joinable > 0;
-  }, [status.limits.games_joinable]);
-
   const canCreateGame = useCallback(() => {
     return status.limits.games_creatable > 0;
   }, [status.limits.games_creatable]);
+
 
   const hasClanBenefits = useCallback(() => {
     return status.limits.clan_benefits;
@@ -150,7 +147,6 @@ export function useSubscription() {
     createCheckout,
     createTokenPayment,
     openCustomerPortal,
-    canJoinGame,
     canCreateGame,
     hasClanBenefits,
     getRemainingTrialDays,
