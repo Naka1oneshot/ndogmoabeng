@@ -102,10 +102,17 @@ export interface TokenBonus {
   games_creatable: number;
 }
 
+export interface UsageStats {
+  games_joined: number;
+  games_created: number;
+}
+
 export interface SubscriptionStatus {
   subscribed: boolean;
   tier: SubscriptionTier;
   limits: SubscriptionLimits;
+  max_limits?: SubscriptionLimits;
+  usage?: UsageStats;
   subscription_end: string | null;
   source: "stripe" | "trial" | "freemium";
   trial_active: boolean;
