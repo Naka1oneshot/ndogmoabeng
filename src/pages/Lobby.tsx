@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerList } from '@/components/game/PlayerList';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Loader2, Clock } from 'lucide-react';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
@@ -85,7 +86,12 @@ export default function Lobby() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-6">
+    <div className="min-h-screen px-4 py-6 relative">
+      {/* Theme toggle in top-right corner */}
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      
       <header className="text-center mb-8">
         <Link to="/" className="inline-flex items-center justify-center w-16 h-16 mb-4 animate-float">
           <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />

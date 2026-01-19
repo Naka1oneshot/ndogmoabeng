@@ -4,7 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useActiveGames } from '@/hooks/useActiveGames';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
-import { Menu, X, Users, Gamepad2, LogIn } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { Menu, X, Gamepad2, LogIn } from 'lucide-react';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 export function LandingNavbar() {
@@ -79,6 +80,7 @@ export function LandingNavbar() {
 
             {/* Desktop CTA */}
             <div className="hidden md:flex items-center gap-3">
+              <ThemeToggle />
               <ForestButton 
                 variant="secondary" 
                 size="sm"
@@ -96,17 +98,20 @@ export function LandingNavbar() {
               </ForestButton>
             </div>
 
-            {/* Mobile menu button */}
-            <button 
-              className="md:hidden p-2"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
-            </button>
+            {/* Mobile: Theme toggle + menu button */}
+            <div className="md:hidden flex items-center gap-2">
+              <ThemeToggle />
+              <button 
+                className="p-2"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Mobile Navigation */}
