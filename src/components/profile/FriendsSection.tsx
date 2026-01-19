@@ -24,11 +24,13 @@ import {
   Clock, 
   Loader2,
   BarChart3,
-  Search
+  Search,
+  Gamepad2
 } from 'lucide-react';
 import { useFriendships } from '@/hooks/useFriendships';
 import { FriendSearchModal } from './FriendSearchModal';
 import { FriendComparisonModal } from './FriendComparisonModal';
+import { InviteToGameModal } from './InviteToGameModal';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface Friend {
@@ -55,6 +57,7 @@ export function FriendsSection() {
 
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [comparisonModalOpen, setComparisonModalOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -89,6 +92,11 @@ export function FriendsSection() {
   const openComparison = (friend: Friend) => {
     setSelectedFriend(friend);
     setComparisonModalOpen(true);
+  };
+
+  const openInvite = (friend: Friend) => {
+    setSelectedFriend(friend);
+    setInviteModalOpen(true);
   };
 
   if (loading) {
@@ -180,6 +188,14 @@ export function FriendsSection() {
                       <span className="font-medium">{friend.display_name}</span>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openInvite(friend)}
+                        title="Inviter à une partie"
+                      >
+                        <Gamepad2 className="w-4 h-4" />
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
@@ -342,6 +358,15 @@ export function FriendsSection() {
         onOpenChange={setComparisonModalOpen}
         friend={selectedFriend}
       />
+
+      {selectedFriend && (
+        <InviteToGameModal
+          open={inviteModalOpen}
+          onOpenChange={setInviteModalOpen}
+          friendUserId={selectedFriend.user_id}
+          friendName={selectedFriend.display_name}
+        />
+      )}
     </>
   );
 }

@@ -48,6 +48,7 @@ import {
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { FriendsSection } from '@/components/profile/FriendsSection';
+import { GameInvitationsSection } from '@/components/profile/GameInvitationsSection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -274,6 +275,9 @@ export default function Profile() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Game Invitations */}
+        <GameInvitationsSection />
 
         {/* Current Games */}
         <Card>
