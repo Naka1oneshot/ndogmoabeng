@@ -506,9 +506,16 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {queueMonsters.slice(0, 4).map(m => (
-                      <span key={m.id} className="text-xs bg-amber-500/10 px-2 py-0.5 rounded">
-                        🐉 {getMonsterName(m)}
-                      </span>
+                      <div key={m.id} className="flex items-center gap-1 text-xs bg-amber-500/10 px-2 py-0.5 rounded">
+                        <div className="w-5 h-5 rounded overflow-hidden flex-shrink-0">
+                          {getMonsterImage(m.monster_id) ? (
+                            <img src={getMonsterImage(m.monster_id)} alt={getMonsterName(m)} className="w-full h-full object-cover" />
+                          ) : (
+                            <span>🐉</span>
+                          )}
+                        </div>
+                        <span>{getMonsterName(m)}</span>
+                      </div>
                     ))}
                     {queueMonsters.length > 4 && <span className="text-xs text-amber-500">+{queueMonsters.length - 4}</span>}
                   </div>
