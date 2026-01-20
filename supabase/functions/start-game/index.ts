@@ -385,6 +385,29 @@ serve(async (req) => {
 
     console.log("Game started successfully:", gameId, "session_game_id:", sessionGameId);
 
+    // Auto-generate the first shop for round 1
+    console.log("[start-game] Auto-generating first shop...");
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const generateShopResponse = await fetch(`${supabaseUrl}/functions/v1/generate-shop`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ gameId }),
+      });
+      
+      if (generateShopResponse.ok) {
+        const shopResult = await generateShopResponse.json();
+        console.log("[start-game] Shop generated:", shopResult.items?.join(", ") || "OK");
+      } else {
+        console.error("[start-game] Shop generation failed:", await generateShopResponse.text());
+      }
+    } catch (shopError) {
+      console.error("[start-game] Error calling generate-shop:", shopError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -395,6 +418,7 @@ serve(async (req) => {
         phase: "PHASE1_MISES",
         playerCount: activePlayers.length,
         players: playerUpdates,
+        shopGenerated: true,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
