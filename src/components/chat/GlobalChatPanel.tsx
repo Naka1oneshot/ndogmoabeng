@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useFriendChat } from '@/hooks/useFriendChat';
 import { useFriendships } from '@/hooks/useFriendships';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +20,7 @@ import {
   Loader2,
   ExternalLink,
 } from 'lucide-react';
+import { FloatingChatBubble } from './FloatingChatBubble';
 
 export function GlobalChatPanel() {
   const navigate = useNavigate();
@@ -29,11 +30,19 @@ export function GlobalChatPanel() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [previousUnread, setPreviousUnread] = useState(0);
 
   const { messages, conversations, loading, totalUnread, sendMessage } = useFriendChat(selectedFriendId || undefined);
   const { friends } = useFriendships();
 
   const selectedFriend = friends.find(f => f.user_id === selectedFriendId);
+
+  // Track previous unread count for the bubble
+  useEffect(() => {
+    if (!isOpen) {
+      setPreviousUnread(totalUnread);
+    }
+  }, [totalUnread, isOpen]);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -69,26 +78,15 @@ export function GlobalChatPanel() {
   if (!user) return null;
 
   return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          className="fixed bottom-4 right-4 z-50 h-14 w-14 rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <MessageCircle className="h-6 w-6" />
-          {totalUnread > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {totalUnread > 99 ? '99+' : totalUnread}
-            </Badge>
-          )}
-        </Button>
-      </SheetTrigger>
+    <>
+      <FloatingChatBubble
+        unreadCount={totalUnread}
+        previousUnreadCount={previousUnread}
+        onClick={() => setIsOpen(true)}
+      />
 
-      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
         {!selectedFriendId ? (
           // Conversations list
           <>
@@ -287,5 +285,6 @@ export function GlobalChatPanel() {
         )}
       </SheetContent>
     </Sheet>
+    </>
   );
 }
