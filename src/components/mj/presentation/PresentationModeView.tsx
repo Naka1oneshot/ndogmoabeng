@@ -316,6 +316,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     const teams: Team[] = [];
     const processedPlayers = new Set<number>();
 
+    // First pass: build all teams
     for (const player of players) {
       if (processedPlayers.has(player.player_number)) continue;
 
@@ -339,10 +340,21 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       }
 
       const rawScore = teammates.reduce((sum, p) => sum + p.recompenses, 0);
-      const teamScore = teammates.length === 1 ? rawScore * 2 : rawScore;
       const teamName = teammates.length === 1 ? teammates[0].display_name : teammates.map(t => t.display_name).join(' & ');
 
-      teams.push({ members: teammates, teamScore, teamName });
+      teams.push({ members: teammates, teamScore: rawScore, teamName });
+    }
+
+    // Check if there's at least one real team (2+ members) in the game
+    const hasRealTeams = teams.some(t => t.members.length > 1);
+
+    // Only double solo scores if there are real teams to compete against
+    if (hasRealTeams) {
+      for (const team of teams) {
+        if (team.members.length === 1) {
+          team.teamScore = team.teamScore * 2;
+        }
+      }
     }
 
     return teams.sort((a, b) => b.teamScore - a.teamScore);
