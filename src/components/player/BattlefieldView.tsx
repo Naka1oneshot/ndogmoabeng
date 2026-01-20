@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Shield, Heart, Skull, Swords, Trophy, Users } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { getMonsterImage } from '@/lib/monsterImages';
 
 interface MonsterState {
   id: string;
