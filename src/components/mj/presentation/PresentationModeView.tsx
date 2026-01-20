@@ -40,6 +40,7 @@ interface Player {
   recompenses: number;
   mate_num: number | null;
   is_host: boolean;
+  avatar_url: string | null;
 }
 
 interface Team {
@@ -143,20 +144,36 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
       })));
     }
 
-    // Fetch players
+    // Fetch players with profile avatar
     const { data: playersData } = await supabase
       .from('game_players')
-      .select('id, display_name, player_number, jetons, recompenses, mate_num, is_host')
+      .select('id, display_name, player_number, jetons, recompenses, mate_num, is_host, user_id')
       .eq('game_id', game.id)
       .is('removed_at', null)
       .eq('is_host', false)
       .order('player_number');
+    
+    // Fetch avatar URLs from profiles for authenticated players
+    let avatarMap = new Map<string, string>();
+    if (playersData) {
+      const userIds = playersData.filter(p => p.user_id).map(p => p.user_id);
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, avatar_url')
+          .in('user_id', userIds);
+        if (profilesData) {
+          avatarMap = new Map(profilesData.map(p => [p.user_id, p.avatar_url]));
+        }
+      }
+    }
 
     if (playersData) {
       setPlayers(playersData.map(p => ({
         ...p,
         jetons: p.jetons ?? 0,
         recompenses: p.recompenses ?? 0,
+        avatar_url: p.user_id ? (avatarMap.get(p.user_id) || null) : null,
       })));
     }
 
@@ -368,13 +385,13 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
         <div className="flex-1 grid grid-cols-12 gap-4 overflow-hidden">
           {/* Left section: Battlefield + Queue */}
           <div className="col-span-7 flex flex-col gap-4">
-            {/* Battlefield monsters */}
-            <div className="flex-1 bg-card/50 rounded-xl border border-border p-4">
+            {/* Battlefield monsters - reduced size in Phase 3 */}
+            <div className={`${isPhase3 ? '' : 'flex-1'} bg-card/50 rounded-xl border border-border p-4`}>
               <div className="flex items-center gap-2 mb-4">
                 <Swords className="h-5 w-5 text-destructive" />
                 <h2 className="text-lg font-bold">Champ de Bataille</h2>
               </div>
-              <div className="grid grid-cols-3 gap-6 h-[calc(100%-40px)]">
+              <div className={`grid grid-cols-3 gap-6 ${isPhase3 ? 'h-auto' : 'h-[calc(100%-40px)]'}`}>
                 {[1, 2, 3].map(slot => {
                   const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                   return (
@@ -385,24 +402,20 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
                       <div className="text-xs text-muted-foreground mb-2">Slot {slot}</div>
                       {monster ? (
                         <>
-                          <div className="text-6xl mb-3">
-                            {monster.status === 'MORT' ? <Skull className="h-16 w-16 text-muted-foreground" /> : '🐉'}
+                          <div className={`${isPhase3 ? 'text-4xl mb-2' : 'text-6xl mb-3'}`}>
+                            {monster.status === 'MORT' ? <Skull className={`${isPhase3 ? 'h-10 w-10' : 'h-16 w-16'} text-muted-foreground`} /> : '🐉'}
                           </div>
-                          <div className="text-lg font-bold text-center mb-2">{getMonsterName(monster)}</div>
+                          <div className={`${isPhase3 ? 'text-sm' : 'text-lg'} font-bold text-center mb-2`}>{getMonsterName(monster)}</div>
                           <div className="flex items-center gap-4 text-sm">
                             <span className="flex items-center gap-1 text-destructive">
                               <Heart className="h-4 w-4" />
-                              {monster.pv_current}/{getMonsterPvMax(monster)}
+                              {getMonsterPvMax(monster)} PV
                             </span>
                             <span className="flex items-center gap-1 text-amber-500">
                               <Trophy className="h-4 w-4" />
                               {getMonsterReward(monster)}
                             </span>
                           </div>
-                          <Progress 
-                            value={(monster.pv_current / getMonsterPvMax(monster)) * 100} 
-                            className="w-full h-2 mt-3" 
-                          />
                         </>
                       ) : (
                         <span className="text-muted-foreground text-sm">Vide</span>
@@ -425,7 +438,7 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
                     <div key={m.id} className="flex items-center gap-2 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/30">
                       <span>🐉</span>
                       <span className="text-sm">{getMonsterName(m)}</span>
-                      <span className="text-xs text-amber-500/70">PV: {getMonsterPvMax(m)} • 💰{getMonsterReward(m)}</span>
+                      <span className="text-xs text-amber-500/70">{getMonsterPvMax(m)} PV • 💰{getMonsterReward(m)}</span>
                     </div>
                   ))}
                 </div>
@@ -472,7 +485,7 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
             )}
 
             {/* Phase 2 after positions: Player attack order */}
-            {isPhase2 && hasPositions && (
+            {(isPhase2 || isPhase4) && hasPositions && (
               <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <Target className="h-5 w-5 text-blue-500" />
@@ -480,10 +493,12 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
                 </div>
                 <div className="flex items-center justify-center gap-3 flex-wrap">
                   {positions.map((pos) => {
+                    const player = players.find(p => p.player_number === pos.num_joueur);
                     return (
                       <div key={pos.num_joueur} className="flex flex-col items-center">
                         <div className="text-xs text-blue-400 mb-1">#{pos.position_finale}</div>
                         <Avatar className="h-14 w-14 border-2 border-blue-500">
+                          <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
                           <AvatarFallback className="bg-blue-600 text-white text-lg">
                             {pos.nom.charAt(0).toUpperCase()}
                           </AvatarFallback>
@@ -496,31 +511,41 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
               </div>
             )}
 
-            {/* Phase 3: Shop items */}
+            {/* Phase 3: Shop items - Large detailed display */}
             {isPhase3 && shopOffer && shopItems.length > 0 && (
-              <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Store className="h-5 w-5 text-purple-500" />
-                  <h3 className="font-semibold text-purple-500">Boutique - Objets disponibles</h3>
+              <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-4 flex-1">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Store className="h-5 w-5 text-purple-500" />
+                    <h3 className="font-semibold text-purple-500">Boutique - Objets disponibles</h3>
+                  </div>
+                  <Badge className="bg-purple-600/50 text-purple-100">
+                    Soumissions : {submittedShopPlayerNums.size} / {players.length}
+                  </Badge>
                 </div>
-                <div className="grid grid-cols-5 gap-3">
+                <div className="grid grid-cols-5 gap-4 h-[calc(100%-50px)]">
                   {shopItems.slice(0, 5).map(item => (
-                    <div key={item.id} className="bg-purple-500/20 rounded-lg p-3 border border-purple-600/40">
-                      <div className="font-medium text-sm mb-1">{item.name}</div>
-                      <div className="text-xs text-muted-foreground mb-2 line-clamp-2">{item.detailed_description || item.category}</div>
-                      <div className="flex items-center gap-2 text-xs">
+                    <div key={item.id} className="bg-purple-500/20 rounded-lg p-4 border border-purple-600/40 flex flex-col">
+                      <div className="font-bold text-base mb-2 text-center">{item.name}</div>
+                      <div className="text-sm text-muted-foreground flex-1 mb-3">
+                        {item.detailed_description || item.category}
+                      </div>
+                      <div className="flex items-center justify-center gap-3 text-sm font-medium">
                         {item.base_damage && item.base_damage > 0 && (
-                          <span className="text-destructive">⚔️ {item.base_damage}</span>
+                          <span className="text-destructive flex items-center gap-1">
+                            <Swords className="h-4 w-4" />
+                            {item.base_damage} dégâts
+                          </span>
                         )}
                         {item.base_heal && item.base_heal > 0 && (
-                          <span className="text-green-500">💚 {item.base_heal}</span>
+                          <span className="text-green-500 flex items-center gap-1">
+                            <Heart className="h-4 w-4" />
+                            {item.base_heal} soins
+                          </span>
                         )}
                       </div>
                     </div>
                   ))}
-                </div>
-                <div className="mt-3 text-xs text-muted-foreground">
-                  Soumissions : {submittedShopPlayerNums.size} / {players.length}
                 </div>
               </div>
             )}
@@ -577,22 +602,28 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
               </ScrollArea>
             </div>
 
-            {/* Priority ranking - only in Phase 2 before positions */}
-            {isPhase2 && !hasPositions && priorities.length > 0 && (
+            {/* Priority ranking - shown in Phase 2 and Phase 3 */}
+            {(isPhase2 || isPhase3) && priorities.length > 0 && (
               <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Target className="h-5 w-5 text-blue-500" />
                   <h3 className="font-semibold text-blue-500">Ordre de priorité (mises)</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {priorities.map((pr, index) => (
-                    <Badge 
-                      key={pr.player_id} 
-                      className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-sm py-1`}
-                    >
-                      #{pr.rank} {pr.display_name}
-                    </Badge>
-                  ))}
+                  {priorities.map((pr, index) => {
+                    const player = players.find(p => p.player_number === pr.num_joueur);
+                    return (
+                      <div key={pr.player_id} className="flex items-center gap-2">
+                        <Avatar className={`h-8 w-8 border-2 ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
+                          <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
+                          <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-xs`}>
+                            {pr.display_name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm">#{pr.rank} {pr.display_name}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
