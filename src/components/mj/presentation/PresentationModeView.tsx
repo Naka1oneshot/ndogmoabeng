@@ -676,8 +676,20 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                         <div className="text-xs text-muted-foreground mb-2">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="text-6xl mb-3">
-                              {monster.status === 'MORT' ? <Skull className="h-16 w-16 text-muted-foreground" /> : '🐉'}
+                            <div className="w-24 h-24 rounded-xl overflow-hidden mb-3 bg-secondary">
+                              {monster.status === 'MORT' ? (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Skull className="h-16 w-16 text-muted-foreground" />
+                                </div>
+                              ) : getMonsterImage(monster.monster_id) ? (
+                                <img 
+                                  src={getMonsterImage(monster.monster_id)} 
+                                  alt={getMonsterName(monster)}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-6xl">🐉</div>
+                              )}
                             </div>
                             <div className="text-lg font-bold text-center mb-2">{getMonsterName(monster)}</div>
                             <div className="flex items-center gap-4 text-sm">
