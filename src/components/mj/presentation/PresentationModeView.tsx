@@ -177,16 +177,20 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
       })));
     }
 
-    // Fetch bets for current manche
-    let betsQuery = supabase.from('round_bets').select('num_joueur, manche, mise, status').eq('game_id', game.id).eq('manche', manche);
-    if (sessionGameId) betsQuery = betsQuery.eq('session_game_id', sessionGameId);
-    const { data: betsData } = await betsQuery;
+    // Fetch bets for current manche - include null session_game_id for backward compatibility
+    const { data: betsData } = await supabase
+      .from('round_bets')
+      .select('num_joueur, manche, mise, status')
+      .eq('game_id', game.id)
+      .eq('manche', manche);
     setBets(betsData || []);
 
-    // Fetch actions for current manche
-    let actionsQuery = supabase.from('actions').select('num_joueur, manche').eq('game_id', game.id).eq('manche', manche);
-    if (sessionGameId) actionsQuery = actionsQuery.eq('session_game_id', sessionGameId);
-    const { data: actionsData } = await actionsQuery;
+    // Fetch actions for current manche - include null session_game_id for backward compatibility
+    const { data: actionsData } = await supabase
+      .from('actions')
+      .select('num_joueur, manche')
+      .eq('game_id', game.id)
+      .eq('manche', manche);
     setActions(actionsData || []);
 
     // Fetch positions for current manche
