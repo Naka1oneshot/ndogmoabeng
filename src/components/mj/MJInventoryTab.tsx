@@ -215,64 +215,66 @@ export function MJInventoryTab({ game }: MJInventoryTabProps) {
                     {items.map(item => {
                       const details = catalog.get(item.objet);
                       return (
-                        <details 
+                        <div 
                           key={item.id}
-                          className={`p-2 rounded border cursor-pointer ${
+                          className={`p-2 rounded border ${
                             item.disponible 
                               ? 'bg-secondary/50 border-border' 
                               : 'bg-red-500/10 border-red-500/30 opacity-60'
                           }`}
                         >
-                          <summary className="list-none">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium text-sm truncate">{item.objet}</span>
-                                <Info className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <details className="group">
+                            <summary className="list-none cursor-pointer">
+                              <div className="flex items-center justify-between">
+                                <span className="flex items-center gap-1">
+                                  <span className="font-medium text-sm truncate">{item.objet}</span>
+                                  <Info className="h-3 w-3 text-muted-foreground flex-shrink-0 group-open:text-primary" />
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  {details?.base_damage && details.base_damage > 0 && (
+                                    <span className="flex items-center gap-0.5 text-xs text-red-400">
+                                      <Zap className="h-3 w-3" />
+                                      {details.base_damage}
+                                    </span>
+                                  )}
+                                  {details?.base_heal && details.base_heal > 0 && (
+                                    <span className="flex items-center gap-0.5 text-xs text-green-400">
+                                      <Heart className="h-3 w-3" />
+                                      {details.base_heal}
+                                    </span>
+                                  )}
+                                  <Badge variant="outline" className="text-xs ml-1">
+                                    x{item.quantite}
+                                  </Badge>
+                                </span>
                               </div>
-                              <div className="flex items-center gap-1">
-                                {details?.base_damage && details.base_damage > 0 && (
-                                  <span className="flex items-center gap-0.5 text-xs text-red-400">
-                                    <Zap className="h-3 w-3" />
-                                    {details.base_damage}
+                              <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                {item.dispo_attaque ? (
+                                  <span className="flex items-center gap-1 text-red-400">
+                                    <Sword className="h-3 w-3" /> Attaque
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-blue-400">
+                                    <Shield className="h-3 w-3" /> Défense
                                   </span>
                                 )}
-                                {details?.base_heal && details.base_heal > 0 && (
-                                  <span className="flex items-center gap-0.5 text-xs text-green-400">
-                                    <Heart className="h-3 w-3" />
-                                    {details.base_heal}
-                                  </span>
+                                {!item.disponible && (
+                                  <span className="text-red-400">(utilisé)</span>
                                 )}
-                                <Badge variant="outline" className="text-xs ml-1">
-                                  x{item.quantite}
-                                </Badge>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                              {item.dispo_attaque ? (
-                                <span className="flex items-center gap-1 text-red-400">
-                                  <Sword className="h-3 w-3" /> Attaque
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1 text-blue-400">
-                                  <Shield className="h-3 w-3" /> Défense
-                                </span>
-                              )}
-                              {!item.disponible && (
-                                <span className="text-red-400">(utilisé)</span>
-                              )}
-                            </div>
-                          </summary>
-                          {details?.detailed_description && (
-                            <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
-                              <p className="text-xs text-primary">
-                                {details.detailed_description}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {details.consumable ? '🔥 Consommable' : '∞ Permanent'}
-                              </p>
-                            </div>
-                          )}
-                        </details>
+                            </summary>
+                            {details?.detailed_description && (
+                              <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                                <p className="text-xs text-primary">
+                                  {details.detailed_description}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {details.consumable ? '🔥 Consommable' : '∞ Permanent'}
+                                </p>
+                              </div>
+                            )}
+                          </details>
+                        </div>
                       );
                     })}
                   </div>
@@ -305,10 +307,10 @@ export function MJInventoryTab({ game }: MJInventoryTabProps) {
                 return (
                   <TableRow key={item.id}>
                     <TableCell>
-                      <details className="cursor-pointer">
-                        <summary className="list-none flex items-center gap-2">
+                      <details className="group">
+                        <summary className="list-none cursor-pointer flex items-center gap-2">
                           <span className="font-medium">{item.objet}</span>
-                          <Info className="h-3 w-3 text-muted-foreground" />
+                          <Info className="h-3 w-3 text-muted-foreground group-open:text-primary" />
                           {details?.base_damage && details.base_damage > 0 && (
                             <span className="flex items-center gap-0.5 text-xs text-red-400">
                               <Zap className="h-3 w-3" />
@@ -323,9 +325,14 @@ export function MJInventoryTab({ game }: MJInventoryTabProps) {
                           )}
                         </summary>
                         {details?.detailed_description && (
-                          <p className="text-xs text-primary mt-1 pt-1 border-t border-border/50">
-                            {details.detailed_description}
-                          </p>
+                          <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                            <p className="text-xs text-primary">
+                              {details.detailed_description}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {details.consumable ? '🔥 Consommable' : '∞ Permanent'}
+                            </p>
+                          </div>
                         )}
                       </details>
                     </TableCell>
