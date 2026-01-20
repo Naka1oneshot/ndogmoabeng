@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { getMonsterImage } from '@/lib/monsterImages';
 
 interface Game {
   id: string;
@@ -466,8 +467,20 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                         <div className="text-[10px] text-muted-foreground">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="text-2xl my-1">
-                              {monster.status === 'MORT' ? <Skull className="h-6 w-6 text-muted-foreground" /> : '🐉'}
+                            <div className="w-12 h-12 rounded-lg overflow-hidden my-1 bg-secondary/50">
+                              {monster.status === 'MORT' ? (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Skull className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                              ) : getMonsterImage(monster.monster_id) ? (
+                                <img 
+                                  src={getMonsterImage(monster.monster_id)} 
+                                  alt={getMonsterName(monster)}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-2xl">🐉</div>
+                              )}
                             </div>
                             <div className="text-xs font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
                             <div className="flex items-center gap-1 text-[10px] mt-1">
