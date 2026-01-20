@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { getMonsterImage } from '@/lib/monsterImages';
 
 interface Game {
   id: string;
@@ -466,8 +467,20 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                         <div className="text-[10px] text-muted-foreground">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="text-2xl my-1">
-                              {monster.status === 'MORT' ? <Skull className="h-6 w-6 text-muted-foreground" /> : '🐉'}
+                            <div className="w-12 h-12 rounded-lg overflow-hidden my-1 bg-secondary/50">
+                              {monster.status === 'MORT' ? (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Skull className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                              ) : getMonsterImage(monster.monster_id) ? (
+                                <img 
+                                  src={getMonsterImage(monster.monster_id)} 
+                                  alt={getMonsterName(monster)}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-2xl">🐉</div>
+                              )}
                             </div>
                             <div className="text-xs font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
                             <div className="flex items-center gap-1 text-[10px] mt-1">
@@ -493,9 +506,16 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {queueMonsters.slice(0, 4).map(m => (
-                      <span key={m.id} className="text-xs bg-amber-500/10 px-2 py-0.5 rounded">
-                        🐉 {getMonsterName(m)}
-                      </span>
+                      <div key={m.id} className="flex items-center gap-1 text-xs bg-amber-500/10 px-2 py-0.5 rounded">
+                        <div className="w-5 h-5 rounded overflow-hidden flex-shrink-0">
+                          {getMonsterImage(m.monster_id) ? (
+                            <img src={getMonsterImage(m.monster_id)} alt={getMonsterName(m)} className="w-full h-full object-cover" />
+                          ) : (
+                            <span>🐉</span>
+                          )}
+                        </div>
+                        <span>{getMonsterName(m)}</span>
+                      </div>
                     ))}
                     {queueMonsters.length > 4 && <span className="text-xs text-amber-500">+{queueMonsters.length - 4}</span>}
                   </div>
@@ -656,8 +676,20 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                         <div className="text-xs text-muted-foreground mb-2">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="text-6xl mb-3">
-                              {monster.status === 'MORT' ? <Skull className="h-16 w-16 text-muted-foreground" /> : '🐉'}
+                            <div className="w-24 h-24 rounded-xl overflow-hidden mb-3 bg-secondary">
+                              {monster.status === 'MORT' ? (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Skull className="h-16 w-16 text-muted-foreground" />
+                                </div>
+                              ) : getMonsterImage(monster.monster_id) ? (
+                                <img 
+                                  src={getMonsterImage(monster.monster_id)} 
+                                  alt={getMonsterName(monster)}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-6xl">🐉</div>
+                              )}
                             </div>
                             <div className="text-lg font-bold text-center mb-2">{getMonsterName(monster)}</div>
                             <div className="flex items-center gap-4 text-sm">
@@ -690,7 +722,13 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   <div className="flex flex-wrap gap-2">
                     {queueMonsters.map(m => (
                       <div key={m.id} className="flex items-center gap-2 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/30">
-                        <span>🐉</span>
+                        <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                          {getMonsterImage(m.monster_id) ? (
+                            <img src={getMonsterImage(m.monster_id)} alt={getMonsterName(m)} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="flex items-center justify-center w-full h-full">🐉</span>
+                          )}
+                        </div>
                         <span className="text-sm">{getMonsterName(m)}</span>
                         <span className="text-xs text-amber-500/70">{getMonsterPvMax(m)} PV • 💰{getMonsterReward(m)}</span>
                       </div>
