@@ -146,18 +146,13 @@ serve(async (req) => {
       );
     }
 
-    // Get actions for this round
-    let actionsQuery = supabase
+    // Get actions for this round - don't filter by session_game_id for backward compatibility
+    // Actions might have null session_game_id even when game has one
+    const { data: actions, error: actionsError } = await supabase
       .from('actions')
       .select('*')
       .eq('game_id', gameId)
       .eq('manche', manche);
-    
-    if (sessionGameId) {
-      actionsQuery = actionsQuery.eq('session_game_id', sessionGameId);
-    }
-    
-    const { data: actions, error: actionsError } = await actionsQuery;
 
     if (actionsError) {
       console.error('[publish-positions] Error fetching actions:', actionsError);

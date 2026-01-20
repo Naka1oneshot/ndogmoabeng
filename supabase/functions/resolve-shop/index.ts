@@ -84,18 +84,13 @@ Deno.serve(async (req) => {
     const sessionGameId = game.current_session_game_id;
     console.log(`[resolve-shop] Processing game ${gameId}, session_game ${sessionGameId}, manche ${manche}`);
 
-    // Check if shop offer exists - use session_game_id if available
-    const shopOfferQuery = supabase
+    // Check if shop offer exists - don't filter by session_game_id for backward compatibility
+    const { data: shopOffer, error: offerError } = await supabase
       .from('game_shop_offers')
       .select('id, item_ids, resolved')
       .eq('game_id', gameId)
-      .eq('manche', manche);
-    
-    if (sessionGameId) {
-      shopOfferQuery.eq('session_game_id', sessionGameId);
-    }
-    
-    const { data: shopOffer, error: offerError } = await shopOfferQuery.single();
+      .eq('manche', manche)
+      .maybeSingle();
 
     if (offerError || !shopOffer) {
       return new Response(
@@ -117,18 +112,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get priority rankings for this round - use session_game_id if available
-    const rankingsQuery = supabase
+    // Get priority rankings for this round - don't filter by session_game_id for backward compatibility
+    const { data: rankings, error: rankingsError } = await supabase
       .from('priority_rankings')
       .select('player_id, num_joueur, rank, display_name')
       .eq('game_id', gameId)
-      .eq('manche', manche);
-    
-    if (sessionGameId) {
-      rankingsQuery.eq('session_game_id', sessionGameId);
-    }
-    
-    const { data: rankings, error: rankingsError } = await rankingsQuery.order('rank', { ascending: true });
+      .eq('manche', manche)
+      .order('rank', { ascending: true });
 
     if (rankingsError || !rankings || rankings.length === 0) {
       return new Response(
@@ -139,18 +129,12 @@ Deno.serve(async (req) => {
 
     console.log(`[resolve-shop] Found ${rankings.length} players in priority order`);
 
-    // Get all shop requests for this round - use session_game_id if available
-    const requestsQuery = supabase
+    // Get all shop requests for this round - don't filter by session_game_id for backward compatibility
+    const { data: requests } = await supabase
       .from('shop_requests')
       .select('id, player_id, player_num, want_buy, item_name')
       .eq('game_id', gameId)
       .eq('manche', manche);
-    
-    if (sessionGameId) {
-      requestsQuery.eq('session_game_id', sessionGameId);
-    }
-    
-    const { data: requests } = await requestsQuery;
 
     const requestMap = new Map<string, ShopRequest>();
     (requests || []).forEach(r => requestMap.set(r.player_id, r));
