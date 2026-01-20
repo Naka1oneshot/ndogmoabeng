@@ -212,49 +212,54 @@ serve(async (req) => {
       }
     }
 
-    // Initialize player inventories with starting items (IDEMPOTENT - using upsert)
+    // Initialize player inventories with starting items
     console.log("Initializing player inventories...");
     
     for (const player of playerUpdates) {
       // All players get the default weapon (permanent, non-consumable)
       const { error: defaultItemError } = await supabase
         .from("inventory")
-        .upsert(
-          {
-            game_id: gameId,
-            session_game_id: sessionGameId,
-            owner_num: player.player_number,
-            objet: "Par défaut (+2 si compagnon Akandé)",
-            quantite: 1,
-            disponible: true,
-            dispo_attaque: true,
-          },
-          { onConflict: "game_id,owner_num,objet" }
-        );
+        .insert({
+          game_id: gameId,
+          session_game_id: sessionGameId,
+          owner_num: player.player_number,
+          objet: "Par défaut (+2 si compagnon Akandé)",
+          quantite: 1,
+          disponible: true,
+          dispo_attaque: true,
+        });
 
       if (defaultItemError) {
-        console.error("Default item insert error:", defaultItemError);
+        // Check if it's a duplicate key error (already exists)
+        if (defaultItemError.code === '23505') {
+          console.log(`Default item already exists for player #${player.player_number}`);
+        } else {
+          console.error("Default item insert error:", defaultItemError);
+        }
+      } else {
+        console.log(`Added default weapon to player #${player.player_number}`);
       }
 
       // Akila clan players get the Sniper Akila (single use, consumable)
       if (player.clan === "Akila") {
         const { error: sniperError } = await supabase
           .from("inventory")
-          .upsert(
-            {
-              game_id: gameId,
-              session_game_id: sessionGameId,
-              owner_num: player.player_number,
-              objet: "Sniper Akila",
-              quantite: 1,
-              disponible: true,
-              dispo_attaque: true,
-            },
-            { onConflict: "game_id,owner_num,objet" }
-          );
+          .insert({
+            game_id: gameId,
+            session_game_id: sessionGameId,
+            owner_num: player.player_number,
+            objet: "Sniper Akila",
+            quantite: 1,
+            disponible: true,
+            dispo_attaque: true,
+          });
 
         if (sniperError) {
-          console.error("Sniper Akila insert error:", sniperError);
+          if (sniperError.code === '23505') {
+            console.log(`Sniper Akila already exists for player #${player.player_number}`);
+          } else {
+            console.error("Sniper Akila insert error:", sniperError);
+          }
         } else {
           console.log(`Added Sniper Akila to player #${player.player_number} (Akila clan)`);
         }

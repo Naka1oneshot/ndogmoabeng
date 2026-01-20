@@ -188,11 +188,12 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
             {/* Header row */}
             <div className="hidden md:grid grid-cols-12 gap-2 text-xs text-muted-foreground px-3 py-1">
               <div className="col-span-1">#</div>
-              <div className="col-span-3">Nom</div>
+              <div className="col-span-2">Nom</div>
               <div className="col-span-2">Clan</div>
               <div className="col-span-1">Mate</div>
               <div className="col-span-1">Jetons</div>
               <div className="col-span-1">Récomp.</div>
+              <div className="col-span-1">Statut</div>
               <div className="col-span-3 text-right">Actions</div>
             </div>
 
@@ -275,26 +276,30 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
                   // Display mode
                   <div className="grid grid-cols-12 gap-2 items-center">
                     <div className="col-span-1">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                        <span className="text-sm font-medium text-primary">
+                      <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
+                        <span className="text-xs font-medium text-primary">
                           {player.player_number || '?'}
                         </span>
                       </div>
                     </div>
-                    <div className="col-span-3 md:col-span-3">
+                    <div className="col-span-2">
                       <span className="font-medium text-sm truncate block">{player.display_name}</span>
                     </div>
-                    <div className="col-span-2 text-sm text-muted-foreground">
+                    <div className="col-span-2 text-sm text-muted-foreground truncate">
                       {player.clan || '-'}
                     </div>
-                    <div className="col-span-1 text-sm text-muted-foreground">
+                    <div className="col-span-1 text-sm text-muted-foreground text-center">
                       {player.mate_num || '-'}
                     </div>
-                    <div className="col-span-1 text-sm font-medium text-forest-gold">
+                    <div className="col-span-1 text-sm font-medium text-forest-gold text-center">
                       {player.jetons}
                     </div>
-                    <div className="col-span-1 text-sm font-medium text-green-500">
+                    <div className="col-span-1 text-sm font-medium text-green-500 text-center">
                       {player.recompenses}
+                    </div>
+                    <div className="col-span-1 flex justify-center">
+                      <span className={`w-2 h-2 rounded-full ${player.is_alive ? 'bg-green-500' : 'bg-red-500'}`} 
+                            title={player.is_alive ? 'Connecté' : 'Déconnecté'} />
                     </div>
                     <div className="col-span-3 flex items-center justify-end gap-1">
                       {isLobby && (
