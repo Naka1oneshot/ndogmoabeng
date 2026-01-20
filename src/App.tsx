@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Login from "./pages/Login";
 import MJ from "./pages/MJ";
+import Presentation from "./pages/Presentation";
 import JoinAnonymous from "./pages/JoinAnonymous";
 import PlayerDashboard from "./pages/PlayerDashboard";
 import AdminGames from "./pages/AdminGames";
@@ -51,6 +52,7 @@ const App = () => (
                 <Route path="/watch" element={<WatchList />} />
                 <Route path="/watch/:gameId" element={<WatchGame />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/presentation/:gameId" element={<Presentation />} />
               <Route path="*" element={<NotFound />} />
               </Routes>
               <GlobalChatPanel />

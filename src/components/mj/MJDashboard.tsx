@@ -28,7 +28,7 @@ import {
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
   Bug, Store, Swords, Target, SkipForward, Trash2, FastForward, UserPlus, Presentation
 } from 'lucide-react';
-import { PresentationModeView } from './presentation/PresentationModeView';
+
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { toast } from 'sonner';
@@ -85,7 +85,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [playerCount, setPlayerCount] = useState(0);
   const [totalAdventureSteps, setTotalAdventureSteps] = useState(3);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
-  const [showPresentationMode, setShowPresentationMode] = useState(false);
+  
   // Apply game-specific theme
   useGameTheme(game.selected_game_type_code);
   
@@ -466,12 +466,6 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
   return (
     <>
-      {showPresentationMode && (
-        <PresentationModeView 
-          game={game} 
-          onClose={() => setShowPresentationMode(false)} 
-        />
-      )}
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -570,7 +564,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         {(game.selected_game_type_code === 'FORET' || !game.selected_game_type_code) && game.status === 'IN_GAME' && (
           <ForestButton 
             size="sm" 
-            onClick={() => setShowPresentationMode(true)}
+            onClick={() => window.open(`/presentation/${game.id}`, '_blank')}
             className="bg-purple-600 hover:bg-purple-700"
           >
             <Presentation className="h-4 w-4 mr-1" />
