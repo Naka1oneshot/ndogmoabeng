@@ -12,6 +12,7 @@ interface MonsterState {
   battlefield_slot: number | null;
   catalog?: {
     name: string;
+    type: string | null;
     pv_max_default: number;
     reward_default: number;
   };
@@ -102,7 +103,7 @@ export function BattlefieldView({ gameId, sessionGameId, className, showDetails 
     const [catalogRes, configRes] = await Promise.all([
       supabase
         .from('monster_catalog')
-        .select('id, name, pv_max_default, reward_default')
+        .select('id, name, type, pv_max_default, reward_default')
         .in('id', monsterIds),
       supabase
         .from('game_monsters')
@@ -139,6 +140,10 @@ export function BattlefieldView({ gameId, sessionGameId, className, showDetails 
 
   const getMonsterName = (monster: MonsterState): string => {
     return monster.catalog?.name ?? `Monstre #${monster.monster_id}`;
+  };
+
+  const getMonsterType = (monster: MonsterState): string | null => {
+    return monster.catalog?.type ?? null;
   };
 
   const battlefieldMonsters = monsters.filter(m => m.status === 'EN_BATAILLE' && m.battlefield_slot);
@@ -229,6 +234,11 @@ export function BattlefieldView({ gameId, sessionGameId, className, showDetails 
                       <div className="w-full h-full flex items-center justify-center text-2xl">🐉</div>
                     )}
                   </div>
+                  {getMonsterType(monster) && (
+                    <div className="text-[10px] text-muted-foreground text-center">
+                      {getMonsterType(monster)}
+                    </div>
+                  )}
                   <div className="text-sm font-medium text-center truncate w-full">
                     {getMonsterName(monster)}
                   </div>
