@@ -281,7 +281,7 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
         processedPlayers.add(rm.player_number);
       }
 
-      const rawScore = teammates.reduce((sum, p) => sum + p.jetons + p.recompenses, 0);
+      const rawScore = teammates.reduce((sum, p) => sum + p.recompenses, 0);
       const teamScore = teammates.length === 1 ? rawScore * 2 : rawScore;
       const teamName = teammates.length === 1 ? teammates[0].display_name : teammates.map(t => t.display_name).join(' & ');
 
