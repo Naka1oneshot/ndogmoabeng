@@ -5,7 +5,8 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Mail, Lock, AlertCircle, User, Phone, CheckCircle, Edit2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Mail, Lock, AlertCircle, User, Phone, CheckCircle, Edit2, Clock } from 'lucide-react';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
@@ -44,8 +45,10 @@ export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Get the redirect path from location state or default to home page
-  const from = (location.state as { from?: string })?.from || '/';
+  // Get the redirect path and session expired flag from location state
+  const locationState = location.state as { from?: string; sessionExpired?: boolean } | null;
+  const from = locationState?.from || '/';
+  const sessionExpired = locationState?.sessionExpired || false;
 
   const checkDisplayNameAvailability = async () => {
     setCheckingDisplayName(true);
@@ -295,6 +298,15 @@ export default function Auth() {
         </div>
 
         <form onSubmit={handleSubmit} className="card-gradient rounded-lg border border-border p-6 space-y-4">
+          {sessionExpired && (
+            <Alert className="mb-6 border-amber-500/50 bg-amber-500/10">
+              <Clock className="h-4 w-4 text-amber-500" />
+              <AlertDescription className="text-amber-600 dark:text-amber-400">
+                Votre session a expiré. Veuillez vous reconnecter pour continuer.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive border border-destructive/20">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
