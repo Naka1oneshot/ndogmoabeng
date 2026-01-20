@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useGameTheme } from '@/contexts/ThemeContext';
-import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock, ShoppingBag, Users, BookOpen } from 'lucide-react';
+import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock, ShoppingBag, Users, BookOpen, ChevronUp, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -73,6 +74,7 @@ export default function PlayerDashboard() {
   const [mobileTab, setMobileTab] = useState('battle');
   const [selectedManche, setSelectedManche] = useState<number>(1);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [showCatalog, setShowCatalog] = useState(false);
   
   // Apply game-specific theme
   useGameTheme(game?.selected_game_type_code);
@@ -606,9 +608,31 @@ export default function PlayerDashboard() {
                 clan={player.clan}
                 mateNum={player.mateNum}
               />
-              <div className="card-gradient rounded-lg border border-border p-4">
-                <ItemsCatalogPanel playerClan={player.clan} />
-              </div>
+              
+              {/* Collapsible Catalog Toggle */}
+              <Collapsible open={showCatalog} onOpenChange={setShowCatalog}>
+                <div className="card-gradient rounded-lg border border-border">
+                  <CollapsibleTrigger asChild>
+                    <button className="w-full flex items-center justify-between p-3 hover:bg-accent/50 transition-colors rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-sm">Catalogue des Objets</span>
+                      </div>
+                      {showCatalog ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="p-4 pt-0">
+                      <ItemsCatalogPanel playerClan={player.clan} />
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+              
               <PlayerActionTabs game={game} player={player} />
             </div>
           </div>
