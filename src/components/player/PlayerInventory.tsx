@@ -252,7 +252,7 @@ export function PlayerInventory({
             Inventaire vide
           </p>
         ) : (
-          <ScrollArea className="h-[200px] md:h-[300px]">
+          <ScrollArea className="h-[160px] md:h-[140px]">
             <div className="space-y-3">
               {/* Usable items */}
               {usableItems.length > 0 && (
