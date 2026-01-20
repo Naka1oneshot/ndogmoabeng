@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords, RefreshCw } from 'lucide-react';
+import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords, RefreshCw, Coins } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
@@ -92,6 +92,12 @@ interface ShopItem {
   base_heal?: number;
 }
 
+interface ShopPrice {
+  item_name: string;
+  cost_normal: number;
+  cost_akila: number;
+}
+
 interface ShopRequest {
   player_id: string;
   player_num: number;
@@ -112,6 +118,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const [priorities, setPriorities] = useState<PriorityRanking[]>([]);
   const [shopOffer, setShopOffer] = useState<ShopOffer | null>(null);
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
+  const [shopPrices, setShopPrices] = useState<ShopPrice[]>([]);
   const [shopRequests, setShopRequests] = useState<ShopRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -241,16 +248,24 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     
     setShopOffer(shopOfferData);
 
-    // item_ids contains item NAMES, not IDs - fetch by name
+    // item_ids contains item NAMES, not IDs - fetch by name + prices
     if (shopOfferData?.item_ids && shopOfferData.item_ids.length > 0) {
-      const { data: itemsData } = await supabase
-        .from('item_catalog')
-        .select('id, name, category, detailed_description, base_damage, base_heal')
-        .in('name', shopOfferData.item_ids);
-      setShopItems(itemsData || []);
-      console.log('[Presentation] Shop items fetched:', itemsData?.length, 'for names:', shopOfferData.item_ids);
+      const [itemsRes, pricesRes] = await Promise.all([
+        supabase
+          .from('item_catalog')
+          .select('id, name, category, detailed_description, base_damage, base_heal')
+          .in('name', shopOfferData.item_ids),
+        supabase
+          .from('shop_prices')
+          .select('item_name, cost_normal, cost_akila')
+          .in('item_name', shopOfferData.item_ids),
+      ]);
+      setShopItems(itemsRes.data || []);
+      setShopPrices(pricesRes.data || []);
+      console.log('[Presentation] Shop items fetched:', itemsRes.data?.length, 'prices:', pricesRes.data?.length);
     } else {
       setShopItems([]);
+      setShopPrices([]);
     }
 
     // Fetch shop requests for current manche
@@ -567,28 +582,43 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="grid grid-cols-2 gap-2 pr-2">
-                    {shopItems.map(item => (
-                      <div key={item.id} className="bg-purple-500/20 rounded-lg p-2 border border-purple-600/40">
-                        <div className="font-bold text-sm mb-1">{item.name}</div>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mb-1">
-                          {item.detailed_description || item.category}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs">
-                          {item.base_damage && item.base_damage > 0 && (
-                            <span className="text-destructive flex items-center gap-0.5">
-                              <Swords className="h-3 w-3" />
-                              {item.base_damage}
-                            </span>
-                          )}
-                          {item.base_heal && item.base_heal > 0 && (
-                            <span className="text-green-500 flex items-center gap-0.5">
-                              <Heart className="h-3 w-3" />
-                              {item.base_heal}
-                            </span>
-                          )}
+                    {shopItems.map(item => {
+                      const price = shopPrices.find(p => p.item_name === item.name);
+                      return (
+                        <div key={item.id} className="bg-purple-500/20 rounded-lg p-2 border border-purple-600/40">
+                          <div className="font-bold text-sm mb-1">{item.name}</div>
+                          <p className="text-xs text-muted-foreground line-clamp-2 mb-1">
+                            {item.detailed_description || item.category}
+                          </p>
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              {item.base_damage && item.base_damage > 0 && (
+                                <span className="text-destructive flex items-center gap-0.5">
+                                  <Swords className="h-3 w-3" />
+                                  {item.base_damage}
+                                </span>
+                              )}
+                              {item.base_heal && item.base_heal > 0 && (
+                                <span className="text-green-500 flex items-center gap-0.5">
+                                  <Heart className="h-3 w-3" />
+                                  {item.base_heal}
+                                </span>
+                              )}
+                            </div>
+                            {price && (
+                              <div className="flex items-center gap-2 text-[10px]">
+                                <span className="flex items-center gap-0.5 text-amber-400">
+                                  <Coins className="h-3 w-3" />
+                                  {price.cost_normal}
+                                </span>
+                                <span className="text-muted-foreground">/</span>
+                                <span className="text-cyan-400">{price.cost_akila}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </ScrollArea>
               </div>
