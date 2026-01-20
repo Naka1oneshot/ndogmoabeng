@@ -435,254 +435,401 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           </div>
         </div>
 
-        {/* Main content grid */}
-        <div className="flex-1 grid grid-cols-12 gap-4 overflow-hidden">
-          {/* Left section: Battlefield + Queue */}
-          <div className="col-span-7 flex flex-col gap-4">
-            {/* Battlefield monsters - reduced size in Phase 3 */}
-            <div className={`${isPhase3 ? '' : 'flex-1'} bg-card/50 rounded-xl border border-border p-4`}>
-              <div className="flex items-center gap-2 mb-4">
-                <Swords className="h-5 w-5 text-destructive" />
-                <h2 className="text-lg font-bold">Champ de Bataille</h2>
-              </div>
-              <div className={`grid grid-cols-3 gap-6 ${isPhase3 ? 'h-auto' : 'h-[calc(100%-40px)]'}`}>
-                {[1, 2, 3].map(slot => {
-                  const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
-                  return (
-                    <div 
-                      key={slot}
-                      className="flex flex-col items-center justify-center p-4 rounded-xl bg-secondary/50 border border-border"
-                    >
-                      <div className="text-xs text-muted-foreground mb-2">Slot {slot}</div>
-                      {monster ? (
-                        <>
-                          <div className={`${isPhase3 ? 'text-4xl mb-2' : 'text-6xl mb-3'}`}>
-                            {monster.status === 'MORT' ? <Skull className={`${isPhase3 ? 'h-10 w-10' : 'h-16 w-16'} text-muted-foreground`} /> : '🐉'}
-                          </div>
-                          <div className={`${isPhase3 ? 'text-sm' : 'text-lg'} font-bold text-center mb-2`}>{getMonsterName(monster)}</div>
-                          <div className="flex items-center gap-4 text-sm">
-                            <span className="flex items-center gap-1 text-destructive">
-                              <Heart className="h-4 w-4" />
-                              {getMonsterPvMax(monster)} PV
-                            </span>
-                            <span className="flex items-center gap-1 text-amber-500">
-                              <Trophy className="h-4 w-4" />
-                              {getMonsterReward(monster)}
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Vide</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Queue monsters - smaller */}
-            {queueMonsters.length > 0 && (
-              <div className="bg-card/50 rounded-xl border border-amber-600/50 p-3">
+        {/* Main content grid - Phase 3 specific compact layout */}
+        {isPhase3 ? (
+          <div className="flex-1 grid grid-cols-12 gap-3 overflow-hidden">
+            {/* Left: Battlefield compact + Validation status */}
+            <div className="col-span-4 flex flex-col gap-3">
+              {/* Battlefield compact */}
+              <div className="bg-card/50 rounded-xl border border-border p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <Users className="h-4 w-4 text-amber-500" />
-                  <h3 className="text-sm font-semibold text-amber-500">File d'attente ({queueMonsters.length})</h3>
+                  <Swords className="h-4 w-4 text-destructive" />
+                  <h2 className="text-sm font-bold">Champ de Bataille</h2>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {queueMonsters.map(m => (
-                    <div key={m.id} className="flex items-center gap-2 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/30">
-                      <span>🐉</span>
-                      <span className="text-sm">{getMonsterName(m)}</span>
-                      <span className="text-xs text-amber-500/70">{getMonsterPvMax(m)} PV • 💰{getMonsterReward(m)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Phase-specific bottom content */}
-            {(isPhase1 || (isPhase2 && !hasPositions) || isPhase3) && (
-              <div className="grid grid-cols-2 gap-4">
-                {/* Validated actions */}
-                <div className="bg-green-500/10 rounded-xl border border-green-600/30 p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <h3 className="font-semibold text-green-500">
-                      Actions validées ({validatedPlayers.length})
-                    </h3>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {validatedPlayers.map(p => (
-                      <Badge key={p.id} className="bg-green-600/50 text-green-100">
-                        {p.display_name}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Pending actions */}
-                <div className="bg-orange-500/10 rounded-xl border border-orange-600/30 p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Clock className="h-5 w-5 text-orange-500" />
-                    <h3 className="font-semibold text-orange-500">
-                      Actions en attente ({pendingPlayers.length})
-                    </h3>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {pendingPlayers.map(p => (
-                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100">
-                        {p.display_name}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Phase 2 after positions: Player attack order */}
-            {(isPhase2 || isPhase4) && hasPositions && (
-              <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Target className="h-5 w-5 text-blue-500" />
-                  <h3 className="font-semibold text-blue-500">Ordre d'attaque validé</h3>
-                </div>
-                <div className="flex items-center justify-center gap-3 flex-wrap">
-                  {positions.map((pos) => {
-                    const player = players.find(p => p.player_number === pos.num_joueur);
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 2, 3].map(slot => {
+                    const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
-                      <div key={pos.num_joueur} className="flex flex-col items-center">
-                        <div className="text-xs text-blue-400 mb-1">#{pos.position_finale}</div>
-                        <Avatar className="h-14 w-14 border-2 border-blue-500">
-                          <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
-                          <AvatarFallback className="bg-blue-600 text-white text-lg">
-                            {pos.nom.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="text-xs mt-1 text-center max-w-[80px] truncate">{pos.nom}</div>
+                      <div key={slot} className="flex flex-col items-center p-2 rounded-lg bg-secondary/50 border border-border">
+                        <div className="text-[10px] text-muted-foreground">Slot {slot}</div>
+                        {monster ? (
+                          <>
+                            <div className="text-2xl my-1">
+                              {monster.status === 'MORT' ? <Skull className="h-6 w-6 text-muted-foreground" /> : '🐉'}
+                            </div>
+                            <div className="text-xs font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
+                            <div className="flex items-center gap-1 text-[10px] mt-1">
+                              <Heart className="h-3 w-3 text-destructive" />
+                              {getMonsterPvMax(monster)}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground text-xs py-4">Vide</span>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
-            )}
 
-            {/* Phase 3: Shop items - Large detailed display */}
-            {isPhase3 && shopOffer && shopItems.length > 0 && (
-              <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-4 flex-1">
-                <div className="flex items-center justify-between mb-4">
+              {/* Queue compact */}
+              {queueMonsters.length > 0 && (
+                <div className="bg-card/50 rounded-lg border border-amber-600/50 p-2">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Users className="h-3 w-3 text-amber-500" />
+                    <span className="text-xs font-semibold text-amber-500">File ({queueMonsters.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {queueMonsters.slice(0, 4).map(m => (
+                      <span key={m.id} className="text-xs bg-amber-500/10 px-2 py-0.5 rounded">
+                        🐉 {getMonsterName(m)}
+                      </span>
+                    ))}
+                    {queueMonsters.length > 4 && <span className="text-xs text-amber-500">+{queueMonsters.length - 4}</span>}
+                  </div>
+                </div>
+              )}
+
+              {/* Validation status */}
+              <div className="flex-1 flex flex-col gap-2">
+                <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-2 flex-1">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span className="text-sm font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {validatedPlayers.map(p => (
+                      <Badge key={p.id} className="bg-green-600/50 text-green-100 text-xs py-0.5">
+                        {p.display_name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-orange-500/10 rounded-lg border border-orange-600/30 p-2 flex-1">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Clock className="h-4 w-4 text-orange-500" />
+                    <span className="text-sm font-semibold text-orange-500">En attente ({pendingPlayers.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {pendingPlayers.map(p => (
+                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-xs py-0.5">
+                        {p.display_name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Middle: Shop items */}
+            <div className="col-span-5 flex flex-col gap-3">
+              <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-3 flex-1 flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Store className="h-5 w-5 text-purple-500" />
-                    <h3 className="font-semibold text-purple-500">Boutique - Objets disponibles</h3>
+                    <h3 className="font-semibold text-purple-500">Boutique</h3>
                   </div>
-                  <Badge className="bg-purple-600/50 text-purple-100">
-                    Soumissions : {submittedShopPlayerNums.size} / {players.length}
+                  <Badge className="bg-purple-600/50 text-purple-100 text-xs">
+                    {submittedShopPlayerNums.size}/{players.length} soumis
                   </Badge>
                 </div>
-                <div className="grid grid-cols-5 gap-4 h-[calc(100%-50px)]">
-                  {shopItems.slice(0, 5).map(item => (
-                    <div key={item.id} className="bg-purple-500/20 rounded-lg p-4 border border-purple-600/40 flex flex-col">
-                      <div className="font-bold text-base mb-2 text-center">{item.name}</div>
-                      <div className="text-sm text-muted-foreground flex-1 mb-3">
-                        {item.detailed_description || item.category}
-                      </div>
-                      <div className="flex items-center justify-center gap-3 text-sm font-medium">
-                        {item.base_damage && item.base_damage > 0 && (
-                          <span className="text-destructive flex items-center gap-1">
-                            <Swords className="h-4 w-4" />
-                            {item.base_damage} dégâts
-                          </span>
-                        )}
-                        {item.base_heal && item.base_heal > 0 && (
-                          <span className="text-green-500 flex items-center gap-1">
-                            <Heart className="h-4 w-4" />
-                            {item.base_heal} soins
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Phase 4: Combat info */}
-            {isPhase4 && (
-              <div className="bg-destructive/10 rounded-xl border border-destructive/30 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Swords className="h-5 w-5 text-destructive" />
-                  <h3 className="font-semibold text-destructive">Phase de Combat en cours</h3>
-                </div>
-                <p className="text-muted-foreground text-sm">Les joueurs affrontent les monstres selon leur ordre d'attaque.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Right section: Rankings */}
-          <div className="col-span-5 flex flex-col gap-4 overflow-hidden">
-            {/* Team/Player ranking - Coup de grâce */}
-            <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-4 flex-1 overflow-hidden flex flex-col">
-              <div className="flex items-center gap-2 mb-4">
-                <Trophy className="h-5 w-5 text-amber-500" />
-                <h3 className="font-semibold text-amber-500">Classement Général (Coup de grâce)</h3>
-              </div>
-              <ScrollArea className="flex-1">
-                <div className="space-y-2">
-                  {teams.map((team, index) => (
-                    <div 
-                      key={team.teamName}
-                      className={`flex items-center justify-between p-3 rounded-lg ${
-                        index === 0 ? 'bg-amber-500/30 border border-amber-500' :
-                        index === 1 ? 'bg-secondary border border-border' :
-                        index === 2 ? 'bg-amber-700/30 border border-amber-700' :
-                        'bg-secondary/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                        </span>
-                        <div>
-                          <div className="font-medium">{team.teamName}</div>
-                          {team.members.length > 1 && (
-                            <div className="text-xs text-muted-foreground">
-                              {team.members.map(m => `${m.display_name}: ${m.jetons + m.recompenses}`).join(' | ')}
-                            </div>
+                <ScrollArea className="flex-1">
+                  <div className="grid grid-cols-2 gap-2 pr-2">
+                    {shopItems.map(item => (
+                      <div key={item.id} className="bg-purple-500/20 rounded-lg p-2 border border-purple-600/40">
+                        <div className="font-bold text-sm mb-1">{item.name}</div>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mb-1">
+                          {item.detailed_description || item.category}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs">
+                          {item.base_damage && item.base_damage > 0 && (
+                            <span className="text-destructive flex items-center gap-0.5">
+                              <Swords className="h-3 w-3" />
+                              {item.base_damage}
+                            </span>
+                          )}
+                          {item.base_heal && item.base_heal > 0 && (
+                            <span className="text-green-500 flex items-center gap-0.5">
+                              <Heart className="h-3 w-3" />
+                              {item.base_heal}
+                            </span>
                           )}
                         </div>
                       </div>
-                      <div className="text-xl font-bold text-amber-500">{team.teamScore}</div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
 
-            {/* Priority ranking - shown in Phase 2 and Phase 3 */}
-            {(isPhase2 || isPhase3) && priorities.length > 0 && (
-              <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Target className="h-5 w-5 text-blue-500" />
-                  <h3 className="font-semibold text-blue-500">Ordre de priorité (mises)</h3>
+            {/* Right: Rankings + Priority */}
+            <div className="col-span-3 flex flex-col gap-3 overflow-hidden">
+              {/* Priority order */}
+              {priorities.length > 0 && (
+                <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-2">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Target className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-semibold text-blue-500">Priorité (mises)</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {priorities.map((pr, index) => {
+                      const player = players.find(p => p.player_number === pr.num_joueur);
+                      return (
+                        <div key={pr.player_id} className="flex items-center gap-1">
+                          <Avatar className={`h-6 w-6 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
+                            <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
+                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[10px]`}>
+                              {pr.display_name.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs">#{pr.rank}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {priorities.map((pr, index) => {
-                    const player = players.find(p => p.player_number === pr.num_joueur);
+              )}
+
+              {/* Team ranking */}
+              <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 flex-1 overflow-hidden flex flex-col">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm font-semibold text-amber-500">Classement</span>
+                </div>
+                <ScrollArea className="flex-1">
+                  <div className="space-y-1">
+                    {teams.map((team, index) => (
+                      <div 
+                        key={team.teamName}
+                        className={`flex items-center justify-between p-1.5 rounded-lg text-sm ${
+                          index === 0 ? 'bg-amber-500/30 border border-amber-500' :
+                          index === 1 ? 'bg-secondary border border-border' :
+                          index === 2 ? 'bg-amber-700/30 border border-amber-700' :
+                          'bg-secondary/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base">
+                            {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                          </span>
+                          <span className="font-medium truncate max-w-[100px]">{team.teamName}</span>
+                        </div>
+                        <span className="font-bold text-amber-500">{team.teamScore}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Default layout for other phases */
+          <div className="flex-1 grid grid-cols-12 gap-4 overflow-hidden">
+            {/* Left section: Battlefield + Queue */}
+            <div className="col-span-7 flex flex-col gap-4">
+              {/* Battlefield monsters */}
+              <div className="flex-1 bg-card/50 rounded-xl border border-border p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Swords className="h-5 w-5 text-destructive" />
+                  <h2 className="text-lg font-bold">Champ de Bataille</h2>
+                </div>
+                <div className="grid grid-cols-3 gap-6 h-[calc(100%-40px)]">
+                  {[1, 2, 3].map(slot => {
+                    const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
-                      <div key={pr.player_id} className="flex items-center gap-2">
-                        <Avatar className={`h-8 w-8 border-2 ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
-                          <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
-                          <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-xs`}>
-                            {pr.display_name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">#{pr.rank} {pr.display_name}</span>
+                      <div 
+                        key={slot}
+                        className="flex flex-col items-center justify-center p-4 rounded-xl bg-secondary/50 border border-border"
+                      >
+                        <div className="text-xs text-muted-foreground mb-2">Slot {slot}</div>
+                        {monster ? (
+                          <>
+                            <div className="text-6xl mb-3">
+                              {monster.status === 'MORT' ? <Skull className="h-16 w-16 text-muted-foreground" /> : '🐉'}
+                            </div>
+                            <div className="text-lg font-bold text-center mb-2">{getMonsterName(monster)}</div>
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="flex items-center gap-1 text-destructive">
+                                <Heart className="h-4 w-4" />
+                                {getMonsterPvMax(monster)} PV
+                              </span>
+                              <span className="flex items-center gap-1 text-amber-500">
+                                <Trophy className="h-4 w-4" />
+                                {getMonsterReward(monster)}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Vide</span>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
-            )}
+
+              {/* Queue monsters */}
+              {queueMonsters.length > 0 && (
+                <div className="bg-card/50 rounded-xl border border-amber-600/50 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-amber-500" />
+                    <h3 className="text-sm font-semibold text-amber-500">File d'attente ({queueMonsters.length})</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {queueMonsters.map(m => (
+                      <div key={m.id} className="flex items-center gap-2 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/30">
+                        <span>🐉</span>
+                        <span className="text-sm">{getMonsterName(m)}</span>
+                        <span className="text-xs text-amber-500/70">{getMonsterPvMax(m)} PV • 💰{getMonsterReward(m)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Phase 1 & 2 validation */}
+              {(isPhase1 || (isPhase2 && !hasPositions)) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-green-500/10 rounded-xl border border-green-600/30 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      <h3 className="font-semibold text-green-500">
+                        Actions validées ({validatedPlayers.length})
+                      </h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {validatedPlayers.map(p => (
+                        <Badge key={p.id} className="bg-green-600/50 text-green-100">
+                          {p.display_name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="bg-orange-500/10 rounded-xl border border-orange-600/30 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="h-5 w-5 text-orange-500" />
+                      <h3 className="font-semibold text-orange-500">
+                        Actions en attente ({pendingPlayers.length})
+                      </h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {pendingPlayers.map(p => (
+                        <Badge key={p.id} className="bg-orange-600/50 text-orange-100">
+                          {p.display_name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Phase 2 after positions: Player attack order */}
+              {(isPhase2 || isPhase4) && hasPositions && (
+                <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Target className="h-5 w-5 text-blue-500" />
+                    <h3 className="font-semibold text-blue-500">Ordre d'attaque validé</h3>
+                  </div>
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    {positions.map((pos) => {
+                      const player = players.find(p => p.player_number === pos.num_joueur);
+                      return (
+                        <div key={pos.num_joueur} className="flex flex-col items-center">
+                          <div className="text-xs text-blue-400 mb-1">#{pos.position_finale}</div>
+                          <Avatar className="h-14 w-14 border-2 border-blue-500">
+                            <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
+                            <AvatarFallback className="bg-blue-600 text-white text-lg">
+                              {pos.nom.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="text-xs mt-1 text-center max-w-[80px] truncate">{pos.nom}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Phase 4: Combat info */}
+              {isPhase4 && (
+                <div className="bg-destructive/10 rounded-xl border border-destructive/30 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Swords className="h-5 w-5 text-destructive" />
+                    <h3 className="font-semibold text-destructive">Phase de Combat en cours</h3>
+                  </div>
+                  <p className="text-muted-foreground text-sm">Les joueurs affrontent les monstres selon leur ordre d'attaque.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Right section: Rankings */}
+            <div className="col-span-5 flex flex-col gap-4 overflow-hidden">
+              {/* Team/Player ranking */}
+              <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-4 flex-1 overflow-hidden flex flex-col">
+                <div className="flex items-center gap-2 mb-4">
+                  <Trophy className="h-5 w-5 text-amber-500" />
+                  <h3 className="font-semibold text-amber-500">Classement Général (Coup de grâce)</h3>
+                </div>
+                <ScrollArea className="flex-1">
+                  <div className="space-y-2">
+                    {teams.map((team, index) => (
+                      <div 
+                        key={team.teamName}
+                        className={`flex items-center justify-between p-3 rounded-lg ${
+                          index === 0 ? 'bg-amber-500/30 border border-amber-500' :
+                          index === 1 ? 'bg-secondary border border-border' :
+                          index === 2 ? 'bg-amber-700/30 border border-amber-700' :
+                          'bg-secondary/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">
+                            {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                          </span>
+                          <div>
+                            <div className="font-medium">{team.teamName}</div>
+                            {team.members.length > 1 && (
+                              <div className="text-xs text-muted-foreground">
+                                {team.members.map(m => `${m.display_name}: ${m.jetons + m.recompenses}`).join(' | ')}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-xl font-bold text-amber-500">{team.teamScore}</div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {/* Priority ranking - shown in Phase 2 */}
+              {isPhase2 && priorities.length > 0 && (
+                <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Target className="h-5 w-5 text-blue-500" />
+                    <h3 className="font-semibold text-blue-500">Ordre de priorité (mises)</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {priorities.map((pr, index) => {
+                      const player = players.find(p => p.player_number === pr.num_joueur);
+                      return (
+                        <div key={pr.player_id} className="flex items-center gap-2">
+                          <Avatar className={`h-8 w-8 border-2 ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
+                            <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
+                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-xs`}>
+                              {pr.display_name.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">#{pr.rank} {pr.display_name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
