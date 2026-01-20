@@ -214,11 +214,19 @@ export function BattlefieldView({ gameId, sessionGameId, className, showDetails 
 
               {monster ? (
                 <>
-                  <div className="text-2xl mb-1">
+                  <div className="w-16 h-16 rounded-lg overflow-hidden mb-1 bg-secondary/50">
                     {monster.status === 'MORT' ? (
-                      <Skull className="h-8 w-8 text-muted-foreground" />
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Skull className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    ) : getMonsterImage(monster.monster_id) ? (
+                      <img 
+                        src={getMonsterImage(monster.monster_id)} 
+                        alt={getMonsterName(monster)}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
-                      '🐉'
+                      <div className="w-full h-full flex items-center justify-center text-2xl">🐉</div>
                     )}
                   </div>
                   <div className="text-sm font-medium text-center truncate w-full">
@@ -281,7 +289,17 @@ export function BattlefieldView({ gameId, sessionGameId, className, showDetails 
                 key={monster.id}
                 className="flex items-center gap-2 text-xs bg-amber-500/10 text-amber-400 px-3 py-1.5 rounded-lg border border-amber-500/20"
               >
-                <span>🐉</span>
+                <div className="w-8 h-8 rounded overflow-hidden bg-secondary/50 flex-shrink-0">
+                  {getMonsterImage(monster.monster_id) ? (
+                    <img 
+                      src={getMonsterImage(monster.monster_id)} 
+                      alt={getMonsterName(monster)}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex items-center justify-center w-full h-full">🐉</span>
+                  )}
+                </div>
                 <div className="flex flex-col">
                   <span className="font-medium">{getMonsterName(monster)}</span>
                   <span className="text-amber-300/70 text-[10px]">
