@@ -193,16 +193,20 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
       .eq('manche', manche);
     setActions(actionsData || []);
 
-    // Fetch positions for current manche
-    let positionsQuery = supabase.from('positions_finales').select('num_joueur, nom, position_finale').eq('game_id', game.id).eq('manche', manche);
-    if (sessionGameId) positionsQuery = positionsQuery.eq('session_game_id', sessionGameId);
-    const { data: positionsData } = await positionsQuery;
+    // Fetch positions for current manche - no session_game_id filter for backward compatibility
+    const { data: positionsData } = await supabase
+      .from('positions_finales')
+      .select('num_joueur, nom, position_finale')
+      .eq('game_id', game.id)
+      .eq('manche', manche);
     setPositions((positionsData || []).sort((a, b) => a.position_finale - b.position_finale));
 
-    // Fetch priority rankings for current manche
-    let prioritiesQuery = supabase.from('priority_rankings').select('player_id, num_joueur, display_name, rank').eq('game_id', game.id).eq('manche', manche);
-    if (sessionGameId) prioritiesQuery = prioritiesQuery.eq('session_game_id', sessionGameId);
-    const { data: prioritiesData } = await prioritiesQuery;
+    // Fetch priority rankings for current manche - no session_game_id filter for backward compatibility
+    const { data: prioritiesData } = await supabase
+      .from('priority_rankings')
+      .select('player_id, num_joueur, display_name, rank')
+      .eq('game_id', game.id)
+      .eq('manche', manche);
     setPriorities((prioritiesData || []).sort((a, b) => a.rank - b.rank));
 
     // Fetch shop offer for current manche
