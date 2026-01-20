@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useGameTheme } from '@/contexts/ThemeContext';
-import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock, ShoppingBag, Users } from 'lucide-react';
+import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock, ShoppingBag, Users, BookOpen } from 'lucide-react';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -22,6 +22,7 @@ import { CombatResultsPanel } from '@/components/player/CombatResultsPanel';
 import { ForestFinalRanking } from '@/components/player/ForestFinalRanking';
 import { PlayerActionTabs } from '@/components/player/PlayerActionTabs';
 import { MancheSelector } from '@/components/player/MancheSelector';
+import { ItemsCatalogPanel } from '@/components/player/ItemsCatalogPanel';
 import TeamChat from '@/components/player/TeamChat';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { PlayerRivieresDashboard } from '@/components/rivieres/PlayerRivieresDashboard';
@@ -595,7 +596,7 @@ export default function PlayerDashboard() {
               />
             </div>
 
-            {/* Right column: Inventory + Phase */}
+            {/* Right column: Inventory + Catalog + Phase */}
             <div className="space-y-4 overflow-auto">
               <PlayerInventory
                 gameId={game.id}
@@ -605,6 +606,9 @@ export default function PlayerDashboard() {
                 clan={player.clan}
                 mateNum={player.mateNum}
               />
+              <div className="card-gradient rounded-lg border border-border p-4">
+                <ItemsCatalogPanel playerClan={player.clan} />
+              </div>
               <PlayerActionTabs game={game} player={player} />
             </div>
           </div>
@@ -661,7 +665,7 @@ export default function PlayerDashboard() {
             <EventsFeed gameId={game.id} />
           </TabsContent>
 
-          <TabsContent value="inventory" className="p-4 mt-0">
+          <TabsContent value="inventory" className="p-4 mt-0 space-y-4">
             <PlayerInventory
               gameId={game.id}
               playerNumber={player.playerNumber}
@@ -670,6 +674,9 @@ export default function PlayerDashboard() {
               clan={player.clan}
               mateNum={player.mateNum}
             />
+            <div className="card-gradient rounded-lg border border-border p-4">
+              <ItemsCatalogPanel playerClan={player.clan} />
+            </div>
           </TabsContent>
 
           <TabsContent value="phase" className="p-4 mt-0 space-y-4">
