@@ -256,68 +256,8 @@ export function JoinGameModal({ open, onOpenChange }: JoinGameModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
-          <div className="space-y-6 py-4">
-            {/* Public games list */}
-            {publicGames.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Gamepad2 className="h-4 w-4" />
-                  <span>Parties publiques en attente</span>
-                </div>
-                <div className="space-y-2">
-                  {publicGames.map((game) => (
-                    <button
-                      key={game.id}
-                      onClick={() => handleJoinPublicGame(game.join_code)}
-                      className="w-full p-3 rounded-lg bg-muted/50 hover:bg-primary/20 border border-border hover:border-primary/50 transition-colors text-left group"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate group-hover:text-primary transition-colors">
-                            {game.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {game.game_type_name || 'Mode unique'}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 ml-3">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Users className="h-3 w-3" />
-                            <span>{game.player_count}</span>
-                          </div>
-                          <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">
-                            {game.join_code}
-                          </span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {loadingGames && (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-
-            {!loadingGames && publicGames.length === 0 && (
-              <div className="text-center py-4 text-sm text-muted-foreground">
-                Aucune partie publique en attente
-              </div>
-            )}
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-primary/20" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">ou avec un code</span>
-              </div>
-            </div>
-
+        <ScrollArea className="flex-1">
+          <div className="space-y-5 py-4 px-1">
             {/* Manual code entry */}
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
@@ -343,7 +283,7 @@ export function JoinGameModal({ open, onOpenChange }: JoinGameModalProps) {
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-primary/20" />
+                <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-card px-2 text-muted-foreground">ou scanner</span>
@@ -454,6 +394,67 @@ export function JoinGameModal({ open, onOpenChange }: JoinGameModalProps) {
                 {error}
               </p>
             )}
+
+            {/* Public games list - at the bottom */}
+            <div className="relative pt-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">parties publiques</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Gamepad2 className="h-4 w-4" />
+                <span>En attente de joueurs</span>
+              </div>
+
+              {loadingGames && (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+
+              {!loadingGames && publicGames.length === 0 && (
+                <div className="text-center py-4 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
+                  Aucune partie publique en attente
+                </div>
+              )}
+
+              {publicGames.length > 0 && (
+                <div className="space-y-2">
+                  {publicGames.map((game) => (
+                    <button
+                      key={game.id}
+                      onClick={() => handleJoinPublicGame(game.join_code)}
+                      className="w-full p-3 rounded-lg bg-muted/50 hover:bg-primary/20 border border-border hover:border-primary/50 transition-colors text-left group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate group-hover:text-primary transition-colors">
+                            {game.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {game.game_type_name || 'Mode unique'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 ml-3">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="h-3 w-3" />
+                            <span>{game.player_count}</span>
+                          </div>
+                          <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">
+                            {game.join_code}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </ScrollArea>
       </DialogContent>
