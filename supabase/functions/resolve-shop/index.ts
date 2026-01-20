@@ -529,6 +529,31 @@ Deno.serve(async (req) => {
       payload: { manche: nextManche, phase: 'PHASE1_MISES' },
     });
 
+    // Auto-generate shop for the next round
+    console.log(`[resolve-shop] Auto-generating shop for manche ${nextManche}...`);
+    let shopGenerated = false;
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const generateShopResponse = await fetch(`${supabaseUrl}/functions/v1/generate-shop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        },
+        body: JSON.stringify({ gameId }),
+      });
+      
+      if (generateShopResponse.ok) {
+        const shopResult = await generateShopResponse.json();
+        console.log(`[resolve-shop] Shop generated for manche ${nextManche}:`, shopResult.items?.join(', ') || 'OK');
+        shopGenerated = true;
+      } else {
+        console.error('[resolve-shop] Shop generation failed:', await generateShopResponse.text());
+      }
+    } catch (shopError) {
+      console.error('[resolve-shop] Error calling generate-shop:', shopError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -543,6 +568,7 @@ Deno.serve(async (req) => {
         nextRound: {
           manche: nextManche,
           phase: 'PHASE1_MISES',
+          shopGenerated,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
