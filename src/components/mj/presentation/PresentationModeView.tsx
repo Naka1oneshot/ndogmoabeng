@@ -3,8 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords } from 'lucide-react';
+import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords, RefreshCw } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface Game {
   id: string;
@@ -109,6 +111,7 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
   const [shopRequests, setShopRequests] = useState<ShopRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   const fetchData = useCallback(async () => {
     const manche = game.manche_active;
@@ -235,6 +238,7 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
       .eq('manche', manche);
     setShopRequests(shopRequestsData || []);
 
+    setLastUpdate(new Date());
     setLoading(false);
   }, [game.id, game.manche_active, game.current_session_game_id]);
 
@@ -357,9 +361,13 @@ export function PresentationModeView({ game, onClose }: PresentationModeViewProp
       className="fixed inset-0 z-[100] bg-gradient-to-b from-background to-secondary text-foreground overflow-hidden"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Close hint */}
-      <div className="absolute top-4 right-4 text-xs text-muted-foreground z-10">
-        Appuyez sur ESC ou cliquez à l'extérieur pour fermer
+      {/* Close hint + Last update indicator */}
+      <div className="absolute top-4 right-4 flex items-center gap-4 text-xs text-muted-foreground z-10">
+        <div className="flex items-center gap-1.5 bg-card/50 px-2 py-1 rounded-md border border-border">
+          <RefreshCw className="h-3 w-3 text-primary animate-pulse" />
+          <span>Sync : {format(lastUpdate, 'HH:mm:ss', { locale: fr })}</span>
+        </div>
+        <span>ESC pour fermer</span>
       </div>
 
       {/* Header with phase info */}
