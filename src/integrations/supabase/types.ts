@@ -1664,26 +1664,32 @@ export type Database = {
         Row: {
           created_at: string
           id: number
+          image_url: string | null
           is_default_in_pool: boolean
           name: string
           pv_max_default: number
           reward_default: number
+          type: string | null
         }
         Insert: {
           created_at?: string
           id: number
+          image_url?: string | null
           is_default_in_pool?: boolean
           name: string
           pv_max_default?: number
           reward_default?: number
+          type?: string | null
         }
         Update: {
           created_at?: string
           id?: number
+          image_url?: string | null
           is_default_in_pool?: boolean
           name?: string
           pv_max_default?: number
           reward_default?: number
+          type?: string | null
         }
         Relationships: []
       }
