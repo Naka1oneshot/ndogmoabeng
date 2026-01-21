@@ -1117,6 +1117,49 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               )}
 
+              {/* Attack positions display - after positions are published */}
+              {isPhase2 && hasPositions && (
+                <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-2 md:p-4">
+                  <div className="flex items-center gap-2 mb-2 md:mb-3">
+                    <Swords className="h-4 md:h-5 w-4 md:w-5 text-purple-500" />
+                    <h3 className="text-sm md:text-base font-semibold text-purple-500">Positions d'attaque</h3>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 md:gap-3">
+                    {[1, 2, 3].map(slot => {
+                      const playersAtSlot = positions.filter(p => p.position_finale === slot);
+                      const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
+                      return (
+                        <div key={slot} className="bg-purple-500/20 rounded-lg p-2 md:p-3 border border-purple-500/30">
+                          <div className="text-center text-[10px] md:text-xs text-muted-foreground mb-1.5">
+                            Slot {slot} {monster ? `- ${getMonsterName(monster)}` : ''}
+                          </div>
+                          <div className="flex flex-wrap justify-center gap-1">
+                            {playersAtSlot.length > 0 ? (
+                              playersAtSlot.map((pos, idx) => {
+                                const player = players.find(p => p.player_number === pos.num_joueur);
+                                return (
+                                  <div key={pos.num_joueur} className="flex flex-col items-center gap-0.5">
+                                    <Avatar className={`h-6 md:h-8 w-6 md:w-8 border-2 ${idx === 0 ? 'border-purple-400' : 'border-purple-500/50'}`}>
+                                      <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
+                                      <AvatarFallback className="bg-purple-600/50 text-white text-[9px] md:text-xs">
+                                        {pos.nom.charAt(0).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-[9px] md:text-[10px] text-center truncate max-w-[50px]">{pos.nom}</span>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground italic">Aucun</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Team Ranking */}
               <div className="flex-1 bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 md:p-4 overflow-hidden flex flex-col">
                 <div className="flex items-center gap-2 mb-2 md:mb-3">
