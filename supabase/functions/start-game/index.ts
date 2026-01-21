@@ -378,27 +378,38 @@ serve(async (req) => {
 
     console.log("Game started successfully:", gameId, "session_game_id:", sessionGameId);
 
-    // Auto-generate the first shop for round 1
-    console.log("[start-game] Auto-generating first shop...");
-    try {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const generateShopResponse = await fetch(`${supabaseUrl}/functions/v1/generate-shop`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        },
-        body: JSON.stringify({ gameId }),
-      });
-      
-      if (generateShopResponse.ok) {
-        const shopResult = await generateShopResponse.json();
-        console.log("[start-game] Shop generated:", shopResult.items?.join(", ") || "OK");
-      } else {
-        console.error("[start-game] Shop generation failed:", await generateShopResponse.text());
+    // Auto-generate the first shop for round 1 (only for FORET game type)
+    const gameTypeCode = game.selected_game_type_code || 'FORET';
+    let shopGenerated = false;
+    
+    if (gameTypeCode === 'FORET') {
+      console.log("[start-game] Auto-generating first shop for FORET game...");
+      try {
+        const fnUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        
+        const generateShopResponse = await fetch(`${fnUrl}/functions/v1/generate-shop`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ gameId, sessionGameId }),
+        });
+        
+        if (generateShopResponse.ok) {
+          const shopResult = await generateShopResponse.json();
+          shopGenerated = true;
+          console.log("[start-game] Shop generated successfully:", shopResult.items?.join(", ") || "OK");
+        } else {
+          const errorText = await generateShopResponse.text();
+          console.error("[start-game] Shop generation failed:", generateShopResponse.status, errorText);
+        }
+      } catch (shopError) {
+        console.error("[start-game] Error calling generate-shop:", shopError);
       }
-    } catch (shopError) {
-      console.error("[start-game] Error calling generate-shop:", shopError);
+    } else {
+      console.log(`[start-game] Skipping shop generation for game type: ${gameTypeCode}`);
     }
 
     return new Response(
@@ -411,7 +422,8 @@ serve(async (req) => {
         phase: "PHASE1_MISES",
         playerCount: activePlayers.length,
         players: playerUpdates,
-        shopGenerated: true,
+        shopGenerated,
+        gameTypeCode,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
