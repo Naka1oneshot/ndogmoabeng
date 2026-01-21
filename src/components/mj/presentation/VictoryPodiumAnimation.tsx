@@ -4,20 +4,21 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import confetti from 'canvas-confetti';
 
-interface PlayerRanking {
-  display_name: string;
-  player_number: number;
+interface TeamRanking {
+  display_name: string; // Team name or player name
+  player_numbers: number[]; // Player numbers in team
   total_score: number;
   jetons: number;
   recompenses: number;
   kills: number;
-  avatar_url?: string | null;
-  clan?: string | null;
+  avatar_urls: (string | null)[];
+  clans: (string | null)[];
+  isTeam: boolean;
 }
 
 interface VictoryPodiumAnimationProps {
   show: boolean;
-  rankings: PlayerRanking[];
+  rankings: TeamRanking[];
   onComplete?: () => void;
 }
 
@@ -208,7 +209,7 @@ export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPo
           
           return (
             <div 
-              key={player.player_number}
+              key={player.player_numbers.join('-')}
               className={`flex flex-col items-center transition-all duration-700 ${shouldShow ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20'}`}
             >
               {/* Player info */}
@@ -217,30 +218,45 @@ export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPo
               </div>
               
               <div className={`relative ${rank === 1 ? 'animate-pulse' : ''}`}>
-                <Avatar className={`${getAvatarSize(rank)} border-4 ${rank === 1 ? 'border-yellow-400' : rank === 2 ? 'border-gray-300' : 'border-amber-600'} shadow-lg`}>
-                  {player.avatar_url ? (
-                    <AvatarImage src={player.avatar_url} alt={player.display_name} />
-                  ) : null}
-                  <AvatarFallback className={`text-2xl font-bold ${getPlaceColor(rank)}`}>
-                    {player.display_name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                {player.isTeam ? (
+                  <div className="flex -space-x-4">
+                    {player.avatar_urls.map((url, idx) => (
+                      <Avatar key={idx} className={`${rank === 1 ? 'h-16 w-16' : rank === 2 ? 'h-14 w-14' : 'h-12 w-12'} border-4 ${rank === 1 ? 'border-yellow-400' : rank === 2 ? 'border-gray-300' : 'border-amber-600'} shadow-lg`}>
+                        {url ? (
+                          <AvatarImage src={url} alt={player.display_name} />
+                        ) : null}
+                        <AvatarFallback className={`text-lg font-bold ${getPlaceColor(rank)}`}>
+                          {player.display_name.split(' & ')[idx]?.slice(0, 2).toUpperCase() || '??'}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                  </div>
+                ) : (
+                  <Avatar className={`${getAvatarSize(rank)} border-4 ${rank === 1 ? 'border-yellow-400' : rank === 2 ? 'border-gray-300' : 'border-amber-600'} shadow-lg`}>
+                    {player.avatar_urls[0] ? (
+                      <AvatarImage src={player.avatar_urls[0]} alt={player.display_name} />
+                    ) : null}
+                    <AvatarFallback className={`text-2xl font-bold ${getPlaceColor(rank)}`}>
+                      {player.display_name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
                 {rank === 1 && (
                   <Crown className="absolute -top-4 left-1/2 -translate-x-1/2 h-8 w-8 text-yellow-400 animate-bounce" />
                 )}
               </div>
               
-              <p className={`mt-2 font-bold ${getPlaceColor(rank)} text-center max-w-[120px] truncate`}>
+              <p className={`mt-2 font-bold ${getPlaceColor(rank)} text-center max-w-[140px] ${player.isTeam ? 'text-sm' : ''} truncate`}>
                 {player.display_name}
               </p>
               
               <Badge variant="outline" className={`mt-1 ${getPlaceColor(rank)} border-current`}>
-                {player.total_score} pts
+                {player.total_score.toFixed(1)} pts
               </Badge>
               
               {/* Detailed stats */}
               <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                <div className="flex items-center gap-0.5" title="Jetons restants">
+                <div className="flex items-center gap-0.5" title="Jetons restants (÷3)">
                   <Coins className="h-3 w-3 text-primary" />
                   <span>{player.jetons}</span>
                 </div>
@@ -281,25 +297,40 @@ export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPo
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {others.map((player, index) => (
                 <div 
-                  key={player.player_number}
+                  key={player.player_numbers.join('-')}
                   className="flex items-center gap-3 p-2 rounded bg-secondary/50"
                 >
                   <span className="w-8 text-center font-bold text-muted-foreground">
                     #{index + 4}
                   </span>
-                  <Avatar className="h-8 w-8">
-                    {player.avatar_url ? (
-                      <AvatarImage src={player.avatar_url} alt={player.display_name} />
-                    ) : null}
-                    <AvatarFallback className="text-xs">
-                      {player.display_name.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="flex-1 font-medium truncate">
+                  {player.isTeam ? (
+                    <div className="flex -space-x-2">
+                      {player.avatar_urls.map((url, idx) => (
+                        <Avatar key={idx} className="h-6 w-6 border-2 border-background">
+                          {url ? (
+                            <AvatarImage src={url} alt={player.display_name} />
+                          ) : null}
+                          <AvatarFallback className="text-[10px]">
+                            {player.display_name.split(' & ')[idx]?.slice(0, 1).toUpperCase() || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                      ))}
+                    </div>
+                  ) : (
+                    <Avatar className="h-8 w-8">
+                      {player.avatar_urls[0] ? (
+                        <AvatarImage src={player.avatar_urls[0]} alt={player.display_name} />
+                      ) : null}
+                      <AvatarFallback className="text-xs">
+                        {player.display_name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <span className={`flex-1 font-medium truncate ${player.isTeam ? 'text-sm' : ''}`}>
                     {player.display_name}
                   </span>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-0.5" title="Jetons">
+                    <div className="flex items-center gap-0.5" title="Jetons (÷3)">
                       <Coins className="h-3 w-3 text-primary" />
                       <span>{player.jetons}</span>
                     </div>
@@ -315,7 +346,7 @@ export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPo
                     )}
                   </div>
                   <Badge variant="outline" className="text-xs ml-2">
-                    {player.total_score} pts
+                    {player.total_score.toFixed(1)} pts
                   </Badge>
                 </div>
               ))}
