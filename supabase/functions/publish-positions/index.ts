@@ -139,6 +139,27 @@ serve(async (req) => {
       
       const existingActionNums = new Set((existingActions || []).map(a => a.num_joueur));
       
+      // Get monsters currently on the battlefield (slots with monsters)
+      let battlefieldQuery = supabase
+        .from('game_state_monsters')
+        .select('battlefield_slot')
+        .eq('game_id', gameId)
+        .eq('status', 'EN_BATAILLE')
+        .not('battlefield_slot', 'is', null);
+      
+      if (sessionGameId) {
+        battlefieldQuery = battlefieldQuery.eq('session_game_id', sessionGameId);
+      }
+      
+      const { data: monstersOnBattlefield } = await battlefieldQuery;
+      
+      // Get occupied slots (slots 1-3 that have monsters)
+      const occupiedSlots = (monstersOnBattlefield || [])
+        .map(m => m.battlefield_slot)
+        .filter((slot): slot is number => slot !== null && slot >= 1 && slot <= 3);
+      
+      console.log(`[publish-positions] Slots with monsters: ${occupiedSlots.join(', ') || 'none'}`);
+      
       // Get player inventory for possible attack items
       for (const bot of botPlayers) {
         if (existingActionNums.has(bot.player_number)) {
@@ -160,8 +181,17 @@ serve(async (req) => {
         // Random position (1 to N)
         const randomPosition = Math.floor(Math.random() * N) + 1;
         
-        // Random attack slot (1 to 3) - targeting monsters
-        const randomSlotAttaque = Math.floor(Math.random() * 3) + 1;
+        // Random attack slot - ONLY select slots with monsters
+        // If no monsters on battlefield, default to slot 1
+        let randomSlotAttaque: number;
+        if (occupiedSlots.length > 0) {
+          const randomSlotIndex = Math.floor(Math.random() * occupiedSlots.length);
+          randomSlotAttaque = occupiedSlots[randomSlotIndex];
+        } else {
+          // Fallback to slot 1 if no monsters (shouldn't happen in normal gameplay)
+          randomSlotAttaque = 1;
+          console.log(`[publish-positions] Warning: No monsters on battlefield, defaulting to slot 1`);
+        }
         
         // Pick random attack item - ALWAYS attack if possible
         let attaque1 = null;
@@ -171,13 +201,19 @@ serve(async (req) => {
           attaque1 = attackItems[randomIndex].objet;
         }
         
-        // Pick random protection item if available
+        // Pick random protection item if available - ONLY select slots with monsters
         let protection = null;
         let slotProtection = null;
         if (protectionItems.length > 0 && Math.random() > 0.5) { // 50% chance to use protection
           const randomIndex = Math.floor(Math.random() * protectionItems.length);
           protection = protectionItems[randomIndex].objet;
-          slotProtection = Math.floor(Math.random() * 3) + 1;
+          // Protection slot should also be on a slot with a monster
+          if (occupiedSlots.length > 0) {
+            const randomProtSlotIndex = Math.floor(Math.random() * occupiedSlots.length);
+            slotProtection = occupiedSlots[randomProtSlotIndex];
+          } else {
+            slotProtection = 1;
+          }
         }
         
         await supabase.from('actions').insert({
