@@ -14,9 +14,11 @@ import { getMonsterImage } from '@/lib/monsterImages';
 import { CombatHistorySummarySheet } from './CombatHistorySummarySheet';
 import { Phase3CombatSummary } from './Phase3CombatSummary';
 import { MonsterReplacementAnimation, MonsterReplacementInfo } from '@/components/game/MonsterReplacementAnimation';
+import { EmptySlotAnimation, EmptySlotInfo } from '@/components/game/EmptySlotAnimation';
 import { PlayerNameTooltip } from './PlayerNameTooltip';
 import { VictoryPodiumAnimation } from './VictoryPodiumAnimation';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
+import emptySlotRip from '@/assets/monsters/empty-slot-rip.png';
 
 interface Game {
   id: string;
@@ -148,6 +150,8 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const [coupDeGraceInfo, setCoupDeGraceInfo] = useState<CoupDeGraceInfo | null>(null);
   const [showMonsterReplacement, setShowMonsterReplacement] = useState(false);
   const [monsterReplacementInfo, setMonsterReplacementInfo] = useState<MonsterReplacementInfo | null>(null);
+  const [showEmptySlot, setShowEmptySlot] = useState(false);
+  const [emptySlotInfo, setEmptySlotInfo] = useState<EmptySlotInfo | null>(null);
   const previousPhaseRef = useRef<string>(initialGame.phase);
   const previousKillsCountRef = useRef<number>(0);
   const previousBattlefieldRef = useRef<Map<number, { monsterId: number; monsterName: string }>>(new Map());
@@ -179,7 +183,13 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     setTimeout(() => setShowMonsterReplacement(false), 3500);
   }, []);
 
-  // Check for monster replacements on battlefield - defined before fetchData
+  const triggerEmptySlot = useCallback((emptyInfo: EmptySlotInfo) => {
+    setEmptySlotInfo(emptyInfo);
+    setShowEmptySlot(true);
+    setTimeout(() => setShowEmptySlot(false), 4000);
+  }, []);
+
+  // Check for monster replacements or empty slots on battlefield - defined before fetchData
   const checkBattlefieldReplacements = useCallback((newMonsters: MonsterState[], catalogMap: Map<number, { name: string; type: string | null; pv_max_default: number; reward_default: number }>) => {
     const newBattlefield = new Map<number, { monsterId: number; monsterName: string }>();
     
@@ -191,13 +201,16 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
         newBattlefield.set(m.battlefield_slot!, { monsterId: m.monster_id, monsterName: name });
       });
     
-    // Compare with previous state to detect replacements
+    // Check if there are any monsters in queue
+    const hasQueueMonsters = newMonsters.some(m => m.status === 'EN_FILE');
+    
+    // Compare with previous state to detect replacements or empty slots
     if (previousBattlefieldRef.current.size > 0) {
       for (const [slot, oldMonster] of previousBattlefieldRef.current) {
         const newMonster = newBattlefield.get(slot);
-        // If the slot has a different monster now, this is a replacement
+        
         if (newMonster && newMonster.monsterId !== oldMonster.monsterId) {
-          // Trigger animation after a small delay to let coup de grâce animation play first
+          // Slot has a different monster now - this is a replacement
           setTimeout(() => {
             triggerMonsterReplacement({
               deadMonsterId: oldMonster.monsterId,
@@ -207,13 +220,23 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
               slot: slot,
             });
           }, 3600); // Wait for coup de grâce to finish (3.5s + 100ms buffer)
-          break; // Only show one replacement at a time
+          break; // Only show one animation at a time
+        } else if (!newMonster && !hasQueueMonsters) {
+          // Slot is now empty AND no queue monsters available - show empty slot animation
+          setTimeout(() => {
+            triggerEmptySlot({
+              deadMonsterId: oldMonster.monsterId,
+              deadMonsterName: oldMonster.monsterName,
+              slot: slot,
+            });
+          }, 3600); // Wait for coup de grâce to finish
+          break; // Only show one animation at a time
         }
       }
     }
     
     previousBattlefieldRef.current = newBattlefield;
-  }, [triggerMonsterReplacement]);
+  }, [triggerMonsterReplacement, triggerEmptySlot]);
 
   const fetchData = useCallback(async () => {
     console.log('[Presentation] Fetching data for game', game.id, 'manche', game.manche_active, 'phase', game.phase);
@@ -880,6 +903,13 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
         info={monsterReplacementInfo} 
       />
 
+      {/* Empty Slot Animation Overlay */}
+      <EmptySlotAnimation 
+        show={showEmptySlot} 
+        info={emptySlotInfo}
+        onComplete={() => setShowEmptySlot(false)}
+      />
+
       {/* Close hint + Last update indicator + Manual refresh button + History */}
       <div className="absolute top-2 md:top-4 right-2 md:right-4 flex items-center gap-2 md:gap-3 text-xs text-muted-foreground z-10">
         <CombatHistorySummarySheet gameId={game.id} sessionGameId={game.current_session_game_id} />
@@ -1003,6 +1033,16 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                               </div>
                             </div>
                           </>
+                        ) : queueMonsters.length === 0 && monsters.some(m => m.status === 'MORT') ? (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <img 
+                              src={emptySlotRip} 
+                              alt="Slot vide - RIP"
+                              className="w-full h-full object-cover opacity-60"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                            <span className="absolute bottom-1 text-muted-foreground text-[10px]">Vide</span>
+                          </div>
                         ) : (
                           <div className="absolute inset-0 bg-secondary/50 flex items-center justify-center">
                             <span className="text-muted-foreground text-xs">Vide</span>
@@ -1338,6 +1378,19 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                               </div>
                             </div>
                           </>
+                        ) : queueMonsters.length === 0 && monsters.some(m => m.status === 'MORT') ? (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <img 
+                              src={emptySlotRip} 
+                              alt="Slot vide - RIP"
+                              className="w-full h-full object-cover opacity-50"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                            <div className="absolute bottom-2 md:bottom-4 text-center">
+                              <div className="text-[10px] md:text-xs text-muted-foreground mb-1">Slot {slot}</div>
+                              <span className="text-muted-foreground text-xs md:text-sm">Vide</span>
+                            </div>
+                          </div>
                         ) : (
                           <div className="absolute inset-0 bg-secondary/30 flex flex-col items-center justify-center">
                             <div className="text-[10px] md:text-xs text-muted-foreground mb-2">Slot {slot}</div>
