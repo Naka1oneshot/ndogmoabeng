@@ -1053,8 +1053,8 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:flex-1 md:overflow-hidden">
             {/* Left section: Battlefield + Queue + Positions - 2/3 width */}
             <div className="md:col-span-8 flex flex-col gap-3 md:gap-4">
-              {/* Battlefield monsters - 2/3 height */}
-              <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4 flex flex-col" style={{ flex: '2 1 0' }}>
+              {/* Battlefield monsters - 3/6 height */}
+              <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4 flex flex-col" style={{ flex: '3 1 0' }}>
                 <div className="flex items-center gap-2 mb-2 md:mb-3">
                   <Swords className="h-5 md:h-6 w-5 md:w-6 text-destructive" />
                   <h2 className="text-base md:text-lg font-bold">Champ de Bataille</h2>
@@ -1124,7 +1124,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               </div>
 
-              {/* Queue monsters - 1/3 height */}
+              {/* Queue monsters - 1/6 height */}
               {queueMonsters.length > 0 && (
                 <div className="bg-card/50 rounded-xl border border-amber-600/50 p-2 md:p-3 flex flex-col" style={{ flex: '1 1 0' }}>
                   <div className="flex items-center gap-1.5 mb-2">
@@ -1133,7 +1133,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   </div>
                   <div className="grid grid-cols-4 gap-1.5 flex-1 h-[calc(100%-2rem)]">
                     {queueMonsters.slice(0, 4).map(m => (
-                      <div key={m.id} className="relative rounded-lg overflow-hidden border border-amber-600/30 h-full min-h-[80px] md:min-h-[120px]">
+                      <div key={m.id} className="relative rounded-lg overflow-hidden border border-amber-600/30 h-full min-h-[60px] md:min-h-[80px]">
                         {getMonsterImage(m.monster_id) ? (
                           <img 
                             src={getMonsterImage(m.monster_id)} 
@@ -1168,36 +1168,33 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   )}
                 </div>
               )}
-              {/* Attack order ranking - horizontal display #1 to #N, max 2 lines */}
+              {/* Attack order ranking - 2/6 height with larger avatars and names */}
               {isPhase2 && hasPositions && (
-                <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-2 md:p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Target className="h-3.5 md:h-4 w-3.5 md:w-4 text-purple-500" />
-                    <h3 className="text-xs md:text-sm font-semibold text-purple-500">Ordre d'attaque</h3>
+                <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-3 md:p-4 flex flex-col" style={{ flex: '2 1 0' }}>
+                  <div className="flex items-center gap-2 mb-2 md:mb-3">
+                    <Target className="h-4 md:h-5 w-4 md:w-5 text-purple-500" />
+                    <h3 className="text-sm md:text-base font-semibold text-purple-500">Ordre d'attaque</h3>
                   </div>
-                  {/* Horizontal flex with max 2 lines via max-height and overflow hidden */}
-                  <div 
-                    className="flex flex-wrap gap-1 overflow-hidden"
-                    style={{ maxHeight: positions.length > 10 ? '3.5rem' : 'none' }}
-                  >
+                  {/* Flex wrap with larger elements for better visibility */}
+                  <div className="flex flex-wrap gap-1.5 md:gap-2 overflow-y-auto flex-1 content-start">
                     {positions.map((pos) => {
                       const player = players.find(p => p.player_number === pos.num_joueur);
-                      const isCompact = positions.length > 10;
+                      const isCompact = positions.length > 15;
                       return (
                         <div 
                           key={pos.num_joueur}
-                          className={`flex items-center gap-0.5 bg-purple-500/20 border border-purple-500/30 ${isCompact ? 'rounded px-1 py-0.5' : 'rounded-lg px-1.5 py-1'}`}
+                          className={`flex items-center gap-1 bg-purple-500/20 border border-purple-500/30 ${isCompact ? 'rounded-lg px-1.5 py-1' : 'rounded-lg px-2 py-1.5'}`}
                         >
-                          <span className={`font-bold text-purple-400 ${isCompact ? 'text-[8px] md:text-[9px]' : 'text-[10px] md:text-xs'}`}>
+                          <span className={`font-bold text-purple-400 ${isCompact ? 'text-[9px] md:text-xs' : 'text-xs md:text-sm'}`}>
                             #{pos.position_finale}
                           </span>
-                          <Avatar className={`${isCompact ? 'h-4 w-4' : 'h-5 w-5'} border border-purple-400/50`}>
+                          <Avatar className={`${isCompact ? 'h-5 w-5 md:h-6 md:w-6' : 'h-6 w-6 md:h-8 md:w-8'} border border-purple-400/50`}>
                             <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
-                            <AvatarFallback className={`bg-purple-600/50 text-white ${isCompact ? 'text-[5px]' : 'text-[7px]'}`}>
+                            <AvatarFallback className={`bg-purple-600/50 text-white ${isCompact ? 'text-[6px] md:text-[8px]' : 'text-[8px] md:text-xs'}`}>
                               {pos.nom.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className={`truncate ${isCompact ? 'text-[7px] md:text-[8px] max-w-[30px]' : 'text-[9px] md:text-[10px] max-w-[45px]'}`}>
+                          <span className={`truncate font-medium ${isCompact ? 'text-[9px] md:text-xs max-w-[40px] md:max-w-[60px]' : 'text-xs md:text-sm max-w-[60px] md:max-w-[100px]'}`}>
                             {pos.nom}
                           </span>
                         </div>
