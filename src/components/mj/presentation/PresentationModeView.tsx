@@ -139,6 +139,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [allKillsByPlayer, setAllKillsByPlayer] = useState<Map<number, number>>(new Map());
   
   // Animation states
   const [showPhaseTransition, setShowPhaseTransition] = useState(false);
@@ -387,7 +388,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       
       if (combatResults) {
         const allKills = combatResults.flatMap(r => {
-          const kills = r.kills as unknown as { killerName: string; monsterName: string; reward: number }[];
+          const kills = r.kills as unknown as { killerName: string; killerNum?: number; monsterName: string; reward: number }[];
           return kills || [];
         });
         
@@ -397,6 +398,21 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           triggerCoupDeGrace(latestKill);
         }
         previousKillsCountRef.current = allKills.length;
+        
+        // Count kills by player number for end game stats
+        const killsByPlayer = new Map<number, number>();
+        for (const kill of allKills) {
+          if (kill.killerNum !== undefined) {
+            killsByPlayer.set(kill.killerNum, (killsByPlayer.get(kill.killerNum) || 0) + 1);
+          } else if (kill.killerName) {
+            // Fallback: find player by name
+            const player = playersData?.find(p => p.display_name === kill.killerName);
+            if (player?.player_number) {
+              killsByPlayer.set(player.player_number, (killsByPlayer.get(player.player_number) || 0) + 1);
+            }
+          }
+        }
+        setAllKillsByPlayer(killsByPlayer);
       }
     }
 
@@ -507,12 +523,15 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   // Check if game is ended
   const isGameEnded = game.phase === 'FINISHED' || game.phase === 'ENDED';
   
-  // Build player rankings for victory screen
+  // Build player rankings for victory screen with detailed stats
   const playerRankings = players
     .map(p => ({
       display_name: p.display_name,
       player_number: p.player_number,
       total_score: p.jetons + p.recompenses,
+      jetons: p.jetons,
+      recompenses: p.recompenses,
+      kills: allKillsByPlayer.get(p.player_number) || 0,
       avatar_url: p.avatar_url,
       clan: p.clan,
     }))
