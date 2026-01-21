@@ -724,7 +724,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:flex-1 md:overflow-hidden">
             {/* Left: Battlefield + Queue - increased size */}
             <div className="md:col-span-5 flex flex-col gap-3">
-              {/* Battlefield - larger for Phase 3 */}
+              {/* Battlefield - larger for Phase 3 with full-size monster images */}
               <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4 flex-1">
                 <div className="flex items-center gap-2 mb-3">
                   <Swords className="h-5 w-5 text-destructive" />
@@ -734,38 +734,59 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   {[1, 2, 3].map(slot => {
                     const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
-                      <div key={slot} className="flex flex-col items-center p-2 md:p-3 rounded-lg bg-secondary/50 border border-border">
-                        <div className="text-[10px] md:text-xs text-muted-foreground mb-1">Slot {slot}</div>
+                      <div 
+                        key={slot} 
+                        className="relative rounded-lg border border-border min-h-[120px] md:min-h-[180px] overflow-hidden"
+                      >
                         {monster ? (
                           <>
-                            <div className="w-14 h-14 md:w-20 md:h-20 rounded-lg overflow-hidden my-1.5 bg-secondary/50">
-                              {monster.status === 'MORT' ? (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Skull className="h-7 md:h-10 w-7 md:w-10 text-muted-foreground" />
-                                </div>
-                              ) : getMonsterImage(monster.monster_id) ? (
-                                <img 
-                                  src={getMonsterImage(monster.monster_id)} 
-                                  alt={getMonsterName(monster)}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-2xl md:text-3xl">🐉</div>
-                              )}
-                            </div>
-                            {getMonsterType(monster) && (
-                              <div className="text-[9px] md:text-xs text-muted-foreground">{getMonsterType(monster)}</div>
+                            {/* Background image filling the entire card */}
+                            {monster.status === 'MORT' ? (
+                              <div className="absolute inset-0 bg-secondary/80 flex items-center justify-center">
+                                <Skull className="h-12 md:h-16 w-12 md:w-16 text-muted-foreground/50" />
+                              </div>
+                            ) : getMonsterImage(monster.monster_id) ? (
+                              <img 
+                                src={getMonsterImage(monster.monster_id)} 
+                                alt={getMonsterName(monster)}
+                                className="absolute inset-0 w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-secondary flex items-center justify-center text-4xl md:text-5xl">🐉</div>
                             )}
-                            <div className="text-xs md:text-sm font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
-                            <div className="flex items-center gap-1.5 text-[10px] md:text-xs mt-1">
-                              <Heart className="h-3 md:h-4 w-3 md:w-4 text-destructive" />
-                              {getMonsterPvMax(monster)}
-                              <Trophy className="h-3 md:h-4 w-3 md:w-4 text-amber-500 ml-1" />
-                              {getMonsterReward(monster)}
+                            
+                            {/* Dark gradient overlay for text readability */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/50" />
+                            
+                            {/* Slot number - top */}
+                            <div className="absolute top-1 md:top-2 left-0 right-0 text-center">
+                              <span className="text-[9px] md:text-[10px] text-white/80 bg-black/40 px-1.5 py-0.5 rounded">
+                                Slot {slot}
+                              </span>
+                            </div>
+                            
+                            {/* Monster info - bottom */}
+                            <div className="absolute bottom-0 left-0 right-0 p-1.5 md:p-2 text-center">
+                              {getMonsterType(monster) && (
+                                <div className="text-[8px] md:text-[10px] text-white/70 mb-0.5">{getMonsterType(monster)}</div>
+                              )}
+                              <div className="text-[10px] md:text-sm font-bold text-white drop-shadow-lg truncate">{getMonsterName(monster)}</div>
+                              <div className="flex items-center justify-center gap-2 md:gap-3 text-[9px] md:text-xs mt-0.5">
+                                <span className="flex items-center gap-0.5 text-red-400">
+                                  <Heart className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                                  {getMonsterPvMax(monster)}
+                                </span>
+                                <span className="flex items-center gap-0.5 text-amber-400">
+                                  <Trophy className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                                  {getMonsterReward(monster)}
+                                </span>
+                              </div>
                             </div>
                           </>
                         ) : (
-                          <span className="text-muted-foreground text-sm py-6">Vide</span>
+                          <div className="absolute inset-0 bg-secondary/50 flex items-center justify-center">
+                            <span className="text-muted-foreground text-sm">Vide</span>
+                          </div>
                         )}
                       </div>
                     );
@@ -773,34 +794,77 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               </div>
 
-              {/* Queue compact */}
+              {/* Queue - enlarged with monster details */}
               {queueMonsters.length > 0 && (
-                <div className="bg-card/50 rounded-lg border border-amber-600/50 p-2 md:p-3">
+                <div className="bg-card/50 rounded-xl border border-amber-600/50 p-2 md:p-3">
                   <div className="flex items-center gap-1.5 mb-2">
                     <Users className="h-4 w-4 text-amber-500" />
                     <span className="text-sm font-semibold text-amber-500">File d'attente ({queueMonsters.length})</span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {queueMonsters.slice(0, 6).map(m => (
-                      <div key={m.id} className="flex items-center gap-1 text-xs bg-amber-500/10 px-2 py-1 rounded">
-                        <div className="w-5 h-5 md:w-6 md:h-6 rounded overflow-hidden flex-shrink-0">
-                          {getMonsterImage(m.monster_id) ? (
-                            <img src={getMonsterImage(m.monster_id)} alt={getMonsterName(m)} className="w-full h-full object-cover" />
-                          ) : (
-                            <span>🐉</span>
-                          )}
+                  <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                    {queueMonsters.slice(0, 8).map(m => (
+                      <div key={m.id} className="relative rounded-lg overflow-hidden min-h-[60px] md:min-h-[80px] border border-amber-600/30">
+                        {getMonsterImage(m.monster_id) ? (
+                          <img 
+                            src={getMonsterImage(m.monster_id)} 
+                            alt={getMonsterName(m)} 
+                            className="absolute inset-0 w-full h-full object-cover" 
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-secondary flex items-center justify-center text-2xl">🐉</div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-1 text-center">
+                          <div className="text-[8px] md:text-[10px] font-bold text-white truncate">{getMonsterName(m)}</div>
+                          <div className="flex items-center justify-center gap-1 text-[7px] md:text-[9px]">
+                            <span className="flex items-center gap-0.5 text-red-400">
+                              <Heart className="h-2 md:h-2.5 w-2 md:w-2.5" />
+                              {getMonsterPvMax(m)}
+                            </span>
+                            <span className="flex items-center gap-0.5 text-amber-400">
+                              <Trophy className="h-2 md:h-2.5 w-2 md:w-2.5" />
+                              {getMonsterReward(m)}
+                            </span>
+                          </div>
                         </div>
-                        <span>{getMonsterName(m)}</span>
                       </div>
                     ))}
-                    {queueMonsters.length > 6 && <span className="text-xs text-amber-500">+{queueMonsters.length - 6}</span>}
                   </div>
+                  {queueMonsters.length > 8 && (
+                    <div className="text-center mt-1 text-xs text-amber-500">+{queueMonsters.length - 8} autres</div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Middle: Validation status (compact) + Shop */}
+            {/* Middle: Priority (moved up) + Validation status + Shop */}
             <div className="md:col-span-4 flex flex-col gap-3">
+              {/* Priority order - now at the top */}
+              {priorities.length > 0 && (
+                <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-2">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Target className="h-3.5 md:h-4 w-3.5 md:w-4 text-blue-500" />
+                    <span className="text-xs md:text-sm font-semibold text-blue-500">Priorité (mises)</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {priorities.map((pr, index) => {
+                      const player = players.find(p => p.player_number === pr.num_joueur);
+                      return (
+                        <div key={pr.player_id} className="flex items-center gap-0.5 md:gap-1">
+                          <Avatar className={`h-5 md:h-6 w-5 md:w-6 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
+                            <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
+                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[8px] md:text-[10px]`}>
+                              {pr.display_name.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-[10px] md:text-xs">#{pr.rank}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Validation status - compact row */}
               <div className="flex gap-2">
                 <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-2 flex-1">
@@ -888,41 +952,15 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
               </div>
             </div>
 
-            {/* Right: Rankings + Priority */}
+            {/* Right: Rankings only (Priority moved to middle) */}
             <div className="md:col-span-3 flex flex-col gap-3 md:overflow-hidden">
-              {/* Priority order */}
-              {priorities.length > 0 && (
-                <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-2">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Target className="h-3.5 md:h-4 w-3.5 md:w-4 text-blue-500" />
-                    <span className="text-xs md:text-sm font-semibold text-blue-500">Priorité (mises)</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {priorities.map((pr, index) => {
-                      const player = players.find(p => p.player_number === pr.num_joueur);
-                      return (
-                        <div key={pr.player_id} className="flex items-center gap-0.5 md:gap-1">
-                          <Avatar className={`h-5 md:h-6 w-5 md:w-6 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
-                            <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
-                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[8px] md:text-[10px]`}>
-                              {pr.display_name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-[10px] md:text-xs">#{pr.rank}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
               {/* Team ranking */}
               <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 flex-1 overflow-hidden flex flex-col">
                 <div className="flex items-center gap-1.5 mb-2">
                   <Trophy className="h-3.5 md:h-4 w-3.5 md:w-4 text-amber-500" />
                   <span className="text-xs md:text-sm font-semibold text-amber-500">Classement</span>
                 </div>
-                <ScrollArea className="flex-1 max-h-[150px] md:max-h-none">
+                <ScrollArea className="flex-1 max-h-[200px] md:max-h-none">
                   <div className="space-y-1">
                     {teams.map((team, index) => (
                       <div 
