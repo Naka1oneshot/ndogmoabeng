@@ -270,7 +270,7 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
                         ) : hasMinePlaced ? (
                           <span className="text-amber-400 font-bold flex items-center gap-0.5">
                             <Timer className="h-2 w-2" />
-                            Slot {entry.minePlaced?.slot}
+                            Posée
                           </span>
                         ) : (
                           <span className="text-blue-500 font-bold">{entry.totalDamage} dégâts</span>

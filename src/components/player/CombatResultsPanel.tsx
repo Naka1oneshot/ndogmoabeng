@@ -168,9 +168,9 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
                         {action.totalDamage} dégâts
                       </span>
                     ) : hasMinePlaced ? (
-                      <span className="text-amber-400 text-xs flex items-center gap-1" title={`Mine posée sur slot ${action.minePlaced?.slot}`}>
+                      <span className="text-amber-400 text-xs flex items-center gap-1">
                         <Timer className="h-3 w-3" />
-                        Slot {action.minePlaced?.slot}
+                        Posée
                       </span>
                     ) : action.cancelled ? (
                       <span className="text-destructive text-xs flex items-center gap-1">
