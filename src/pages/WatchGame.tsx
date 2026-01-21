@@ -30,6 +30,7 @@ import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { PresentationModeView } from '@/components/mj/presentation/PresentationModeView';
 
 const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   LOBBY: { label: 'En attente', variant: 'secondary' },
@@ -188,6 +189,25 @@ export default function WatchGame() {
           </Card>
         </main>
       </div>
+    );
+  }
+
+  // For Forest games, use Presentation Mode as the spectator view
+  if (gameInfo.game_type_code === 'FORET') {
+    const presentationGame = {
+      id: gameInfo.game_id,
+      name: gameInfo.name,
+      manche_active: gameInfo.manche_active || 1,
+      phase: gameInfo.phase || 'PHASE1_MISES',
+      phase_locked: false,
+      current_session_game_id: gameInfo.current_session_game_id,
+    };
+    
+    return (
+      <PresentationModeView 
+        game={presentationGame} 
+        onClose={() => navigate('/watch')} 
+      />
     );
   }
 

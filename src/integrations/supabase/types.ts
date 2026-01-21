@@ -2804,6 +2804,7 @@ export type Database = {
       public_game_info: {
         Args: { p_game_id: string }
         Returns: {
+          current_session_game_id: string
           current_step_index: number
           game_id: string
           game_type_code: string

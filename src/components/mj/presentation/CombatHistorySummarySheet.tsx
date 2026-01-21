@@ -57,12 +57,6 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
   const [loading, setLoading] = useState(false);
   const [combatResults, setCombatResults] = useState<CombatResult[]>([]);
 
-  useEffect(() => {
-    if (open) {
-      fetchCombatHistory();
-    }
-  }, [open, gameId, sessionGameId]);
-
   const fetchCombatHistory = async () => {
     setLoading(true);
     
@@ -92,6 +86,12 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
     
     setLoading(false);
   };
+
+  useEffect(() => {
+    if (open) {
+      fetchCombatHistory();
+    }
+  }, [open, gameId, sessionGameId]);
 
   // Aggregate stats
   const allKills = combatResults.flatMap(r => r.kills);
