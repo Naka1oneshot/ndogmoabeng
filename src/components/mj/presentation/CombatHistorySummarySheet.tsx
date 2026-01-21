@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -56,46 +56,59 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [combatResults, setCombatResults] = useState<CombatResult[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchCombatHistory = async () => {
+  const fetchCombatHistory = useCallback(async () => {
+    console.log('[CombatHistorySummary] Fetching combat history for game:', gameId, 'session:', sessionGameId);
     setLoading(true);
+    setError(null);
     
-    let query = supabase
-      .from('combat_results')
-      .select('id, manche, kills, public_summary, resolved_at')
-      .eq('game_id', gameId)
-      .order('manche', { ascending: true });
-    
-    if (sessionGameId) {
-      query = query.eq('session_game_id', sessionGameId);
-    }
+    try {
+      let query = supabase
+        .from('combat_results')
+        .select('id, manche, kills, public_summary, resolved_at')
+        .eq('game_id', gameId)
+        .order('manche', { ascending: true });
+      
+      if (sessionGameId) {
+        query = query.eq('session_game_id', sessionGameId);
+      }
 
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error('[CombatHistorySummary] Error fetching:', error);
-    } else {
-      // Parse JSON fields properly
-      const parsed = (data || []).map(r => ({
-        ...r,
-        kills: (r.kills as unknown as Kill[]) || [],
-        public_summary: (r.public_summary as unknown as PublicSummaryEntry[]) || [],
-      }));
-      setCombatResults(parsed);
+      const { data, error: fetchError } = await query;
+      
+      if (fetchError) {
+        console.error('[CombatHistorySummary] Error fetching:', fetchError);
+        setError('Erreur lors du chargement des données');
+        setCombatResults([]);
+      } else {
+        console.log('[CombatHistorySummary] Raw data received:', data);
+        // Parse JSON fields properly
+        const parsed = (data || []).map(r => ({
+          ...r,
+          kills: Array.isArray(r.kills) ? (r.kills as unknown as Kill[]) : [],
+          public_summary: Array.isArray(r.public_summary) ? (r.public_summary as unknown as PublicSummaryEntry[]) : [],
+        }));
+        console.log('[CombatHistorySummary] Parsed results:', parsed);
+        setCombatResults(parsed);
+      }
+    } catch (err) {
+      console.error('[CombatHistorySummary] Unexpected error:', err);
+      setError('Erreur inattendue');
+      setCombatResults([]);
     }
     
     setLoading(false);
-  };
+  }, [gameId, sessionGameId]);
 
   useEffect(() => {
     if (open) {
       fetchCombatHistory();
     }
-  }, [open, gameId, sessionGameId]);
+  }, [open, fetchCombatHistory]);
 
   // Aggregate stats
-  const allKills = combatResults.flatMap(r => r.kills);
-  const allSummaries = combatResults.flatMap(r => r.public_summary);
+  const allKills = combatResults.flatMap(r => r.kills || []);
+  const allSummaries = combatResults.flatMap(r => r.public_summary || []);
 
   // Weapon stats: aggregate by weapon name
   const weaponStatsMap = new Map<string, WeaponStats>();
@@ -109,7 +122,7 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
         playerNames: [] 
       };
       existing.usageCount++;
-      existing.totalDamage += entry.totalDamage;
+      existing.totalDamage += entry.totalDamage || 0;
       if (!existing.playerNames.includes(entry.nom)) {
         existing.playerNames.push(entry.nom);
       }
@@ -130,7 +143,7 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
       totalRewards: 0,
       weaponsUsed: [],
     };
-    existing.totalDamage += entry.totalDamage;
+    existing.totalDamage += entry.totalDamage || 0;
     entry.weapons?.forEach(w => {
       if (!existing.weaponsUsed.includes(w)) {
         existing.weaponsUsed.push(w);
@@ -144,7 +157,7 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
     const existing = playerStatsMap.get(kill.killerName);
     if (existing) {
       existing.kills++;
-      existing.totalRewards += kill.reward;
+      existing.totalRewards += kill.reward || 0;
     }
   });
 
@@ -153,7 +166,7 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
 
   // Kill details by manche
   const totalKills = allKills.length;
-  const totalRewards = allKills.reduce((sum, k) => sum + k.reward, 0);
+  const totalRewards = allKills.reduce((sum, k) => sum + (k.reward || 0), 0);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -169,7 +182,7 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
       </SheetTrigger>
       <SheetContent 
         side="right" 
-        className="w-full sm:w-[540px] md:w-[600px] bg-background/95 backdrop-blur-md border-border"
+        className="w-full sm:w-[540px] md:w-[600px] bg-background/95 backdrop-blur-md border-border overflow-y-auto"
       >
         <SheetHeader className="mb-4">
           <SheetTitle className="flex items-center gap-2 text-lg">
@@ -179,13 +192,28 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
         </SheetHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Chargement de l'historique...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 text-destructive">
+            <Swords className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={fetchCombatHistory}
+              className="mt-4"
+            >
+              Réessayer
+            </Button>
           </div>
         ) : combatResults.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Swords className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>Aucun combat résolu pour le moment</p>
+            <p className="text-lg font-medium">Aucun combat résolu</p>
+            <p className="text-sm mt-2">L'historique des combats apparaîtra ici après la résolution de la première manche.</p>
           </div>
         ) : (
           <ScrollArea className="h-[calc(100vh-120px)] pr-4">
@@ -210,61 +238,65 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
               </div>
 
               {/* Player Rankings */}
-              <div className="bg-card/50 rounded-xl border border-border p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Users className="h-4 w-4 text-primary" />
-                  <h3 className="font-semibold text-sm">Classement Joueurs</h3>
-                </div>
-                <div className="space-y-2">
-                  {playerStats.map((player, index) => (
-                    <div 
-                      key={player.name}
-                      className={`flex items-center justify-between p-2 rounded-lg ${
-                        index === 0 ? 'bg-amber-500/20 border border-amber-500/50' :
-                        'bg-secondary/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold w-6">
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                        </span>
-                        <div>
-                          <div className="font-medium text-sm">{player.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {player.totalDamage} dégâts • {player.weaponsUsed.length} armes
+              {playerStats.length > 0 && (
+                <div className="bg-card/50 rounded-xl border border-border p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Classement Joueurs</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {playerStats.map((player, index) => (
+                      <div 
+                        key={player.name}
+                        className={`flex items-center justify-between p-2 rounded-lg ${
+                          index === 0 ? 'bg-amber-500/20 border border-amber-500/50' :
+                          'bg-secondary/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold w-6">
+                            {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                          </span>
+                          <div>
+                            <div className="font-medium text-sm">{player.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {player.totalDamage} dégâts • {player.weaponsUsed.length} armes
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-1 text-amber-500 font-bold">
-                          <Trophy className="h-3.5 w-3.5" />
-                          {player.totalRewards}
+                        <div className="text-right">
+                          <div className="flex items-center gap-1 text-amber-500 font-bold">
+                            <Trophy className="h-3.5 w-3.5" />
+                            {player.totalRewards}
+                          </div>
+                          <div className="text-xs text-destructive">{player.kills} kills</div>
                         </div>
-                        <div className="text-xs text-destructive">{player.kills} kills</div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Weapon Stats */}
-              <div className="bg-card/50 rounded-xl border border-border p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Swords className="h-4 w-4 text-destructive" />
-                  <h3 className="font-semibold text-sm">Armes Utilisées</h3>
+              {weaponStats.length > 0 && (
+                <div className="bg-card/50 rounded-xl border border-border p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Swords className="h-4 w-4 text-destructive" />
+                    <h3 className="font-semibold text-sm">Armes Utilisées</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {weaponStats.map(weapon => (
+                      <Badge 
+                        key={weapon.name} 
+                        className="bg-destructive/20 text-foreground border-destructive/30 px-2 py-1"
+                      >
+                        <span className="font-medium">{weapon.name}</span>
+                        <span className="ml-1.5 text-muted-foreground">×{weapon.usageCount}</span>
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {weaponStats.map(weapon => (
-                    <Badge 
-                      key={weapon.name} 
-                      className="bg-destructive/20 text-foreground border-destructive/30 px-2 py-1"
-                    >
-                      <span className="font-medium">{weapon.name}</span>
-                      <span className="ml-1.5 text-muted-foreground">×{weapon.usageCount}</span>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              )}
 
               {/* Kill Details by Manche */}
               <div className="bg-card/50 rounded-xl border border-border p-4">
@@ -278,7 +310,7 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
                       <div className="text-xs font-medium text-muted-foreground">
                         Manche {result.manche}
                       </div>
-                      {result.kills.length === 0 ? (
+                      {(!result.kills || result.kills.length === 0) ? (
                         <div className="text-xs text-muted-foreground/50 italic">
                           Aucun coup de grâce
                         </div>
@@ -328,30 +360,36 @@ export function CombatHistorySummarySheet({ gameId, sessionGameId }: CombatHisto
                       <div className="text-xs font-medium text-muted-foreground">
                         Manche {result.manche}
                       </div>
-                      <div className="space-y-1">
-                        {result.public_summary
-                          .filter(e => !e.cancelled)
-                          .sort((a, b) => a.position - b.position)
-                          .map((entry, idx) => (
-                            <div 
-                              key={idx}
-                              className="flex items-center justify-between text-xs bg-blue-500/10 rounded-lg px-3 py-2"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-blue-400 font-mono">#{entry.position}</span>
-                                <span className="font-medium">{entry.nom}</span>
-                                <span className="text-muted-foreground">–</span>
-                                <span className="text-muted-foreground">
-                                  {entry.weapons?.join(', ') || 'Aucune arme'}
-                                </span>
+                      {(!result.public_summary || result.public_summary.length === 0) ? (
+                        <div className="text-xs text-muted-foreground/50 italic">
+                          Aucune action
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          {result.public_summary
+                            .filter(e => !e.cancelled)
+                            .sort((a, b) => (a.position || 0) - (b.position || 0))
+                            .map((entry, idx) => (
+                              <div 
+                                key={idx}
+                                className="flex items-center justify-between text-xs bg-blue-500/10 rounded-lg px-3 py-2"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-blue-400 font-mono">#{entry.position}</span>
+                                  <span className="font-medium">{entry.nom}</span>
+                                  <span className="text-muted-foreground">–</span>
+                                  <span className="text-muted-foreground">
+                                    {entry.weapons?.join(', ') || 'Aucune arme'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 text-destructive font-bold">
+                                  <Swords className="h-3 w-3" />
+                                  {entry.totalDamage || 0}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1 text-destructive font-bold">
-                                <Swords className="h-3 w-3" />
-                                {entry.totalDamage}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords, RefreshCw, Coins } from 'lucide-react';
+import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords, RefreshCw, Coins, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { getMonsterImage } from '@/lib/monsterImages';
 import { CombatHistorySummarySheet } from './CombatHistorySummarySheet';
+import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
   id: string;
@@ -105,6 +106,12 @@ interface ShopRequest {
   player_num: number;
 }
 
+interface CoupDeGraceInfo {
+  killerName: string;
+  monsterName: string;
+  reward: number;
+}
+
 interface PresentationModeViewProps {
   game: Game;
   onClose: () => void;
@@ -125,6 +132,14 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Animation states
+  const [showPhaseTransition, setShowPhaseTransition] = useState(false);
+  const [phaseTransitionText, setPhaseTransitionText] = useState('');
+  const [showCoupDeGrace, setShowCoupDeGrace] = useState(false);
+  const [coupDeGraceInfo, setCoupDeGraceInfo] = useState<CoupDeGraceInfo | null>(null);
+  const previousPhaseRef = useRef<string>(initialGame.phase);
+  const previousKillsCountRef = useRef<number>(0);
 
   const fetchData = useCallback(async () => {
     console.log('[Presentation] Fetching data for game', game.id, 'manche', game.manche_active, 'phase', game.phase);
@@ -137,6 +152,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       .single();
     
     if (latestGame) {
+      // Check for phase change and trigger animation
+      if (previousPhaseRef.current !== latestGame.phase) {
+        triggerPhaseTransition(latestGame.phase);
+        previousPhaseRef.current = latestGame.phase;
+      }
       setGame(latestGame);
     }
     
@@ -278,10 +298,53 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       .eq('manche', manche);
     setShopRequests(shopRequestsData || []);
 
+    // Check for new kills (coup de grâce) - only when in combat resolution
+    if (sessionGameId) {
+      const { data: combatResults } = await supabase
+        .from('combat_results')
+        .select('kills')
+        .eq('game_id', game.id)
+        .eq('session_game_id', sessionGameId);
+      
+      if (combatResults) {
+        const allKills = combatResults.flatMap(r => {
+          const kills = r.kills as unknown as { killerName: string; monsterName: string; reward: number }[];
+          return kills || [];
+        });
+        
+        // If we have more kills than before, show animation for the latest kill
+        if (allKills.length > previousKillsCountRef.current && allKills.length > 0) {
+          const latestKill = allKills[allKills.length - 1];
+          triggerCoupDeGrace(latestKill);
+        }
+        previousKillsCountRef.current = allKills.length;
+      }
+    }
+
     setLastUpdate(new Date());
     setLoading(false);
     setIsRefreshing(false);
   }, [game.id, game.manche_active, game.current_session_game_id, game.phase]);
+
+  const triggerPhaseTransition = (newPhase: string) => {
+    const phaseNames: Record<string, string> = {
+      'PHASE1_MISES': 'Phase des Mises',
+      'PHASE2_POSITIONS': 'Phase des Actions',
+      'PHASE3_SHOP': 'Phase Boutique',
+      'SHOP': 'Phase Boutique',
+      'PHASE4_COMBAT': 'Résolution du Combat',
+      'RESOLUTION': 'Résolution du Combat',
+    };
+    setPhaseTransitionText(phaseNames[newPhase] || newPhase);
+    setShowPhaseTransition(true);
+    setTimeout(() => setShowPhaseTransition(false), 2500);
+  };
+
+  const triggerCoupDeGrace = (killInfo: CoupDeGraceInfo) => {
+    setCoupDeGraceInfo(killInfo);
+    setShowCoupDeGrace(true);
+    setTimeout(() => setShowCoupDeGrace(false), 3500);
+  };
   
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -302,6 +365,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_shop_offers', filter: `game_id=eq.${game.id}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shop_requests', filter: `game_id=eq.${game.id}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'combat_results', filter: `game_id=eq.${game.id}` }, fetchData)
       .subscribe();
 
     return () => {
@@ -407,10 +471,45 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     pendingPlayers = players.filter(p => !submittedShopPlayerNums.has(p.player_number));
   }
 
+  // Loading screen with animation
   if (loading) {
     return (
-      <div className="fixed inset-0 z-[100] bg-background flex items-center justify-center">
-        <div className="text-foreground text-xl">Chargement...</div>
+      <div className="fixed inset-0 z-[100] bg-gradient-to-b from-background to-secondary flex flex-col items-center justify-center gap-6">
+        {/* Animated logo */}
+        <div className="relative">
+          <img 
+            src={logoNdogmoabeng} 
+            alt="Village de Ndogmoabeng" 
+            className="w-32 h-32 md:w-48 md:h-48 animate-pulse"
+            style={{
+              animation: 'logoFloat 2s ease-in-out infinite, logoPulse 1.5s ease-in-out infinite',
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent rounded-full animate-ping opacity-30" />
+        </div>
+        
+        {/* Loading message */}
+        <div className="text-center space-y-2">
+          <p className="text-lg md:text-xl font-semibold text-foreground animate-pulse">
+            Un instant, on range la salle...
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+        </div>
+        
+        <style>{`
+          @keyframes logoFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(2deg); }
+          }
+          @keyframes logoPulse {
+            0%, 100% { filter: drop-shadow(0 0 10px hsl(var(--primary) / 0.3)); }
+            50% { filter: drop-shadow(0 0 25px hsl(var(--primary) / 0.6)); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -420,6 +519,129 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       className="fixed inset-0 z-[100] bg-gradient-to-b from-background to-secondary text-foreground overflow-auto"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
+      {/* Phase Transition Animation Overlay */}
+      {showPhaseTransition && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/90 backdrop-blur-md animate-fade-in">
+          <div className="text-center space-y-4">
+            <div className="relative">
+              <Sparkles className="w-16 h-16 md:w-24 md:h-24 text-primary mx-auto animate-pulse" />
+              <div className="absolute inset-0 bg-primary/20 rounded-full blur-3xl animate-ping" />
+            </div>
+            <h2 
+              className="text-2xl md:text-4xl font-bold text-primary"
+              style={{
+                animation: 'phaseSlideIn 0.5s ease-out forwards',
+              }}
+            >
+              {phaseTransitionText}
+            </h2>
+            <div className="flex justify-center gap-1">
+              {[0, 1, 2, 3, 4].map(i => (
+                <div 
+                  key={i}
+                  className="w-3 h-3 bg-primary rounded-full"
+                  style={{
+                    animation: 'phaseDot 0.6s ease-in-out infinite',
+                    animationDelay: `${i * 100}ms`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          <style>{`
+            @keyframes phaseSlideIn {
+              from { opacity: 0; transform: translateY(20px) scale(0.9); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+            @keyframes phaseDot {
+              0%, 100% { transform: scale(1); opacity: 0.5; }
+              50% { transform: scale(1.5); opacity: 1; }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Coup de Grâce Animation Overlay */}
+      {showCoupDeGrace && coupDeGraceInfo && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none">
+          <div 
+            className="text-center space-y-4 p-8 rounded-3xl"
+            style={{
+              background: 'radial-gradient(circle, hsl(var(--destructive) / 0.3) 0%, transparent 70%)',
+              animation: 'coupDeGraceIn 0.3s ease-out forwards',
+            }}
+          >
+            {/* Skull animation */}
+            <div className="relative inline-block">
+              <Skull 
+                className="w-20 h-20 md:w-32 md:h-32 text-destructive mx-auto"
+                style={{
+                  animation: 'skullPulse 0.5s ease-out forwards, skullGlow 1s ease-in-out infinite',
+                }}
+              />
+              {/* Blood splatter effect */}
+              <div className="absolute inset-0">
+                {[...Array(8)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-3 h-3 bg-destructive rounded-full"
+                    style={{
+                      top: '50%',
+                      left: '50%',
+                      animation: `bloodSplatter 0.8s ease-out forwards`,
+                      animationDelay: `${i * 50}ms`,
+                      transform: `rotate(${i * 45}deg)`,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+            
+            {/* Kill info */}
+            <div className="space-y-2">
+              <h3 
+                className="text-xl md:text-3xl font-black text-destructive uppercase tracking-wider"
+                style={{ animation: 'textFlash 0.5s ease-out' }}
+              >
+                Coup de Grâce !
+              </h3>
+              <p className="text-lg md:text-xl text-foreground font-semibold">
+                <span className="text-primary">{coupDeGraceInfo.killerName}</span>
+                <span className="text-muted-foreground"> élimine </span>
+                <span className="text-destructive">{coupDeGraceInfo.monsterName}</span>
+              </p>
+              <div className="flex items-center justify-center gap-2 text-amber-500 text-xl md:text-2xl font-bold">
+                <Trophy className="w-6 h-6 md:w-8 md:h-8" />
+                <span>+{coupDeGraceInfo.reward}</span>
+              </div>
+            </div>
+          </div>
+          <style>{`
+            @keyframes coupDeGraceIn {
+              from { opacity: 0; transform: scale(0.5); }
+              to { opacity: 1; transform: scale(1); }
+            }
+            @keyframes skullPulse {
+              0% { transform: scale(0); }
+              50% { transform: scale(1.3); }
+              100% { transform: scale(1); }
+            }
+            @keyframes skullGlow {
+              0%, 100% { filter: drop-shadow(0 0 10px hsl(var(--destructive))); }
+              50% { filter: drop-shadow(0 0 30px hsl(var(--destructive))) drop-shadow(0 0 60px hsl(var(--destructive) / 0.5)); }
+            }
+            @keyframes bloodSplatter {
+              0% { transform: rotate(var(--rotation, 0deg)) translateX(0) scale(1); opacity: 1; }
+              100% { transform: rotate(var(--rotation, 0deg)) translateX(80px) scale(0); opacity: 0; }
+            }
+            @keyframes textFlash {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.5; }
+            }
+          `}</style>
+        </div>
+      )}
+
       {/* Close hint + Last update indicator + Manual refresh button + History */}
       <div className="absolute top-2 md:top-4 right-2 md:right-4 flex items-center gap-2 md:gap-3 text-xs text-muted-foreground z-10">
         <CombatHistorySummarySheet gameId={game.id} sessionGameId={game.current_session_game_id} />
@@ -770,46 +992,58 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           {getMonsterImage(m.monster_id) ? (
                             <img src={getMonsterImage(m.monster_id)} alt={getMonsterName(m)} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="flex items-center justify-center w-full h-full text-sm md:text-base">🐉</span>
+                            <span className="text-lg md:text-2xl">🐉</span>
                           )}
                         </div>
-                        <span className="text-xs md:text-sm hidden sm:inline">{getMonsterName(m)}</span>
-                        <span className="text-xs sm:hidden">{getMonsterName(m).slice(0, 5)}</span>
-                        <span className="text-[10px] md:text-xs text-amber-500/70">{getMonsterPvMax(m)}PV • 💰{getMonsterReward(m)}</span>
+                        <div className="flex flex-col">
+                          {getMonsterType(m) && (
+                            <span className="text-[8px] md:text-[10px] text-muted-foreground">{getMonsterType(m)}</span>
+                          )}
+                          <span className="text-xs md:text-sm font-medium">{getMonsterName(m)}</span>
+                          <div className="flex items-center gap-1 md:gap-2 text-[9px] md:text-xs">
+                            <span className="flex items-center gap-0.5 text-destructive">
+                              <Heart className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                              {getMonsterPvMax(m)}
+                            </span>
+                            <span className="flex items-center gap-0.5 text-amber-500">
+                              <Trophy className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                              {getMonsterReward(m)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+            </div>
 
-              {/* Phase 1 & 2 validation */}
+            {/* Right section: Status + Rankings */}
+            <div className="md:col-span-5 flex flex-col gap-3 md:gap-4 overflow-hidden">
+              {/* Validation status for Phase 1 or Phase 2 before positions */}
               {(isPhase1 || (isPhase2 && !hasPositions)) && (
-                <div className="grid grid-cols-2 gap-2 md:gap-4">
-                  <div className="bg-green-500/10 rounded-xl border border-green-600/30 p-2 md:p-4">
-                    <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
-                      <CheckCircle className="h-4 md:h-5 w-4 md:w-5 text-green-500" />
-                      <h3 className="font-semibold text-green-500 text-xs md:text-base">
-                        Validés ({validatedPlayers.length})
-                      </h3>
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                  <div className="bg-green-500/10 rounded-xl border border-green-600/30 p-2 md:p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <CheckCircle className="h-3.5 md:h-4 w-3.5 md:w-4 text-green-500" />
+                      <span className="text-xs md:text-sm font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
                     </div>
-                    <div className="flex flex-wrap gap-1 md:gap-2">
+                    <div className="flex flex-wrap gap-1">
                       {validatedPlayers.map(p => (
-                        <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[10px] md:text-sm py-0 md:py-0.5">
+                        <Badge key={p.id} className="bg-green-600/50 text-green-100 text-xs py-0.5">
                           {p.display_name}
                         </Badge>
                       ))}
                     </div>
                   </div>
-                  <div className="bg-orange-500/10 rounded-xl border border-orange-600/30 p-2 md:p-4">
-                    <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
-                      <Clock className="h-4 md:h-5 w-4 md:w-5 text-orange-500" />
-                      <h3 className="font-semibold text-orange-500 text-xs md:text-base">
-                        En attente ({pendingPlayers.length})
-                      </h3>
+                  <div className="bg-orange-500/10 rounded-xl border border-orange-600/30 p-2 md:p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Clock className="h-3.5 md:h-4 w-3.5 md:w-4 text-orange-500" />
+                      <span className="text-xs md:text-sm font-semibold text-orange-500">En attente ({pendingPlayers.length})</span>
                     </div>
-                    <div className="flex flex-wrap gap-1 md:gap-2">
+                    <div className="flex flex-wrap gap-1">
                       {pendingPlayers.map(p => (
-                        <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[10px] md:text-sm py-0 md:py-0.5">
+                        <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-xs py-0.5">
                           {p.display_name}
                         </Badge>
                       ))}
@@ -818,26 +1052,31 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               )}
 
-              {/* Phase 2 after positions: Player attack order */}
-              {(isPhase2 || isPhase4) && hasPositions && (
+              {/* Priority order in Phase 2 after positions are assigned or in combat */}
+              {((isPhase2 && hasPositions) || isPhase4) && priorities.length > 0 && (
                 <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-2 md:p-4">
-                  <div className="flex items-center gap-2 mb-2 md:mb-4">
+                  <div className="flex items-center gap-2 mb-2 md:mb-3">
                     <Target className="h-4 md:h-5 w-4 md:w-5 text-blue-500" />
-                    <h3 className="font-semibold text-blue-500 text-xs md:text-base">Ordre d'attaque</h3>
+                    <h3 className="text-sm md:text-base font-semibold text-blue-500">Ordre d'attaque (mises)</h3>
                   </div>
-                  <div className="flex items-center justify-center gap-2 md:gap-3 flex-wrap">
-                    {positions.map((pos) => {
-                      const player = players.find(p => p.player_number === pos.num_joueur);
+                  <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                    {priorities.map((pr, index) => {
+                      const player = players.find(p => p.player_number === pr.num_joueur);
                       return (
-                        <div key={pos.num_joueur} className="flex flex-col items-center">
-                          <div className="text-[10px] md:text-xs text-blue-400 mb-0.5 md:mb-1">#{pos.position_finale}</div>
-                          <Avatar className="h-8 md:h-14 w-8 md:w-14 border-2 border-blue-500">
-                            <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
-                            <AvatarFallback className="bg-blue-600 text-white text-xs md:text-lg">
-                              {pos.nom.charAt(0).toUpperCase()}
+                        <div 
+                          key={pr.player_id} 
+                          className={`flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-0.5 md:py-1 rounded-lg ${
+                            index === 0 ? 'bg-blue-600/40 border border-blue-500' : 'bg-blue-500/20'
+                          }`}
+                        >
+                          <Avatar className={`h-5 md:h-7 w-5 md:w-7 border-2 ${index === 0 ? 'border-blue-400' : 'border-blue-500/50'}`}>
+                            <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
+                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[9px] md:text-xs`}>
+                              {pr.display_name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="text-[10px] md:text-xs mt-0.5 md:mt-1 text-center max-w-[50px] md:max-w-[80px] truncate">{pos.nom}</div>
+                          <span className="text-xs md:text-sm font-medium">{pr.display_name}</span>
+                          <span className="text-[10px] md:text-xs text-blue-400">#{pr.rank}</span>
                         </div>
                       );
                     })}
@@ -845,83 +1084,46 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               )}
 
-              {/* Phase 4: Combat info */}
-              {isPhase4 && (
-                <div className="bg-destructive/10 rounded-xl border border-destructive/30 p-2 md:p-4">
-                  <div className="flex items-center gap-2 mb-2 md:mb-3">
-                    <Swords className="h-4 md:h-5 w-4 md:w-5 text-destructive" />
-                    <h3 className="font-semibold text-destructive text-xs md:text-base">Phase de Combat</h3>
-                  </div>
-                  <p className="text-muted-foreground text-[10px] md:text-sm">Les joueurs affrontent les monstres selon leur ordre.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Right section: Rankings */}
-            <div className="md:col-span-5 flex flex-col gap-3 md:gap-4 overflow-hidden">
-              {/* Team/Player ranking */}
-              <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 md:p-4 flex-1 overflow-hidden flex flex-col">
-                <div className="flex items-center gap-2 mb-2 md:mb-4">
+              {/* Team Ranking */}
+              <div className="flex-1 bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 md:p-4 overflow-hidden flex flex-col">
+                <div className="flex items-center gap-2 mb-2 md:mb-3">
                   <Trophy className="h-4 md:h-5 w-4 md:w-5 text-amber-500" />
-                  <h3 className="font-semibold text-amber-500 text-xs md:text-base">Classement (Coup de grâce)</h3>
+                  <h3 className="text-sm md:text-base font-semibold text-amber-500">Classement des équipes</h3>
                 </div>
-                <ScrollArea className="flex-1 max-h-[200px] md:max-h-none">
-                  <div className="space-y-1.5 md:space-y-2">
+                <ScrollArea className="flex-1">
+                  <div className="space-y-1 md:space-y-2 pr-3">
                     {teams.map((team, index) => (
                       <div 
                         key={team.teamName}
-                        className={`flex items-center justify-between p-1.5 md:p-3 rounded-lg ${
+                        className={`flex items-center justify-between p-1.5 md:p-2 rounded-lg ${
                           index === 0 ? 'bg-amber-500/30 border border-amber-500' :
                           index === 1 ? 'bg-secondary border border-border' :
                           index === 2 ? 'bg-amber-700/30 border border-amber-700' :
                           'bg-secondary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-1.5 md:gap-3">
-                          <span className="text-base md:text-2xl">
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                          <span className="text-lg md:text-2xl">
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
-                          <div>
-                            <div className="font-medium text-xs md:text-base truncate max-w-[100px] md:max-w-none">{team.teamName}</div>
-                            {team.members.length > 1 && (
-                              <div className="text-[10px] md:text-xs text-muted-foreground hidden md:block">
-                                {team.members.map(m => `${m.display_name}: ${m.jetons + m.recompenses}`).join(' | ')}
-                              </div>
-                            )}
+                          <div className="flex items-center gap-1 md:gap-2">
+                            {team.members.map((member, mi) => (
+                              <Avatar key={member.id} className={`h-5 md:h-8 w-5 md:w-8 border-2 ${mi === 0 ? 'z-10' : '-ml-2 md:-ml-3'} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
+                                <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
+                                <AvatarFallback className="bg-secondary text-foreground text-[9px] md:text-xs">
+                                  {member.display_name.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                            ))}
                           </div>
+                          <span className="font-medium text-xs md:text-base truncate max-w-[80px] md:max-w-[150px]">{team.teamName}</span>
                         </div>
-                        <div className="text-sm md:text-xl font-bold text-amber-500">{team.teamScore}</div>
+                        <span className="font-bold text-amber-500 text-sm md:text-xl">{team.teamScore}</span>
                       </div>
                     ))}
                   </div>
                 </ScrollArea>
               </div>
-
-              {/* Priority ranking - shown in Phase 2 */}
-              {isPhase2 && priorities.length > 0 && (
-                <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-2 md:p-4">
-                  <div className="flex items-center gap-2 mb-2 md:mb-3">
-                    <Target className="h-4 md:h-5 w-4 md:w-5 text-blue-500" />
-                    <h3 className="font-semibold text-blue-500 text-xs md:text-base">Priorité (mises)</h3>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 md:gap-2">
-                    {priorities.map((pr, index) => {
-                      const player = players.find(p => p.player_number === pr.num_joueur);
-                      return (
-                        <div key={pr.player_id} className="flex items-center gap-1 md:gap-2">
-                          <Avatar className={`h-6 md:h-8 w-6 md:w-8 border-2 ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
-                            <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
-                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[10px] md:text-xs`}>
-                              {pr.display_name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-[10px] md:text-sm">#{pr.rank} <span className="hidden sm:inline">{pr.display_name}</span></span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}
