@@ -194,11 +194,29 @@ serve(async (req) => {
         }
         
         // Pick random attack item - ALWAYS attack if possible
+        // Default weapon has only 20% chance if other weapons are available
+        const defaultWeaponName = "Par défaut (+2 si compagnon Akandé)";
         let attaque1 = null;
         if (attackItems.length > 0) {
-          // Always use an attack item if available
-          const randomIndex = Math.floor(Math.random() * attackItems.length);
-          attaque1 = attackItems[randomIndex].objet;
+          const otherWeapons = attackItems.filter(i => i.objet !== defaultWeaponName);
+          const defaultWeapon = attackItems.find(i => i.objet === defaultWeaponName);
+          
+          if (otherWeapons.length > 0 && defaultWeapon) {
+            // Has both default and other weapons: 20% chance to use default
+            if (Math.random() < 0.2) {
+              attaque1 = defaultWeaponName;
+            } else {
+              const randomIndex = Math.floor(Math.random() * otherWeapons.length);
+              attaque1 = otherWeapons[randomIndex].objet;
+            }
+          } else if (otherWeapons.length > 0) {
+            // Only other weapons, no default
+            const randomIndex = Math.floor(Math.random() * otherWeapons.length);
+            attaque1 = otherWeapons[randomIndex].objet;
+          } else {
+            // Only default weapon available
+            attaque1 = defaultWeaponName;
+          }
         }
         
         // Pick random protection item if available - ONLY select slots with monsters
