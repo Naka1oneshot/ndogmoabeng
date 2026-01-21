@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Shield, Heart, Skull, Swords, Trophy, Users } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { getMonsterImage } from '@/lib/monsterImages';
+import emptySlotRip from '@/assets/monsters/empty-slot-rip.png';
 
 interface MonsterState {
   id: string;
@@ -278,6 +279,18 @@ export function BattlefieldView({ gameId, sessionGameId, className, showDetails 
                     {statusLabels[monster.status]}
                   </div>
                 </>
+              ) : queueMonsters.length === 0 && deadMonsters.length > 0 ? (
+                // No monster and no queue - show RIP image
+                <div className="flex-1 flex flex-col items-center justify-center">
+                  <div className="w-16 h-20 rounded-lg overflow-hidden shadow-lg">
+                    <img 
+                      src={emptySlotRip} 
+                      alt="Slot vide - RIP"
+                      className="w-full h-full object-cover opacity-70"
+                    />
+                  </div>
+                  <span className="text-muted-foreground text-[10px] mt-1">Vide</span>
+                </div>
               ) : (
                 <div className="flex-1 flex items-center justify-center">
                   <span className="text-muted-foreground text-xs">Vide</span>
