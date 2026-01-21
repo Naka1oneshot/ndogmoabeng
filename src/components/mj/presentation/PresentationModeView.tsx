@@ -1000,29 +1000,75 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                               ))}
                             </div>
                           )}
-                          {/* Name with tooltip */}
+                          {/* Name with members - show all on PC if possible, else show max + info icon */}
                           <div className="flex items-center gap-0.5 min-w-0 flex-1">
-                            <span className={`font-medium truncate ${isCompact ? 'max-w-[35px] md:max-w-[50px] text-[8px] md:text-[10px]' : 'max-w-[50px] md:max-w-[80px] text-[10px] md:text-xs'}`}>{team.teamName}</span>
-                            {!isCompact && (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
-                                    <Info className="h-2.5 md:h-3 w-2.5 md:w-3 text-amber-400" />
-                                  </button>
-                                </PopoverTrigger>
-                                <PopoverContent side="left" className="max-w-[180px] p-2 bg-card border-border z-[300]">
-                                  <div className="text-xs">
-                                    <p className="font-semibold">{team.teamName}</p>
-                                    {team.members.map(m => (
-                                      <p key={m.id} className="text-[10px] text-muted-foreground">
-                                        {m.display_name}{m.clan ? ` (${m.clan})` : ''}
-                                      </p>
+                            {(() => {
+                              // On PC (md+), show members inline. On mobile, just show team name
+                              const maxVisibleOnPC = 3; // Max members to show inline on PC before truncating
+                              const hasMoreMembers = team.members.length > maxVisibleOnPC;
+                              const visibleMembers = hasMoreMembers ? team.members.slice(0, maxVisibleOnPC) : team.members;
+                              const hiddenMembers = hasMoreMembers ? team.members.slice(maxVisibleOnPC) : [];
+                              
+                              return (
+                                <>
+                                  {/* Mobile: just team name */}
+                                  <span className={`font-medium truncate md:hidden ${isCompact ? 'max-w-[35px] text-[8px]' : 'max-w-[50px] text-[10px]'}`}>
+                                    {team.teamName}
+                                  </span>
+                                  
+                                  {/* PC: show member names inline */}
+                                  <div className="hidden md:flex items-center gap-1 min-w-0 flex-1">
+                                    {visibleMembers.map((m, mi) => (
+                                      <span key={m.id} className={`${isCompact ? 'text-[9px]' : 'text-[10px]'} text-foreground truncate max-w-[60px]`}>
+                                        {m.display_name}{mi < visibleMembers.length - 1 ? ',' : ''}
+                                      </span>
                                     ))}
-                                    <p className="text-amber-400 font-medium mt-1">Score: {team.teamScore}</p>
+                                    {hasMoreMembers && (
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
+                                            <Info className="h-3 w-3 text-amber-400" />
+                                          </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent side="left" className="max-w-[180px] p-2 bg-card border-border z-[300]">
+                                          <div className="text-xs">
+                                            <p className="font-semibold mb-1">{team.teamName}</p>
+                                            {team.members.map(m => (
+                                              <p key={m.id} className="text-[10px] text-muted-foreground">
+                                                {m.display_name}{m.clan ? ` (${m.clan})` : ''}
+                                              </p>
+                                            ))}
+                                            <p className="text-amber-400 font-medium mt-1">Score: {team.teamScore}</p>
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    )}
                                   </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
+                                  
+                                  {/* Mobile: info popover for details */}
+                                  {!isCompact && (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors md:hidden">
+                                          <Info className="h-2.5 w-2.5 text-amber-400" />
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent side="left" className="max-w-[180px] p-2 bg-card border-border z-[300]">
+                                        <div className="text-xs">
+                                          <p className="font-semibold">{team.teamName}</p>
+                                          {team.members.map(m => (
+                                            <p key={m.id} className="text-[10px] text-muted-foreground">
+                                              {m.display_name}{m.clan ? ` (${m.clan})` : ''}
+                                            </p>
+                                          ))}
+                                          <p className="text-amber-400 font-medium mt-1">Score: {team.teamScore}</p>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                         <span className={`font-bold text-amber-500 ${isCompact ? 'text-[9px] md:text-xs' : 'text-xs md:text-sm'} flex-shrink-0`}>{team.teamScore}</span>
