@@ -1284,6 +1284,14 @@ serve(async (req) => {
     if (allMonstersDead) {
       console.log('[resolve-combat] All monsters are dead! Ending game...');
       
+      // Find winner (player with highest score = jetons + recompenses)
+      const sortedPlayers = [...(players || [])].sort((a, b) => {
+        const scoreA = (a.jetons || 0) + (a.recompenses || 0);
+        const scoreB = (b.jetons || 0) + (b.recompenses || 0);
+        return scoreB - scoreA;
+      });
+      const winnerUserId = sortedPlayers[0]?.user_id || null;
+      
       // End the game
       const { error: endGameError } = await supabase
         .from('games')
@@ -1297,6 +1305,21 @@ serve(async (req) => {
 
       if (endGameError) {
         console.error('[resolve-combat] Error ending game:', endGameError);
+      }
+      
+      // Update player profile statistics
+      try {
+        const { error: statsError } = await supabase.rpc('update_player_stats_on_game_end', {
+          p_game_id: gameId,
+          p_winner_user_id: winnerUserId
+        });
+        if (statsError) {
+          console.error('[resolve-combat] Error updating player stats:', statsError);
+        } else {
+          console.log('[resolve-combat] Player stats updated successfully');
+        }
+      } catch (statsErr) {
+        console.error('[resolve-combat] Exception updating player stats:', statsErr);
       }
       
       // Insert game ended events

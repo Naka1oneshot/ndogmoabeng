@@ -1940,10 +1940,14 @@ export type Database = {
           created_at: string
           display_name: string
           first_name: string
+          games_played: number
+          games_won: number
           id: string
           last_display_name_change: string | null
           last_name: string
           phone: string | null
+          total_kills: number
+          total_rewards: number
           updated_at: string
           user_id: string
         }
@@ -1953,10 +1957,14 @@ export type Database = {
           created_at?: string
           display_name: string
           first_name: string
+          games_played?: number
+          games_won?: number
           id?: string
           last_display_name_change?: string | null
           last_name: string
           phone?: string | null
+          total_kills?: number
+          total_rewards?: number
           updated_at?: string
           user_id: string
         }
@@ -1966,10 +1974,14 @@ export type Database = {
           created_at?: string
           display_name?: string
           first_name?: string
+          games_played?: number
+          games_won?: number
           id?: string
           last_display_name_change?: string | null
           last_name?: string
           phone?: string | null
+          total_kills?: number
+          total_rewards?: number
           updated_at?: string
           user_id?: string
         }
@@ -2863,6 +2875,10 @@ export type Database = {
           is_requester: boolean
           user_id: string
         }[]
+      }
+      update_player_stats_on_game_end: {
+        Args: { p_game_id: string; p_winner_user_id?: string }
+        Returns: undefined
       }
     }
     Enums: {

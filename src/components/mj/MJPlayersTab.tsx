@@ -304,6 +304,15 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   const handleEndGame = async () => {
     setEndingGame(true);
     try {
+      // Find winner (player with highest score)
+      const activePlayers = players.filter(p => !p.is_host && p.status === 'ACTIVE');
+      const sortedPlayers = [...activePlayers].sort((a, b) => {
+        const scoreA = (a.jetons || 0) + (a.recompenses || 0);
+        const scoreB = (b.jetons || 0) + (b.recompenses || 0);
+        return scoreB - scoreA;
+      });
+      const winnerUserId = sortedPlayers[0]?.user_id || null;
+      
       const { error } = await supabase
         .from('games')
         .update({ 
@@ -315,6 +324,17 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
         .eq('id', game.id);
       
       if (error) throw error;
+      
+      // Update player profile statistics
+      const { error: statsError } = await supabase.rpc('update_player_stats_on_game_end', {
+        p_game_id: game.id,
+        p_winner_user_id: winnerUserId
+      });
+      
+      if (statsError) {
+        console.error('Stats update error:', statsError);
+        // Don't throw - stats update failure shouldn't block game end
+      }
       
       // Log the game end
       await supabase.from('logs_mj').insert({
@@ -332,7 +352,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
         payload: { type: 'GAME_ENDED', reason: 'MJ_DECISION' },
       });
       
-      toast.success('Partie terminée !');
+      toast.success('Partie terminée ! Statistiques des joueurs mises à jour.');
       onGameUpdate();
     } catch (error: any) {
       console.error('End game error:', error);
