@@ -2774,6 +2774,26 @@ export type Database = {
         }[]
       }
       get_user_email: { Args: { user_id: string }; Returns: string }
+      get_user_game_history: {
+        Args: { p_limit?: number; p_offset?: number; p_user_id: string }
+        Returns: {
+          ended_at: string
+          game_id: string
+          game_name: string
+          game_type_code: string
+          game_type_name: string
+          mode: string
+          my_jetons: number
+          my_kills: number
+          my_recompenses: number
+          my_result: string
+          my_team_mate: string
+          played_at: string
+          player_count: number
+          total_count: number
+          was_host: boolean
+        }[]
+      }
       get_user_game_stats: {
         Args: { p_user_id: string }
         Returns: {
