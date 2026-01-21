@@ -23,6 +23,7 @@ import MJTeamChatViewer from './MJTeamChatViewer';
 import MJLobbyChatViewer from './MJLobbyChatViewer';
 import { MJRivieresDashboard } from '@/components/rivieres/MJRivieresDashboard';
 import { MJInfectionDashboard } from '@/components/infection/MJInfectionDashboard';
+import { BotVsHumanStatsSheet } from './BotVsHumanStatsSheet';
 import {
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
@@ -562,14 +563,21 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       {/* Action buttons */}
       <div className="flex items-center gap-3 flex-wrap">
         {(game.selected_game_type_code === 'FORET' || !game.selected_game_type_code) && game.status === 'IN_GAME' && (
-          <ForestButton 
-            size="sm" 
-            onClick={() => window.open(`/presentation/${game.id}`, '_blank')}
-            className="bg-purple-600 hover:bg-purple-700"
-          >
-            <Presentation className="h-4 w-4 mr-1" />
-            Mode Présentation
-          </ForestButton>
+          <>
+            <ForestButton 
+              size="sm" 
+              onClick={() => window.open(`/presentation/${game.id}`, '_blank')}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              <Presentation className="h-4 w-4 mr-1" />
+              Mode Présentation
+            </ForestButton>
+            <BotVsHumanStatsSheet 
+              gameId={game.id} 
+              sessionGameId={game.current_session_game_id}
+              startingTokens={game.starting_tokens}
+            />
+          </>
         )}
         
         <ForestButton 
