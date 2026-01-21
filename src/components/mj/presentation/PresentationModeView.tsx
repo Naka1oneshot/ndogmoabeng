@@ -1153,39 +1153,45 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                     <Swords className="h-3.5 md:h-4 w-3.5 md:w-4 text-purple-500" />
                     <h3 className="text-xs md:text-sm font-semibold text-purple-500">Positions d'attaque</h3>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 md:gap-3">
-                    {[1, 2, 3].map(slot => {
-                      const playersAtSlot = positions.filter(p => p.position_finale === slot);
-                      const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
-                      return (
-                        <div key={slot} className="bg-purple-500/20 rounded-lg p-1.5 md:p-2 border border-purple-500/30">
-                          <div className="text-center mb-1.5">
-                            <span className="text-lg md:text-xl font-bold text-purple-400">{slot}</span>
-                          </div>
-                          <div className="flex flex-wrap justify-center gap-1">
-                            {playersAtSlot.length > 0 ? (
-                              playersAtSlot.map((pos, idx) => {
-                                const player = players.find(p => p.player_number === pos.num_joueur);
-                                return (
-                                  <div key={pos.num_joueur} className="flex flex-col items-center gap-0.5">
-                                    <Avatar className={`h-5 md:h-7 w-5 md:w-7 border-2 ${idx === 0 ? 'border-purple-400' : 'border-purple-500/50'}`}>
-                                      <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
-                                      <AvatarFallback className="bg-purple-600/50 text-white text-[8px] md:text-[10px]">
-                                        {pos.nom.charAt(0).toUpperCase()}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-[8px] md:text-[9px] text-center truncate max-w-[40px]">{pos.nom}</span>
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              <span className="text-[9px] text-muted-foreground italic">Aucun</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {(() => {
+                    const activePlayerCount = players.length;
+                    const slotsToShow = Math.max(1, Math.min(3, activePlayerCount));
+                    const gridCols = slotsToShow === 1 ? 'grid-cols-1' : slotsToShow === 2 ? 'grid-cols-2' : 'grid-cols-3';
+                    return (
+                      <div className={`grid ${gridCols} gap-2 md:gap-3`}>
+                        {Array.from({ length: slotsToShow }, (_, i) => i + 1).map(slot => {
+                          const playersAtSlot = positions.filter(p => p.position_finale === slot);
+                          return (
+                            <div key={slot} className="bg-purple-500/20 rounded-lg p-1.5 md:p-2 border border-purple-500/30">
+                              <div className="text-center mb-1.5">
+                                <span className="text-lg md:text-xl font-bold text-purple-400">{slot}</span>
+                              </div>
+                              <div className="flex flex-wrap justify-center gap-1">
+                                {playersAtSlot.length > 0 ? (
+                                  playersAtSlot.map((pos, idx) => {
+                                    const player = players.find(p => p.player_number === pos.num_joueur);
+                                    return (
+                                      <div key={pos.num_joueur} className="flex flex-col items-center gap-0.5">
+                                        <Avatar className={`h-5 md:h-7 w-5 md:w-7 border-2 ${idx === 0 ? 'border-purple-400' : 'border-purple-500/50'}`}>
+                                          <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
+                                          <AvatarFallback className="bg-purple-600/50 text-white text-[8px] md:text-[10px]">
+                                            {pos.nom.charAt(0).toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-[8px] md:text-[9px] text-center truncate max-w-[40px]">{pos.nom}</span>
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  <span className="text-[9px] text-muted-foreground italic">Aucun</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
