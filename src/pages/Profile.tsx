@@ -51,6 +51,7 @@ import { FriendsSection } from '@/components/profile/FriendsSection';
 import { GameInvitationsSection } from '@/components/profile/GameInvitationsSection';
 import { SubscriptionSection } from '@/components/profile/SubscriptionSection';
 import { LoyaltyPointsSection } from '@/components/profile/LoyaltyPointsSection';
+import { GameHistorySection } from '@/components/profile/GameHistorySection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -420,6 +421,9 @@ export default function Profile() {
             )}
           </CardContent>
         </Card>
+
+        {/* Game History Section */}
+        <GameHistorySection />
 
         {/* Friends Section */}
         <FriendsSection />
