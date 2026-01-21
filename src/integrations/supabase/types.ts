@@ -2786,10 +2786,12 @@ export type Database = {
         Args: { p_game_id: string }
         Returns: undefined
       }
-      initialize_game_state_monsters: {
-        Args: { p_game_id: string }
-        Returns: undefined
-      }
+      initialize_game_state_monsters:
+        | { Args: { p_game_id: string }; Returns: undefined }
+        | {
+            Args: { p_game_id: string; p_session_game_id?: string }
+            Returns: undefined
+          }
       public_game_feed: {
         Args: { p_game_id: string }
         Returns: {

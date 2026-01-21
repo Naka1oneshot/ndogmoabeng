@@ -266,21 +266,14 @@ serve(async (req) => {
       .eq("game_id", gameId)
       .is("session_game_id", null);
 
-    // Initialize runtime monster state
+    // Initialize runtime monster state with session_game_id
     const { error: initMonsterStateError } = await supabase.rpc(
       "initialize_game_state_monsters",
-      { p_game_id: gameId }
+      { p_game_id: gameId, p_session_game_id: newSessionGameId }
     );
     if (initMonsterStateError) {
       console.error("Monster state init error:", initMonsterStateError);
     }
-
-    // Update runtime monsters with session_game_id
-    await supabase
-      .from("game_state_monsters")
-      .update({ session_game_id: newSessionGameId })
-      .eq("game_id", gameId)
-      .is("session_game_id", null);
 
     // Update session_game status to RUNNING
     await supabase
