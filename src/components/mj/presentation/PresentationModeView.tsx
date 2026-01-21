@@ -1085,8 +1085,8 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               )}
 
-              {/* Priority order in Phase 2 after positions are assigned or in combat */}
-              {((isPhase2 && hasPositions) || isPhase4) && priorities.length > 0 && (
+              {/* Priority order in Phase 2 (always if priorities exist) or in combat */}
+              {(isPhase2 || isPhase4) && priorities.length > 0 && (
                 <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-2 md:p-4">
                   <div className="flex items-center gap-2 mb-2 md:mb-3">
                     <Target className="h-4 md:h-5 w-4 md:w-5 text-blue-500" />
