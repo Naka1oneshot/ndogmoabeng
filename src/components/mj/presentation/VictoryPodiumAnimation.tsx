@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Trophy, Medal, Award, Crown, Star, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import confetti from 'canvas-confetti';
 
 interface PlayerRanking {
   display_name: string;
@@ -20,6 +21,79 @@ interface VictoryPodiumAnimationProps {
 export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPodiumAnimationProps) {
   const [animationStep, setAnimationStep] = useState(0);
   
+  // Confetti burst function
+  const fireConfetti = useCallback(() => {
+    const duration = 5000;
+    const animationEnd = Date.now() + duration;
+    const colors = ['#fbbf24', '#f59e0b', '#d97706', '#92400e', '#fcd34d', '#fef3c7'];
+
+    const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+    const frame = () => {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: colors,
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: colors,
+      });
+
+      if (Date.now() < animationEnd) {
+        requestAnimationFrame(frame);
+      }
+    };
+
+    // Initial big burst
+    confetti({
+      particleCount: 100,
+      spread: 100,
+      origin: { y: 0.6 },
+      colors: colors,
+    });
+
+    // Continuous side confetti
+    frame();
+
+    // Additional bursts at intervals
+    setTimeout(() => {
+      confetti({
+        particleCount: 50,
+        angle: 60,
+        spread: 80,
+        origin: { x: 0.2, y: 0.5 },
+        colors: colors,
+      });
+    }, 1000);
+
+    setTimeout(() => {
+      confetti({
+        particleCount: 50,
+        angle: 120,
+        spread: 80,
+        origin: { x: 0.8, y: 0.5 },
+        colors: colors,
+      });
+    }, 2000);
+
+    // Final celebration burst
+    setTimeout(() => {
+      confetti({
+        particleCount: 150,
+        spread: 180,
+        origin: { y: 0.5, x: 0.5 },
+        colors: colors,
+        scalar: 1.2,
+      });
+    }, 3000);
+  }, []);
+  
   useEffect(() => {
     if (!show) {
       setAnimationStep(0);
@@ -32,12 +106,19 @@ export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPo
       setTimeout(() => setAnimationStep(2), 1500),  // Show podium
       setTimeout(() => setAnimationStep(3), 2500),  // Show 3rd place
       setTimeout(() => setAnimationStep(4), 3500),  // Show 2nd place
-      setTimeout(() => setAnimationStep(5), 4500),  // Show 1st place
+      setTimeout(() => setAnimationStep(5), 4500),  // Show 1st place + confetti
       setTimeout(() => setAnimationStep(6), 5500),  // Show other rankings
     ];
     
     return () => timers.forEach(t => clearTimeout(t));
   }, [show]);
+
+  // Trigger confetti when 1st place is revealed
+  useEffect(() => {
+    if (animationStep === 5) {
+      fireConfetti();
+    }
+  }, [animationStep, fireConfetti]);
   
   if (!show || rankings.length === 0) return null;
   
