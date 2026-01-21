@@ -897,11 +897,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
               )}
             </div>
 
-            {/* Middle: Priority + Validation status + Shop - 3/10 */}
+            {/* Middle: Priority + Validation status + Shop - 3/10 with specific height ratios */}
             <div className="md:col-span-3 flex flex-col gap-2">
-              {/* Priority order - now at the top */}
+              {/* Priority order - 3/10 height */}
               {priorities.length > 0 && (
-                <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-1.5">
+                <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-1.5" style={{ flex: '3 1 0' }}>
                   <div className="flex items-center gap-1 mb-1.5">
                     <Target className="h-3 md:h-3.5 w-3 md:w-3.5 text-blue-500" />
                     <span className="text-[10px] md:text-xs font-semibold text-blue-500">Priorité (mises)</span>
@@ -925,40 +925,40 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               )}
 
-              {/* Validation status - compact row */}
-              <div className="flex gap-1.5">
-                <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-1.5 flex-1">
-                  <div className="flex items-center gap-0.5 mb-1">
-                    <CheckCircle className="h-2.5 w-2.5 text-green-500" />
-                    <span className="text-[10px] font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
-                  </div>
-                  <div className="flex flex-wrap gap-0.5">
-                    {validatedPlayers.slice(0, 4).map(p => (
-                      <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[8px] py-0 px-1">
-                        {p.display_name.slice(0, 6)}
-                      </Badge>
-                    ))}
-                    {validatedPlayers.length > 4 && <span className="text-[8px] text-green-500">+{validatedPlayers.length - 4}</span>}
-                  </div>
+              {/* Validated players - 2/10 height */}
+              <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-1.5" style={{ flex: '2 1 0' }}>
+                <div className="flex items-center gap-0.5 mb-1">
+                  <CheckCircle className="h-2.5 w-2.5 text-green-500" />
+                  <span className="text-[10px] font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
                 </div>
-                <div className="bg-orange-500/10 rounded-lg border border-orange-600/30 p-1.5 flex-1">
-                  <div className="flex items-center gap-0.5 mb-1">
-                    <Clock className="h-2.5 w-2.5 text-orange-500" />
-                    <span className="text-[10px] font-semibold text-orange-500">Attente ({pendingPlayers.length})</span>
-                  </div>
-                  <div className="flex flex-wrap gap-0.5">
-                    {pendingPlayers.slice(0, 4).map(p => (
-                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[8px] py-0 px-1">
-                        {p.display_name.slice(0, 6)}
-                      </Badge>
-                    ))}
-                    {pendingPlayers.length > 4 && <span className="text-[8px] text-orange-500">+{pendingPlayers.length - 4}</span>}
-                  </div>
+                <div className="flex flex-wrap gap-0.5">
+                  {validatedPlayers.slice(0, 6).map(p => (
+                    <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[8px] py-0 px-1">
+                      {p.display_name.slice(0, 6)}
+                    </Badge>
+                  ))}
+                  {validatedPlayers.length > 6 && <span className="text-[8px] text-green-500">+{validatedPlayers.length - 6}</span>}
                 </div>
               </div>
 
-              {/* Shop items */}
-              <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-1.5 md:p-2 flex-1 flex flex-col overflow-hidden">
+              {/* Pending players - 2/10 height */}
+              <div className="bg-orange-500/10 rounded-lg border border-orange-600/30 p-1.5" style={{ flex: '2 1 0' }}>
+                <div className="flex items-center gap-0.5 mb-1">
+                  <Clock className="h-2.5 w-2.5 text-orange-500" />
+                  <span className="text-[10px] font-semibold text-orange-500">Attente ({pendingPlayers.length})</span>
+                </div>
+                <div className="flex flex-wrap gap-0.5">
+                  {pendingPlayers.slice(0, 6).map(p => (
+                    <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[8px] py-0 px-1">
+                      {p.display_name.slice(0, 6)}
+                    </Badge>
+                  ))}
+                  {pendingPlayers.length > 6 && <span className="text-[8px] text-orange-500">+{pendingPlayers.length - 6}</span>}
+                </div>
+              </div>
+
+              {/* Shop items - 5/10 height - one item per line */}
+              <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-1.5 md:p-2 flex flex-col overflow-hidden" style={{ flex: '5 1 0' }}>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1.5">
                     <Store className="h-3.5 md:h-4 w-3.5 md:w-4 text-purple-500" />
@@ -968,41 +968,43 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                     {submittedShopPlayerNums.size}/{players.length}
                   </Badge>
                 </div>
-                <ScrollArea className="flex-1 max-h-[160px] md:max-h-none">
-                  <div className="grid grid-cols-2 gap-1 pr-1">
+                <ScrollArea className="flex-1">
+                  <div className="space-y-1 pr-1">
                     {shopItems.map(item => {
                       const price = shopPrices.find(p => p.item_name === item.name);
                       return (
                         <div key={item.id} className="bg-purple-500/20 rounded-lg p-1 md:p-1.5 border border-purple-600/40">
-                          <div className="font-bold text-[9px] md:text-[10px] mb-0.5 truncate">{item.name}</div>
-                          <p className="text-[8px] md:text-[9px] text-muted-foreground line-clamp-1 mb-0.5">
-                            {item.detailed_description || item.category}
-                          </p>
-                          <div className="flex items-center justify-between text-[8px] md:text-[9px]">
-                            <div className="flex items-center gap-1">
-                              {item.base_damage && item.base_damage > 0 && (
-                                <span className="text-destructive flex items-center gap-0.5">
-                                  <Swords className="h-2 md:h-2.5 w-2 md:w-2.5" />
-                                  {item.base_damage}
-                                </span>
-                              )}
-                              {item.base_heal && item.base_heal > 0 && (
-                                <span className="text-green-500 flex items-center gap-0.5">
-                                  <Heart className="h-2 md:h-2.5 w-2 md:w-2.5" />
-                                  {item.base_heal}
-                                </span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-[9px] md:text-[10px] truncate">{item.name}</div>
+                              <p className="text-[7px] md:text-[8px] text-muted-foreground line-clamp-1">
+                                {item.detailed_description || item.category}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
+                              <div className="flex items-center gap-1">
+                                {item.base_damage && item.base_damage > 0 && (
+                                  <span className="text-destructive flex items-center gap-0.5 text-[8px]">
+                                    <Swords className="h-2 md:h-2.5 w-2 md:w-2.5" />
+                                    {item.base_damage}
+                                  </span>
+                                )}
+                                {item.base_heal && item.base_heal > 0 && (
+                                  <span className="text-green-500 flex items-center gap-0.5 text-[8px]">
+                                    <Heart className="h-2 md:h-2.5 w-2 md:w-2.5" />
+                                    {item.base_heal}
+                                  </span>
+                                )}
+                              </div>
+                              {price && (
+                                <div className="flex items-center gap-0.5 text-[7px] md:text-[8px]">
+                                  <Coins className="h-2 md:h-2.5 w-2 md:w-2.5 text-amber-400" />
+                                  <span className="text-amber-400">{price.cost_normal}</span>
+                                  <span className="text-muted-foreground">/</span>
+                                  <span className="text-cyan-400">{price.cost_akila}</span>
+                                </div>
                               )}
                             </div>
-                            {price && (
-                              <div className="flex items-center gap-1 text-[7px] md:text-[8px]">
-                                <span className="flex items-center gap-0.5 text-amber-400">
-                                  <Coins className="h-2 md:h-2.5 w-2 md:w-2.5" />
-                                  {price.cost_normal}
-                                </span>
-                                <span className="text-muted-foreground">/</span>
-                                <span className="text-cyan-400">{price.cost_akila}</span>
-                              </div>
-                            )}
                           </div>
                         </div>
                       );
@@ -1012,16 +1014,16 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
               </div>
             </div>
 
-            {/* Team Ranking - 2/10 */}
+            {/* Team Ranking - 2/10 - Enhanced with info button */}
             <div className="md:col-span-2 flex flex-col gap-2 md:overflow-hidden">
               <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-1.5 flex-1 overflow-hidden flex flex-col">
                 <div className="flex items-center gap-1 mb-1.5">
                   <Trophy className="h-3 md:h-3.5 w-3 md:w-3.5 text-amber-500" />
                   <span className="text-[10px] md:text-xs font-semibold text-amber-500">Classement</span>
                 </div>
-                <ScrollArea className="flex-1 max-h-[200px] md:max-h-none">
+                <ScrollArea className="flex-1">
                   <div className="space-y-0.5">
-                    {teams.slice(0, 10).map((team, index) => (
+                    {teams.slice(0, 12).map((team, index) => (
                       <div 
                         key={team.teamName}
                         className={`flex items-center justify-between p-0.5 md:p-1 rounded-lg text-[8px] md:text-[10px] ${
@@ -1046,15 +1048,47 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                               </Avatar>
                             ))}
                           </div>
-                          <span className="font-medium truncate max-w-[40px] md:max-w-[50px] text-[7px] md:text-[9px]">
-                            {team.teamName.length > 8 ? team.teamName.slice(0, 8) + '...' : team.teamName}
+                          <span className="font-medium truncate max-w-[35px] md:max-w-[45px] text-[7px] md:text-[9px]">
+                            {team.teamName.length > 6 ? team.teamName.slice(0, 6) + '..' : team.teamName}
                           </span>
+                          {/* Info button with popover for member details */}
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="ml-0.5 p-0.5 rounded hover:bg-secondary/50 flex-shrink-0">
+                                <Info className="h-2.5 md:h-3 w-2.5 md:w-3 text-muted-foreground hover:text-foreground" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent side="left" className="w-48 p-2">
+                              <div className="space-y-1">
+                                <div className="font-semibold text-xs border-b pb-1">{team.teamName}</div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  Score total: <span className="text-amber-500 font-bold">{team.teamScore}</span>
+                                </div>
+                                <div className="space-y-0.5 mt-1">
+                                  {team.members.map(member => (
+                                    <div key={member.id} className="flex items-center justify-between text-[9px]">
+                                      <div className="flex items-center gap-1">
+                                        <Avatar className="h-4 w-4 border border-border">
+                                          <AvatarImage src={member.avatar_url || undefined} />
+                                          <AvatarFallback className="text-[5px] bg-secondary">
+                                            {member.display_name.charAt(0).toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="truncate max-w-[80px]">{member.display_name}</span>
+                                      </div>
+                                      <span className="text-amber-500 font-medium">{member.recompenses}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                         <span className="font-bold text-amber-500 text-[8px] md:text-[10px] flex-shrink-0">{team.teamScore}</span>
                       </div>
                     ))}
-                    {teams.length > 10 && (
-                      <div className="text-center text-[8px] text-muted-foreground">+{teams.length - 10} équipes</div>
+                    {teams.length > 12 && (
+                      <div className="text-center text-[8px] text-muted-foreground">+{teams.length - 12} équipes</div>
                     )}
                   </div>
                 </ScrollArea>
@@ -1068,9 +1102,9 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   <Skull className="h-3 md:h-3.5 w-3 md:w-3.5 text-destructive" />
                   <span className="text-[10px] md:text-xs font-semibold text-destructive">Résumé Combat</span>
                 </div>
-                <ScrollArea className="flex-1 max-h-[200px] md:max-h-none">
+                <div className="flex-1 overflow-hidden">
                   <Phase3CombatSummary gameId={game.id} sessionGameId={game.current_session_game_id} currentManche={game.manche_active} />
-                </ScrollArea>
+                </div>
               </div>
             </div>
           </div>

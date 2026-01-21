@@ -163,9 +163,9 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
   }
 
   return (
-    <div className="space-y-2">
+    <div className="h-full flex flex-col space-y-2">
       {/* Global Stats - compact */}
-      <div className="grid grid-cols-3 gap-1">
+      <div className="grid grid-cols-3 gap-1 flex-shrink-0">
         <div className="bg-destructive/20 rounded p-1 text-center">
           <Skull className="h-2.5 md:h-3 w-2.5 md:w-3 mx-auto mb-0.5 text-destructive" />
           <div className="text-[10px] md:text-xs font-bold text-destructive">{totalKills}</div>
@@ -185,7 +185,7 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
 
       {/* Players with weapons and damage */}
       {playerStats.length > 0 && (
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 flex-shrink-0">
           <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground mb-0.5">Joueurs & Armes</div>
           {playerStats.slice(0, 6).map((player, index) => (
             <div 
@@ -227,74 +227,73 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
         </div>
       )}
 
-      {/* Last Manche Actions Summary */}
-      {lastMancheResult && lastMancheResult.public_summary.length > 0 && (
-        <div className="space-y-0.5 border-t border-border pt-1">
-          <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground">
-            Résumé Actions - Manche {lastMancheResult.manche}
-          </div>
-          <div className="max-h-[120px] overflow-y-auto space-y-0.5">
-            {lastMancheResult.public_summary
-              .filter(entry => !entry.cancelled)
-              .map((entry, idx) => (
-                <div 
-                  key={idx}
-                  className="text-[7px] md:text-[8px] bg-secondary/30 rounded p-0.5 md:p-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium truncate max-w-[60px]">{entry.nom}</span>
-                    <span className="text-blue-500 font-bold">{entry.totalDamage} dégâts</span>
-                  </div>
-                  {entry.weapons && entry.weapons.length > 0 && (
-                    <div className="text-muted-foreground mt-0.5">
-                      {entry.weapons.join(', ')}
+      {/* Last Manche Actions Summary + Kills - flexible height to fill remaining space */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Last Manche Actions Summary */}
+        {lastMancheResult && lastMancheResult.public_summary.length > 0 && (
+          <div className="flex-1 flex flex-col min-h-0 border-t border-border pt-1">
+            <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground flex-shrink-0">
+              Résumé Actions - Manche {lastMancheResult.manche}
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-0.5 mt-0.5">
+              {lastMancheResult.public_summary
+                .filter(entry => !entry.cancelled)
+                .map((entry, idx) => (
+                  <div 
+                    key={idx}
+                    className="text-[7px] md:text-[8px] bg-secondary/30 rounded p-0.5 md:p-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium truncate max-w-[60px]">{entry.nom}</span>
+                      <span className="text-blue-500 font-bold">{entry.totalDamage} dégâts</span>
                     </div>
-                  )}
-                </div>
-              ))}
-          </div>
-          {lastMancheResult.public_summary.filter(e => e.cancelled).length > 0 && (
-            <div className="text-[6px] md:text-[7px] text-muted-foreground/70 italic">
-              {lastMancheResult.public_summary.filter(e => e.cancelled).length} action(s) annulée(s)
+                    {entry.weapons && entry.weapons.length > 0 && (
+                      <div className="text-muted-foreground mt-0.5">
+                        {entry.weapons.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Last Manche Kills */}
-      {lastMancheResult && lastMancheResult.kills.length > 0 && (
-        <div className="space-y-0.5">
-          <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground">
-            Kills - Manche {lastMancheResult.manche}
-          </div>
-          {lastMancheResult.kills.slice(0, 3).map((kill, idx) => (
-            <div 
-              key={idx}
-              className="flex items-center justify-between text-[7px] md:text-[8px] bg-destructive/10 rounded p-0.5 md:p-1"
-            >
-              <div className="flex items-center gap-0.5 min-w-0 flex-1">
-                <Skull className="h-2 w-2 text-destructive flex-shrink-0" />
-                <span className="truncate">
-                  <span className="font-medium">{kill.killerName}</span>
-                  <span className="text-muted-foreground"> → </span>
-                  <span className="text-destructive">{kill.monsterName}</span>
-                </span>
+            {lastMancheResult.public_summary.filter(e => e.cancelled).length > 0 && (
+              <div className="text-[6px] md:text-[7px] text-muted-foreground/70 italic flex-shrink-0">
+                {lastMancheResult.public_summary.filter(e => e.cancelled).length} action(s) annulée(s)
               </div>
-              <Badge className="bg-amber-500/30 text-amber-400 text-[6px] md:text-[7px] px-0.5 py-0 flex-shrink-0">
-                +{kill.reward}
-              </Badge>
-            </div>
-          ))}
-          {lastMancheResult.kills.length > 3 && (
-            <div className="text-center text-[7px] text-muted-foreground">
-              +{lastMancheResult.kills.length - 3} autres
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      <div className="text-center text-[7px] md:text-[8px] text-muted-foreground pt-1 border-t border-border">
-        {resolvedManches} manche{resolvedManches > 1 ? 's' : ''} résolu{resolvedManches > 1 ? 'es' : 'e'}
+        {/* Last Manche Kills */}
+        {lastMancheResult && lastMancheResult.kills.length > 0 && (
+          <div className="space-y-0.5 flex-shrink-0 mt-1">
+            <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground">
+              Kills - Manche {lastMancheResult.manche}
+            </div>
+            {lastMancheResult.kills.slice(0, 3).map((kill, idx) => (
+              <div 
+                key={idx}
+                className="flex items-center justify-between text-[7px] md:text-[8px] bg-destructive/10 rounded p-0.5 md:p-1"
+              >
+                <div className="flex items-center gap-0.5 min-w-0 flex-1">
+                  <Skull className="h-2 w-2 text-destructive flex-shrink-0" />
+                  <span className="truncate">
+                    <span className="font-medium">{kill.killerName}</span>
+                    <span className="text-muted-foreground"> → </span>
+                    <span className="text-destructive">{kill.monsterName}</span>
+                  </span>
+                </div>
+                <Badge className="bg-amber-500/30 text-amber-400 text-[6px] md:text-[7px] px-0.5 py-0 flex-shrink-0">
+                  +{kill.reward}
+                </Badge>
+              </div>
+            ))}
+            {lastMancheResult.kills.length > 3 && (
+              <div className="text-center text-[7px] text-muted-foreground">
+                +{lastMancheResult.kills.length - 3} autres
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
