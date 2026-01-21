@@ -672,7 +672,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
         </Badge>
       </div>
 
-      <div className="h-full flex flex-col p-3 md:p-6 pt-14 md:pt-20">
+      <div className="min-h-full flex flex-col p-3 md:p-6 pt-14 md:pt-20 pb-6">
         {/* Global HP Bar - TOP CENTER */}
         <div className="flex justify-center mb-3 md:mb-6">
           <div className="w-full max-w-2xl">
@@ -692,7 +692,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
         {/* Main content grid - Phase 3 specific compact layout */}
         {isPhase3 ? (
-          <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-3 overflow-auto md:overflow-hidden">
+          <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:flex-1 md:overflow-hidden">
             {/* Left: Battlefield compact + Validation status */}
             <div className="md:col-span-4 flex flex-col gap-3">
               {/* Battlefield compact */}
@@ -858,7 +858,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
             </div>
 
             {/* Right: Rankings + Priority */}
-            <div className="md:col-span-3 flex flex-col gap-3 overflow-hidden">
+            <div className="md:col-span-3 flex flex-col gap-3 md:overflow-hidden">
               {/* Priority order */}
               {priorities.length > 0 && (
                 <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-2">
@@ -919,7 +919,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           </div>
         ) : (
           /* Default layout for other phases */
-          <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 overflow-auto md:overflow-hidden">
+          <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:flex-1 md:overflow-hidden">
             {/* Left section: Battlefield + Queue */}
             <div className="md:col-span-7 flex flex-col gap-3 md:gap-4">
               {/* Battlefield monsters */}
@@ -1019,7 +1019,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
             </div>
 
             {/* Right section: Status + Rankings */}
-            <div className="md:col-span-5 flex flex-col gap-3 md:gap-4 overflow-hidden">
+            <div className="md:col-span-5 flex flex-col gap-3 md:gap-4 md:overflow-hidden">
               {/* Validation status for Phase 1 or Phase 2 before positions */}
               {(isPhase1 || (isPhase2 && !hasPositions)) && (
                 <div className="grid grid-cols-2 gap-2 md:gap-3">
