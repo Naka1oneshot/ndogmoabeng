@@ -453,9 +453,12 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
 
     setSaving(true);
     try {
+      const newMateNum = editForm.mate_num || null;
+      const oldMateNum = player.mate_num;
+
       const updateData: any = {
         display_name: editForm.display_name,
-        mate_num: editForm.mate_num || null,
+        mate_num: newMateNum,
         jetons: editForm.jetons || 0,
       };
 
@@ -470,6 +473,31 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
         .eq('id', playerId);
 
       if (error) throw error;
+
+      // Synchronize mate: if we set a mate, update the other player's mate_num too
+      if (newMateNum !== oldMateNum && player.player_number) {
+        // If we're setting a new mate, update that player to have us as mate
+        if (newMateNum) {
+          const { error: mateError } = await supabase
+            .from('game_players')
+            .update({ mate_num: player.player_number })
+            .eq('game_id', game.id)
+            .eq('player_number', newMateNum);
+          
+          if (mateError) console.error('Error syncing mate:', mateError);
+        }
+        
+        // If we had a previous mate and changed/removed it, clear their mate_num
+        if (oldMateNum && oldMateNum !== newMateNum) {
+          const { error: clearError } = await supabase
+            .from('game_players')
+            .update({ mate_num: null })
+            .eq('game_id', game.id)
+            .eq('player_number', oldMateNum);
+          
+          if (clearError) console.error('Error clearing old mate:', clearError);
+        }
+      }
 
       toast.success('Joueur mis à jour');
       setEditingId(null);
