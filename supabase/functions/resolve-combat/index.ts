@@ -1181,10 +1181,16 @@ serve(async (req) => {
     const { data: updatedMonsters } = await forestQuery;
 
     const totalPvCurrent = updatedMonsters?.reduce((sum, m) => sum + (m.pv_current || 0), 0) || 0;
+    
+    // Check if ALL monsters are dead
+    const allMonstersDead = updatedMonsters?.every(m => m.status === 'MORT') || false;
+    const hasAliveMonsters = updatedMonsters?.some(m => m.status !== 'MORT') || false;
+    
     const forestState = {
       totalPvRemaining: totalPvCurrent,
       monstersKilled: kills.length,
       itemsConsumed: consumedItems.filter(i => i.wasInInventory).length,
+      allMonstersDead: allMonstersDead,
     };
 
     // Build public summary
@@ -1274,14 +1280,70 @@ serve(async (req) => {
       return `#${a.position} ${a.nom} (J${a.num_joueur}) ${slotInfo} — ${weaponsInfo} — ${a.totalDamage} dégâts${killInfo}${dotKillInfo}${protInfo}`;
     }).join('\n');
 
-    // Transition to Phase 3
-    const { error: phaseError } = await supabase
-      .from('games')
-      .update({ phase: 'PHASE3_SHOP', phase_locked: false })
-      .eq('id', gameId);
+    // Check if game should end (all monsters dead)
+    if (allMonstersDead) {
+      console.log('[resolve-combat] All monsters are dead! Ending game...');
+      
+      // End the game
+      const { error: endGameError } = await supabase
+        .from('games')
+        .update({ 
+          status: 'ENDED', 
+          phase: 'FINISHED',
+          phase_locked: true,
+          winner_declared: true
+        })
+        .eq('id', gameId);
 
-    if (phaseError) {
-      console.error('[resolve-combat] Error transitioning to Phase 3:', phaseError);
+      if (endGameError) {
+        console.error('[resolve-combat] Error ending game:', endGameError);
+      }
+      
+      // Insert game ended events
+      await Promise.all([
+        supabase.from('session_events').insert({
+          game_id: gameId,
+          audience: 'ALL',
+          type: 'GAME_END',
+          message: '🏆 VICTOIRE ! Tous les monstres ont été vaincus !',
+          payload: { 
+            type: 'GAME_ENDED',
+            reason: 'ALL_MONSTERS_DEAD',
+            forestState,
+          },
+        }),
+        supabase.from('logs_joueurs').insert({
+          game_id: gameId,
+          session_game_id: sessionGameId,
+          manche: manche,
+          type: 'FIN_PARTIE',
+          message: '🏆 VICTOIRE ! La forêt de Ndogmoabeng a été conquise ! Tous les monstres ont été vaincus.',
+        }),
+        supabase.from('logs_mj').insert({
+          game_id: gameId,
+          manche: manche,
+          action: 'PARTIE_TERMINEE',
+          details: 'Tous les monstres ont été éliminés. La partie est terminée automatiquement.',
+        }),
+      ]);
+    } else {
+      // Normal transition to Phase 3
+      const { error: phaseError } = await supabase
+        .from('games')
+        .update({ phase: 'PHASE3_SHOP', phase_locked: false })
+        .eq('id', gameId);
+
+      if (phaseError) {
+        console.error('[resolve-combat] Error transitioning to Phase 3:', phaseError);
+      }
+      
+      await supabase.from('session_events').insert({
+        game_id: gameId,
+        audience: 'ALL',
+        type: 'PHASE',
+        message: '🛒 Phase 3 : Le marché est ouvert !',
+        payload: { type: 'PHASE_CHANGE', phase: 'PHASE3_SHOP' },
+      });
     }
 
     await Promise.all([
@@ -1297,14 +1359,8 @@ serve(async (req) => {
           forestState,
           berserkerPenalties: berserkerPenalties.map(p => p.playerNum),
           voilePenalties: voilePenalties.map(p => ({ playerNum: p.playerNum, tokens: p.tokens })),
+          gameEnded: allMonstersDead,
         },
-      }),
-      supabase.from('session_events').insert({
-        game_id: gameId,
-        audience: 'ALL',
-        type: 'PHASE',
-        message: '🛒 Phase 3 : Le marché est ouvert !',
-        payload: { type: 'PHASE_CHANGE', phase: 'PHASE3_SHOP' },
       }),
       mineLogs.length > 0 ? supabase.from('logs_joueurs').insert({
         game_id: gameId,
