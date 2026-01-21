@@ -685,12 +685,63 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     );
   }
 
+  // Build game statistics for the victory screen
+  const buildGameStats = () => {
+    const hasTeams = players.some(p => p.mate_num !== null);
+    let teamCount = 0;
+    let soloCount = 0;
+    const processedForCount = new Set<number>();
+
+    for (const player of players) {
+      if (processedForCount.has(player.player_number)) continue;
+      const mate = hasTeams && player.mate_num ? players.find(p => p.player_number === player.mate_num) : null;
+      if (mate && !processedForCount.has(mate.player_number)) {
+        teamCount++;
+        processedForCount.add(player.player_number);
+        processedForCount.add(mate.player_number);
+      } else {
+        soloCount++;
+        processedForCount.add(player.player_number);
+      }
+    }
+
+    const totalKills = playerRankings.reduce((sum, r) => sum + r.kills, 0);
+    const totalRecompenses = playerRankings.reduce((sum, r) => sum + r.recompenses, 0);
+    const totalJetons = playerRankings.reduce((sum, r) => sum + r.jetons, 0);
+
+    // Find top killer and top earner
+    let topKiller: { name: string; kills: number } | null = null;
+    let topEarner: { name: string; recompenses: number } | null = null;
+
+    for (const ranking of playerRankings) {
+      if (!topKiller || ranking.kills > topKiller.kills) {
+        topKiller = { name: ranking.display_name, kills: ranking.kills };
+      }
+      if (!topEarner || ranking.recompenses > topEarner.recompenses) {
+        topEarner = { name: ranking.display_name, recompenses: ranking.recompenses };
+      }
+    }
+
+    return {
+      totalManches: game.manche_active,
+      totalKills,
+      totalRecompenses,
+      totalJetons,
+      topKiller,
+      topEarner,
+      hasTeams,
+      teamCount,
+      soloCount,
+    };
+  };
+
   // If game is ended, show victory podium
   if (isGameEnded) {
     return (
       <VictoryPodiumAnimation 
         show={true}
         rankings={playerRankings}
+        gameStats={buildGameStats()}
       />
     );
   }
