@@ -1004,10 +1004,12 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           <div className="flex items-center gap-0.5 min-w-0 flex-1">
                             {(() => {
                               // On PC (md+), show members inline. On mobile, just show team name
+                              // Check if any name is long enough to be truncated (>8 chars given max-w-[60px])
+                              const hasLongNames = team.members.some(m => m.display_name.length > 8);
                               const maxVisibleOnPC = 3; // Max members to show inline on PC before truncating
                               const hasMoreMembers = team.members.length > maxVisibleOnPC;
+                              const needsInfoIcon = hasMoreMembers || hasLongNames || team.members.length > 1;
                               const visibleMembers = hasMoreMembers ? team.members.slice(0, maxVisibleOnPC) : team.members;
-                              const hiddenMembers = hasMoreMembers ? team.members.slice(maxVisibleOnPC) : [];
                               
                               return (
                                 <>
@@ -1023,7 +1025,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                                         {m.display_name}{mi < visibleMembers.length - 1 ? ',' : ''}
                                       </span>
                                     ))}
-                                    {hasMoreMembers && (
+                                    {needsInfoIcon && (
                                       <Popover>
                                         <PopoverTrigger asChild>
                                           <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
