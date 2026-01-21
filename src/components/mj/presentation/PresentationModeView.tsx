@@ -724,19 +724,19 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:flex-1 md:overflow-hidden">
             {/* Left: Battlefield + Queue - increased size */}
             <div className="md:col-span-5 flex flex-col gap-3">
-              {/* Battlefield - larger for Phase 3 with full-size monster images */}
-              <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4 flex-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <Swords className="h-5 w-5 text-destructive" />
-                  <h2 className="text-base font-bold">Champ de Bataille</h2>
+              {/* Battlefield - compact for Phase 3 */}
+              <div className="bg-card/50 rounded-xl border border-border p-2 md:p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Swords className="h-4 w-4 text-destructive" />
+                  <h2 className="text-sm font-bold">Champ de Bataille</h2>
                 </div>
-                <div className="grid grid-cols-3 gap-2 md:gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   {[1, 2, 3].map(slot => {
                     const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
                       <div 
                         key={slot} 
-                        className="relative rounded-lg border border-border min-h-[120px] md:min-h-[180px] overflow-hidden"
+                        className="relative rounded-lg border border-border min-h-[140px] md:min-h-[200px] overflow-hidden"
                       >
                         {monster ? (
                           <>
@@ -794,16 +794,16 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               </div>
 
-              {/* Queue - enlarged with monster details */}
+              {/* Queue - enlarged with monster details - takes remaining space */}
               {queueMonsters.length > 0 && (
-                <div className="bg-card/50 rounded-xl border border-amber-600/50 p-2 md:p-3">
+                <div className="bg-card/50 rounded-xl border border-amber-600/50 p-2 md:p-3 flex-1 flex flex-col">
                   <div className="flex items-center gap-1.5 mb-2">
                     <Users className="h-4 w-4 text-amber-500" />
                     <span className="text-sm font-semibold text-amber-500">File d'attente ({queueMonsters.length})</span>
                   </div>
-                  <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 flex-1 content-start">
                     {queueMonsters.slice(0, 8).map(m => (
-                      <div key={m.id} className="relative rounded-lg overflow-hidden min-h-[60px] md:min-h-[80px] border border-amber-600/30">
+                      <div key={m.id} className="relative rounded-lg overflow-hidden min-h-[100px] md:min-h-[140px] border border-amber-600/30">
                         {getMonsterImage(m.monster_id) ? (
                           <img 
                             src={getMonsterImage(m.monster_id)} 
@@ -814,15 +814,15 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           <div className="absolute inset-0 bg-secondary flex items-center justify-center text-2xl">🐉</div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                        <div className="absolute bottom-0 left-0 right-0 p-1 text-center">
-                          <div className="text-[8px] md:text-[10px] font-bold text-white truncate">{getMonsterName(m)}</div>
-                          <div className="flex items-center justify-center gap-1 text-[7px] md:text-[9px]">
+                        <div className="absolute bottom-0 left-0 right-0 p-1.5 text-center">
+                          <div className="text-[9px] md:text-xs font-bold text-white truncate">{getMonsterName(m)}</div>
+                          <div className="flex items-center justify-center gap-2 text-[8px] md:text-[10px]">
                             <span className="flex items-center gap-0.5 text-red-400">
-                              <Heart className="h-2 md:h-2.5 w-2 md:w-2.5" />
+                              <Heart className="h-2.5 md:h-3 w-2.5 md:w-3" />
                               {getMonsterPvMax(m)}
                             </span>
                             <span className="flex items-center gap-0.5 text-amber-400">
-                              <Trophy className="h-2 md:h-2.5 w-2 md:w-2.5" />
+                              <Trophy className="h-2.5 md:h-3 w-2.5 md:w-3" />
                               {getMonsterReward(m)}
                             </span>
                           </div>
@@ -831,7 +831,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                     ))}
                   </div>
                   {queueMonsters.length > 8 && (
-                    <div className="text-center mt-1 text-xs text-amber-500">+{queueMonsters.length - 8} autres</div>
+                    <div className="text-center mt-2 text-xs text-amber-500">+{queueMonsters.length - 8} autres</div>
                   )}
                 </div>
               )}
