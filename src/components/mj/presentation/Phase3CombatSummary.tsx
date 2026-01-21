@@ -34,6 +34,7 @@ interface PlayerStats {
   totalDamage: number;
   kills: number;
   totalRewards: number;
+  weapons: string[];
 }
 
 interface Phase3CombatSummaryProps {
@@ -108,8 +109,17 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
       totalDamage: 0,
       kills: 0,
       totalRewards: 0,
+      weapons: [],
     };
     existing.totalDamage += entry.totalDamage || 0;
+    // Collect unique weapons
+    if (entry.weapons && Array.isArray(entry.weapons)) {
+      entry.weapons.forEach(w => {
+        if (!existing.weapons.includes(w)) {
+          existing.weapons.push(w);
+        }
+      });
+    }
     playerStatsMap.set(entry.nom, existing);
   });
 
@@ -173,29 +183,45 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
         </div>
       </div>
 
-      {/* Top 5 Players */}
+      {/* Players with weapons and damage */}
       {playerStats.length > 0 && (
         <div className="space-y-0.5">
-          <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground mb-0.5">Top Joueurs</div>
-          {playerStats.slice(0, 5).map((player, index) => (
+          <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground mb-0.5">Joueurs & Armes</div>
+          {playerStats.slice(0, 6).map((player, index) => (
             <div 
               key={player.name}
-              className={`flex items-center justify-between p-0.5 md:p-1 rounded text-[8px] md:text-[9px] ${
+              className={`p-0.5 md:p-1 rounded text-[8px] md:text-[9px] ${
                 index === 0 ? 'bg-amber-500/30' : 'bg-secondary/50'
               }`}
             >
-              <div className="flex items-center gap-0.5 min-w-0 flex-1">
-                <span className="text-[9px] flex-shrink-0">
-                  {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                </span>
-                <span className="truncate max-w-[50px]">{player.name}</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-0.5 min-w-0 flex-1">
+                  <span className="text-[9px] flex-shrink-0">
+                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                  </span>
+                  <span className="truncate max-w-[50px] font-medium">{player.name}</span>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Swords className="h-2 w-2 text-blue-500" />
+                  <span className="text-blue-500">{player.totalDamage}</span>
+                  {player.kills > 0 && (
+                    <span className="text-destructive text-[7px] md:text-[8px]">({player.kills}K)</span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {player.kills > 0 && (
-                  <span className="text-destructive text-[7px] md:text-[8px]">{player.kills}K</span>
-                )}
-                <span className="font-bold text-amber-500">{player.totalRewards}</span>
-              </div>
+              {player.weapons.length > 0 && (
+                <div className="flex flex-wrap gap-0.5 mt-0.5 pl-3">
+                  {player.weapons.map((weapon, wIdx) => (
+                    <Badge 
+                      key={wIdx} 
+                      variant="outline" 
+                      className="text-[6px] md:text-[7px] px-1 py-0 h-3 bg-secondary/50"
+                    >
+                      {weapon}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
