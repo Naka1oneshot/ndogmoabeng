@@ -85,6 +85,8 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   // Bot addition state
   const [addingBots, setAddingBots] = useState(false);
   const [botCount, setBotCount] = useState(5);
+  const [botsWithClans, setBotsWithClans] = useState(false);
+  const [botsWithMates, setBotsWithMates] = useState(false);
 
   const isLobby = game.status === 'LOBBY';
   const isInGame = game.status === 'IN_GAME';
@@ -384,7 +386,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     setAddingBots(true);
     try {
       const { data, error } = await supabase.functions.invoke('add-bots', {
-        body: { gameId: game.id, count: botCount },
+        body: { gameId: game.id, count: botCount, withClans: botsWithClans, withMates: botsWithMates },
       });
 
       if (error || !data?.success) {
@@ -641,17 +643,41 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
             
             {/* Add bots - Admin only */}
             {isAdmin && (
-              <div className="flex items-center gap-2 ml-4 p-2 rounded-lg border border-dashed border-primary/30 bg-primary/5">
-                <Bot className="h-4 w-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Bots:</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={botCount}
-                  onChange={(e) => setBotCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
-                  className="h-8 w-16 text-sm text-center"
-                />
+              <div className="flex flex-wrap items-center gap-3 ml-4 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">Bots:</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={botCount}
+                    onChange={(e) => setBotCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+                    className="h-8 w-16 text-sm text-center"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-3 text-sm">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={botsWithClans}
+                      onChange={(e) => setBotsWithClans(e.target.checked)}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    <span className="text-muted-foreground">Clans aléatoires</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={botsWithMates}
+                      onChange={(e) => setBotsWithMates(e.target.checked)}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    <span className="text-muted-foreground">Mates aléatoires</span>
+                  </label>
+                </div>
+                
                 <ForestButton
                   size="sm"
                   onClick={handleAddBots}
