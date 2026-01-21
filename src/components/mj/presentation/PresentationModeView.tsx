@@ -973,10 +973,10 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                         <div className="text-[10px] md:text-xs text-muted-foreground mb-1 md:mb-1.5">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="w-14 h-14 md:w-20 md:h-20 rounded-lg overflow-hidden mb-1 md:mb-1.5 bg-secondary">
+                            <div className="w-20 h-20 md:w-28 md:h-28 rounded-lg overflow-hidden mb-1 md:mb-2 bg-secondary">
                               {monster.status === 'MORT' ? (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <Skull className="h-8 md:h-12 w-8 md:w-12 text-muted-foreground" />
+                                  <Skull className="h-10 md:h-16 w-10 md:w-16 text-muted-foreground" />
                                 </div>
                               ) : getMonsterImage(monster.monster_id) ? (
                                 <img 
@@ -985,7 +985,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-3xl md:text-5xl">🐉</div>
+                                <div className="w-full h-full flex items-center justify-center text-4xl md:text-6xl">🐉</div>
                               )}
                             </div>
                             {getMonsterType(monster) && (
@@ -1164,11 +1164,20 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           </div>
                           {/* Full display on large screens, truncated with tooltip on smaller */}
                           <div className="flex items-center gap-1 min-w-0 flex-1">
-                            {team.members.length === 1 && team.members[0].clan && (
-                              <span className="text-sm md:text-base flex-shrink-0" title={team.members[0].clan}>{getClanEmoji(team.members[0].clan)}</span>
-                            )}
+                            {/* Show clan emoji for all players in team */}
+                            <div className="flex items-center gap-0.5 flex-shrink-0">
+                              {team.members.map((m, mi) => (
+                                m.clan && <span key={mi} className="text-sm md:text-base" title={m.clan}>{getClanEmoji(m.clan)}</span>
+                              ))}
+                            </div>
                             {/* Show full name on larger screens */}
                             <span className="hidden lg:block font-medium text-xs md:text-base">{team.teamName}</span>
+                            {/* Show clan names for team members on large screens */}
+                            {team.members.length > 1 && (
+                              <span className="hidden lg:block text-[10px] md:text-xs text-muted-foreground">
+                                ({team.members.filter(m => m.clan).map(m => m.clan).join(', ')})
+                              </span>
+                            )}
                             {team.members.length === 1 && team.members[0].clan && (
                               <span className="hidden lg:block text-[10px] md:text-xs text-muted-foreground">({team.members[0].clan})</span>
                             )}
