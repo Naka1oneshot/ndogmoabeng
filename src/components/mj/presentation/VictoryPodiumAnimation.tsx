@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Trophy, Medal, Award, Crown, Star, Sparkles } from 'lucide-react';
+import { Trophy, Medal, Award, Crown, Star, Sparkles, Coins, Skull, Gift } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import confetti from 'canvas-confetti';
@@ -8,6 +8,9 @@ interface PlayerRanking {
   display_name: string;
   player_number: number;
   total_score: number;
+  jetons: number;
+  recompenses: number;
+  kills: number;
   avatar_url?: string | null;
   clan?: string | null;
 }
@@ -235,6 +238,24 @@ export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPo
                 {player.total_score} pts
               </Badge>
               
+              {/* Detailed stats */}
+              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-0.5" title="Jetons restants">
+                  <Coins className="h-3 w-3 text-primary" />
+                  <span>{player.jetons}</span>
+                </div>
+                <div className="flex items-center gap-0.5" title="Récompenses gagnées">
+                  <Gift className="h-3 w-3 text-green-500" />
+                  <span>{player.recompenses}</span>
+                </div>
+                {player.kills > 0 && (
+                  <div className="flex items-center gap-0.5" title="Monstres tués">
+                    <Skull className="h-3 w-3 text-red-500" />
+                    <span>{player.kills}</span>
+                  </div>
+                )}
+              </div>
+              
               {/* Podium block */}
               <div className={`mt-3 ${getPodiumHeight(rank)} w-24 sm:w-32 rounded-t-lg ${
                 rank === 1 ? 'bg-gradient-to-t from-yellow-600 to-yellow-400' : 
@@ -277,7 +298,23 @@ export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPo
                   <span className="flex-1 font-medium truncate">
                     {player.display_name}
                   </span>
-                  <Badge variant="outline" className="text-xs">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-0.5" title="Jetons">
+                      <Coins className="h-3 w-3 text-primary" />
+                      <span>{player.jetons}</span>
+                    </div>
+                    <div className="flex items-center gap-0.5" title="Récompenses">
+                      <Gift className="h-3 w-3 text-green-500" />
+                      <span>{player.recompenses}</span>
+                    </div>
+                    {player.kills > 0 && (
+                      <div className="flex items-center gap-0.5" title="Kills">
+                        <Skull className="h-3 w-3 text-red-500" />
+                        <span>{player.kills}</span>
+                      </div>
+                    )}
+                  </div>
+                  <Badge variant="outline" className="text-xs ml-2">
                     {player.total_score} pts
                   </Badge>
                 </div>
