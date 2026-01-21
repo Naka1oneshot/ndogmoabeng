@@ -1168,56 +1168,42 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   )}
                 </div>
               )}
-              {/* Attack positions ranking - linear display of all players by position_finale */}
+              {/* Attack order ranking - horizontal display #1 to #N, max 2 lines */}
               {isPhase2 && hasPositions && (
                 <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-2 md:p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <Target className="h-3.5 md:h-4 w-3.5 md:w-4 text-purple-500" />
-                    <h3 className="text-xs md:text-sm font-semibold text-purple-500">Classement d'attaque</h3>
+                    <h3 className="text-xs md:text-sm font-semibold text-purple-500">Ordre d'attaque</h3>
                   </div>
-                  {(() => {
-                    const useCompactPositions = positions.length > 8;
-                    const topPositions = useCompactPositions ? positions.slice(0, 3) : positions;
-                    const bottomPositions = useCompactPositions ? positions.slice(3) : [];
-                    
-                    const renderPositionBadge = (pos: Position, isCompact: boolean) => {
+                  {/* Horizontal flex with max 2 lines via max-height and overflow hidden */}
+                  <div 
+                    className="flex flex-wrap gap-1 overflow-hidden"
+                    style={{ maxHeight: positions.length > 10 ? '3.5rem' : 'none' }}
+                  >
+                    {positions.map((pos) => {
                       const player = players.find(p => p.player_number === pos.num_joueur);
+                      const isCompact = positions.length > 10;
                       return (
                         <div 
                           key={pos.num_joueur}
-                          className={`flex items-center gap-1 ${isCompact ? 'bg-purple-500/20 rounded px-1 py-0.5' : 'bg-purple-500/20 rounded-lg px-2 py-1'} border border-purple-500/30`}
+                          className={`flex items-center gap-0.5 bg-purple-500/20 border border-purple-500/30 ${isCompact ? 'rounded px-1 py-0.5' : 'rounded-lg px-1.5 py-1'}`}
                         >
-                          <span className={`font-bold text-purple-400 ${isCompact ? 'text-[9px] md:text-[10px]' : 'text-[10px] md:text-xs'}`}>
+                          <span className={`font-bold text-purple-400 ${isCompact ? 'text-[8px] md:text-[9px]' : 'text-[10px] md:text-xs'}`}>
                             #{pos.position_finale}
                           </span>
                           <Avatar className={`${isCompact ? 'h-4 w-4' : 'h-5 w-5'} border border-purple-400/50`}>
                             <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
-                            <AvatarFallback className={`bg-purple-600/50 text-white ${isCompact ? 'text-[6px]' : 'text-[8px]'}`}>
+                            <AvatarFallback className={`bg-purple-600/50 text-white ${isCompact ? 'text-[5px]' : 'text-[7px]'}`}>
                               {pos.nom.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className={`${isCompact ? 'text-[8px] md:text-[9px] max-w-[35px]' : 'text-[9px] md:text-[10px] max-w-[50px]'} truncate`}>
+                          <span className={`truncate ${isCompact ? 'text-[7px] md:text-[8px] max-w-[30px]' : 'text-[9px] md:text-[10px] max-w-[45px]'}`}>
                             {pos.nom}
                           </span>
                         </div>
                       );
-                    };
-                    
-                    return (
-                      <div className="space-y-1.5">
-                        {/* Top positions - larger display */}
-                        <div className="flex flex-wrap gap-1.5">
-                          {topPositions.map(pos => renderPositionBadge(pos, false))}
-                        </div>
-                        {/* Remaining positions - compact 2-column grid when many players */}
-                        {bottomPositions.length > 0 && (
-                          <div className="grid grid-cols-2 gap-1 mt-1">
-                            {bottomPositions.map(pos => renderPositionBadge(pos, true))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+                    })}
+                  </div>
                 </div>
               )}
             </div>
