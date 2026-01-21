@@ -526,19 +526,80 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const isShopPhase = gamePhase === 'PHASE3_SHOP' || gamePhase === 'SHOP';
   const isGameEnded = !isShopPhase && (gamePhase === 'FINISHED' || gamePhase === 'ENDED');
   
-  // Build player rankings for victory screen with detailed stats
-  const playerRankings = players
-    .map(p => ({
-      display_name: p.display_name,
-      player_number: p.player_number,
-      total_score: p.jetons + p.recompenses,
-      jetons: p.jetons,
-      recompenses: p.recompenses,
-      kills: allKillsByPlayer.get(p.player_number) || 0,
-      avatar_url: p.avatar_url,
-      clan: p.clan,
-    }))
-    .sort((a, b) => b.total_score - a.total_score);
+  // Build team/player rankings for victory screen with detailed stats
+  // Score formula: recompenses + (jetons / 3)
+  const buildTeamRankings = () => {
+    const processedPlayers = new Set<number>();
+    const rankings: {
+      display_name: string;
+      player_numbers: number[];
+      total_score: number;
+      jetons: number;
+      recompenses: number;
+      kills: number;
+      avatar_urls: (string | null)[];
+      clans: (string | null)[];
+      isTeam: boolean;
+    }[] = [];
+
+    // Check if game has any teams
+    const hasTeams = players.some(p => p.mate_num !== null);
+
+    for (const player of players) {
+      if (processedPlayers.has(player.player_number)) continue;
+
+      const mate = hasTeams && player.mate_num 
+        ? players.find(p => p.player_number === player.mate_num)
+        : null;
+
+      if (mate && !processedPlayers.has(mate.player_number)) {
+        // Team entry
+        const teamJetons = player.jetons + mate.jetons;
+        const teamRecompenses = player.recompenses + mate.recompenses;
+        const teamKills = (allKillsByPlayer.get(player.player_number) || 0) + 
+                         (allKillsByPlayer.get(mate.player_number) || 0);
+        const teamScore = teamRecompenses + (teamJetons / 3);
+
+        rankings.push({
+          display_name: `${player.display_name} & ${mate.display_name}`,
+          player_numbers: [player.player_number, mate.player_number],
+          total_score: teamScore,
+          jetons: teamJetons,
+          recompenses: teamRecompenses,
+          kills: teamKills,
+          avatar_urls: [player.avatar_url, mate.avatar_url],
+          clans: [player.clan, mate.clan],
+          isTeam: true,
+        });
+
+        processedPlayers.add(player.player_number);
+        processedPlayers.add(mate.player_number);
+      } else {
+        // Solo player - if game has teams, double their score for balance
+        const playerKills = allKillsByPlayer.get(player.player_number) || 0;
+        const baseScore = player.recompenses + (player.jetons / 3);
+        const finalScore = hasTeams ? baseScore * 2 : baseScore;
+
+        rankings.push({
+          display_name: player.display_name,
+          player_numbers: [player.player_number],
+          total_score: finalScore,
+          jetons: player.jetons,
+          recompenses: player.recompenses,
+          kills: playerKills,
+          avatar_urls: [player.avatar_url],
+          clans: [player.clan],
+          isTeam: false,
+        });
+
+        processedPlayers.add(player.player_number);
+      }
+    }
+
+    return rankings.sort((a, b) => b.total_score - a.total_score);
+  };
+
+  const playerRankings = buildTeamRankings();
 
   // Determine phase displays
   const isPhase1 = game.phase === 'PHASE1_MISES';
