@@ -10,11 +10,18 @@ const corsHeaders = {
 const BOT_PREFIXES = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Omega', 'Zeta', 'Sigma', 'Theta', 'Lambda', 'Kappa'];
 const BOT_SUFFIXES = ['Bot', 'AI', 'Droid', 'Unit', 'Agent', 'Node', 'Core', 'Prime', 'Zero', 'One'];
 
+// Available clans for random assignment
+const CLANS = ['Royaux', 'Zoulous', 'Keryndes', 'Akandé', 'Aseyra', 'Akila', 'Ezkar'];
+
 function generateBotName(index: number): string {
   const prefix = BOT_PREFIXES[index % BOT_PREFIXES.length];
   const suffix = BOT_SUFFIXES[Math.floor(index / BOT_PREFIXES.length) % BOT_SUFFIXES.length];
   const num = Math.floor(index / (BOT_PREFIXES.length * BOT_SUFFIXES.length)) + 1;
   return num > 1 ? `${prefix}${suffix}${num}` : `${prefix}${suffix}`;
+}
+
+function getRandomClan(): string {
+  return CLANS[Math.floor(Math.random() * CLANS.length)];
 }
 
 serve(async (req) => {
@@ -23,7 +30,7 @@ serve(async (req) => {
   }
 
   try {
-    const { gameId, count } = await req.json();
+    const { gameId, count, withClans = false, withMates = false } = await req.json();
 
     if (!gameId || !count || count < 1 || count > 50) {
       return new Response(
@@ -116,7 +123,7 @@ serve(async (req) => {
 
     const botStartIndex = existingBotCount || 0;
 
-    // Create bots
+    // Create bots with player_numbers first
     const bots = [];
     for (let i = 0; i < count; i++) {
       const playerNumber = startNum + i;
@@ -133,13 +140,16 @@ serve(async (req) => {
         status: 'ACTIVE',
         jetons: game.starting_tokens || 50,
         joined_at: new Date().toISOString(),
+        clan: withClans ? getRandomClan() : null,
+        clan_locked: withClans ? true : false,
+        mate_num: null, // Will be assigned after all bots are created
       });
     }
 
     const { data: insertedBots, error: insertError } = await supabase
       .from('game_players')
       .insert(bots)
-      .select('id, display_name, player_number');
+      .select('id, display_name, player_number, clan');
 
     if (insertError) {
       console.error('[add-bots] Insert error:', insertError);
@@ -149,13 +159,48 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[add-bots] Added ${count} bots to game ${gameId}`);
+    // If withMates is enabled, assign random mates between the new bots
+    if (withMates && insertedBots && insertedBots.length >= 2) {
+      // Get all bot player numbers
+      const botPlayerNumbers = insertedBots.map(b => b.player_number);
+      
+      // Shuffle and pair up
+      const shuffled = [...botPlayerNumbers].sort(() => Math.random() - 0.5);
+      const pairs: Array<[number, number]> = [];
+      
+      for (let i = 0; i < shuffled.length - 1; i += 2) {
+        pairs.push([shuffled[i], shuffled[i + 1]]);
+      }
+      
+      // Update each bot with its mate
+      for (const [num1, num2] of pairs) {
+        const bot1 = insertedBots.find(b => b.player_number === num1);
+        const bot2 = insertedBots.find(b => b.player_number === num2);
+        
+        if (bot1 && bot2) {
+          await supabase
+            .from('game_players')
+            .update({ mate_num: num2 })
+            .eq('id', bot1.id);
+          
+          await supabase
+            .from('game_players')
+            .update({ mate_num: num1 })
+            .eq('id', bot2.id);
+        }
+      }
+      
+      console.log(`[add-bots] Assigned ${pairs.length} mate pairs`);
+    }
+
+    console.log(`[add-bots] Added ${count} bots to game ${gameId} (clans: ${withClans}, mates: ${withMates})`);
 
     return new Response(
       JSON.stringify({
         success: true,
         botsAdded: count,
         bots: insertedBots,
+        options: { withClans, withMates },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
