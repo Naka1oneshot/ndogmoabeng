@@ -956,19 +956,19 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:flex-1 md:overflow-hidden">
             {/* Left section: Battlefield + Queue + Positions */}
             <div className="md:col-span-6 flex flex-col gap-3 md:gap-4">
-              {/* Battlefield monsters - enlarged version */}
-              <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4">
+              {/* Battlefield monsters - enlarged version with flex-1 to fill space */}
+              <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4 flex-1 flex flex-col">
                 <div className="flex items-center gap-2 mb-3 md:mb-4">
                   <Swords className="h-5 md:h-6 w-5 md:w-6 text-destructive" />
                   <h2 className="text-base md:text-lg font-bold">Champ de Bataille</h2>
                 </div>
-                <div className="grid grid-cols-3 gap-3 md:gap-4">
+                <div className="grid grid-cols-3 gap-3 md:gap-4 flex-1">
                   {[1, 2, 3].map(slot => {
                     const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
                       <div 
                         key={slot}
-                        className="flex flex-col items-center justify-center p-2 md:p-3 rounded-lg bg-secondary/50 border border-border"
+                        className="flex flex-col items-center justify-center p-2 md:p-4 rounded-lg bg-secondary/50 border border-border min-h-[120px] md:min-h-[180px]"
                       >
                         <div className="text-[10px] md:text-xs text-muted-foreground mb-1 md:mb-1.5">Slot {slot}</div>
                         {monster ? (
@@ -1065,9 +1065,6 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                         <div key={slot} className="bg-purple-500/20 rounded-lg p-1.5 md:p-2 border border-purple-500/30">
                           <div className="text-center mb-1.5">
                             <span className="text-lg md:text-xl font-bold text-purple-400">{slot}</span>
-                            {monster && (
-                              <div className="text-[8px] md:text-[9px] text-muted-foreground truncate">{getMonsterName(monster)}</div>
-                            )}
                           </div>
                           <div className="flex flex-wrap justify-center gap-1">
                             {playersAtSlot.length > 0 ? (
