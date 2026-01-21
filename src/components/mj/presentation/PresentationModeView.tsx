@@ -961,67 +961,89 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   <span className="text-xs md:text-sm font-semibold text-amber-500">Classement</span>
                 </div>
                 <ScrollArea className="flex-1 max-h-[200px] md:max-h-none">
-                  <div className="space-y-1">
-                    {teams.map((team, index) => (
+                  {(() => {
+                    const useCompactLayout = teams.length > 8;
+                    const topTeams = useCompactLayout ? teams.slice(0, 3) : teams;
+                    const bottomTeams = useCompactLayout ? teams.slice(3) : [];
+                    
+                    const renderTeamRow = (team: Team, index: number, isCompact: boolean) => (
                       <div 
                         key={team.teamName}
-                        className={`flex items-center justify-between p-1 md:p-1.5 rounded-lg text-xs md:text-sm ${
+                        className={`flex items-center justify-between ${isCompact ? 'p-0.5 md:p-1' : 'p-1 md:p-1.5'} rounded-lg ${isCompact ? 'text-[9px] md:text-xs' : 'text-xs md:text-sm'} ${
                           index === 0 ? 'bg-amber-500/30 border border-amber-500' :
                           index === 1 ? 'bg-secondary border border-border' :
                           index === 2 ? 'bg-amber-700/30 border border-amber-700' :
                           'bg-secondary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-1 md:gap-1.5 min-w-0 flex-1">
-                          <span className="text-sm md:text-base flex-shrink-0">
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
+                          <span className={`${isCompact ? 'text-xs md:text-sm' : 'text-sm md:text-base'} flex-shrink-0`}>
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
                           {/* Avatars */}
                           <div className="flex items-center">
-                            {team.members.slice(0, 3).map((member, mi) => (
-                              <Avatar key={member.id} className={`h-5 md:h-6 w-5 md:w-6 border ${mi > 0 ? '-ml-1.5' : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
+                            {team.members.slice(0, isCompact ? 2 : 3).map((member, mi) => (
+                              <Avatar key={member.id} className={`${isCompact ? 'h-4 md:h-5 w-4 md:w-5' : 'h-5 md:h-6 w-5 md:w-6'} border ${mi > 0 ? '-ml-1.5' : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
                                 <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
-                                <AvatarFallback className="bg-secondary text-foreground text-[8px] md:text-[10px]">
+                                <AvatarFallback className={`bg-secondary text-foreground ${isCompact ? 'text-[6px] md:text-[8px]' : 'text-[8px] md:text-[10px]'}`}>
                                   {member.display_name.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                             ))}
                           </div>
-                          {/* Clan emojis */}
-                          <div className="flex items-center gap-0.5 flex-shrink-0">
-                            {team.members.filter(m => m.clan).slice(0, 2).map((m, mi) => (
-                              <span key={mi} className="text-[10px] md:text-xs" title={m.clan || ''}>{getClanEmoji(m.clan || '')}</span>
-                            ))}
-                          </div>
+                          {/* Clan emojis - hide in compact mode */}
+                          {!isCompact && (
+                            <div className="flex items-center gap-0.5 flex-shrink-0">
+                              {team.members.filter(m => m.clan).slice(0, 2).map((m, mi) => (
+                                <span key={mi} className="text-[10px] md:text-xs" title={m.clan || ''}>{getClanEmoji(m.clan || '')}</span>
+                              ))}
+                            </div>
+                          )}
                           {/* Name with tooltip */}
                           <div className="flex items-center gap-0.5 min-w-0 flex-1">
-                            <span className="font-medium truncate max-w-[50px] md:max-w-[80px] text-[10px] md:text-xs">{team.teamName}</span>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
-                                    <Info className="h-2.5 md:h-3 w-2.5 md:w-3 text-amber-400" />
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="left" className="max-w-[180px]">
-                                  <div className="text-xs">
-                                    <p className="font-semibold">{team.teamName}</p>
-                                    {team.members.map(m => (
-                                      <p key={m.id} className="text-[10px] text-muted-foreground">
-                                        {m.display_name}{m.clan ? ` (${m.clan})` : ''}
-                                      </p>
-                                    ))}
-                                    <p className="text-amber-400 font-medium mt-1">Score: {team.teamScore}</p>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <span className={`font-medium truncate ${isCompact ? 'max-w-[35px] md:max-w-[50px] text-[8px] md:text-[10px]' : 'max-w-[50px] md:max-w-[80px] text-[10px] md:text-xs'}`}>{team.teamName}</span>
+                            {!isCompact && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
+                                      <Info className="h-2.5 md:h-3 w-2.5 md:w-3 text-amber-400" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="max-w-[180px]">
+                                    <div className="text-xs">
+                                      <p className="font-semibold">{team.teamName}</p>
+                                      {team.members.map(m => (
+                                        <p key={m.id} className="text-[10px] text-muted-foreground">
+                                          {m.display_name}{m.clan ? ` (${m.clan})` : ''}
+                                        </p>
+                                      ))}
+                                      <p className="text-amber-400 font-medium mt-1">Score: {team.teamScore}</p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </div>
                         </div>
-                        <span className="font-bold text-amber-500 text-xs md:text-sm flex-shrink-0">{team.teamScore}</span>
+                        <span className={`font-bold text-amber-500 ${isCompact ? 'text-[9px] md:text-xs' : 'text-xs md:text-sm'} flex-shrink-0`}>{team.teamScore}</span>
                       </div>
-                    ))}
-                  </div>
+                    );
+                    
+                    return (
+                      <div className="space-y-1">
+                        {/* Top 3 - always single column */}
+                        {topTeams.map((team, index) => renderTeamRow(team, index, false))}
+                        
+                        {/* 4th+ in 2 columns when compact */}
+                        {bottomTeams.length > 0 && (
+                          <div className="grid grid-cols-2 gap-1 mt-1">
+                            {bottomTeams.map((team, idx) => renderTeamRow(team, idx + 3, true))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </ScrollArea>
               </div>
             </div>
@@ -1237,27 +1259,31 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   <h3 className="text-sm md:text-base font-semibold text-amber-500">Classement des équipes</h3>
                 </div>
                 <ScrollArea className="flex-1">
-                  <div className="space-y-1 md:space-y-2 pr-3">
-                    {teams.map((team, index) => (
+                  {(() => {
+                    const useCompactLayout = teams.length > 8;
+                    const topTeams = useCompactLayout ? teams.slice(0, 3) : teams;
+                    const bottomTeams = useCompactLayout ? teams.slice(3) : [];
+                    
+                    const renderTeamRowFull = (team: Team, index: number, isCompact: boolean) => (
                       <div 
                         key={team.teamName}
-                        className={`flex items-center justify-between p-1.5 md:p-2.5 rounded-lg ${
+                        className={`flex items-center justify-between ${isCompact ? 'p-1 md:p-1.5' : 'p-1.5 md:p-2.5'} rounded-lg ${
                           index === 0 ? 'bg-amber-500/30 border border-amber-500' :
                           index === 1 ? 'bg-secondary border border-border' :
                           index === 2 ? 'bg-amber-700/30 border border-amber-700' :
                           'bg-secondary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-1.5 md:gap-2 min-w-0 flex-1">
-                          <span className="text-lg md:text-2xl flex-shrink-0">
+                        <div className={`flex items-center ${isCompact ? 'gap-1' : 'gap-1.5 md:gap-2'} min-w-0 flex-1`}>
+                          <span className={`${isCompact ? 'text-sm md:text-base' : 'text-lg md:text-2xl'} flex-shrink-0`}>
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
-                          <div className="flex items-center gap-1 md:gap-2">
-                            {team.members.map((member, mi) => (
+                          <div className={`flex items-center ${isCompact ? 'gap-0.5' : 'gap-1 md:gap-2'}`}>
+                            {team.members.slice(0, isCompact ? 2 : undefined).map((member, mi) => (
                               <div key={member.id} className="flex items-center">
-                                <Avatar className={`h-5 md:h-8 w-5 md:w-8 border-2 ${mi > 0 ? '-ml-2 md:-ml-3' : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
+                                <Avatar className={`${isCompact ? 'h-4 md:h-5 w-4 md:w-5' : 'h-5 md:h-8 w-5 md:w-8'} border-2 ${mi > 0 ? (isCompact ? '-ml-1.5' : '-ml-2 md:-ml-3') : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
                                   <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
-                                  <AvatarFallback className="bg-secondary text-foreground text-[9px] md:text-xs">
+                                  <AvatarFallback className={`bg-secondary text-foreground ${isCompact ? 'text-[7px] md:text-[9px]' : 'text-[9px] md:text-xs'}`}>
                                     {member.display_name.charAt(0).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
@@ -1266,52 +1292,72 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           </div>
                           {/* Full display on large screens, truncated with tooltip on smaller */}
                           <div className="flex items-center gap-1 min-w-0 flex-1">
-                            {/* Show clan emoji for all players in team */}
-                            <div className="flex items-center gap-0.5 flex-shrink-0">
-                              {team.members.map((m, mi) => (
-                                m.clan && <span key={mi} className="text-sm md:text-base" title={m.clan}>{getClanEmoji(m.clan)}</span>
-                              ))}
-                            </div>
+                            {/* Show clan emoji for all players in team - hide in compact */}
+                            {!isCompact && (
+                              <div className="flex items-center gap-0.5 flex-shrink-0">
+                                {team.members.map((m, mi) => (
+                                  m.clan && <span key={mi} className="text-sm md:text-base" title={m.clan}>{getClanEmoji(m.clan)}</span>
+                                ))}
+                              </div>
+                            )}
                             {/* Show full name on larger screens */}
-                            <span className="hidden lg:block font-medium text-xs md:text-base">{team.teamName}</span>
+                            {!isCompact && <span className="hidden lg:block font-medium text-xs md:text-base">{team.teamName}</span>}
                             {/* Show clan names for team members on large screens */}
-                            {team.members.length > 1 && (
+                            {!isCompact && team.members.length > 1 && (
                               <span className="hidden lg:block text-[10px] md:text-xs text-muted-foreground">
                                 ({team.members.filter(m => m.clan).map(m => m.clan).join(', ')})
                               </span>
                             )}
-                            {team.members.length === 1 && team.members[0].clan && (
+                            {!isCompact && team.members.length === 1 && team.members[0].clan && (
                               <span className="hidden lg:block text-[10px] md:text-xs text-muted-foreground">({team.members[0].clan})</span>
                             )}
-                            {/* Show truncated with info tooltip on smaller screens */}
-                            <div className="lg:hidden flex items-center gap-1 min-w-0">
-                              <span className="font-medium text-xs md:text-base truncate max-w-[60px] md:max-w-[100px]">{team.teamName}</span>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
-                                      <Info className="h-3 md:h-3.5 w-3 md:w-3.5 text-amber-400" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="max-w-[200px]">
-                                    <div className="text-sm">
-                                      <p className="font-semibold">{team.teamName}</p>
-                                      {team.members.map(m => (
-                                        <p key={m.id} className="text-xs text-muted-foreground">
-                                          {m.display_name}{m.clan ? ` (${m.clan})` : ''}
-                                        </p>
-                                      ))}
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
+                            {/* Show truncated name */}
+                            {isCompact ? (
+                              <span className={`font-medium truncate max-w-[40px] md:max-w-[60px] text-[9px] md:text-xs`}>{team.teamName}</span>
+                            ) : (
+                              <div className="lg:hidden flex items-center gap-1 min-w-0">
+                                <span className="font-medium text-xs md:text-base truncate max-w-[60px] md:max-w-[100px]">{team.teamName}</span>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
+                                        <Info className="h-3 md:h-3.5 w-3 md:w-3.5 text-amber-400" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-[200px]">
+                                      <div className="text-sm">
+                                        <p className="font-semibold">{team.teamName}</p>
+                                        {team.members.map(m => (
+                                          <p key={m.id} className="text-xs text-muted-foreground">
+                                            {m.display_name}{m.clan ? ` (${m.clan})` : ''}
+                                          </p>
+                                        ))}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <span className="font-bold text-amber-500 text-sm md:text-xl flex-shrink-0">{team.teamScore}</span>
+                        <span className={`font-bold text-amber-500 ${isCompact ? 'text-xs md:text-sm' : 'text-sm md:text-xl'} flex-shrink-0`}>{team.teamScore}</span>
                       </div>
-                    ))}
-                  </div>
+                    );
+                    
+                    return (
+                      <div className="space-y-1 md:space-y-2 pr-3">
+                        {/* Top 3 - always single column */}
+                        {topTeams.map((team, index) => renderTeamRowFull(team, index, false))}
+                        
+                        {/* 4th+ in 2 columns when compact */}
+                        {bottomTeams.length > 0 && (
+                          <div className="grid grid-cols-2 gap-1 mt-1">
+                            {bottomTeams.map((team, idx) => renderTeamRowFull(team, idx + 3, true))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </ScrollArea>
               </div>
 
