@@ -13,6 +13,7 @@ import { fr } from 'date-fns/locale';
 import { getMonsterImage } from '@/lib/monsterImages';
 import { CombatHistorySummarySheet } from './CombatHistorySummarySheet';
 import { Phase3CombatSummary } from './Phase3CombatSummary';
+import { MonsterReplacementAnimation, MonsterReplacementInfo } from '@/components/game/MonsterReplacementAnimation';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
@@ -142,8 +143,74 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const [phaseTransitionText, setPhaseTransitionText] = useState('');
   const [showCoupDeGrace, setShowCoupDeGrace] = useState(false);
   const [coupDeGraceInfo, setCoupDeGraceInfo] = useState<CoupDeGraceInfo | null>(null);
+  const [showMonsterReplacement, setShowMonsterReplacement] = useState(false);
+  const [monsterReplacementInfo, setMonsterReplacementInfo] = useState<MonsterReplacementInfo | null>(null);
   const previousPhaseRef = useRef<string>(initialGame.phase);
   const previousKillsCountRef = useRef<number>(0);
+  const previousBattlefieldRef = useRef<Map<number, { monsterId: number; monsterName: string }>>(new Map());
+
+  // Define trigger functions BEFORE fetchData so they can be used inside it
+  const triggerPhaseTransition = useCallback((newPhase: string) => {
+    const phaseNames: Record<string, string> = {
+      'PHASE1_MISES': 'Phase des Mises',
+      'PHASE2_POSITIONS': 'Phase des Actions',
+      'PHASE3_SHOP': 'Phase Boutique',
+      'SHOP': 'Phase Boutique',
+      'PHASE4_COMBAT': 'Résolution du Combat',
+      'RESOLUTION': 'Résolution du Combat',
+    };
+    setPhaseTransitionText(phaseNames[newPhase] || newPhase);
+    setShowPhaseTransition(true);
+    setTimeout(() => setShowPhaseTransition(false), 2500);
+  }, []);
+
+  const triggerCoupDeGrace = useCallback((killInfo: CoupDeGraceInfo) => {
+    setCoupDeGraceInfo(killInfo);
+    setShowCoupDeGrace(true);
+    setTimeout(() => setShowCoupDeGrace(false), 3500);
+  }, []);
+
+  const triggerMonsterReplacement = useCallback((replacementInfo: MonsterReplacementInfo) => {
+    setMonsterReplacementInfo(replacementInfo);
+    setShowMonsterReplacement(true);
+    setTimeout(() => setShowMonsterReplacement(false), 3500);
+  }, []);
+
+  // Check for monster replacements on battlefield - defined before fetchData
+  const checkBattlefieldReplacements = useCallback((newMonsters: MonsterState[], catalogMap: Map<number, { name: string; type: string | null; pv_max_default: number; reward_default: number }>) => {
+    const newBattlefield = new Map<number, { monsterId: number; monsterName: string }>();
+    
+    // Build current battlefield state
+    newMonsters
+      .filter(m => m.status === 'EN_BATAILLE' && m.battlefield_slot)
+      .forEach(m => {
+        const name = catalogMap.get(m.monster_id)?.name ?? `Monstre #${m.monster_id}`;
+        newBattlefield.set(m.battlefield_slot!, { monsterId: m.monster_id, monsterName: name });
+      });
+    
+    // Compare with previous state to detect replacements
+    if (previousBattlefieldRef.current.size > 0) {
+      for (const [slot, oldMonster] of previousBattlefieldRef.current) {
+        const newMonster = newBattlefield.get(slot);
+        // If the slot has a different monster now, this is a replacement
+        if (newMonster && newMonster.monsterId !== oldMonster.monsterId) {
+          // Trigger animation after a small delay to let coup de grâce animation play first
+          setTimeout(() => {
+            triggerMonsterReplacement({
+              deadMonsterId: oldMonster.monsterId,
+              deadMonsterName: oldMonster.monsterName,
+              replacementMonsterId: newMonster.monsterId,
+              replacementMonsterName: newMonster.monsterName,
+              slot: slot,
+            });
+          }, 3600); // Wait for coup de grâce to finish (3.5s + 100ms buffer)
+          break; // Only show one replacement at a time
+        }
+      }
+    }
+    
+    previousBattlefieldRef.current = newBattlefield;
+  }, [triggerMonsterReplacement]);
 
   const fetchData = useCallback(async () => {
     console.log('[Presentation] Fetching data for game', game.id, 'manche', game.manche_active, 'phase', game.phase);
@@ -189,12 +256,17 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       const catalogMap = new Map((catalogRes.data || []).map(c => [c.id, c]));
       const configMap = new Map((configRes.data || []).map(c => [c.monster_id, c]));
 
-      setMonsters(monstersData.map(m => ({
+      const enrichedMonsters = monstersData.map(m => ({
         ...m,
         status: m.status as MonsterState['status'],
         catalog: catalogMap.get(m.monster_id),
         config: configMap.get(m.monster_id),
-      })));
+      }));
+      
+      // Check for monster replacements on battlefield
+      checkBattlefieldReplacements(enrichedMonsters, catalogMap);
+      
+      setMonsters(enrichedMonsters);
     } else {
       setMonsters([]);
     }
@@ -329,27 +401,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     setLastUpdate(new Date());
     setLoading(false);
     setIsRefreshing(false);
-  }, [game.id, game.manche_active, game.current_session_game_id, game.phase]);
-
-  const triggerPhaseTransition = (newPhase: string) => {
-    const phaseNames: Record<string, string> = {
-      'PHASE1_MISES': 'Phase des Mises',
-      'PHASE2_POSITIONS': 'Phase des Actions',
-      'PHASE3_SHOP': 'Phase Boutique',
-      'SHOP': 'Phase Boutique',
-      'PHASE4_COMBAT': 'Résolution du Combat',
-      'RESOLUTION': 'Résolution du Combat',
-    };
-    setPhaseTransitionText(phaseNames[newPhase] || newPhase);
-    setShowPhaseTransition(true);
-    setTimeout(() => setShowPhaseTransition(false), 2500);
-  };
-
-  const triggerCoupDeGrace = (killInfo: CoupDeGraceInfo) => {
-    setCoupDeGraceInfo(killInfo);
-    setShowCoupDeGrace(true);
-    setTimeout(() => setShowCoupDeGrace(false), 3500);
-  };
+  }, [game.id, game.manche_active, game.current_session_game_id, game.phase, triggerPhaseTransition, triggerCoupDeGrace, checkBattlefieldReplacements]);
   
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -661,6 +713,12 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           `}</style>
         </div>
       )}
+
+      {/* Monster Replacement Animation Overlay */}
+      <MonsterReplacementAnimation 
+        show={showMonsterReplacement} 
+        info={monsterReplacementInfo} 
+      />
 
       {/* Close hint + Last update indicator + Manual refresh button + History */}
       <div className="absolute top-2 md:top-4 right-2 md:right-4 flex items-center gap-2 md:gap-3 text-xs text-muted-foreground z-10">
