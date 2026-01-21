@@ -1031,19 +1031,19 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:flex-1 md:overflow-hidden">
             {/* Left section: Battlefield + Queue + Positions - 2/3 width */}
             <div className="md:col-span-8 flex flex-col gap-3 md:gap-4">
-              {/* Battlefield monsters - enlarged version with flex-1 to fill space */}
-              <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4 flex-1 flex flex-col">
-                <div className="flex items-center gap-2 mb-3 md:mb-4">
+              {/* Battlefield monsters - 2/3 height */}
+              <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4 flex flex-col" style={{ flex: '2 1 0' }}>
+                <div className="flex items-center gap-2 mb-2 md:mb-3">
                   <Swords className="h-5 md:h-6 w-5 md:w-6 text-destructive" />
                   <h2 className="text-base md:text-lg font-bold">Champ de Bataille</h2>
                 </div>
-                <div className="grid grid-cols-3 gap-3 md:gap-4 flex-1">
+                <div className="grid grid-cols-3 gap-3 md:gap-4 flex-1 h-[calc(100%-2.5rem)]">
                   {[1, 2, 3].map(slot => {
                     const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
                       <div 
                         key={slot}
-                        className="relative rounded-lg border border-border min-h-[140px] md:min-h-[220px] overflow-hidden"
+                        className="relative rounded-lg border border-border overflow-hidden h-full min-h-[160px] md:min-h-[280px]"
                       >
                         {monster ? (
                           <>
@@ -1102,35 +1102,38 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               </div>
 
-              {/* Queue monsters */}
+              {/* Queue monsters - 1/3 height */}
               {queueMonsters.length > 0 && (
-                <div className="bg-card/50 rounded-xl border border-amber-600/50 p-2 md:p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Users className="h-3.5 md:h-4 w-3.5 md:w-4 text-amber-500" />
-                    <h3 className="text-xs md:text-sm font-semibold text-amber-500">File d'attente ({queueMonsters.length})</h3>
+                <div className="bg-card/50 rounded-xl border border-amber-600/50 p-2 md:p-3 flex flex-col" style={{ flex: '1 1 0' }}>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Users className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-semibold text-amber-500">File d'attente ({queueMonsters.length})</span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 md:gap-2">
-                    {queueMonsters.map(m => (
-                      <div key={m.id} className="flex items-center gap-1.5 md:gap-2 bg-amber-500/10 px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-amber-500/30">
-                        <div className="w-6 h-6 md:w-8 md:h-8 rounded overflow-hidden flex-shrink-0">
-                          {getMonsterImage(m.monster_id) ? (
-                            <img src={getMonsterImage(m.monster_id)} alt={getMonsterName(m)} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-lg md:text-2xl">🐉</span>
-                          )}
-                        </div>
-                        <div className="flex flex-col">
+                  <div className="grid grid-cols-4 gap-1.5 flex-1 h-[calc(100%-2rem)]">
+                    {queueMonsters.slice(0, 4).map(m => (
+                      <div key={m.id} className="relative rounded-lg overflow-hidden border border-amber-600/30 h-full min-h-[80px] md:min-h-[120px]">
+                        {getMonsterImage(m.monster_id) ? (
+                          <img 
+                            src={getMonsterImage(m.monster_id)} 
+                            alt={getMonsterName(m)} 
+                            className="absolute inset-0 w-full h-full object-cover" 
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-secondary flex items-center justify-center text-2xl">🐉</div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-1 text-center">
                           {getMonsterType(m) && (
-                            <span className="text-[8px] md:text-[10px] text-muted-foreground">{getMonsterType(m)}</span>
+                            <div className="text-[7px] md:text-[9px] text-white/70">{getMonsterType(m)}</div>
                           )}
-                          <span className="text-xs md:text-sm font-medium">{getMonsterName(m)}</span>
-                          <div className="flex items-center gap-1 md:gap-2 text-[9px] md:text-xs">
-                            <span className="flex items-center gap-0.5 text-destructive">
-                              <Heart className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                          <div className="text-[9px] md:text-xs font-bold text-white truncate">{getMonsterName(m)}</div>
+                          <div className="flex items-center justify-center gap-1.5 text-[8px] md:text-[10px]">
+                            <span className="flex items-center gap-0.5 text-red-400">
+                              <Heart className="h-2 md:h-2.5 w-2 md:w-2.5" />
                               {getMonsterPvMax(m)}
                             </span>
-                            <span className="flex items-center gap-0.5 text-amber-500">
-                              <Trophy className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                            <span className="flex items-center gap-0.5 text-amber-400">
+                              <Trophy className="h-2 md:h-2.5 w-2 md:w-2.5" />
                               {getMonsterReward(m)}
                             </span>
                           </div>
@@ -1138,6 +1141,9 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                       </div>
                     ))}
                   </div>
+                  {queueMonsters.length > 4 && (
+                    <div className="text-center mt-1 text-[10px] text-amber-500">+{queueMonsters.length - 4} autres</div>
+                  )}
                 </div>
               )}
               {/* Attack positions display - below Queue on left side */}
