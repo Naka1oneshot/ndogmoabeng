@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { getMonsterImage } from '@/lib/monsterImages';
+import { CombatHistorySummarySheet } from './CombatHistorySummarySheet';
 
 interface Game {
   id: string;
@@ -419,8 +420,9 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       className="fixed inset-0 z-[100] bg-gradient-to-b from-background to-secondary text-foreground overflow-auto"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Close hint + Last update indicator + Manual refresh button */}
+      {/* Close hint + Last update indicator + Manual refresh button + History */}
       <div className="absolute top-2 md:top-4 right-2 md:right-4 flex items-center gap-2 md:gap-3 text-xs text-muted-foreground z-10">
+        <CombatHistorySummarySheet gameId={game.id} sessionGameId={game.current_session_game_id} />
         <Button
           variant="outline"
           size="sm"
