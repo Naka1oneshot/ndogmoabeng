@@ -968,43 +968,58 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                     return (
                       <div 
                         key={slot}
-                        className="flex flex-col items-center justify-center p-2 md:p-4 rounded-lg bg-secondary/50 border border-border min-h-[120px] md:min-h-[180px]"
+                        className="relative rounded-lg border border-border min-h-[140px] md:min-h-[220px] overflow-hidden"
                       >
-                        <div className="text-[10px] md:text-xs text-muted-foreground mb-1 md:mb-1.5">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="w-20 h-20 md:w-28 md:h-28 rounded-lg overflow-hidden mb-1 md:mb-2 bg-secondary">
-                              {monster.status === 'MORT' ? (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Skull className="h-10 md:h-16 w-10 md:w-16 text-muted-foreground" />
-                                </div>
-                              ) : getMonsterImage(monster.monster_id) ? (
-                                <img 
-                                  src={getMonsterImage(monster.monster_id)} 
-                                  alt={getMonsterName(monster)}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-4xl md:text-6xl">🐉</div>
-                              )}
-                            </div>
-                            {getMonsterType(monster) && (
-                              <div className="text-[9px] md:text-xs text-muted-foreground">{getMonsterType(monster)}</div>
+                            {/* Background image filling the entire card */}
+                            {monster.status === 'MORT' ? (
+                              <div className="absolute inset-0 bg-secondary/80 flex items-center justify-center">
+                                <Skull className="h-16 md:h-24 w-16 md:w-24 text-muted-foreground/50" />
+                              </div>
+                            ) : getMonsterImage(monster.monster_id) ? (
+                              <img 
+                                src={getMonsterImage(monster.monster_id)} 
+                                alt={getMonsterName(monster)}
+                                className="absolute inset-0 w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-secondary flex items-center justify-center text-5xl md:text-7xl">🐉</div>
                             )}
-                            <div className="text-xs md:text-base font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
-                            <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-sm mt-0.5">
-                              <span className="flex items-center gap-0.5 text-destructive">
-                                <Heart className="h-3 md:h-4 w-3 md:w-4" />
-                                {getMonsterPvMax(monster)}
+                            
+                            {/* Dark gradient overlay for text readability */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/50" />
+                            
+                            {/* Slot number - top */}
+                            <div className="absolute top-1 md:top-2 left-0 right-0 text-center">
+                              <span className="text-[10px] md:text-xs text-white/80 bg-black/40 px-2 py-0.5 rounded">
+                                Slot {slot}
                               </span>
-                              <span className="flex items-center gap-0.5 text-amber-500">
-                                <Trophy className="h-3 md:h-4 w-3 md:w-4" />
-                                {getMonsterReward(monster)}
-                              </span>
+                            </div>
+                            
+                            {/* Monster info - bottom */}
+                            <div className="absolute bottom-0 left-0 right-0 p-2 md:p-3 text-center">
+                              {getMonsterType(monster) && (
+                                <div className="text-[9px] md:text-xs text-white/70 mb-0.5">{getMonsterType(monster)}</div>
+                              )}
+                              <div className="text-sm md:text-lg font-bold text-white drop-shadow-lg">{getMonsterName(monster)}</div>
+                              <div className="flex items-center justify-center gap-2 md:gap-3 text-[10px] md:text-sm mt-1">
+                                <span className="flex items-center gap-0.5 text-red-400">
+                                  <Heart className="h-3 md:h-4 w-3 md:w-4" />
+                                  {getMonsterPvMax(monster)}
+                                </span>
+                                <span className="flex items-center gap-0.5 text-amber-400">
+                                  <Trophy className="h-3 md:h-4 w-3 md:w-4" />
+                                  {getMonsterReward(monster)}
+                                </span>
+                              </div>
                             </div>
                           </>
                         ) : (
-                          <span className="text-muted-foreground text-xs md:text-sm py-4">Vide</span>
+                          <div className="absolute inset-0 bg-secondary/30 flex flex-col items-center justify-center">
+                            <div className="text-[10px] md:text-xs text-muted-foreground mb-2">Slot {slot}</div>
+                            <span className="text-muted-foreground text-xs md:text-sm">Vide</span>
+                          </div>
                         )}
                       </div>
                     );
