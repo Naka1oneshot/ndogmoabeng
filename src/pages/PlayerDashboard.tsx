@@ -663,13 +663,14 @@ export default function PlayerDashboard() {
               currentPlayerNumber={player.playerNumber}
             />
             
-            {/* Manche Selector - Mobile */}
-            <div className="card-gradient rounded-lg border border-border p-3">
+            {/* Manche Selector + History Button - Mobile */}
+            <div className="card-gradient rounded-lg border border-border p-3 flex items-center justify-between gap-2">
               <MancheSelector
                 currentManche={game.manche_active}
                 selectedManche={selectedManche}
                 onMancheChange={setSelectedManche}
               />
+              <CombatHistorySummarySheet gameId={game.id} sessionGameId={game.current_session_game_id} />
             </div>
 
             <PositionsRankingPanel 
