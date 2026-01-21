@@ -40,6 +40,11 @@ interface MancheData {
   humanKills: number;
   botDamage: number;
   humanDamage: number;
+  botRewards: number;
+  humanRewards: number;
+  // Cumulative values
+  botRewardsCumul: number;
+  humanRewardsCumul: number;
 }
 
 interface BotVsHumanStatsSheetProps {
@@ -114,22 +119,29 @@ export function BotVsHumanStatsSheet({ gameId, sessionGameId, startingTokens }: 
             botKills: 0,
             humanKills: 0,
             botDamage: 0,
-            humanDamage: 0
+            humanDamage: 0,
+            botRewards: 0,
+            humanRewards: 0,
+            botRewardsCumul: 0,
+            humanRewardsCumul: 0
           });
         }
         const mancheStats = perManche.get(manche)!;
 
-        // Process kills
+        // Process kills with rewards
         const kills = Array.isArray(result.kills) ? result.kills : [];
-        kills.forEach((kill: { killerName?: string }) => {
+        kills.forEach((kill: { killerName?: string; reward?: number }) => {
           if (kill.killerName) {
             const isBot = playerBotMap.get(kill.killerName);
+            const reward = kill.reward || 0;
             if (isBot === true) {
               botCombat.kills++;
               mancheStats.botKills++;
+              mancheStats.botRewards += reward;
             } else if (isBot === false) {
               humanCombat.kills++;
               mancheStats.humanKills++;
+              mancheStats.humanRewards += reward;
             }
           }
         });
@@ -152,8 +164,17 @@ export function BotVsHumanStatsSheet({ gameId, sessionGameId, startingTokens }: 
         });
       });
 
-      // Convert to sorted array for chart
+      // Convert to sorted array and calculate cumulative rewards
       const mancheArray = Array.from(perManche.values()).sort((a, b) => a.manche - b.manche);
+      let botCumul = 0;
+      let humanCumul = 0;
+      mancheArray.forEach(m => {
+        botCumul += m.botRewards;
+        humanCumul += m.humanRewards;
+        m.botRewardsCumul = botCumul;
+        m.humanRewardsCumul = humanCumul;
+      });
+      
       setMancheData(mancheArray);
       setCombatData({ bots: botCombat, humans: humanCombat });
     } catch (err) {
@@ -431,6 +452,83 @@ export function BotVsHumanStatsSheet({ gameId, sessionGameId, startingTokens }: 
                           />
                         </LineChart>
                       </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Cumulative Rewards Chart */}
+              {mancheData.length > 0 && (
+                <div className="bg-card/50 rounded-xl border border-border p-4">
+                  <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-amber-500" />
+                    Récompenses Cumulées
+                  </h3>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={mancheData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis 
+                          dataKey="manche" 
+                          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                          tickFormatter={(v) => `M${v}`}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                          width={40}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                            fontSize: '12px'
+                          }}
+                          labelFormatter={(v) => `Manche ${v}`}
+                          formatter={(value: number, name: string) => [value, name]}
+                        />
+                        <Legend 
+                          wrapperStyle={{ fontSize: '10px' }}
+                          iconSize={8}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="botRewardsCumul" 
+                          name="Bots (cumul)" 
+                          stroke="#3b82f6" 
+                          strokeWidth={2}
+                          dot={{ fill: '#3b82f6', r: 3 }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="humanRewardsCumul" 
+                          name="Humains (cumul)" 
+                          stroke="#22c55e" 
+                          strokeWidth={2}
+                          dot={{ fill: '#22c55e', r: 3 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {/* Show per-manche rewards as a small table */}
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-secondary/50 rounded-lg p-2">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Bot className="h-3 w-3 text-blue-400" />
+                        <span className="text-muted-foreground">Bots</span>
+                      </div>
+                      <div className="font-bold text-blue-400">
+                        {mancheData[mancheData.length - 1]?.botRewardsCumul || 0} total
+                      </div>
+                    </div>
+                    <div className="bg-secondary/50 rounded-lg p-2">
+                      <div className="flex items-center gap-1 mb-1">
+                        <User className="h-3 w-3 text-green-400" />
+                        <span className="text-muted-foreground">Humains</span>
+                      </div>
+                      <div className="font-bold text-green-400">
+                        {mancheData[mancheData.length - 1]?.humanRewardsCumul || 0} total
+                      </div>
                     </div>
                   </div>
                 </div>
