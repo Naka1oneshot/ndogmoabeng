@@ -22,6 +22,7 @@ export interface GameInfo {
   current_step_index: number;
   player_count: number;
   is_ended: boolean;
+  current_session_game_id: string | null;
 }
 
 export interface Participant {
