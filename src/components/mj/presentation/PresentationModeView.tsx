@@ -48,6 +48,7 @@ interface Player {
   mate_num: number | null;
   is_host: boolean;
   avatar_url: string | null;
+  clan: string | null;
 }
 
 interface Team {
@@ -198,7 +199,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     // Fetch players with profile avatar
     const { data: playersData } = await supabase
       .from('game_players')
-      .select('id, display_name, player_number, jetons, recompenses, mate_num, is_host, user_id')
+      .select('id, display_name, player_number, jetons, recompenses, mate_num, is_host, user_id, clan')
       .eq('game_id', game.id)
       .is('removed_at', null)
       .eq('is_host', false)
@@ -225,6 +226,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
         jetons: p.jetons ?? 0,
         recompenses: p.recompenses ?? 0,
         avatar_url: p.user_id ? (avatarMap.get(p.user_id) || null) : null,
+        clan: p.clan ?? null,
       })));
     }
 
@@ -452,6 +454,21 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const isPhase4 = game.phase === 'PHASE4_COMBAT' || game.phase === 'RESOLUTION';
   const hasPositions = positions.length > 0;
 
+  // Helper function to get clan emoji
+  const getClanEmoji = (clan: string | null): string => {
+    if (!clan) return '';
+    const clanEmojis: Record<string, string> = {
+      'Royaux': '👑',
+      'Zoulous': '💰',
+      'Keryndes': '🧭',
+      'Akandé': '⚔️',
+      'Aseyra': '📜',
+      'Akila': '🔬',
+      'Ezkar': '💥',
+    };
+    return clanEmojis[clan] || '';
+  };
+
   // Actions validated / pending - use player numbers
   const submittedBetPlayerNums = new Set(bets.map(b => b.num_joueur));
   const submittedActionPlayerNums = new Set(actions.map(a => a.num_joueur));
@@ -660,6 +677,17 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           <span>Sync : {format(lastUpdate, 'HH:mm:ss', { locale: fr })}</span>
         </div>
         <span className="hidden md:inline">ESC pour fermer</span>
+      </div>
+
+      {/* Centered Logo with link to home */}
+      <div className="absolute top-2 md:top-4 left-1/2 transform -translate-x-1/2 z-10">
+        <a href="/" className="block">
+          <img 
+            src={logoNdogmoabeng} 
+            alt="Ndogmoabeng" 
+            className="h-10 md:h-14 w-auto object-contain hover:scale-105 transition-transform cursor-pointer"
+          />
+        </a>
       </div>
 
       {/* Header with phase info */}
@@ -903,10 +931,13 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           'bg-secondary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-1 md:gap-1.5">
-                          <span className="text-sm md:text-base">
+                        <div className="flex items-center gap-1 md:gap-1.5 min-w-0">
+                          <span className="text-sm md:text-base flex-shrink-0">
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
+                          {team.members.length === 1 && team.members[0].clan && (
+                            <span className="text-[10px] flex-shrink-0" title={team.members[0].clan}>{getClanEmoji(team.members[0].clan)}</span>
+                          )}
                           <span className="font-medium truncate max-w-[60px] md:max-w-[100px]">{team.teamName}</span>
                         </div>
                         <span className="font-bold text-amber-500">{team.teamScore}</span>
@@ -1102,20 +1133,25 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           'bg-secondary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-1.5 md:gap-2">
-                          <span className="text-lg md:text-2xl">
+                        <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
+                          <span className="text-lg md:text-2xl flex-shrink-0">
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
                           <div className="flex items-center gap-1 md:gap-2">
                             {team.members.map((member, mi) => (
-                              <Avatar key={member.id} className={`h-5 md:h-8 w-5 md:w-8 border-2 ${mi === 0 ? 'z-10' : '-ml-2 md:-ml-3'} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
-                                <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
-                                <AvatarFallback className="bg-secondary text-foreground text-[9px] md:text-xs">
-                                  {member.display_name.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
+                              <div key={member.id} className="flex items-center">
+                                <Avatar className={`h-5 md:h-8 w-5 md:w-8 border-2 ${mi > 0 ? '-ml-2 md:-ml-3' : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
+                                  <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
+                                  <AvatarFallback className="bg-secondary text-foreground text-[9px] md:text-xs">
+                                    {member.display_name.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </div>
                             ))}
                           </div>
+                          {team.members.length === 1 && team.members[0].clan && (
+                            <span className="text-sm md:text-base flex-shrink-0" title={team.members[0].clan}>{getClanEmoji(team.members[0].clan)}</span>
+                          )}
                           <span className="font-medium text-xs md:text-base truncate max-w-[80px] md:max-w-[150px]">{team.teamName}</span>
                         </div>
                         <span className="font-bold text-amber-500 text-sm md:text-xl">{team.teamScore}</span>
