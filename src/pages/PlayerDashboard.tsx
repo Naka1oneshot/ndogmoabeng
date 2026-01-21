@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { GameStartAnimation } from '@/components/game/GameStartAnimation';
 import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
 import { CombatHistorySummarySheet } from '@/components/mj/presentation/CombatHistorySummarySheet';
+import { usePresentationAnimations, PhaseTransitionOverlay, CoupDeGraceOverlay } from '@/components/game/PresentationAnimations';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
 import { EventsFeed } from '@/components/player/EventsFeed';
@@ -92,6 +93,20 @@ export default function PlayerDashboard() {
   const previousStepIndexRef = useRef<number | null>(null);
 
   const isAdventure = game?.mode === 'ADVENTURE' && game?.adventure_id;
+  const isForetGame = game?.selected_game_type_code === 'FORET' || (!game?.selected_game_type_code && game?.status === 'IN_GAME');
+
+  // Presentation animations (phase transitions, coup de grâce)
+  const {
+    showPhaseTransition,
+    phaseTransitionText,
+    showCoupDeGrace,
+    coupDeGraceInfo,
+  } = usePresentationAnimations({
+    gameId: gameId || '',
+    sessionGameId: game?.current_session_game_id || null,
+    phase: game?.phase || '',
+    enabled: isForetGame && game?.status === 'IN_GAME',
+  });
 
   // Auto-reset to current manche when game.manche_active changes
   useEffect(() => {
@@ -535,6 +550,12 @@ export default function PlayerDashboard() {
   if (!isMobile) {
     return (
       <div className="min-h-screen flex flex-col">
+        {/* Phase Transition Animation Overlay */}
+        <PhaseTransitionOverlay show={showPhaseTransition} text={phaseTransitionText} />
+        
+        {/* Coup de Grâce Animation Overlay */}
+        <CoupDeGraceOverlay show={showCoupDeGrace} info={coupDeGraceInfo} />
+        
         <PlayerHeader game={game} player={player} onLeaveGame={handleLeave} />
 
         <main className="flex-1 p-4">
@@ -649,6 +670,12 @@ export default function PlayerDashboard() {
   // In-game view - Mobile with tabs
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Phase Transition Animation Overlay */}
+      <PhaseTransitionOverlay show={showPhaseTransition} text={phaseTransitionText} />
+      
+      {/* Coup de Grâce Animation Overlay */}
+      <CoupDeGraceOverlay show={showCoupDeGrace} info={coupDeGraceInfo} />
+      
       <PlayerHeader game={game} player={player} onLeaveGame={handleLeave} />
 
       <main className="flex-1 pb-16">
