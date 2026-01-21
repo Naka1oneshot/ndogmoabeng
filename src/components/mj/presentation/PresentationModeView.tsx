@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { getMonsterImage } from '@/lib/monsterImages';
 import { CombatHistorySummarySheet } from './CombatHistorySummarySheet';
+import { Phase3CombatSummary } from './Phase3CombatSummary';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
@@ -720,31 +721,31 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           </div>
         </div>
 
-        {/* Main content grid - Phase 3 specific compact layout */}
+        {/* Main content grid - Phase 3 specific compact layout - 10 columns: 3+3+2+2 */}
         {isPhase3 ? (
-          <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:flex-1 md:overflow-hidden">
-            {/* Left: Battlefield + Queue - increased size */}
-            <div className="md:col-span-5 flex flex-col gap-2">
+          <div className="flex flex-col md:grid md:grid-cols-10 gap-3 md:flex-1 md:overflow-hidden">
+            {/* Left: Battlefield + Queue - 3/10 */}
+            <div className="md:col-span-3 flex flex-col gap-2">
               {/* Battlefield - 2/3 of height with fixed size */}
               <div className="bg-card/50 rounded-xl border border-border p-2 md:p-3" style={{ flex: '2 1 0' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <Swords className="h-4 w-4 text-destructive" />
                   <h2 className="text-sm font-bold">Champ de Bataille</h2>
                 </div>
-                <div className="grid grid-cols-3 gap-2 h-[calc(100%-2rem)]">
+                <div className="grid grid-cols-3 gap-1.5 h-[calc(100%-2rem)]">
                   {[1, 2, 3].map(slot => {
                     const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
                       <div 
                         key={slot} 
-                        className="relative rounded-lg border border-border overflow-hidden h-full min-h-[180px] md:min-h-[240px]"
+                        className="relative rounded-lg border border-border overflow-hidden h-full min-h-[140px] md:min-h-[180px]"
                       >
                         {monster ? (
                           <>
                             {/* Background image filling the entire card */}
                             {monster.status === 'MORT' ? (
                               <div className="absolute inset-0 bg-secondary/80 flex items-center justify-center">
-                                <Skull className="h-12 md:h-16 w-12 md:w-16 text-muted-foreground/50" />
+                                <Skull className="h-10 md:h-12 w-10 md:w-12 text-muted-foreground/50" />
                               </div>
                             ) : getMonsterImage(monster.monster_id) ? (
                               <img 
@@ -753,32 +754,32 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                                 className="absolute inset-0 w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="absolute inset-0 bg-secondary flex items-center justify-center text-4xl md:text-5xl">🐉</div>
+                              <div className="absolute inset-0 bg-secondary flex items-center justify-center text-3xl md:text-4xl">🐉</div>
                             )}
                             
                             {/* Dark gradient overlay for text readability */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/50" />
                             
                             {/* Slot number - top */}
-                            <div className="absolute top-1 md:top-2 left-0 right-0 text-center">
-                              <span className="text-[9px] md:text-[10px] text-white/80 bg-black/40 px-1.5 py-0.5 rounded">
+                            <div className="absolute top-1 left-0 right-0 text-center">
+                              <span className="text-[8px] md:text-[9px] text-white/80 bg-black/40 px-1 py-0.5 rounded">
                                 Slot {slot}
                               </span>
                             </div>
                             
                             {/* Monster info - bottom */}
-                            <div className="absolute bottom-0 left-0 right-0 p-1.5 md:p-2 text-center">
+                            <div className="absolute bottom-0 left-0 right-0 p-1 md:p-1.5 text-center">
                               {getMonsterType(monster) && (
-                                <div className="text-[8px] md:text-[10px] text-white/70 mb-0.5">{getMonsterType(monster)}</div>
+                                <div className="text-[7px] md:text-[8px] text-white/70 mb-0.5">{getMonsterType(monster)}</div>
                               )}
-                              <div className="text-[10px] md:text-sm font-bold text-white drop-shadow-lg truncate">{getMonsterName(monster)}</div>
-                              <div className="flex items-center justify-center gap-2 md:gap-3 text-[9px] md:text-xs mt-0.5">
+                              <div className="text-[9px] md:text-xs font-bold text-white drop-shadow-lg truncate">{getMonsterName(monster)}</div>
+                              <div className="flex items-center justify-center gap-1.5 md:gap-2 text-[8px] md:text-[10px] mt-0.5">
                                 <span className="flex items-center gap-0.5 text-red-400">
-                                  <Heart className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                                  <Heart className="h-2 md:h-2.5 w-2 md:w-2.5" />
                                   {getMonsterPvMax(monster)}
                                 </span>
                                 <span className="flex items-center gap-0.5 text-amber-400">
-                                  <Trophy className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                                  <Trophy className="h-2 md:h-2.5 w-2 md:w-2.5" />
                                   {getMonsterReward(monster)}
                                 </span>
                               </div>
@@ -786,7 +787,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           </>
                         ) : (
                           <div className="absolute inset-0 bg-secondary/50 flex items-center justify-center">
-                            <span className="text-muted-foreground text-sm">Vide</span>
+                            <span className="text-muted-foreground text-xs">Vide</span>
                           </div>
                         )}
                       </div>
@@ -797,14 +798,14 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
               {/* Queue - 1/3 of height */}
               {queueMonsters.length > 0 && (
-                <div className="bg-card/50 rounded-xl border border-amber-600/50 p-2 md:p-3" style={{ flex: '1 1 0' }}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Users className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm font-semibold text-amber-500">File d'attente ({queueMonsters.length})</span>
+                <div className="bg-card/50 rounded-xl border border-amber-600/50 p-2" style={{ flex: '1 1 0' }}>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Users className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="text-xs font-semibold text-amber-500">File ({queueMonsters.length})</span>
                   </div>
-                  <div className="grid grid-cols-4 gap-1.5 h-[calc(100%-2rem)]">
-                    {queueMonsters.slice(0, 4).map(m => (
-                      <div key={m.id} className="relative rounded-lg overflow-hidden border border-amber-600/30 h-full min-h-[80px] md:min-h-[100px]">
+                  <div className="grid grid-cols-3 gap-1 h-[calc(100%-1.5rem)]">
+                    {queueMonsters.slice(0, 3).map(m => (
+                      <div key={m.id} className="relative rounded-lg overflow-hidden border border-amber-600/30 h-full min-h-[60px] md:min-h-[80px]">
                         {getMonsterImage(m.monster_id) ? (
                           <img 
                             src={getMonsterImage(m.monster_id)} 
@@ -812,18 +813,18 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                             className="absolute inset-0 w-full h-full object-cover" 
                           />
                         ) : (
-                          <div className="absolute inset-0 bg-secondary flex items-center justify-center text-2xl">🐉</div>
+                          <div className="absolute inset-0 bg-secondary flex items-center justify-center text-xl">🐉</div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                        <div className="absolute bottom-0 left-0 right-0 p-1 text-center">
-                          <div className="text-[8px] md:text-[10px] font-bold text-white truncate">{getMonsterName(m)}</div>
-                          <div className="flex items-center justify-center gap-1.5 text-[7px] md:text-[9px]">
+                        <div className="absolute bottom-0 left-0 right-0 p-0.5 text-center">
+                          <div className="text-[7px] md:text-[9px] font-bold text-white truncate">{getMonsterName(m)}</div>
+                          <div className="flex items-center justify-center gap-1 text-[6px] md:text-[8px]">
                             <span className="flex items-center gap-0.5 text-red-400">
-                              <Heart className="h-2 md:h-2.5 w-2 md:w-2.5" />
+                              <Heart className="h-1.5 md:h-2 w-1.5 md:w-2" />
                               {getMonsterPvMax(m)}
                             </span>
                             <span className="flex items-center gap-0.5 text-amber-400">
-                              <Trophy className="h-2 md:h-2.5 w-2 md:w-2.5" />
+                              <Trophy className="h-1.5 md:h-2 w-1.5 md:w-2" />
                               {getMonsterReward(m)}
                             </span>
                           </div>
@@ -831,34 +832,34 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                       </div>
                     ))}
                   </div>
-                  {queueMonsters.length > 4 && (
-                    <div className="text-center mt-1 text-[10px] text-amber-500">+{queueMonsters.length - 4} autres</div>
+                  {queueMonsters.length > 3 && (
+                    <div className="text-center mt-0.5 text-[9px] text-amber-500">+{queueMonsters.length - 3} autres</div>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Middle: Priority (moved up) + Validation status + Shop */}
-            <div className="md:col-span-4 flex flex-col gap-3">
+            {/* Middle: Priority + Validation status + Shop - 3/10 */}
+            <div className="md:col-span-3 flex flex-col gap-2">
               {/* Priority order - now at the top */}
               {priorities.length > 0 && (
-                <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-2">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Target className="h-3.5 md:h-4 w-3.5 md:w-4 text-blue-500" />
-                    <span className="text-xs md:text-sm font-semibold text-blue-500">Priorité (mises)</span>
+                <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-1.5">
+                  <div className="flex items-center gap-1 mb-1.5">
+                    <Target className="h-3 md:h-3.5 w-3 md:w-3.5 text-blue-500" />
+                    <span className="text-[10px] md:text-xs font-semibold text-blue-500">Priorité (mises)</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-0.5">
                     {priorities.map((pr, index) => {
                       const player = players.find(p => p.player_number === pr.num_joueur);
                       return (
-                        <div key={pr.player_id} className="flex items-center gap-0.5 md:gap-1">
-                          <Avatar className={`h-5 md:h-6 w-5 md:w-6 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
+                        <div key={pr.player_id} className="flex items-center gap-0.5">
+                          <Avatar className={`h-4 md:h-5 w-4 md:w-5 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
                             <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
-                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[8px] md:text-[10px]`}>
+                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[7px] md:text-[8px]`}>
                               {pr.display_name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-[10px] md:text-xs">#{pr.rank}</span>
+                          <span className="text-[8px] md:text-[10px]">#{pr.rank}</span>
                         </div>
                       );
                     })}
@@ -867,77 +868,77 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
               )}
 
               {/* Validation status - compact row */}
-              <div className="flex gap-2">
-                <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-2 flex-1">
-                  <div className="flex items-center gap-1 mb-1">
-                    <CheckCircle className="h-3 w-3 text-green-500" />
-                    <span className="text-xs font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
+              <div className="flex gap-1.5">
+                <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-1.5 flex-1">
+                  <div className="flex items-center gap-0.5 mb-1">
+                    <CheckCircle className="h-2.5 w-2.5 text-green-500" />
+                    <span className="text-[10px] font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
                   </div>
                   <div className="flex flex-wrap gap-0.5">
-                    {validatedPlayers.slice(0, 6).map(p => (
-                      <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[10px] py-0">
-                        {p.display_name.slice(0, 8)}
+                    {validatedPlayers.slice(0, 4).map(p => (
+                      <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[8px] py-0 px-1">
+                        {p.display_name.slice(0, 6)}
                       </Badge>
                     ))}
-                    {validatedPlayers.length > 6 && <span className="text-[10px] text-green-500">+{validatedPlayers.length - 6}</span>}
+                    {validatedPlayers.length > 4 && <span className="text-[8px] text-green-500">+{validatedPlayers.length - 4}</span>}
                   </div>
                 </div>
-                <div className="bg-orange-500/10 rounded-lg border border-orange-600/30 p-2 flex-1">
-                  <div className="flex items-center gap-1 mb-1">
-                    <Clock className="h-3 w-3 text-orange-500" />
-                    <span className="text-xs font-semibold text-orange-500">En attente ({pendingPlayers.length})</span>
+                <div className="bg-orange-500/10 rounded-lg border border-orange-600/30 p-1.5 flex-1">
+                  <div className="flex items-center gap-0.5 mb-1">
+                    <Clock className="h-2.5 w-2.5 text-orange-500" />
+                    <span className="text-[10px] font-semibold text-orange-500">Attente ({pendingPlayers.length})</span>
                   </div>
                   <div className="flex flex-wrap gap-0.5">
-                    {pendingPlayers.slice(0, 6).map(p => (
-                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[10px] py-0">
-                        {p.display_name.slice(0, 8)}
+                    {pendingPlayers.slice(0, 4).map(p => (
+                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[8px] py-0 px-1">
+                        {p.display_name.slice(0, 6)}
                       </Badge>
                     ))}
-                    {pendingPlayers.length > 6 && <span className="text-[10px] text-orange-500">+{pendingPlayers.length - 6}</span>}
+                    {pendingPlayers.length > 4 && <span className="text-[8px] text-orange-500">+{pendingPlayers.length - 4}</span>}
                   </div>
                 </div>
               </div>
 
               {/* Shop items */}
-              <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-2 md:p-3 flex-1 flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Store className="h-4 md:h-5 w-4 md:w-5 text-purple-500" />
-                    <h3 className="font-semibold text-purple-500 text-sm md:text-base">Boutique</h3>
+              <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-1.5 md:p-2 flex-1 flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Store className="h-3.5 md:h-4 w-3.5 md:w-4 text-purple-500" />
+                    <h3 className="font-semibold text-purple-500 text-[10px] md:text-xs">Boutique</h3>
                   </div>
-                  <Badge className="bg-purple-600/50 text-purple-100 text-[10px] md:text-xs">
-                    {submittedShopPlayerNums.size}/{players.length} soumis
+                  <Badge className="bg-purple-600/50 text-purple-100 text-[8px] md:text-[9px]">
+                    {submittedShopPlayerNums.size}/{players.length}
                   </Badge>
                 </div>
-                <ScrollArea className="flex-1 max-h-[200px] md:max-h-none">
-                  <div className="grid grid-cols-2 gap-1.5 md:gap-2 pr-2">
+                <ScrollArea className="flex-1 max-h-[160px] md:max-h-none">
+                  <div className="grid grid-cols-2 gap-1 pr-1">
                     {shopItems.map(item => {
                       const price = shopPrices.find(p => p.item_name === item.name);
                       return (
-                        <div key={item.id} className="bg-purple-500/20 rounded-lg p-1.5 md:p-2 border border-purple-600/40">
-                          <div className="font-bold text-[11px] md:text-sm mb-0.5 md:mb-1">{item.name}</div>
-                          <p className="text-[10px] md:text-xs text-muted-foreground line-clamp-1 md:line-clamp-2 mb-0.5 md:mb-1">
+                        <div key={item.id} className="bg-purple-500/20 rounded-lg p-1 md:p-1.5 border border-purple-600/40">
+                          <div className="font-bold text-[9px] md:text-[10px] mb-0.5 truncate">{item.name}</div>
+                          <p className="text-[8px] md:text-[9px] text-muted-foreground line-clamp-1 mb-0.5">
                             {item.detailed_description || item.category}
                           </p>
-                          <div className="flex items-center justify-between text-[10px] md:text-xs">
-                            <div className="flex items-center gap-1 md:gap-2">
+                          <div className="flex items-center justify-between text-[8px] md:text-[9px]">
+                            <div className="flex items-center gap-1">
                               {item.base_damage && item.base_damage > 0 && (
                                 <span className="text-destructive flex items-center gap-0.5">
-                                  <Swords className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                                  <Swords className="h-2 md:h-2.5 w-2 md:w-2.5" />
                                   {item.base_damage}
                                 </span>
                               )}
                               {item.base_heal && item.base_heal > 0 && (
                                 <span className="text-green-500 flex items-center gap-0.5">
-                                  <Heart className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                                  <Heart className="h-2 md:h-2.5 w-2 md:w-2.5" />
                                   {item.base_heal}
                                 </span>
                               )}
                             </div>
                             {price && (
-                              <div className="flex items-center gap-1 md:gap-2 text-[9px] md:text-[10px]">
+                              <div className="flex items-center gap-1 text-[7px] md:text-[8px]">
                                 <span className="flex items-center gap-0.5 text-amber-400">
-                                  <Coins className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                                  <Coins className="h-2 md:h-2.5 w-2 md:w-2.5" />
                                   {price.cost_normal}
                                 </span>
                                 <span className="text-muted-foreground">/</span>
@@ -953,144 +954,64 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
               </div>
             </div>
 
-            {/* Right: Rankings only (Priority moved to middle) - Same style as P2 */}
-            <div className="md:col-span-3 flex flex-col gap-3 md:overflow-hidden">
-              {/* Team ranking - matching P2 style with avatars and tooltips */}
-              <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 flex-1 overflow-hidden flex flex-col">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Trophy className="h-3.5 md:h-4 w-3.5 md:w-4 text-amber-500" />
-                  <span className="text-xs md:text-sm font-semibold text-amber-500">Classement</span>
+            {/* Team Ranking - 2/10 */}
+            <div className="md:col-span-2 flex flex-col gap-2 md:overflow-hidden">
+              <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-1.5 flex-1 overflow-hidden flex flex-col">
+                <div className="flex items-center gap-1 mb-1.5">
+                  <Trophy className="h-3 md:h-3.5 w-3 md:w-3.5 text-amber-500" />
+                  <span className="text-[10px] md:text-xs font-semibold text-amber-500">Classement</span>
                 </div>
                 <ScrollArea className="flex-1 max-h-[200px] md:max-h-none">
-                  {(() => {
-                    const useCompactLayout = teams.length > 8;
-                    const topTeams = useCompactLayout ? teams.slice(0, 3) : teams;
-                    const bottomTeams = useCompactLayout ? teams.slice(3) : [];
-                    
-                    const renderTeamRow = (team: Team, index: number, isCompact: boolean) => (
+                  <div className="space-y-0.5">
+                    {teams.slice(0, 10).map((team, index) => (
                       <div 
                         key={team.teamName}
-                        className={`flex items-center justify-between ${isCompact ? 'p-0.5 md:p-1' : 'p-1 md:p-1.5'} rounded-lg ${isCompact ? 'text-[9px] md:text-xs' : 'text-xs md:text-sm'} ${
+                        className={`flex items-center justify-between p-0.5 md:p-1 rounded-lg text-[8px] md:text-[10px] ${
                           index === 0 ? 'bg-amber-500/30 border border-amber-500' :
                           index === 1 ? 'bg-secondary border border-border' :
                           index === 2 ? 'bg-amber-700/30 border border-amber-700' :
                           'bg-secondary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-1 min-w-0 flex-1">
-                          <span className={`${isCompact ? 'text-xs md:text-sm' : 'text-sm md:text-base'} flex-shrink-0`}>
+                        <div className="flex items-center gap-0.5 min-w-0 flex-1">
+                          <span className="text-[9px] md:text-xs flex-shrink-0">
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
                           {/* Avatars */}
                           <div className="flex items-center">
-                            {team.members.slice(0, isCompact ? 2 : 3).map((member, mi) => (
-                              <Avatar key={member.id} className={`${isCompact ? 'h-4 md:h-5 w-4 md:w-5' : 'h-5 md:h-6 w-5 md:w-6'} border ${mi > 0 ? '-ml-1.5' : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
+                            {team.members.slice(0, 2).map((member, mi) => (
+                              <Avatar key={member.id} className={`h-3.5 md:h-4 w-3.5 md:w-4 border ${mi > 0 ? '-ml-1' : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
                                 <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
-                                <AvatarFallback className={`bg-secondary text-foreground ${isCompact ? 'text-[6px] md:text-[8px]' : 'text-[8px] md:text-[10px]'}`}>
+                                <AvatarFallback className="bg-secondary text-foreground text-[5px] md:text-[6px]">
                                   {member.display_name.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                             ))}
                           </div>
-                          {/* Clan emojis - hide in compact mode */}
-                          {!isCompact && (
-                            <div className="flex items-center gap-0.5 flex-shrink-0">
-                              {team.members.filter(m => m.clan).slice(0, 2).map((m, mi) => (
-                                <span key={mi} className="text-[10px] md:text-xs" title={m.clan || ''}>{getClanEmoji(m.clan || '')}</span>
-                              ))}
-                            </div>
-                          )}
-                          {/* Name with members - show all on PC if possible, else show max + info icon */}
-                          <div className="flex items-center gap-0.5 min-w-0 flex-1">
-                            {(() => {
-                              // On PC (md+), show members inline. On mobile, just show team name
-                              // Check if any name is long enough to be truncated (>8 chars given max-w-[60px])
-                              const hasLongNames = team.members.some(m => m.display_name.length > 8);
-                              const maxVisibleOnPC = 3; // Max members to show inline on PC before truncating
-                              const hasMoreMembers = team.members.length > maxVisibleOnPC;
-                              const needsInfoIcon = hasMoreMembers || hasLongNames || team.members.length > 1;
-                              const visibleMembers = hasMoreMembers ? team.members.slice(0, maxVisibleOnPC) : team.members;
-                              
-                              return (
-                                <>
-                                  {/* Mobile: just team name */}
-                                  <span className={`font-medium truncate md:hidden ${isCompact ? 'max-w-[35px] text-[8px]' : 'max-w-[50px] text-[10px]'}`}>
-                                    {team.teamName}
-                                  </span>
-                                  
-                                  {/* PC: show member names inline */}
-                                  <div className="hidden md:flex items-center gap-1 min-w-0 flex-1">
-                                    {visibleMembers.map((m, mi) => (
-                                      <span key={m.id} className={`${isCompact ? 'text-[9px]' : 'text-[10px]'} text-foreground truncate max-w-[60px]`}>
-                                        {m.display_name}{mi < visibleMembers.length - 1 ? ',' : ''}
-                                      </span>
-                                    ))}
-                                    {needsInfoIcon && (
-                                      <Popover>
-                                        <PopoverTrigger asChild>
-                                          <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
-                                            <Info className="h-3 w-3 text-amber-400" />
-                                          </button>
-                                        </PopoverTrigger>
-                                        <PopoverContent side="left" className="max-w-[180px] p-2 bg-card border-border z-[300]">
-                                          <div className="text-xs">
-                                            <p className="font-semibold mb-1">{team.teamName}</p>
-                                            {team.members.map(m => (
-                                              <p key={m.id} className="text-[10px] text-muted-foreground">
-                                                {m.display_name}{m.clan ? ` (${m.clan})` : ''}
-                                              </p>
-                                            ))}
-                                            <p className="text-amber-400 font-medium mt-1">Score: {team.teamScore}</p>
-                                          </div>
-                                        </PopoverContent>
-                                      </Popover>
-                                    )}
-                                  </div>
-                                  
-                                  {/* Mobile: info popover for details */}
-                                  {!isCompact && (
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors md:hidden">
-                                          <Info className="h-2.5 w-2.5 text-amber-400" />
-                                        </button>
-                                      </PopoverTrigger>
-                                      <PopoverContent side="left" className="max-w-[180px] p-2 bg-card border-border z-[300]">
-                                        <div className="text-xs">
-                                          <p className="font-semibold">{team.teamName}</p>
-                                          {team.members.map(m => (
-                                            <p key={m.id} className="text-[10px] text-muted-foreground">
-                                              {m.display_name}{m.clan ? ` (${m.clan})` : ''}
-                                            </p>
-                                          ))}
-                                          <p className="text-amber-400 font-medium mt-1">Score: {team.teamScore}</p>
-                                        </div>
-                                      </PopoverContent>
-                                    </Popover>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
+                          <span className="font-medium truncate max-w-[40px] md:max-w-[50px] text-[7px] md:text-[9px]">
+                            {team.teamName.length > 8 ? team.teamName.slice(0, 8) + '...' : team.teamName}
+                          </span>
                         </div>
-                        <span className={`font-bold text-amber-500 ${isCompact ? 'text-[9px] md:text-xs' : 'text-xs md:text-sm'} flex-shrink-0`}>{team.teamScore}</span>
+                        <span className="font-bold text-amber-500 text-[8px] md:text-[10px] flex-shrink-0">{team.teamScore}</span>
                       </div>
-                    );
-                    
-                    return (
-                      <div className="space-y-1">
-                        {/* Top 3 - always single column */}
-                        {topTeams.map((team, index) => renderTeamRow(team, index, false))}
-                        
-                        {/* 4th+ in 2 columns when compact */}
-                        {bottomTeams.length > 0 && (
-                          <div className="grid grid-cols-2 gap-1 mt-1">
-                            {bottomTeams.map((team, idx) => renderTeamRow(team, idx + 3, true))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+                    ))}
+                    {teams.length > 10 && (
+                      <div className="text-center text-[8px] text-muted-foreground">+{teams.length - 10} équipes</div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+
+            {/* Combat Summary - 2/10 */}
+            <div className="md:col-span-2 flex flex-col gap-2 md:overflow-hidden">
+              <div className="bg-destructive/10 rounded-xl border border-destructive/30 p-1.5 flex-1 overflow-hidden flex flex-col">
+                <div className="flex items-center gap-1 mb-1.5">
+                  <Skull className="h-3 md:h-3.5 w-3 md:w-3.5 text-destructive" />
+                  <span className="text-[10px] md:text-xs font-semibold text-destructive">Résumé Combat</span>
+                </div>
+                <ScrollArea className="flex-1 max-h-[200px] md:max-h-none">
+                  <Phase3CombatSummary gameId={game.id} sessionGameId={game.current_session_game_id} currentManche={game.manche_active} />
                 </ScrollArea>
               </div>
             </div>
