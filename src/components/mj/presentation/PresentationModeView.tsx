@@ -75,6 +75,8 @@ interface Bet {
 interface Action {
   num_joueur: number;
   manche: number;
+  attaque1: string | null;
+  attaque2: string | null;
 }
 
 interface Position {
@@ -142,6 +144,8 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [allKillsByPlayer, setAllKillsByPlayer] = useState<Map<number, number>>(new Map());
+  const [allBets, setAllBets] = useState<{ num_joueur: number; mise_effective: number | null }[]>([]);
+  const [allActions, setAllActions] = useState<{ num_joueur: number; attaque1: string | null; attaque2: string | null }[]>([]);
   
   // Animation states
   const [showPhaseTransition, setShowPhaseTransition] = useState(false);
@@ -342,10 +346,24 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     // Fetch actions for current manche
     const { data: actionsData } = await supabase
       .from('actions')
-      .select('num_joueur, manche')
+      .select('num_joueur, manche, attaque1, attaque2')
       .eq('game_id', game.id)
       .eq('manche', manche);
     setActions(actionsData || []);
+
+    // Fetch ALL actions and bets for the entire game (for end-game stats)
+    const [allActionsRes, allBetsRes] = await Promise.all([
+      supabase
+        .from('actions')
+        .select('num_joueur, attaque1, attaque2')
+        .eq('game_id', game.id),
+      supabase
+        .from('round_bets')
+        .select('num_joueur, mise_effective')
+        .eq('game_id', game.id),
+    ]);
+    setAllActions(allActionsRes.data || []);
+    setAllBets(allBetsRes.data || []);
 
     // Fetch positions for current manche
     const { data: positionsData } = await supabase
@@ -745,6 +763,38 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       }
     }
 
+    // Find top weapon user (player who used most weapons)
+    const weaponsByPlayer = new Map<number, number>();
+    for (const action of allActions) {
+      let weaponCount = 0;
+      if (action.attaque1 && action.attaque1 !== 'rien') weaponCount++;
+      if (action.attaque2 && action.attaque2 !== 'rien') weaponCount++;
+      if (weaponCount > 0) {
+        weaponsByPlayer.set(action.num_joueur, (weaponsByPlayer.get(action.num_joueur) || 0) + weaponCount);
+      }
+    }
+    let topWeaponUser: { name: string; weapons: number } | null = null;
+    for (const [playerNum, weapons] of weaponsByPlayer) {
+      if (!topWeaponUser || weapons > topWeaponUser.weapons) {
+        const player = players.find(p => p.player_number === playerNum);
+        if (player) {
+          topWeaponUser = { name: player.display_name, weapons };
+        }
+      }
+    }
+
+    // Find top better (player who made the biggest single bet)
+    let topBetter: { name: string; bet: number } | null = null;
+    for (const bet of allBets) {
+      const betValue = bet.mise_effective ?? 0;
+      if (betValue > 0 && (!topBetter || betValue > topBetter.bet)) {
+        const player = players.find(p => p.player_number === bet.num_joueur);
+        if (player) {
+          topBetter = { name: player.display_name, bet: betValue };
+        }
+      }
+    }
+
     return {
       totalManches: game.manche_active,
       totalKills,
@@ -752,6 +802,8 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       totalJetons,
       topKiller,
       topEarner,
+      topWeaponUser,
+      topBetter,
       hasTeams,
       teamCount,
       soloCount,
