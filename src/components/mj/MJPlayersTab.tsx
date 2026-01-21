@@ -7,7 +7,7 @@ import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { useUserRole } from '@/hooks/useUserRole';
 import { 
   User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, 
-  Users, UserX, Play, Lock, Coins, ShieldCheck
+  Users, UserX, Play, Lock, Coins, ShieldCheck, Swords, ShoppingBag
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -49,6 +49,10 @@ interface Game {
   name: string;
   status: string;
   starting_tokens: number;
+  phase?: string;
+  phase_locked?: boolean;
+  manche_active?: number;
+  current_session_game_id?: string | null;
 }
 
 interface MJPlayersTabProps {
@@ -69,8 +73,16 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   
   const [kickModalOpen, setKickModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; name: string } | null>(null);
+  
+  // Phase action state
+  const [phaseActionLoading, setPhaseActionLoading] = useState(false);
+  const [validatedCount, setValidatedCount] = useState(0);
+  const [positionsPublished, setPositionsPublished] = useState(false);
+  const [combatResolved, setCombatResolved] = useState(false);
+  const [shopResolved, setShopResolved] = useState(false);
 
   const isLobby = game.status === 'LOBBY';
+  const isInGame = game.status === 'IN_PROGRESS';
 
   useEffect(() => {
     fetchPlayers();
@@ -94,6 +106,110 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     };
   }, [game.id]);
 
+  // Fetch validation counts based on phase
+  useEffect(() => {
+    if (!isInGame || !game.manche_active) return;
+    
+    const fetchValidationState = async () => {
+      const manche = game.manche_active!;
+      const sessionGameId = game.current_session_game_id;
+      
+      // Get active players count (non-host)
+      const activePlayers = players.filter(p => !p.is_host && p.status === 'ACTIVE');
+      const totalPlayers = activePlayers.length;
+      
+      if (game.phase === 'PHASE1') {
+        // Count players who have placed bets for current manche
+        let query = supabase
+          .from('round_bets')
+          .select('player_id', { count: 'exact' })
+          .eq('game_id', game.id)
+          .eq('manche', manche);
+        if (sessionGameId) query = query.eq('session_game_id', sessionGameId);
+        
+        const { count } = await query;
+        setValidatedCount(count || 0);
+        setPositionsPublished(false);
+        setCombatResolved(false);
+        setShopResolved(false);
+      } else if (game.phase === 'PHASE2') {
+        // Count players who have submitted actions
+        let actionsQuery = supabase
+          .from('actions')
+          .select('num_joueur', { count: 'exact' })
+          .eq('game_id', game.id)
+          .eq('manche', manche);
+        if (sessionGameId) actionsQuery = actionsQuery.eq('session_game_id', sessionGameId);
+        
+        const { count: actionsCount } = await actionsQuery;
+        setValidatedCount(actionsCount || 0);
+        
+        // Check if positions have been published
+        let posQuery = supabase
+          .from('positions_finales')
+          .select('id', { count: 'exact', head: true })
+          .eq('game_id', game.id)
+          .eq('manche', manche);
+        if (sessionGameId) posQuery = posQuery.eq('session_game_id', sessionGameId);
+        
+        const { count: posCount } = await posQuery;
+        setPositionsPublished((posCount || 0) > 0);
+        
+        // Check if combat has been resolved
+        let combatQuery = supabase
+          .from('combat_results')
+          .select('id', { count: 'exact', head: true })
+          .eq('game_id', game.id)
+          .eq('manche', manche);
+        if (sessionGameId) combatQuery = combatQuery.eq('session_game_id', sessionGameId);
+        
+        const { count: combatCount } = await combatQuery;
+        setCombatResolved((combatCount || 0) > 0);
+        setShopResolved(false);
+      } else if (game.phase === 'PHASE3') {
+        // Count players who submitted shop requests
+        let shopQuery = supabase
+          .from('game_item_purchases')
+          .select('player_num', { count: 'exact' })
+          .eq('game_id', game.id)
+          .eq('manche', manche)
+          .eq('status', 'pending');
+        if (sessionGameId) shopQuery = shopQuery.eq('session_game_id', sessionGameId);
+        
+        const { count: shopCount } = await shopQuery;
+        setValidatedCount(shopCount || 0);
+        
+        // Check if shop has been resolved
+        let shopOfferQuery = supabase
+          .from('game_shop_offers')
+          .select('resolved')
+          .eq('game_id', game.id)
+          .eq('manche', manche);
+        if (sessionGameId) shopOfferQuery = shopOfferQuery.eq('session_game_id', sessionGameId);
+        
+        const { data: shopOffer } = await shopOfferQuery.maybeSingle();
+        setShopResolved(shopOffer?.resolved || false);
+      }
+    };
+    
+    fetchValidationState();
+    
+    // Subscribe to relevant tables for real-time updates
+    const channel = supabase
+      .channel(`mj-phase-state-${game.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'round_bets', filter: `game_id=eq.${game.id}` }, fetchValidationState)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'actions', filter: `game_id=eq.${game.id}` }, fetchValidationState)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_item_purchases', filter: `game_id=eq.${game.id}` }, fetchValidationState)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'positions_finales', filter: `game_id=eq.${game.id}` }, fetchValidationState)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'combat_results', filter: `game_id=eq.${game.id}` }, fetchValidationState)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_shop_offers', filter: `game_id=eq.${game.id}` }, fetchValidationState)
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [game.id, game.phase, game.manche_active, game.current_session_game_id, isInGame, players.length]);
+
   const fetchPlayers = async () => {
     const { data, error } = await supabase
       .from('game_players')
@@ -105,6 +221,101 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
       setPlayers(data as Player[]);
     }
     setLoading(false);
+  };
+
+  // Phase action handlers
+  const handlePhaseAction = async () => {
+    setPhaseActionLoading(true);
+    try {
+      if (game.phase === 'PHASE1') {
+        // Close bets and calculate priorities
+        const { data, error } = await supabase.functions.invoke('close-phase1-bets', {
+          body: { gameId: game.id },
+        });
+        if (error || !data?.success) throw new Error(data?.error || 'Erreur');
+        toast.success('Mises clôturées, priorités calculées !');
+      } else if (game.phase === 'PHASE2' && !positionsPublished) {
+        // Publish positions
+        const { data, error } = await supabase.functions.invoke('publish-positions', {
+          body: { gameId: game.id },
+        });
+        if (error || !data?.success) throw new Error(data?.error || 'Erreur');
+        toast.success('Positions publiées !');
+      } else if (game.phase === 'PHASE2' && positionsPublished && !combatResolved) {
+        // Resolve combat
+        const { data, error } = await supabase.functions.invoke('resolve-combat', {
+          body: { gameId: game.id },
+        });
+        if (error || !data?.success) throw new Error(data?.error || 'Erreur');
+        toast.success('Combat résolu !');
+      } else if (game.phase === 'PHASE3') {
+        // Resolve shop
+        const { data, error } = await supabase.functions.invoke('resolve-shop', {
+          body: { gameId: game.id },
+        });
+        if (error || !data?.success) throw new Error(data?.error || 'Erreur');
+        toast.success('Shop résolu !');
+      }
+      onGameUpdate();
+    } catch (error: any) {
+      console.error('Phase action error:', error);
+      toast.error(error.message || 'Erreur lors de l\'action');
+    } finally {
+      setPhaseActionLoading(false);
+    }
+  };
+
+  const getPhaseActionButton = () => {
+    if (!isInGame) return null;
+    
+    const activePlayers = players.filter(p => !p.is_host && p.status === 'ACTIVE');
+    const totalPlayers = activePlayers.length;
+    
+    let buttonText = '';
+    let buttonIcon = <Lock className="h-4 w-4 mr-2" />;
+    let isDisabled = false;
+    
+    if (game.phase === 'PHASE1') {
+      buttonText = 'Clôturer et calculer priorités';
+      buttonIcon = <Lock className="h-4 w-4 mr-2" />;
+    } else if (game.phase === 'PHASE2') {
+      if (!positionsPublished) {
+        buttonText = 'Publier les positions';
+        buttonIcon = <Play className="h-4 w-4 mr-2" />;
+      } else if (!combatResolved) {
+        buttonText = 'Résoudre le combat';
+        buttonIcon = <Swords className="h-4 w-4 mr-2" />;
+      } else {
+        buttonText = 'Combat résolu ✓';
+        isDisabled = true;
+      }
+    } else if (game.phase === 'PHASE3') {
+      if (!shopResolved) {
+        buttonText = 'Résoudre le Shop';
+        buttonIcon = <ShoppingBag className="h-4 w-4 mr-2" />;
+      } else {
+        buttonText = 'Shop résolu ✓';
+        isDisabled = true;
+      }
+    } else {
+      return null;
+    }
+    
+    return (
+      <div className="flex items-center gap-3 flex-wrap">
+        <ForestButton
+          onClick={handlePhaseAction}
+          disabled={phaseActionLoading || isDisabled}
+          className="bg-primary hover:bg-primary/90"
+        >
+          {phaseActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : buttonIcon}
+          {buttonText}
+        </ForestButton>
+        <span className="text-sm text-muted-foreground">
+          {validatedCount}/{totalPlayers} validés
+        </span>
+      </div>
+    );
   };
 
   const handleStartGame = async () => {
@@ -327,7 +538,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     <TooltipProvider>
       <div className="space-y-6">
         {/* Actions principales */}
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
           {isLobby && (
             <ForestButton
               onClick={handleStartGame}
@@ -338,6 +549,9 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
               Démarrer la partie ({activePlayers.length} joueurs)
             </ForestButton>
           )}
+          
+          {/* Phase action button */}
+          {getPhaseActionButton()}
         </div>
 
         {/* Liste des joueurs actifs */}
