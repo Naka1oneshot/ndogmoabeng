@@ -410,19 +410,16 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }
               </div>
               
               <div className="flex justify-between items-center p-3 bg-secondary/40 rounded-lg">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <Gift className="h-4 w-4 text-green-500" />
-                  Récompenses totales
-                </span>
-                <span className="font-bold text-lg text-green-400">{gameStats.totalRecompenses}</span>
-              </div>
-              
-              <div className="flex justify-between items-center p-3 bg-secondary/40 rounded-lg">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <Coins className="h-4 w-4 text-primary" />
-                  Jetons restants
-                </span>
-                <span className="font-bold text-lg text-primary">{gameStats.totalJetons}</span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1" title="Récompenses totales">
+                    <Gift className="h-4 w-4 text-green-500" />
+                    <span className="font-bold text-green-400">{gameStats.totalRecompenses}</span>
+                  </div>
+                  <div className="flex items-center gap-1" title="Jetons restants">
+                    <Coins className="h-4 w-4 text-primary" />
+                    <span className="font-bold text-primary">{gameStats.totalJetons}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
