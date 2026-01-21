@@ -23,7 +23,7 @@ const signupSchema = z.object({
   password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
   firstName: z.string().min(1, 'Le prénom est requis'),
   lastName: z.string().min(1, 'Le nom est requis'),
-  displayName: z.string().min(1, 'Le pseudo est requis'),
+  displayName: z.string().min(1, 'Le pseudo est requis').max(14, 'Le pseudo ne doit pas dépasser 14 caractères'),
   phone: z.string().optional(),
 });
 
@@ -594,7 +594,12 @@ export default function Auth() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="displayName">Pseudo *</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="displayName">Pseudo *</Label>
+                  <span className={`text-xs ${displayName.length > 14 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    {displayName.length}/14
+                  </span>
+                </div>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -602,8 +607,9 @@ export default function Auth() {
                     type="text"
                     placeholder="MonPseudo"
                     value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    onChange={(e) => setDisplayName(e.target.value.slice(0, 14))}
                     className="pl-10"
+                    maxLength={14}
                     required
                   />
                 </div>

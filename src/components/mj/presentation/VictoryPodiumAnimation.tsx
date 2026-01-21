@@ -261,7 +261,7 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }
                 )}
               </div>
               
-              <p className={`mt-2 font-bold ${getPlaceColor(rank)} text-center max-w-[140px] ${player.isTeam ? 'text-sm' : ''} truncate`}>
+              <p className={`mt-2 font-bold ${getPlaceColor(rank)} text-center max-w-[160px] ${player.isTeam ? 'text-xs leading-tight' : 'text-sm'} break-words hyphens-auto`}>
                 {player.display_name}
               </p>
               
@@ -348,7 +348,7 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }
                       </AvatarFallback>
                     </Avatar>
                   )}
-                  <span className={`flex-1 font-medium truncate ${player.isTeam ? 'text-sm' : ''}`}>
+                  <span className={`flex-1 font-medium ${player.isTeam ? 'text-sm' : ''}`}>
                     {player.display_name}
                     {!player.isTeam && gameStats?.hasTeams && (
                       <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0 bg-blue-600/80 text-white border-blue-500">
