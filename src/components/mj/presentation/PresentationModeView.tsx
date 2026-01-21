@@ -1027,10 +1027,10 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
             </div>
           </div>
         ) : (
-          /* Default layout for other phases */
+          /* Default layout for other phases - 2/3 left, 1/3 right */
           <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:flex-1 md:overflow-hidden">
-            {/* Left section: Battlefield + Queue + Positions */}
-            <div className="md:col-span-6 flex flex-col gap-3 md:gap-4">
+            {/* Left section: Battlefield + Queue + Positions - 2/3 width */}
+            <div className="md:col-span-8 flex flex-col gap-3 md:gap-4">
               {/* Battlefield monsters - enlarged version with flex-1 to fill space */}
               <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4 flex-1 flex flex-col">
                 <div className="flex items-center gap-2 mb-3 md:mb-4">
@@ -1184,8 +1184,8 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
               )}
             </div>
 
-            {/* Right section: Status + Rankings + Priority */}
-            <div className="md:col-span-6 flex flex-col gap-3 md:gap-4 md:overflow-hidden">
+            {/* Right section: Status + Rankings + Priority - 1/3 width */}
+            <div className="md:col-span-4 flex flex-col gap-3 md:gap-4 md:overflow-hidden">
               {/* Validation status for Phase 1 or Phase 2 before positions */}
               {(isPhase1 || (isPhase2 && !hasPositions)) && (
                 <div className="grid grid-cols-2 gap-2 md:gap-3">
