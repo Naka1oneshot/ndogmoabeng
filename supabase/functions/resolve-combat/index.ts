@@ -52,6 +52,7 @@ interface PublicAction {
   cancelled: boolean;
   cancelReason?: string;
   dotDamage?: number;
+  minePlaced?: { slot: number; weapon: string }; // Mine placed this round
 }
 
 interface Kill {
@@ -782,8 +783,16 @@ serve(async (req) => {
         }
         
         // Grenade Frag: delayed damage at end of next player's turn
+        // If player is in last position, trigger damage immediately
         if (item.special_effect === 'DEGATS_RETARDES') {
           const numPlayers = parseInt(item.special_value || '1', 10);
+          const isLastPlayer = (i === totalPlayers - 1);
+          
+          if (isLastPlayer) {
+            // Player is last, trigger damage immediately
+            console.log(`[resolve-combat] ${attackName} by ${pos.nom}: last position, triggering ${baseDamage} damage immediately`);
+            return { damage: baseDamage, isAoe: false, aoeDamage: 0 };
+          }
           
           pendingEffects.push({
             sourcePlayerNum: pos.num_joueur,
@@ -1193,15 +1202,49 @@ serve(async (req) => {
       allMonstersDead: allMonstersDead,
     };
 
-    // Build public summary
-    const publicSummary = publicActions.map(a => ({
-      position: a.position,
-      nom: a.nom,
-      weapons: a.weapons,
-      totalDamage: a.cancelled ? 0 : a.totalDamage,
-      cancelled: a.cancelled,
-      cancelReason: a.cancelReason,
-    }));
+    // Build public summary with mine tracking
+    // First, add mine explosions from previous round at position 0
+    const mineExplosionEntries: { position: number; nom: string; weapons: string[]; totalDamage: number; cancelled: boolean; cancelReason?: string; minePlaced?: { slot: number; weapon: string }; mineExplosion?: boolean }[] = [];
+    
+    if (pendingFromDb && pendingFromDb.length > 0) {
+      for (const effect of pendingFromDb) {
+        if (effect.type === 'MINE' && effect.slot) {
+          const attackerName = players?.find(p => p.player_number === effect.by_num)?.display_name || `Joueur ${effect.by_num}`;
+          const mineItem = itemMap.get(effect.weapon || 'Mine');
+          const damage = mineItem?.base_damage || 10;
+          
+          mineExplosionEntries.push({
+            position: 0,
+            nom: attackerName,
+            weapons: [effect.weapon || 'Mine'],
+            totalDamage: damage,
+            cancelled: false,
+            mineExplosion: true,
+          });
+        }
+      }
+    }
+    
+    // Map player actions with mine placed info
+    const playerActionSummaries = publicActions.map(a => {
+      // Check if this player placed a mine
+      const minePlacedByPlayer = pendingEffects.find(
+        e => e.type === 'MINE' && e.sourcePlayerNum === a.num_joueur
+      );
+      
+      return {
+        position: a.position,
+        nom: a.nom,
+        weapons: a.weapons,
+        totalDamage: a.cancelled ? 0 : a.totalDamage,
+        cancelled: a.cancelled,
+        cancelReason: a.cancelReason,
+        minePlaced: minePlacedByPlayer ? { slot: minePlacedByPlayer.targetSlots[0], weapon: minePlacedByPlayer.weaponName } : undefined,
+      };
+    });
+    
+    // Combine mine explosions (at position 0) with player actions
+    const publicSummary = [...mineExplosionEntries, ...playerActionSummaries];
 
     const mjSummary = mjActions;
 

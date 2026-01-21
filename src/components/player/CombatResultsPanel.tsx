@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Swords, Skull, TreePine, Ban, Check } from 'lucide-react';
+import { Swords, Skull, TreePine, Ban, Check, Timer, Bomb } from 'lucide-react';
 import { useGameSounds } from '@/hooks/useGameSounds';
 
 interface Game {
@@ -18,6 +18,8 @@ interface PublicAction {
   totalDamage: number;
   cancelled: boolean;
   cancelReason?: string;
+  minePlaced?: { slot: number; weapon: string };
+  mineExplosion?: boolean;
 }
 
 interface Kill {
@@ -130,39 +132,61 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
             Attaques
           </h4>
           <div className="space-y-1">
-            {public_summary.map((action, idx) => (
-              <div 
-                key={idx} 
-                className={`p-2 rounded text-sm flex items-center justify-between ${
-                  action.cancelled 
-                    ? 'bg-red-500/10 border border-red-500/20' 
-                    : 'bg-secondary/50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">#{action.position}</Badge>
-                  <span className="font-medium">{action.nom}</span>
-                  {action.weapons.length > 0 && (
-                    <span className="text-muted-foreground text-xs">
-                      ({action.weapons.join(' + ')})
-                    </span>
-                  )}
+            {public_summary.map((action, idx) => {
+              const isMineExplosion = action.mineExplosion;
+              const hasMinePlaced = action.minePlaced;
+              
+              return (
+                <div 
+                  key={idx} 
+                  className={`p-2 rounded text-sm flex items-center justify-between ${
+                    isMineExplosion
+                      ? 'bg-orange-500/10 border border-orange-500/30'
+                      : action.cancelled 
+                        ? 'bg-destructive/10 border border-destructive/20' 
+                        : 'bg-secondary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${isMineExplosion ? 'border-orange-500/50 text-orange-400' : ''}`}
+                    >
+                      #{action.position}
+                    </Badge>
+                    <span className="font-medium">{action.nom}</span>
+                    {action.weapons.length > 0 && (
+                      <span className="text-muted-foreground text-xs">
+                        ({action.weapons.join(' + ')})
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isMineExplosion ? (
+                      <span className="text-orange-400 text-xs flex items-center gap-1">
+                        <Bomb className="h-3 w-3" />
+                        {action.totalDamage} dégâts
+                      </span>
+                    ) : hasMinePlaced ? (
+                      <span className="text-amber-400 text-xs flex items-center gap-1" title={`Mine posée sur slot ${action.minePlaced?.slot}`}>
+                        <Timer className="h-3 w-3" />
+                        Slot {action.minePlaced?.slot}
+                      </span>
+                    ) : action.cancelled ? (
+                      <span className="text-destructive text-xs flex items-center gap-1">
+                        <Ban className="h-3 w-3" />
+                        {action.cancelReason || 'Annulée'}
+                      </span>
+                    ) : (
+                      <span className="text-green-500 text-xs flex items-center gap-1">
+                        <Check className="h-3 w-3" />
+                        {action.totalDamage} dégâts
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {action.cancelled ? (
-                    <span className="text-red-400 text-xs flex items-center gap-1">
-                      <Ban className="h-3 w-3" />
-                      {action.cancelReason || 'Annulée'}
-                    </span>
-                  ) : (
-                    <span className="text-green-400 text-xs flex items-center gap-1">
-                      <Check className="h-3 w-3" />
-                      {action.totalDamage} dégâts
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
