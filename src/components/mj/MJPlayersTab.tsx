@@ -82,7 +82,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   const [shopResolved, setShopResolved] = useState(false);
 
   const isLobby = game.status === 'LOBBY';
-  const isInGame = game.status === 'IN_PROGRESS';
+  const isInGame = game.status === 'IN_GAME';
 
   useEffect(() => {
     fetchPlayers();
