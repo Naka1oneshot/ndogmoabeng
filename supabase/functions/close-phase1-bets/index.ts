@@ -154,8 +154,8 @@ serve(async (req) => {
       console.log(`[close-phase1] Generating random bets for ${botPlayers.length} bots`);
       
       for (const bot of botPlayers) {
-        // Random bet between 0 and player's tokens (inclusive)
-        const maxBet = bot.jetons || 0;
+        // Random bet between 0 and 50% of player's tokens
+        const maxBet = Math.floor((bot.jetons || 0) * 0.5);
         const randomBet = Math.floor(Math.random() * (maxBet + 1));
         
         // Check if bot already has a bet for this round

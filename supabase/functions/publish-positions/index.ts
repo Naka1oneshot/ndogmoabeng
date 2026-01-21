@@ -163,9 +163,10 @@ serve(async (req) => {
         // Random attack slot (1 to 3) - targeting monsters
         const randomSlotAttaque = Math.floor(Math.random() * 3) + 1;
         
-        // Pick random attack item if available
+        // Pick random attack item - ALWAYS attack if possible
         let attaque1 = null;
-        if (attackItems.length > 0 && Math.random() > 0.3) { // 70% chance to use an item
+        if (attackItems.length > 0) {
+          // Always use an attack item if available
           const randomIndex = Math.floor(Math.random() * attackItems.length);
           attaque1 = attackItems[randomIndex].objet;
         }
