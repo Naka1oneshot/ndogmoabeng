@@ -591,15 +591,6 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             Voir le Podium
           </ForestButton>
         )}
-        
-        <ForestButton 
-          size="sm" 
-          onClick={handleNextRound}
-          className="bg-amber-600 hover:bg-amber-700"
-        >
-          <SkipForward className="h-4 w-4 mr-1" />
-          Manche suivante
-        </ForestButton>
 
         {isAdventure && game.status === 'IN_GAME' && (
           <AlertDialog>
