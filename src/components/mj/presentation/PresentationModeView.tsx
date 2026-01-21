@@ -898,15 +898,15 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
             </div>
 
             {/* Middle: Priority + Validation status + Shop - 3/10 with specific height ratios */}
-            <div className="md:col-span-3 flex flex-col gap-2">
+            <div className="md:col-span-3 flex flex-col gap-1.5">
               {/* Priority order - 3/10 height */}
               {priorities.length > 0 && (
-                <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-1.5" style={{ flex: '3 1 0' }}>
-                  <div className="flex items-center gap-1 mb-1.5">
+                <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-1.5 flex flex-col overflow-hidden" style={{ flex: '3 1 0' }}>
+                  <div className="flex items-center gap-1 mb-1 flex-shrink-0">
                     <Target className="h-3 md:h-3.5 w-3 md:w-3.5 text-blue-500" />
                     <span className="text-[10px] md:text-xs font-semibold text-blue-500">Priorité (mises)</span>
                   </div>
-                  <div className="flex flex-wrap gap-0.5">
+                  <div className="flex-1 flex flex-wrap content-start gap-0.5 overflow-y-auto">
                     {priorities.map((pr, index) => {
                       const player = players.find(p => p.player_number === pr.num_joueur);
                       return (
@@ -925,42 +925,40 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               )}
 
-              {/* Validated players - 2/10 height */}
-              <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-1.5" style={{ flex: '2 1 0' }}>
-                <div className="flex items-center gap-0.5 mb-1">
-                  <CheckCircle className="h-2.5 w-2.5 text-green-500" />
-                  <span className="text-[10px] font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
+              {/* Validated + Pending players - 2/10 height - side by side */}
+              <div className="flex gap-1.5" style={{ flex: '2 1 0' }}>
+                <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-1.5 flex-1 flex flex-col overflow-hidden">
+                  <div className="flex items-center gap-0.5 mb-1 flex-shrink-0">
+                    <CheckCircle className="h-2.5 w-2.5 text-green-500" />
+                    <span className="text-[9px] font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
+                  </div>
+                  <div className="flex-1 flex flex-wrap content-start gap-0.5 overflow-y-auto">
+                    {validatedPlayers.map(p => (
+                      <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[7px] py-0 px-0.5 h-4">
+                        {p.display_name.slice(0, 5)}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-0.5">
-                  {validatedPlayers.slice(0, 6).map(p => (
-                    <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[8px] py-0 px-1">
-                      {p.display_name.slice(0, 6)}
-                    </Badge>
-                  ))}
-                  {validatedPlayers.length > 6 && <span className="text-[8px] text-green-500">+{validatedPlayers.length - 6}</span>}
-                </div>
-              </div>
-
-              {/* Pending players - 2/10 height */}
-              <div className="bg-orange-500/10 rounded-lg border border-orange-600/30 p-1.5" style={{ flex: '2 1 0' }}>
-                <div className="flex items-center gap-0.5 mb-1">
-                  <Clock className="h-2.5 w-2.5 text-orange-500" />
-                  <span className="text-[10px] font-semibold text-orange-500">Attente ({pendingPlayers.length})</span>
-                </div>
-                <div className="flex flex-wrap gap-0.5">
-                  {pendingPlayers.slice(0, 6).map(p => (
-                    <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[8px] py-0 px-1">
-                      {p.display_name.slice(0, 6)}
-                    </Badge>
-                  ))}
-                  {pendingPlayers.length > 6 && <span className="text-[8px] text-orange-500">+{pendingPlayers.length - 6}</span>}
+                <div className="bg-orange-500/10 rounded-lg border border-orange-600/30 p-1.5 flex-1 flex flex-col overflow-hidden">
+                  <div className="flex items-center gap-0.5 mb-1 flex-shrink-0">
+                    <Clock className="h-2.5 w-2.5 text-orange-500" />
+                    <span className="text-[9px] font-semibold text-orange-500">Attente ({pendingPlayers.length})</span>
+                  </div>
+                  <div className="flex-1 flex flex-wrap content-start gap-0.5 overflow-y-auto">
+                    {pendingPlayers.map(p => (
+                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[7px] py-0 px-0.5 h-4">
+                        {p.display_name.slice(0, 5)}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {/* Shop items - 5/10 height - one item per line */}
               <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-1.5 md:p-2 flex flex-col overflow-hidden" style={{ flex: '5 1 0' }}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-1.5">
+                <div className="flex items-center justify-between mb-1 flex-shrink-0">
+                  <div className="flex items-center gap-1">
                     <Store className="h-3.5 md:h-4 w-3.5 md:w-4 text-purple-500" />
                     <h3 className="font-semibold text-purple-500 text-[10px] md:text-xs">Boutique</h3>
                   </div>
@@ -968,49 +966,47 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                     {submittedShopPlayerNums.size}/{players.length}
                   </Badge>
                 </div>
-                <ScrollArea className="flex-1">
-                  <div className="space-y-1 pr-1">
-                    {shopItems.map(item => {
-                      const price = shopPrices.find(p => p.item_name === item.name);
-                      return (
-                        <div key={item.id} className="bg-purple-500/20 rounded-lg p-1 md:p-1.5 border border-purple-600/40">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <div className="font-bold text-[9px] md:text-[10px] truncate">{item.name}</div>
-                              <p className="text-[7px] md:text-[8px] text-muted-foreground line-clamp-1">
-                                {item.detailed_description || item.category}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
-                              <div className="flex items-center gap-1">
-                                {item.base_damage && item.base_damage > 0 && (
-                                  <span className="text-destructive flex items-center gap-0.5 text-[8px]">
-                                    <Swords className="h-2 md:h-2.5 w-2 md:w-2.5" />
-                                    {item.base_damage}
-                                  </span>
-                                )}
-                                {item.base_heal && item.base_heal > 0 && (
-                                  <span className="text-green-500 flex items-center gap-0.5 text-[8px]">
-                                    <Heart className="h-2 md:h-2.5 w-2 md:w-2.5" />
-                                    {item.base_heal}
-                                  </span>
-                                )}
-                              </div>
-                              {price && (
-                                <div className="flex items-center gap-0.5 text-[7px] md:text-[8px]">
-                                  <Coins className="h-2 md:h-2.5 w-2 md:w-2.5 text-amber-400" />
-                                  <span className="text-amber-400">{price.cost_normal}</span>
-                                  <span className="text-muted-foreground">/</span>
-                                  <span className="text-cyan-400">{price.cost_akila}</span>
-                                </div>
+                <div className="flex-1 overflow-y-auto space-y-0.5 pr-1">
+                  {shopItems.map(item => {
+                    const price = shopPrices.find(p => p.item_name === item.name);
+                    return (
+                      <div key={item.id} className="bg-purple-500/20 rounded-lg p-1 border border-purple-600/40">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-[8px] md:text-[9px] truncate">{item.name}</div>
+                            <p className="text-[6px] md:text-[7px] text-muted-foreground line-clamp-1">
+                              {item.detailed_description || item.category}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                            <div className="flex items-center gap-0.5">
+                              {item.base_damage && item.base_damage > 0 && (
+                                <span className="text-destructive flex items-center gap-0.5 text-[7px]">
+                                  <Swords className="h-2 w-2" />
+                                  {item.base_damage}
+                                </span>
+                              )}
+                              {item.base_heal && item.base_heal > 0 && (
+                                <span className="text-green-500 flex items-center gap-0.5 text-[7px]">
+                                  <Heart className="h-2 w-2" />
+                                  {item.base_heal}
+                                </span>
                               )}
                             </div>
+                            {price && (
+                              <div className="flex items-center gap-0.5 text-[6px] md:text-[7px]">
+                                <Coins className="h-2 w-2 text-amber-400" />
+                                <span className="text-amber-400">{price.cost_normal}</span>
+                                <span className="text-muted-foreground">/</span>
+                                <span className="text-cyan-400">{price.cost_akila}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
