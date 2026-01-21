@@ -227,11 +227,45 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
         </div>
       )}
 
+      {/* Last Manche Actions Summary */}
+      {lastMancheResult && lastMancheResult.public_summary.length > 0 && (
+        <div className="space-y-0.5 border-t border-border pt-1">
+          <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground">
+            Résumé Actions - Manche {lastMancheResult.manche}
+          </div>
+          <div className="max-h-[120px] overflow-y-auto space-y-0.5">
+            {lastMancheResult.public_summary
+              .filter(entry => !entry.cancelled)
+              .map((entry, idx) => (
+                <div 
+                  key={idx}
+                  className="text-[7px] md:text-[8px] bg-secondary/30 rounded p-0.5 md:p-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium truncate max-w-[60px]">{entry.nom}</span>
+                    <span className="text-blue-500 font-bold">{entry.totalDamage} dégâts</span>
+                  </div>
+                  {entry.weapons && entry.weapons.length > 0 && (
+                    <div className="text-muted-foreground mt-0.5">
+                      {entry.weapons.join(', ')}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+          {lastMancheResult.public_summary.filter(e => e.cancelled).length > 0 && (
+            <div className="text-[6px] md:text-[7px] text-muted-foreground/70 italic">
+              {lastMancheResult.public_summary.filter(e => e.cancelled).length} action(s) annulée(s)
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Last Manche Kills */}
       {lastMancheResult && lastMancheResult.kills.length > 0 && (
         <div className="space-y-0.5">
           <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground">
-            Manche {lastMancheResult.manche}
+            Kills - Manche {lastMancheResult.manche}
           </div>
           {lastMancheResult.kills.slice(0, 3).map((kill, idx) => (
             <div 
