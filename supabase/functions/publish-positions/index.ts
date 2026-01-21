@@ -196,26 +196,51 @@ serve(async (req) => {
         // Pick random attack item - ALWAYS attack if possible
         // Default weapon has only 20% chance if other weapons are available
         const defaultWeaponName = "Par défaut (+2 si compagnon Akandé)";
+        const piqureBersekerName = "Piqure Berseker";
         let attaque1 = null;
-        if (attackItems.length > 0) {
-          const otherWeapons = attackItems.filter(i => i.objet !== defaultWeaponName);
-          const defaultWeapon = attackItems.find(i => i.objet === defaultWeaponName);
+        let attaque2 = null;
+        
+        // Helper function to pick an attack with 20/80 weight
+        const pickAttackWithWeight = (availableItems: typeof attackItems, excludeItem?: string | null) => {
+          const filteredItems = excludeItem 
+            ? availableItems.filter(i => i.objet !== excludeItem)
+            : availableItems;
+          
+          if (filteredItems.length === 0) return null;
+          
+          const otherWeapons = filteredItems.filter(i => i.objet !== defaultWeaponName);
+          const defaultWeapon = filteredItems.find(i => i.objet === defaultWeaponName);
           
           if (otherWeapons.length > 0 && defaultWeapon) {
             // Has both default and other weapons: 20% chance to use default
             if (Math.random() < 0.2) {
-              attaque1 = defaultWeaponName;
+              return defaultWeaponName;
             } else {
               const randomIndex = Math.floor(Math.random() * otherWeapons.length);
-              attaque1 = otherWeapons[randomIndex].objet;
+              return otherWeapons[randomIndex].objet;
             }
           } else if (otherWeapons.length > 0) {
             // Only other weapons, no default
             const randomIndex = Math.floor(Math.random() * otherWeapons.length);
-            attaque1 = otherWeapons[randomIndex].objet;
-          } else {
+            return otherWeapons[randomIndex].objet;
+          } else if (defaultWeapon) {
             // Only default weapon available
-            attaque1 = defaultWeaponName;
+            return defaultWeaponName;
+          }
+          return null;
+        };
+        
+        if (attackItems.length > 0) {
+          attaque1 = pickAttackWithWeight(attackItems);
+          
+          // If Piqure Berseker is used, must also fill attaque2 with another item
+          if (attaque1 === piqureBersekerName) {
+            // Get remaining attack items (excluding Piqure Berseker itself)
+            const remainingAttackItems = attackItems.filter(i => i.objet !== piqureBersekerName);
+            if (remainingAttackItems.length > 0) {
+              attaque2 = pickAttackWithWeight(remainingAttackItems);
+            }
+            console.log(`[publish-positions] Bot ${bot.display_name} using Piqure Berseker, attaque2=${attaque2 || 'none'}`);
           }
         }
         
@@ -242,12 +267,12 @@ serve(async (req) => {
           position_souhaitee: randomPosition,
           slot_attaque: randomSlotAttaque,
           attaque1: attaque1,
-          attaque2: null,
+          attaque2: attaque2,
           protection_objet: protection,
           slot_protection: slotProtection,
         });
         
-        console.log(`[publish-positions] Bot ${bot.display_name}: pos=${randomPosition}, slot=${randomSlotAttaque}, atk=${attaque1 || 'none'}, prot=${protection || 'none'}`);
+        console.log(`[publish-positions] Bot ${bot.display_name}: pos=${randomPosition}, slot=${randomSlotAttaque}, atk1=${attaque1 || 'none'}, atk2=${attaque2 || 'none'}, prot=${protection || 'none'}`);
       }
     }
 
