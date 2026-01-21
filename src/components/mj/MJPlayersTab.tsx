@@ -106,94 +106,101 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     };
   }, [game.id]);
 
+  // State for manual refresh
+  const [isRefreshingPhaseState, setIsRefreshingPhaseState] = useState(false);
+
   // Fetch validation counts based on phase
-  useEffect(() => {
+  const fetchValidationState = async () => {
     if (!isInGame || !game.manche_active) return;
     
-    const fetchValidationState = async () => {
-      const manche = game.manche_active!;
-      const sessionGameId = game.current_session_game_id;
-      
-      // Get active players count (non-host)
-      const activePlayers = players.filter(p => !p.is_host && p.status === 'ACTIVE');
-      const totalPlayers = activePlayers.length;
-      
-      const phase = game.phase || '';
-      
-      if (phase.startsWith('PHASE1')) {
-        // Count players who have placed bets for current manche
-        let query = supabase
-          .from('round_bets')
-          .select('player_id', { count: 'exact' })
-          .eq('game_id', game.id)
-          .eq('manche', manche);
-        if (sessionGameId) query = query.eq('session_game_id', sessionGameId);
-        
-        const { count } = await query;
-        setValidatedCount(count || 0);
-        setPositionsPublished(false);
-        setCombatResolved(false);
-        setShopResolved(false);
-      } else if (phase.startsWith('PHASE2')) {
-        // Count players who have submitted actions
-        let actionsQuery = supabase
-          .from('actions')
-          .select('num_joueur', { count: 'exact' })
-          .eq('game_id', game.id)
-          .eq('manche', manche);
-        if (sessionGameId) actionsQuery = actionsQuery.eq('session_game_id', sessionGameId);
-        
-        const { count: actionsCount } = await actionsQuery;
-        setValidatedCount(actionsCount || 0);
-        
-        // Check if positions have been published
-        let posQuery = supabase
-          .from('positions_finales')
-          .select('id', { count: 'exact', head: true })
-          .eq('game_id', game.id)
-          .eq('manche', manche);
-        if (sessionGameId) posQuery = posQuery.eq('session_game_id', sessionGameId);
-        
-        const { count: posCount } = await posQuery;
-        setPositionsPublished((posCount || 0) > 0);
-        
-        // Check if combat has been resolved
-        let combatQuery = supabase
-          .from('combat_results')
-          .select('id', { count: 'exact', head: true })
-          .eq('game_id', game.id)
-          .eq('manche', manche);
-        if (sessionGameId) combatQuery = combatQuery.eq('session_game_id', sessionGameId);
-        
-        const { count: combatCount } = await combatQuery;
-        setCombatResolved((combatCount || 0) > 0);
-        setShopResolved(false);
-      } else if (phase.startsWith('PHASE3')) {
-        // Count players who submitted shop requests
-        let shopQuery = supabase
-          .from('game_item_purchases')
-          .select('player_num', { count: 'exact' })
-          .eq('game_id', game.id)
-          .eq('manche', manche)
-          .eq('status', 'pending');
-        if (sessionGameId) shopQuery = shopQuery.eq('session_game_id', sessionGameId);
-        
-        const { count: shopCount } = await shopQuery;
-        setValidatedCount(shopCount || 0);
-        
-        // Check if shop has been resolved
-        let shopOfferQuery = supabase
-          .from('game_shop_offers')
-          .select('resolved')
-          .eq('game_id', game.id)
-          .eq('manche', manche);
-        if (sessionGameId) shopOfferQuery = shopOfferQuery.eq('session_game_id', sessionGameId);
-        
-        const { data: shopOffer } = await shopOfferQuery.maybeSingle();
-        setShopResolved(shopOffer?.resolved || false);
-      }
-    };
+    const manche = game.manche_active!;
+    const sessionGameId = game.current_session_game_id;
     
+    const phase = game.phase || '';
+    
+    if (phase.startsWith('PHASE1')) {
+      // Count players who have placed bets for current manche
+      let query = supabase
+        .from('round_bets')
+        .select('player_id', { count: 'exact' })
+        .eq('game_id', game.id)
+        .eq('manche', manche);
+      if (sessionGameId) query = query.eq('session_game_id', sessionGameId);
+      
+      const { count } = await query;
+      setValidatedCount(count || 0);
+      setPositionsPublished(false);
+      setCombatResolved(false);
+      setShopResolved(false);
+    } else if (phase.startsWith('PHASE2')) {
+      // Count players who have submitted actions
+      let actionsQuery = supabase
+        .from('actions')
+        .select('num_joueur', { count: 'exact' })
+        .eq('game_id', game.id)
+        .eq('manche', manche);
+      if (sessionGameId) actionsQuery = actionsQuery.eq('session_game_id', sessionGameId);
+      
+      const { count: actionsCount } = await actionsQuery;
+      setValidatedCount(actionsCount || 0);
+      
+      // Check if positions have been published
+      let posQuery = supabase
+        .from('positions_finales')
+        .select('id', { count: 'exact', head: true })
+        .eq('game_id', game.id)
+        .eq('manche', manche);
+      if (sessionGameId) posQuery = posQuery.eq('session_game_id', sessionGameId);
+      
+      const { count: posCount } = await posQuery;
+      setPositionsPublished((posCount || 0) > 0);
+      
+      // Check if combat has been resolved
+      let combatQuery = supabase
+        .from('combat_results')
+        .select('id', { count: 'exact', head: true })
+        .eq('game_id', game.id)
+        .eq('manche', manche);
+      if (sessionGameId) combatQuery = combatQuery.eq('session_game_id', sessionGameId);
+      
+      const { count: combatCount } = await combatQuery;
+      setCombatResolved((combatCount || 0) > 0);
+      setShopResolved(false);
+    } else if (phase.startsWith('PHASE3')) {
+      // Count players who submitted shop requests
+      let shopQuery = supabase
+        .from('game_item_purchases')
+        .select('player_num', { count: 'exact' })
+        .eq('game_id', game.id)
+        .eq('manche', manche)
+        .eq('status', 'pending');
+      if (sessionGameId) shopQuery = shopQuery.eq('session_game_id', sessionGameId);
+      
+      const { count: shopCount } = await shopQuery;
+      setValidatedCount(shopCount || 0);
+      
+      // Check if shop has been resolved
+      let shopOfferQuery = supabase
+        .from('game_shop_offers')
+        .select('resolved')
+        .eq('game_id', game.id)
+        .eq('manche', manche);
+      if (sessionGameId) shopOfferQuery = shopOfferQuery.eq('session_game_id', sessionGameId);
+      
+      const { data: shopOffer } = await shopOfferQuery.maybeSingle();
+      setShopResolved(shopOffer?.resolved || false);
+    }
+  };
+
+  // Manual refresh handler
+  const handleRefreshPhaseState = async () => {
+    setIsRefreshingPhaseState(true);
+    await fetchValidationState();
+    setIsRefreshingPhaseState(false);
+    toast.success('Compteurs actualisés');
+  };
+
+  useEffect(() => {
     fetchValidationState();
     
     // Subscribe to relevant tables for real-time updates
@@ -316,9 +323,27 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
           {phaseActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : buttonIcon}
           {buttonText}
         </ForestButton>
-        <span className="text-sm text-muted-foreground">
-          {validatedCount}/{totalPlayers} validés
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            {validatedCount}/{totalPlayers} validés
+          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleRefreshPhaseState}
+                  disabled={isRefreshingPhaseState}
+                  className="p-1 rounded-md hover:bg-secondary transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-4 w-4 text-muted-foreground ${isRefreshingPhaseState ? 'animate-spin' : ''}`} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Actualiser les compteurs</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
     );
   };
