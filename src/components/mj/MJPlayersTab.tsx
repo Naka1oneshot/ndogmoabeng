@@ -7,7 +7,7 @@ import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { useUserRole } from '@/hooks/useUserRole';
 import { 
   User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, 
-  Users, UserX, Play, Lock, Coins, ShieldCheck, Swords, ShoppingBag, Bot, Plus, Trash2
+  Users, UserX, Play, Lock, Coins, ShieldCheck, Swords, ShoppingBag, Bot, Plus, Trash2, Trophy
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -81,6 +81,8 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   const [positionsPublished, setPositionsPublished] = useState(false);
   const [combatResolved, setCombatResolved] = useState(false);
   const [shopResolved, setShopResolved] = useState(false);
+  const [allMonstersDead, setAllMonstersDead] = useState(false);
+  const [endingGame, setEndingGame] = useState(false);
   
   // Bot addition state
   const [addingBots, setAddingBots] = useState(false);
@@ -91,6 +93,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
 
   const isLobby = game.status === 'LOBBY';
   const isInGame = game.status === 'IN_GAME';
+  const isEnded = game.status === 'ENDED' || game.phase === 'FINISHED';
 
   useEffect(() => {
     fetchPlayers();
@@ -125,6 +128,19 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     const sessionGameId = game.current_session_game_id;
     
     const phase = game.phase || '';
+    
+    // Check if all monsters are dead (for "end game" button)
+    let monstersQuery = supabase
+      .from('game_state_monsters')
+      .select('status')
+      .eq('game_id', game.id);
+    if (sessionGameId) monstersQuery = monstersQuery.eq('session_game_id', sessionGameId);
+    const { data: monstersData } = await monstersQuery;
+    
+    if (monstersData && monstersData.length > 0) {
+      const allDead = monstersData.every(m => m.status === 'MORT');
+      setAllMonstersDead(allDead);
+    }
     
     if (phase.startsWith('PHASE1')) {
       // Count players who have placed bets for current manche
@@ -200,6 +216,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     }
   };
 
+
   // Manual refresh handler
   const handleRefreshPhaseState = async () => {
     setIsRefreshingPhaseState(true);
@@ -266,8 +283,8 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
         });
         if (error || !data?.success) throw new Error(data?.error || 'Erreur');
         toast.success('Combat résolu !');
-      } else if (phase.startsWith('PHASE3')) {
-        // Resolve shop
+      } else if (phase.startsWith('PHASE3') && !allMonstersDead) {
+        // Resolve shop (only if monsters are still alive)
         const { data, error } = await supabase.functions.invoke('resolve-shop', {
           body: { gameId: game.id },
         });
@@ -282,6 +299,48 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
       setPhaseActionLoading(false);
     }
   };
+  
+  // End game handler
+  const handleEndGame = async () => {
+    setEndingGame(true);
+    try {
+      const { error } = await supabase
+        .from('games')
+        .update({ 
+          status: 'ENDED', 
+          phase: 'FINISHED',
+          phase_locked: true,
+          winner_declared: true
+        })
+        .eq('id', game.id);
+      
+      if (error) throw error;
+      
+      // Log the game end
+      await supabase.from('logs_mj').insert({
+        game_id: game.id,
+        manche: game.manche_active,
+        action: 'PARTIE_TERMINEE',
+        details: 'La partie a été terminée manuellement par le MJ.',
+      });
+      
+      await supabase.from('session_events').insert({
+        game_id: game.id,
+        audience: 'ALL',
+        type: 'GAME_END',
+        message: '🏆 La partie est terminée !',
+        payload: { type: 'GAME_ENDED', reason: 'MJ_DECISION' },
+      });
+      
+      toast.success('Partie terminée !');
+      onGameUpdate();
+    } catch (error: any) {
+      console.error('End game error:', error);
+      toast.error(error.message || 'Erreur lors de la fin de partie');
+    } finally {
+      setEndingGame(false);
+    }
+  };
 
   const getPhaseActionButton = () => {
     if (!isInGame) return null;
@@ -292,6 +351,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     let buttonText = '';
     let buttonIcon = <Lock className="h-4 w-4 mr-2" />;
     let isDisabled = false;
+    let showEndGameButton = false;
     
     const phase = game.phase || '';
     
@@ -310,7 +370,10 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
         isDisabled = true;
       }
     } else if (phase.startsWith('PHASE3')) {
-      if (!shopResolved) {
+      if (allMonstersDead) {
+        // All monsters dead - show end game button instead of shop
+        showEndGameButton = true;
+      } else if (!shopResolved) {
         buttonText = 'Résoudre le Shop';
         buttonIcon = <ShoppingBag className="h-4 w-4 mr-2" />;
       } else {
@@ -323,14 +386,43 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     
     return (
       <div className="flex items-center gap-3 flex-wrap">
-        <ForestButton
-          onClick={handlePhaseAction}
-          disabled={phaseActionLoading || isDisabled}
-          className="bg-primary hover:bg-primary/90"
-        >
-          {phaseActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : buttonIcon}
-          {buttonText}
-        </ForestButton>
+        {showEndGameButton ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <ForestButton
+                disabled={endingGame}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                {endingGame ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trophy className="h-4 w-4 mr-2" />}
+                🏆 Terminer la partie
+              </ForestButton>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Terminer la partie ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tous les monstres ont été vaincus ! Voulez-vous terminer officiellement la partie ?
+                  Le classement final sera affiché.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction onClick={handleEndGame}>
+                  Terminer la partie
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <ForestButton
+            onClick={handlePhaseAction}
+            disabled={phaseActionLoading || isDisabled}
+            className="bg-primary hover:bg-primary/90"
+          >
+            {phaseActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : buttonIcon}
+            {buttonText}
+          </ForestButton>
+        )}
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
             {validatedCount}/{totalPlayers} validés

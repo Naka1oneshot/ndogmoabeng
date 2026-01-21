@@ -15,6 +15,7 @@ import { CombatHistorySummarySheet } from './CombatHistorySummarySheet';
 import { Phase3CombatSummary } from './Phase3CombatSummary';
 import { MonsterReplacementAnimation, MonsterReplacementInfo } from '@/components/game/MonsterReplacementAnimation';
 import { PlayerNameTooltip } from './PlayerNameTooltip';
+import { VictoryPodiumAnimation } from './VictoryPodiumAnimation';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
@@ -502,6 +503,20 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   };
 
   const teams = buildTeams();
+  
+  // Check if game is ended
+  const isGameEnded = game.phase === 'FINISHED' || game.phase === 'ENDED';
+  
+  // Build player rankings for victory screen
+  const playerRankings = players
+    .map(p => ({
+      display_name: p.display_name,
+      player_number: p.player_number,
+      total_score: p.jetons + p.recompenses,
+      avatar_url: p.avatar_url,
+      clan: p.clan,
+    }))
+    .sort((a, b) => b.total_score - a.total_score);
 
   // Determine phase displays
   const isPhase1 = game.phase === 'PHASE1_MISES';
@@ -584,6 +599,16 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           }
         `}</style>
       </div>
+    );
+  }
+
+  // If game is ended, show victory podium
+  if (isGameEnded) {
+    return (
+      <VictoryPodiumAnimation 
+        show={true}
+        rankings={playerRankings}
+      />
     );
   }
 
