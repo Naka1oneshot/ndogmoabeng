@@ -27,6 +27,7 @@ interface MonsterState {
   battlefield_slot: number | null;
   catalog?: {
     name: string;
+    type: string | null;
     pv_max_default: number;
     reward_default: number;
   };
@@ -156,7 +157,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     if (monstersData && monstersData.length > 0) {
       const monsterIds = monstersData.map(m => m.monster_id);
       const [catalogRes, configRes] = await Promise.all([
-        supabase.from('monster_catalog').select('id, name, pv_max_default, reward_default').in('id', monsterIds),
+        supabase.from('monster_catalog').select('id, name, type, pv_max_default, reward_default').in('id', monsterIds),
         supabase.from('game_monsters').select('monster_id, pv_max_override, reward_override').eq('game_id', game.id).in('monster_id', monsterIds),
       ]);
 
@@ -319,6 +320,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const getMonsterPvMax = (m: MonsterState) => m.config?.pv_max_override ?? m.catalog?.pv_max_default ?? 10;
   const getMonsterReward = (m: MonsterState) => m.config?.reward_override ?? m.catalog?.reward_default ?? 10;
   const getMonsterName = (m: MonsterState) => m.catalog?.name ?? `Monstre #${m.monster_id}`;
+  const getMonsterType = (m: MonsterState) => m.catalog?.type ?? null;
 
   const battlefieldMonsters = monsters.filter(m => m.status === 'EN_BATAILLE');
   const queueMonsters = monsters.filter(m => m.status === 'EN_FILE');
@@ -414,78 +416,79 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
   return (
     <div 
-      className="fixed inset-0 z-[100] bg-gradient-to-b from-background to-secondary text-foreground overflow-hidden"
+      className="fixed inset-0 z-[100] bg-gradient-to-b from-background to-secondary text-foreground overflow-auto"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       {/* Close hint + Last update indicator + Manual refresh button */}
-      <div className="absolute top-4 right-4 flex items-center gap-3 text-xs text-muted-foreground z-10">
+      <div className="absolute top-2 md:top-4 right-2 md:right-4 flex items-center gap-2 md:gap-3 text-xs text-muted-foreground z-10">
         <Button
           variant="outline"
           size="sm"
           onClick={handleManualRefresh}
           disabled={isRefreshing}
-          className="h-7 px-2 gap-1.5 bg-card/50 border-border hover:bg-card"
+          className="h-6 md:h-7 px-2 gap-1 md:gap-1.5 bg-card/50 border-border hover:bg-card"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>Actualiser</span>
+          <RefreshCw className={`h-3 md:h-3.5 w-3 md:w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">Actualiser</span>
         </Button>
-        <div className="flex items-center gap-1.5 bg-card/50 px-2 py-1 rounded-md border border-border">
+        <div className="hidden sm:flex items-center gap-1.5 bg-card/50 px-2 py-1 rounded-md border border-border">
           <RefreshCw className="h-3 w-3 text-primary animate-pulse" />
           <span>Sync : {format(lastUpdate, 'HH:mm:ss', { locale: fr })}</span>
         </div>
-        <span>ESC pour fermer</span>
+        <span className="hidden md:inline">ESC pour fermer</span>
       </div>
 
       {/* Header with phase info */}
-      <div className="absolute top-4 left-4 z-10">
-        <Badge className="bg-primary/80 text-primary-foreground text-lg px-4 py-2">
-          {game.name} — Manche {game.manche_active}
+      <div className="absolute top-2 md:top-4 left-2 md:left-4 z-10 flex flex-wrap items-center gap-1 md:gap-2">
+        <Badge className="bg-primary/80 text-primary-foreground text-xs md:text-lg px-2 md:px-4 py-1 md:py-2">
+          {game.name} — M{game.manche_active}
         </Badge>
-        <Badge className="ml-2 bg-amber-600/80 text-white px-3 py-1">
-          {game.phase.replace('PHASE', 'Phase ').replace('_', ' : ')}
+        <Badge className="bg-amber-600/80 text-white px-2 md:px-3 py-0.5 md:py-1 text-xs">
+          {game.phase.replace('PHASE', 'P').replace('_', ':')}
         </Badge>
       </div>
 
-      <div className="h-full flex flex-col p-6 pt-20">
+      <div className="h-full flex flex-col p-3 md:p-6 pt-14 md:pt-20">
         {/* Global HP Bar - TOP CENTER */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-3 md:mb-6">
           <div className="w-full max-w-2xl">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="flex items-center gap-2">
-                <Heart className="h-5 w-5 text-destructive" />
-                <span className="text-muted-foreground">Santé Globale de la Forêt</span>
+            <div className="flex items-center justify-between text-xs md:text-sm mb-1 md:mb-2">
+              <span className="flex items-center gap-1 md:gap-2">
+                <Heart className="h-4 md:h-5 w-4 md:w-5 text-destructive" />
+                <span className="text-muted-foreground hidden sm:inline">Santé Globale de la Forêt</span>
+                <span className="text-muted-foreground sm:hidden">PV Forêt</span>
               </span>
-              <span className="font-mono text-lg font-bold text-destructive">
-                {totalPvCurrent} / {totalPvMax} PV ({Math.round(globalProgress)}%)
+              <span className="font-mono text-sm md:text-lg font-bold text-destructive">
+                {totalPvCurrent}/{totalPvMax} ({Math.round(globalProgress)}%)
               </span>
             </div>
-            <Progress value={globalProgress} className="h-4" />
+            <Progress value={globalProgress} className="h-2 md:h-4" />
           </div>
         </div>
 
         {/* Main content grid - Phase 3 specific compact layout */}
         {isPhase3 ? (
-          <div className="flex-1 grid grid-cols-12 gap-3 overflow-hidden">
+          <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-3 overflow-auto md:overflow-hidden">
             {/* Left: Battlefield compact + Validation status */}
-            <div className="col-span-4 flex flex-col gap-3">
+            <div className="md:col-span-4 flex flex-col gap-3">
               {/* Battlefield compact */}
-              <div className="bg-card/50 rounded-xl border border-border p-3">
+              <div className="bg-card/50 rounded-xl border border-border p-2 md:p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Swords className="h-4 w-4 text-destructive" />
                   <h2 className="text-sm font-bold">Champ de Bataille</h2>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1 md:gap-2">
                   {[1, 2, 3].map(slot => {
                     const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
-                      <div key={slot} className="flex flex-col items-center p-2 rounded-lg bg-secondary/50 border border-border">
+                      <div key={slot} className="flex flex-col items-center p-1.5 md:p-2 rounded-lg bg-secondary/50 border border-border">
                         <div className="text-[10px] text-muted-foreground">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="w-12 h-12 rounded-lg overflow-hidden my-1 bg-secondary/50">
+                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden my-1 bg-secondary/50">
                               {monster.status === 'MORT' ? (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <Skull className="h-6 w-6 text-muted-foreground" />
+                                  <Skull className="h-5 md:h-6 w-5 md:w-6 text-muted-foreground" />
                                 </div>
                               ) : getMonsterImage(monster.monster_id) ? (
                                 <img 
@@ -494,13 +497,18 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-2xl">🐉</div>
+                                <div className="w-full h-full flex items-center justify-center text-xl md:text-2xl">🐉</div>
                               )}
                             </div>
-                            <div className="text-xs font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
-                            <div className="flex items-center gap-1 text-[10px] mt-1">
-                              <Heart className="h-3 w-3 text-destructive" />
+                            {getMonsterType(monster) && (
+                              <div className="text-[8px] md:text-[10px] text-muted-foreground">{getMonsterType(monster)}</div>
+                            )}
+                            <div className="text-[10px] md:text-xs font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
+                            <div className="flex items-center gap-1 text-[8px] md:text-[10px] mt-0.5">
+                              <Heart className="h-2.5 md:h-3 w-2.5 md:w-3 text-destructive" />
                               {getMonsterPvMax(monster)}
+                              <Trophy className="h-2.5 md:h-3 w-2.5 md:w-3 text-amber-500 ml-1" />
+                              {getMonsterReward(monster)}
                             </div>
                           </>
                         ) : (
@@ -521,18 +529,19 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {queueMonsters.slice(0, 4).map(m => (
-                      <div key={m.id} className="flex items-center gap-1 text-xs bg-amber-500/10 px-2 py-0.5 rounded">
-                        <div className="w-5 h-5 rounded overflow-hidden flex-shrink-0">
+                      <div key={m.id} className="flex items-center gap-1 text-[10px] md:text-xs bg-amber-500/10 px-1.5 md:px-2 py-0.5 rounded">
+                        <div className="w-4 h-4 md:w-5 md:h-5 rounded overflow-hidden flex-shrink-0">
                           {getMonsterImage(m.monster_id) ? (
                             <img src={getMonsterImage(m.monster_id)} alt={getMonsterName(m)} className="w-full h-full object-cover" />
                           ) : (
                             <span>🐉</span>
                           )}
                         </div>
-                        <span>{getMonsterName(m)}</span>
+                        <span className="hidden sm:inline">{getMonsterName(m)}</span>
+                        <span className="sm:hidden">{getMonsterName(m).slice(0, 6)}</span>
                       </div>
                     ))}
-                    {queueMonsters.length > 4 && <span className="text-xs text-amber-500">+{queueMonsters.length - 4}</span>}
+                    {queueMonsters.length > 4 && <span className="text-[10px] md:text-xs text-amber-500">+{queueMonsters.length - 4}</span>}
                   </div>
                 </div>
               )}
@@ -569,46 +578,46 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
             </div>
 
             {/* Middle: Shop items */}
-            <div className="col-span-5 flex flex-col gap-3">
-              <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-3 flex-1 flex flex-col overflow-hidden">
+            <div className="md:col-span-5 flex flex-col gap-3">
+              <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-2 md:p-3 flex-1 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Store className="h-5 w-5 text-purple-500" />
-                    <h3 className="font-semibold text-purple-500">Boutique</h3>
+                    <Store className="h-4 md:h-5 w-4 md:w-5 text-purple-500" />
+                    <h3 className="font-semibold text-purple-500 text-sm md:text-base">Boutique</h3>
                   </div>
-                  <Badge className="bg-purple-600/50 text-purple-100 text-xs">
+                  <Badge className="bg-purple-600/50 text-purple-100 text-[10px] md:text-xs">
                     {submittedShopPlayerNums.size}/{players.length} soumis
                   </Badge>
                 </div>
-                <ScrollArea className="flex-1">
-                  <div className="grid grid-cols-2 gap-2 pr-2">
+                <ScrollArea className="flex-1 max-h-[200px] md:max-h-none">
+                  <div className="grid grid-cols-2 gap-1.5 md:gap-2 pr-2">
                     {shopItems.map(item => {
                       const price = shopPrices.find(p => p.item_name === item.name);
                       return (
-                        <div key={item.id} className="bg-purple-500/20 rounded-lg p-2 border border-purple-600/40">
-                          <div className="font-bold text-sm mb-1">{item.name}</div>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-1">
+                        <div key={item.id} className="bg-purple-500/20 rounded-lg p-1.5 md:p-2 border border-purple-600/40">
+                          <div className="font-bold text-[11px] md:text-sm mb-0.5 md:mb-1">{item.name}</div>
+                          <p className="text-[10px] md:text-xs text-muted-foreground line-clamp-1 md:line-clamp-2 mb-0.5 md:mb-1">
                             {item.detailed_description || item.category}
                           </p>
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-between text-[10px] md:text-xs">
+                            <div className="flex items-center gap-1 md:gap-2">
                               {item.base_damage && item.base_damage > 0 && (
                                 <span className="text-destructive flex items-center gap-0.5">
-                                  <Swords className="h-3 w-3" />
+                                  <Swords className="h-2.5 md:h-3 w-2.5 md:w-3" />
                                   {item.base_damage}
                                 </span>
                               )}
                               {item.base_heal && item.base_heal > 0 && (
                                 <span className="text-green-500 flex items-center gap-0.5">
-                                  <Heart className="h-3 w-3" />
+                                  <Heart className="h-2.5 md:h-3 w-2.5 md:w-3" />
                                   {item.base_heal}
                                 </span>
                               )}
                             </div>
                             {price && (
-                              <div className="flex items-center gap-2 text-[10px]">
+                              <div className="flex items-center gap-1 md:gap-2 text-[9px] md:text-[10px]">
                                 <span className="flex items-center gap-0.5 text-amber-400">
-                                  <Coins className="h-3 w-3" />
+                                  <Coins className="h-2.5 md:h-3 w-2.5 md:w-3" />
                                   {price.cost_normal}
                                 </span>
                                 <span className="text-muted-foreground">/</span>
@@ -625,26 +634,26 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
             </div>
 
             {/* Right: Rankings + Priority */}
-            <div className="col-span-3 flex flex-col gap-3 overflow-hidden">
+            <div className="md:col-span-3 flex flex-col gap-3 overflow-hidden">
               {/* Priority order */}
               {priorities.length > 0 && (
                 <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-2">
                   <div className="flex items-center gap-1.5 mb-2">
-                    <Target className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm font-semibold text-blue-500">Priorité (mises)</span>
+                    <Target className="h-3.5 md:h-4 w-3.5 md:w-4 text-blue-500" />
+                    <span className="text-xs md:text-sm font-semibold text-blue-500">Priorité (mises)</span>
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {priorities.map((pr, index) => {
                       const player = players.find(p => p.player_number === pr.num_joueur);
                       return (
-                        <div key={pr.player_id} className="flex items-center gap-1">
-                          <Avatar className={`h-6 w-6 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
+                        <div key={pr.player_id} className="flex items-center gap-0.5 md:gap-1">
+                          <Avatar className={`h-5 md:h-6 w-5 md:w-6 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
                             <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
-                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[10px]`}>
+                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[8px] md:text-[10px]`}>
                               {pr.display_name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-xs">#{pr.rank}</span>
+                          <span className="text-[10px] md:text-xs">#{pr.rank}</span>
                         </div>
                       );
                     })}
@@ -655,26 +664,26 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
               {/* Team ranking */}
               <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 flex-1 overflow-hidden flex flex-col">
                 <div className="flex items-center gap-1.5 mb-2">
-                  <Trophy className="h-4 w-4 text-amber-500" />
-                  <span className="text-sm font-semibold text-amber-500">Classement</span>
+                  <Trophy className="h-3.5 md:h-4 w-3.5 md:w-4 text-amber-500" />
+                  <span className="text-xs md:text-sm font-semibold text-amber-500">Classement</span>
                 </div>
-                <ScrollArea className="flex-1">
+                <ScrollArea className="flex-1 max-h-[150px] md:max-h-none">
                   <div className="space-y-1">
                     {teams.map((team, index) => (
                       <div 
                         key={team.teamName}
-                        className={`flex items-center justify-between p-1.5 rounded-lg text-sm ${
+                        className={`flex items-center justify-between p-1 md:p-1.5 rounded-lg text-xs md:text-sm ${
                           index === 0 ? 'bg-amber-500/30 border border-amber-500' :
                           index === 1 ? 'bg-secondary border border-border' :
                           index === 2 ? 'bg-amber-700/30 border border-amber-700' :
                           'bg-secondary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-base">
+                        <div className="flex items-center gap-1 md:gap-1.5">
+                          <span className="text-sm md:text-base">
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
-                          <span className="font-medium truncate max-w-[100px]">{team.teamName}</span>
+                          <span className="font-medium truncate max-w-[60px] md:max-w-[100px]">{team.teamName}</span>
                         </div>
                         <span className="font-bold text-amber-500">{team.teamScore}</span>
                       </div>
@@ -686,30 +695,30 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           </div>
         ) : (
           /* Default layout for other phases */
-          <div className="flex-1 grid grid-cols-12 gap-4 overflow-hidden">
+          <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 overflow-auto md:overflow-hidden">
             {/* Left section: Battlefield + Queue */}
-            <div className="col-span-7 flex flex-col gap-4">
+            <div className="md:col-span-7 flex flex-col gap-3 md:gap-4">
               {/* Battlefield monsters */}
-              <div className="flex-1 bg-card/50 rounded-xl border border-border p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Swords className="h-5 w-5 text-destructive" />
-                  <h2 className="text-lg font-bold">Champ de Bataille</h2>
+              <div className="flex-1 bg-card/50 rounded-xl border border-border p-3 md:p-4">
+                <div className="flex items-center gap-2 mb-3 md:mb-4">
+                  <Swords className="h-4 md:h-5 w-4 md:w-5 text-destructive" />
+                  <h2 className="text-base md:text-lg font-bold">Champ de Bataille</h2>
                 </div>
-                <div className="grid grid-cols-3 gap-6 h-[calc(100%-40px)]">
+                <div className="grid grid-cols-3 gap-2 md:gap-6">
                   {[1, 2, 3].map(slot => {
                     const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
                       <div 
                         key={slot}
-                        className="flex flex-col items-center justify-center p-4 rounded-xl bg-secondary/50 border border-border"
+                        className="flex flex-col items-center justify-center p-2 md:p-4 rounded-xl bg-secondary/50 border border-border"
                       >
-                        <div className="text-xs text-muted-foreground mb-2">Slot {slot}</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground mb-1 md:mb-2">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="w-24 h-24 rounded-xl overflow-hidden mb-3 bg-secondary">
+                            <div className="w-14 h-14 md:w-24 md:h-24 rounded-lg md:rounded-xl overflow-hidden mb-1 md:mb-3 bg-secondary">
                               {monster.status === 'MORT' ? (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <Skull className="h-16 w-16 text-muted-foreground" />
+                                  <Skull className="h-8 md:h-16 w-8 md:w-16 text-muted-foreground" />
                                 </div>
                               ) : getMonsterImage(monster.monster_id) ? (
                                 <img 
@@ -718,23 +727,26 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-6xl">🐉</div>
+                                <div className="w-full h-full flex items-center justify-center text-3xl md:text-6xl">🐉</div>
                               )}
                             </div>
-                            <div className="text-lg font-bold text-center mb-2">{getMonsterName(monster)}</div>
-                            <div className="flex items-center gap-4 text-sm">
-                              <span className="flex items-center gap-1 text-destructive">
-                                <Heart className="h-4 w-4" />
-                                {getMonsterPvMax(monster)} PV
+                            {getMonsterType(monster) && (
+                              <div className="text-[10px] md:text-xs text-muted-foreground">{getMonsterType(monster)}</div>
+                            )}
+                            <div className="text-xs md:text-lg font-bold text-center mb-1 md:mb-2 truncate w-full">{getMonsterName(monster)}</div>
+                            <div className="flex items-center gap-2 md:gap-4 text-[10px] md:text-sm">
+                              <span className="flex items-center gap-0.5 md:gap-1 text-destructive">
+                                <Heart className="h-3 md:h-4 w-3 md:w-4" />
+                                {getMonsterPvMax(monster)}
                               </span>
-                              <span className="flex items-center gap-1 text-amber-500">
-                                <Trophy className="h-4 w-4" />
+                              <span className="flex items-center gap-0.5 md:gap-1 text-amber-500">
+                                <Trophy className="h-3 md:h-4 w-3 md:w-4" />
                                 {getMonsterReward(monster)}
                               </span>
                             </div>
                           </>
                         ) : (
-                          <span className="text-muted-foreground text-sm">Vide</span>
+                          <span className="text-muted-foreground text-xs md:text-sm">Vide</span>
                         )}
                       </div>
                     );
@@ -744,23 +756,24 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
               {/* Queue monsters */}
               {queueMonsters.length > 0 && (
-                <div className="bg-card/50 rounded-xl border border-amber-600/50 p-3">
+                <div className="bg-card/50 rounded-xl border border-amber-600/50 p-2 md:p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <Users className="h-4 w-4 text-amber-500" />
-                    <h3 className="text-sm font-semibold text-amber-500">File d'attente ({queueMonsters.length})</h3>
+                    <Users className="h-3.5 md:h-4 w-3.5 md:w-4 text-amber-500" />
+                    <h3 className="text-xs md:text-sm font-semibold text-amber-500">File d'attente ({queueMonsters.length})</h3>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5 md:gap-2">
                     {queueMonsters.map(m => (
-                      <div key={m.id} className="flex items-center gap-2 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/30">
-                        <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                      <div key={m.id} className="flex items-center gap-1.5 md:gap-2 bg-amber-500/10 px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-amber-500/30">
+                        <div className="w-6 h-6 md:w-8 md:h-8 rounded overflow-hidden flex-shrink-0">
                           {getMonsterImage(m.monster_id) ? (
                             <img src={getMonsterImage(m.monster_id)} alt={getMonsterName(m)} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="flex items-center justify-center w-full h-full">🐉</span>
+                            <span className="flex items-center justify-center w-full h-full text-sm md:text-base">🐉</span>
                           )}
                         </div>
-                        <span className="text-sm">{getMonsterName(m)}</span>
-                        <span className="text-xs text-amber-500/70">{getMonsterPvMax(m)} PV • 💰{getMonsterReward(m)}</span>
+                        <span className="text-xs md:text-sm hidden sm:inline">{getMonsterName(m)}</span>
+                        <span className="text-xs sm:hidden">{getMonsterName(m).slice(0, 5)}</span>
+                        <span className="text-[10px] md:text-xs text-amber-500/70">{getMonsterPvMax(m)}PV • 💰{getMonsterReward(m)}</span>
                       </div>
                     ))}
                   </div>
@@ -769,32 +782,32 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
               {/* Phase 1 & 2 validation */}
               {(isPhase1 || (isPhase2 && !hasPositions)) && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-green-500/10 rounded-xl border border-green-600/30 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                      <h3 className="font-semibold text-green-500">
-                        Actions validées ({validatedPlayers.length})
+                <div className="grid grid-cols-2 gap-2 md:gap-4">
+                  <div className="bg-green-500/10 rounded-xl border border-green-600/30 p-2 md:p-4">
+                    <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+                      <CheckCircle className="h-4 md:h-5 w-4 md:w-5 text-green-500" />
+                      <h3 className="font-semibold text-green-500 text-xs md:text-base">
+                        Validés ({validatedPlayers.length})
                       </h3>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1 md:gap-2">
                       {validatedPlayers.map(p => (
-                        <Badge key={p.id} className="bg-green-600/50 text-green-100">
+                        <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[10px] md:text-sm py-0 md:py-0.5">
                           {p.display_name}
                         </Badge>
                       ))}
                     </div>
                   </div>
-                  <div className="bg-orange-500/10 rounded-xl border border-orange-600/30 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Clock className="h-5 w-5 text-orange-500" />
-                      <h3 className="font-semibold text-orange-500">
-                        Actions en attente ({pendingPlayers.length})
+                  <div className="bg-orange-500/10 rounded-xl border border-orange-600/30 p-2 md:p-4">
+                    <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+                      <Clock className="h-4 md:h-5 w-4 md:w-5 text-orange-500" />
+                      <h3 className="font-semibold text-orange-500 text-xs md:text-base">
+                        En attente ({pendingPlayers.length})
                       </h3>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1 md:gap-2">
                       {pendingPlayers.map(p => (
-                        <Badge key={p.id} className="bg-orange-600/50 text-orange-100">
+                        <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[10px] md:text-sm py-0 md:py-0.5">
                           {p.display_name}
                         </Badge>
                       ))}
@@ -805,24 +818,24 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
               {/* Phase 2 after positions: Player attack order */}
               {(isPhase2 || isPhase4) && hasPositions && (
-                <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Target className="h-5 w-5 text-blue-500" />
-                    <h3 className="font-semibold text-blue-500">Ordre d'attaque validé</h3>
+                <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-2 md:p-4">
+                  <div className="flex items-center gap-2 mb-2 md:mb-4">
+                    <Target className="h-4 md:h-5 w-4 md:w-5 text-blue-500" />
+                    <h3 className="font-semibold text-blue-500 text-xs md:text-base">Ordre d'attaque</h3>
                   </div>
-                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                  <div className="flex items-center justify-center gap-2 md:gap-3 flex-wrap">
                     {positions.map((pos) => {
                       const player = players.find(p => p.player_number === pos.num_joueur);
                       return (
                         <div key={pos.num_joueur} className="flex flex-col items-center">
-                          <div className="text-xs text-blue-400 mb-1">#{pos.position_finale}</div>
-                          <Avatar className="h-14 w-14 border-2 border-blue-500">
+                          <div className="text-[10px] md:text-xs text-blue-400 mb-0.5 md:mb-1">#{pos.position_finale}</div>
+                          <Avatar className="h-8 md:h-14 w-8 md:w-14 border-2 border-blue-500">
                             <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
-                            <AvatarFallback className="bg-blue-600 text-white text-lg">
+                            <AvatarFallback className="bg-blue-600 text-white text-xs md:text-lg">
                               {pos.nom.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="text-xs mt-1 text-center max-w-[80px] truncate">{pos.nom}</div>
+                          <div className="text-[10px] md:text-xs mt-0.5 md:mt-1 text-center max-w-[50px] md:max-w-[80px] truncate">{pos.nom}</div>
                         </div>
                       );
                     })}
@@ -832,50 +845,50 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
               {/* Phase 4: Combat info */}
               {isPhase4 && (
-                <div className="bg-destructive/10 rounded-xl border border-destructive/30 p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Swords className="h-5 w-5 text-destructive" />
-                    <h3 className="font-semibold text-destructive">Phase de Combat en cours</h3>
+                <div className="bg-destructive/10 rounded-xl border border-destructive/30 p-2 md:p-4">
+                  <div className="flex items-center gap-2 mb-2 md:mb-3">
+                    <Swords className="h-4 md:h-5 w-4 md:w-5 text-destructive" />
+                    <h3 className="font-semibold text-destructive text-xs md:text-base">Phase de Combat</h3>
                   </div>
-                  <p className="text-muted-foreground text-sm">Les joueurs affrontent les monstres selon leur ordre d'attaque.</p>
+                  <p className="text-muted-foreground text-[10px] md:text-sm">Les joueurs affrontent les monstres selon leur ordre.</p>
                 </div>
               )}
             </div>
 
             {/* Right section: Rankings */}
-            <div className="col-span-5 flex flex-col gap-4 overflow-hidden">
+            <div className="md:col-span-5 flex flex-col gap-3 md:gap-4 overflow-hidden">
               {/* Team/Player ranking */}
-              <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-4 flex-1 overflow-hidden flex flex-col">
-                <div className="flex items-center gap-2 mb-4">
-                  <Trophy className="h-5 w-5 text-amber-500" />
-                  <h3 className="font-semibold text-amber-500">Classement Général (Coup de grâce)</h3>
+              <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 md:p-4 flex-1 overflow-hidden flex flex-col">
+                <div className="flex items-center gap-2 mb-2 md:mb-4">
+                  <Trophy className="h-4 md:h-5 w-4 md:w-5 text-amber-500" />
+                  <h3 className="font-semibold text-amber-500 text-xs md:text-base">Classement (Coup de grâce)</h3>
                 </div>
-                <ScrollArea className="flex-1">
-                  <div className="space-y-2">
+                <ScrollArea className="flex-1 max-h-[200px] md:max-h-none">
+                  <div className="space-y-1.5 md:space-y-2">
                     {teams.map((team, index) => (
                       <div 
                         key={team.teamName}
-                        className={`flex items-center justify-between p-3 rounded-lg ${
+                        className={`flex items-center justify-between p-1.5 md:p-3 rounded-lg ${
                           index === 0 ? 'bg-amber-500/30 border border-amber-500' :
                           index === 1 ? 'bg-secondary border border-border' :
                           index === 2 ? 'bg-amber-700/30 border border-amber-700' :
                           'bg-secondary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">
+                        <div className="flex items-center gap-1.5 md:gap-3">
+                          <span className="text-base md:text-2xl">
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
                           <div>
-                            <div className="font-medium">{team.teamName}</div>
+                            <div className="font-medium text-xs md:text-base truncate max-w-[100px] md:max-w-none">{team.teamName}</div>
                             {team.members.length > 1 && (
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-[10px] md:text-xs text-muted-foreground hidden md:block">
                                 {team.members.map(m => `${m.display_name}: ${m.jetons + m.recompenses}`).join(' | ')}
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="text-xl font-bold text-amber-500">{team.teamScore}</div>
+                        <div className="text-sm md:text-xl font-bold text-amber-500">{team.teamScore}</div>
                       </div>
                     ))}
                   </div>
@@ -884,23 +897,23 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
               {/* Priority ranking - shown in Phase 2 */}
               {isPhase2 && priorities.length > 0 && (
-                <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Target className="h-5 w-5 text-blue-500" />
-                    <h3 className="font-semibold text-blue-500">Ordre de priorité (mises)</h3>
+                <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-2 md:p-4">
+                  <div className="flex items-center gap-2 mb-2 md:mb-3">
+                    <Target className="h-4 md:h-5 w-4 md:w-5 text-blue-500" />
+                    <h3 className="font-semibold text-blue-500 text-xs md:text-base">Priorité (mises)</h3>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5 md:gap-2">
                     {priorities.map((pr, index) => {
                       const player = players.find(p => p.player_number === pr.num_joueur);
                       return (
-                        <div key={pr.player_id} className="flex items-center gap-2">
-                          <Avatar className={`h-8 w-8 border-2 ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
+                        <div key={pr.player_id} className="flex items-center gap-1 md:gap-2">
+                          <Avatar className={`h-6 md:h-8 w-6 md:w-8 border-2 ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
                             <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
-                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-xs`}>
+                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[10px] md:text-xs`}>
                               {pr.display_name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm">#{pr.rank} {pr.display_name}</span>
+                          <span className="text-[10px] md:text-sm">#{pr.rank} <span className="hidden sm:inline">{pr.display_name}</span></span>
                         </div>
                       );
                     })}
