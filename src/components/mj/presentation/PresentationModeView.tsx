@@ -897,27 +897,27 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
               )}
             </div>
 
-            {/* Middle: Priority + Validation status + Shop - 3/10 with specific height ratios */}
+            {/* Middle: Priority + Shop + Validation status - 3/10 with specific height ratios */}
             <div className="md:col-span-3 flex flex-col gap-1.5">
               {/* Priority order - 3/10 height */}
               {priorities.length > 0 && (
                 <div className="bg-blue-500/10 rounded-lg border border-blue-600/30 p-1.5 flex flex-col overflow-hidden" style={{ flex: '3 1 0' }}>
                   <div className="flex items-center gap-1 mb-1 flex-shrink-0">
-                    <Target className="h-3 md:h-3.5 w-3 md:w-3.5 text-blue-500" />
-                    <span className="text-[10px] md:text-xs font-semibold text-blue-500">Priorité (mises)</span>
+                    <Target className="h-4 md:h-5 w-4 md:w-5 text-blue-500" />
+                    <span className="text-xs md:text-sm font-semibold text-blue-500">Priorité (mises)</span>
                   </div>
-                  <div className="flex-1 flex flex-wrap content-start gap-0.5 overflow-y-auto">
+                  <div className="flex-1 flex flex-wrap content-start gap-1 overflow-y-auto">
                     {priorities.map((pr, index) => {
                       const player = players.find(p => p.player_number === pr.num_joueur);
                       return (
                         <div key={pr.player_id} className="flex items-center gap-0.5">
-                          <Avatar className={`h-4 md:h-5 w-4 md:w-5 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
+                          <Avatar className={`h-5 md:h-6 w-5 md:w-6 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
                             <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
-                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[7px] md:text-[8px]`}>
+                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[8px] md:text-[9px]`}>
                               {pr.display_name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-[8px] md:text-[10px]">#{pr.rank}</span>
+                          <span className="text-[9px] md:text-[11px] font-medium">#{pr.rank}</span>
                         </div>
                       );
                     })}
@@ -925,44 +925,14 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               )}
 
-              {/* Validated + Pending players - 2/10 height - side by side */}
-              <div className="flex gap-1.5" style={{ flex: '2 1 0' }}>
-                <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-1.5 flex-1 flex flex-col overflow-hidden">
-                  <div className="flex items-center gap-0.5 mb-1 flex-shrink-0">
-                    <CheckCircle className="h-2.5 w-2.5 text-green-500" />
-                    <span className="text-[9px] font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
-                  </div>
-                  <div className="flex-1 flex flex-wrap content-start gap-0.5 overflow-y-auto">
-                    {validatedPlayers.map(p => (
-                      <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[7px] py-0 px-0.5 h-4">
-                        {p.display_name.slice(0, 5)}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <div className="bg-orange-500/10 rounded-lg border border-orange-600/30 p-1.5 flex-1 flex flex-col overflow-hidden">
-                  <div className="flex items-center gap-0.5 mb-1 flex-shrink-0">
-                    <Clock className="h-2.5 w-2.5 text-orange-500" />
-                    <span className="text-[9px] font-semibold text-orange-500">Attente ({pendingPlayers.length})</span>
-                  </div>
-                  <div className="flex-1 flex flex-wrap content-start gap-0.5 overflow-y-auto">
-                    {pendingPlayers.map(p => (
-                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[7px] py-0 px-0.5 h-4">
-                        {p.display_name.slice(0, 5)}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Shop items - 5/10 height - one item per line */}
+              {/* Shop items - 5/10 height - one item per line - NOW ABOVE Validated/Pending */}
               <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-1.5 md:p-2 flex flex-col overflow-hidden" style={{ flex: '5 1 0' }}>
                 <div className="flex items-center justify-between mb-1 flex-shrink-0">
                   <div className="flex items-center gap-1">
-                    <Store className="h-3.5 md:h-4 w-3.5 md:w-4 text-purple-500" />
-                    <h3 className="font-semibold text-purple-500 text-[10px] md:text-xs">Boutique</h3>
+                    <Store className="h-4 md:h-5 w-4 md:w-5 text-purple-500" />
+                    <h3 className="font-semibold text-purple-500 text-xs md:text-sm">Boutique</h3>
                   </div>
-                  <Badge className="bg-purple-600/50 text-purple-100 text-[8px] md:text-[9px]">
+                  <Badge className="bg-purple-600/50 text-purple-100 text-[9px] md:text-[10px]">
                     {submittedShopPlayerNums.size}/{players.length}
                   </Badge>
                 </div>
@@ -970,32 +940,32 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   {shopItems.map(item => {
                     const price = shopPrices.find(p => p.item_name === item.name);
                     return (
-                      <div key={item.id} className="bg-purple-500/20 rounded-lg p-1 border border-purple-600/40">
+                      <div key={item.id} className="bg-purple-500/20 rounded-lg p-1.5 border border-purple-600/40">
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="font-bold text-[8px] md:text-[9px] truncate">{item.name}</div>
-                            <p className="text-[6px] md:text-[7px] text-muted-foreground line-clamp-1">
+                            <div className="font-bold text-[9px] md:text-[11px] truncate">{item.name}</div>
+                            <p className="text-[7px] md:text-[8px] text-muted-foreground line-clamp-1">
                               {item.detailed_description || item.category}
                             </p>
                           </div>
-                          <div className="flex items-center gap-1 flex-shrink-0 ml-1">
-                            <div className="flex items-center gap-0.5">
+                          <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
+                            <div className="flex items-center gap-1">
                               {item.base_damage && item.base_damage > 0 && (
-                                <span className="text-destructive flex items-center gap-0.5 text-[7px]">
-                                  <Swords className="h-2 w-2" />
+                                <span className="text-destructive flex items-center gap-0.5 text-[8px] md:text-[9px]">
+                                  <Swords className="h-2.5 w-2.5" />
                                   {item.base_damage}
                                 </span>
                               )}
                               {item.base_heal && item.base_heal > 0 && (
-                                <span className="text-green-500 flex items-center gap-0.5 text-[7px]">
-                                  <Heart className="h-2 w-2" />
+                                <span className="text-green-500 flex items-center gap-0.5 text-[8px] md:text-[9px]">
+                                  <Heart className="h-2.5 w-2.5" />
                                   {item.base_heal}
                                 </span>
                               )}
                             </div>
                             {price && (
-                              <div className="flex items-center gap-0.5 text-[6px] md:text-[7px]">
-                                <Coins className="h-2 w-2 text-amber-400" />
+                              <div className="flex items-center gap-0.5 text-[7px] md:text-[9px]">
+                                <Coins className="h-2.5 w-2.5 text-amber-400" />
                                 <span className="text-amber-400">{price.cost_normal}</span>
                                 <span className="text-muted-foreground">/</span>
                                 <span className="text-cyan-400">{price.cost_akila}</span>
@@ -1008,21 +978,51 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   })}
                 </div>
               </div>
+
+              {/* Validated + Pending players - 2/10 height - side by side - NOW AT BOTTOM */}
+              <div className="flex gap-1.5" style={{ flex: '2 1 0' }}>
+                <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-1.5 flex-1 flex flex-col overflow-hidden">
+                  <div className="flex items-center gap-0.5 mb-1 flex-shrink-0">
+                    <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                    <span className="text-[10px] md:text-xs font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
+                  </div>
+                  <div className="flex-1 flex flex-wrap content-start gap-0.5 overflow-y-auto">
+                    {validatedPlayers.map(p => (
+                      <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[8px] md:text-[9px] py-0 px-1 h-5">
+                        {p.display_name.slice(0, 5)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-orange-500/10 rounded-lg border border-orange-600/30 p-1.5 flex-1 flex flex-col overflow-hidden">
+                  <div className="flex items-center gap-0.5 mb-1 flex-shrink-0">
+                    <Clock className="h-3.5 w-3.5 text-orange-500" />
+                    <span className="text-[10px] md:text-xs font-semibold text-orange-500">Attente ({pendingPlayers.length})</span>
+                  </div>
+                  <div className="flex-1 flex flex-wrap content-start gap-0.5 overflow-y-auto">
+                    {pendingPlayers.map(p => (
+                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[8px] md:text-[9px] py-0 px-1 h-5">
+                        {p.display_name.slice(0, 5)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Team Ranking - 2/10 - Enhanced with info button */}
             <div className="md:col-span-2 flex flex-col gap-2 md:overflow-hidden">
               <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-1.5 flex-1 overflow-hidden flex flex-col">
                 <div className="flex items-center gap-1 mb-1.5">
-                  <Trophy className="h-3 md:h-3.5 w-3 md:w-3.5 text-amber-500" />
-                  <span className="text-[10px] md:text-xs font-semibold text-amber-500">Classement</span>
+                  <Trophy className="h-4 md:h-5 w-4 md:w-5 text-amber-500" />
+                  <span className="text-xs md:text-sm font-semibold text-amber-500">Classement</span>
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="space-y-0.5">
                     {teams.slice(0, 12).map((team, index) => (
                       <div 
                         key={team.teamName}
-                        className={`flex items-center justify-between p-0.5 md:p-1 rounded-lg text-[8px] md:text-[10px] ${
+                        className={`flex items-center justify-between p-1 md:p-1.5 rounded-lg text-[9px] md:text-[11px] ${
                           index === 0 ? 'bg-amber-500/30 border border-amber-500' :
                           index === 1 ? 'bg-secondary border border-border' :
                           index === 2 ? 'bg-amber-700/30 border border-amber-700' :
@@ -1030,28 +1030,28 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                         }`}
                       >
                         <div className="flex items-center gap-0.5 min-w-0 flex-1">
-                          <span className="text-[9px] md:text-xs flex-shrink-0">
+                          <span className="text-[10px] md:text-xs flex-shrink-0">
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
                           {/* Avatars */}
                           <div className="flex items-center">
                             {team.members.slice(0, 2).map((member, mi) => (
-                              <Avatar key={member.id} className={`h-3.5 md:h-4 w-3.5 md:w-4 border ${mi > 0 ? '-ml-1' : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
+                              <Avatar key={member.id} className={`h-4 md:h-5 w-4 md:w-5 border ${mi > 0 ? '-ml-1' : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
                                 <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
-                                <AvatarFallback className="bg-secondary text-foreground text-[5px] md:text-[6px]">
+                                <AvatarFallback className="bg-secondary text-foreground text-[6px] md:text-[7px]">
                                   {member.display_name.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                             ))}
                           </div>
-                          <span className="font-medium truncate max-w-[35px] md:max-w-[45px] text-[7px] md:text-[9px]">
+                          <span className="font-medium truncate max-w-[40px] md:max-w-[50px] text-[8px] md:text-[10px]">
                             {team.teamName.length > 6 ? team.teamName.slice(0, 6) + '..' : team.teamName}
                           </span>
                           {/* Info button with popover for member details */}
                           <Popover>
                             <PopoverTrigger asChild>
                               <button className="ml-0.5 p-0.5 rounded hover:bg-secondary/50 flex-shrink-0">
-                                <Info className="h-2.5 md:h-3 w-2.5 md:w-3 text-muted-foreground hover:text-foreground" />
+                                <Info className="h-3 md:h-3.5 w-3 md:w-3.5 text-muted-foreground hover:text-foreground" />
                               </button>
                             </PopoverTrigger>
                             <PopoverContent side="left" className="w-48 p-2">
@@ -1080,11 +1080,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                             </PopoverContent>
                           </Popover>
                         </div>
-                        <span className="font-bold text-amber-500 text-[8px] md:text-[10px] flex-shrink-0">{team.teamScore}</span>
+                        <span className="font-bold text-amber-500 text-[9px] md:text-[11px] flex-shrink-0">{team.teamScore}</span>
                       </div>
                     ))}
                     {teams.length > 12 && (
-                      <div className="text-center text-[8px] text-muted-foreground">+{teams.length - 12} équipes</div>
+                      <div className="text-center text-[9px] text-muted-foreground">+{teams.length - 12} équipes</div>
                     )}
                   </div>
                 </ScrollArea>

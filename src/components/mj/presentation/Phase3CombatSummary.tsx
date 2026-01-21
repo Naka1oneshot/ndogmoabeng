@@ -229,16 +229,18 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
 
       {/* Last Manche Actions Summary + Kills - flexible height to fill remaining space */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Last Manche Actions Summary */}
-        {lastMancheResult && lastMancheResult.public_summary.length > 0 && (
-          <div className="flex-1 flex flex-col min-h-0 border-t border-border pt-1">
-            <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground flex-shrink-0">
-              Résumé Actions - Manche {lastMancheResult.manche}
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-0.5 mt-0.5">
-              {lastMancheResult.public_summary
-                .filter(entry => !entry.cancelled)
-                .map((entry, idx) => (
+        {/* Last Manche Actions Summary - max 11 items without scroll, then enable scroll */}
+        {lastMancheResult && lastMancheResult.public_summary.length > 0 && (() => {
+          const activeEntries = lastMancheResult.public_summary.filter(entry => !entry.cancelled);
+          const needsScroll = activeEntries.length > 11;
+          
+          return (
+            <div className="flex-1 flex flex-col min-h-0 border-t border-border pt-1">
+              <div className="text-[8px] md:text-[9px] font-semibold text-muted-foreground flex-shrink-0">
+                Résumé Actions - Manche {lastMancheResult.manche}
+              </div>
+              <div className={`flex-1 space-y-0.5 mt-0.5 ${needsScroll ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+                {activeEntries.map((entry, idx) => (
                   <div 
                     key={idx}
                     className="text-[7px] md:text-[8px] bg-secondary/30 rounded p-0.5 md:p-1"
@@ -254,14 +256,15 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
                     )}
                   </div>
                 ))}
-            </div>
-            {lastMancheResult.public_summary.filter(e => e.cancelled).length > 0 && (
-              <div className="text-[6px] md:text-[7px] text-muted-foreground/70 italic flex-shrink-0">
-                {lastMancheResult.public_summary.filter(e => e.cancelled).length} action(s) annulée(s)
               </div>
-            )}
-          </div>
-        )}
+              {lastMancheResult.public_summary.filter(e => e.cancelled).length > 0 && (
+                <div className="text-[6px] md:text-[7px] text-muted-foreground/70 italic flex-shrink-0">
+                  {lastMancheResult.public_summary.filter(e => e.cancelled).length} action(s) annulée(s)
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Last Manche Kills */}
         {lastMancheResult && lastMancheResult.kills.length > 0 && (
