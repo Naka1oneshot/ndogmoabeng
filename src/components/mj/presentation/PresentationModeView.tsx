@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords, RefreshCw, Coins, Sparkles } from 'lucide-react';
+import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords, RefreshCw, Coins, Sparkles, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
@@ -953,29 +954,29 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
         ) : (
           /* Default layout for other phases */
           <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:flex-1 md:overflow-hidden">
-            {/* Left section: Battlefield + Queue */}
-            <div className="md:col-span-7 flex flex-col gap-3 md:gap-4">
-              {/* Battlefield monsters - compact version */}
-              <div className="bg-card/50 rounded-xl border border-border p-2 md:p-3">
-                <div className="flex items-center gap-2 mb-2 md:mb-3">
-                  <Swords className="h-4 md:h-5 w-4 md:w-5 text-destructive" />
-                  <h2 className="text-sm md:text-base font-bold">Champ de Bataille</h2>
+            {/* Left section: Battlefield + Queue + Positions */}
+            <div className="md:col-span-6 flex flex-col gap-3 md:gap-4">
+              {/* Battlefield monsters - enlarged version */}
+              <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4">
+                <div className="flex items-center gap-2 mb-3 md:mb-4">
+                  <Swords className="h-5 md:h-6 w-5 md:w-6 text-destructive" />
+                  <h2 className="text-base md:text-lg font-bold">Champ de Bataille</h2>
                 </div>
-                <div className="grid grid-cols-3 gap-2 md:gap-4">
+                <div className="grid grid-cols-3 gap-3 md:gap-4">
                   {[1, 2, 3].map(slot => {
                     const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
                       <div 
                         key={slot}
-                        className="flex flex-col items-center justify-center p-1.5 md:p-2 rounded-lg bg-secondary/50 border border-border"
+                        className="flex flex-col items-center justify-center p-2 md:p-3 rounded-lg bg-secondary/50 border border-border"
                       >
-                        <div className="text-[9px] md:text-[10px] text-muted-foreground mb-0.5 md:mb-1">Slot {slot}</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground mb-1 md:mb-1.5">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="w-10 h-10 md:w-16 md:h-16 rounded-lg overflow-hidden mb-0.5 md:mb-1 bg-secondary">
+                            <div className="w-14 h-14 md:w-20 md:h-20 rounded-lg overflow-hidden mb-1 md:mb-1.5 bg-secondary">
                               {monster.status === 'MORT' ? (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <Skull className="h-6 md:h-10 w-6 md:w-10 text-muted-foreground" />
+                                  <Skull className="h-8 md:h-12 w-8 md:w-12 text-muted-foreground" />
                                 </div>
                               ) : getMonsterImage(monster.monster_id) ? (
                                 <img 
@@ -984,26 +985,26 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-2xl md:text-4xl">🐉</div>
+                                <div className="w-full h-full flex items-center justify-center text-3xl md:text-5xl">🐉</div>
                               )}
                             </div>
                             {getMonsterType(monster) && (
-                              <div className="text-[8px] md:text-[10px] text-muted-foreground">{getMonsterType(monster)}</div>
+                              <div className="text-[9px] md:text-xs text-muted-foreground">{getMonsterType(monster)}</div>
                             )}
-                            <div className="text-[10px] md:text-sm font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
-                            <div className="flex items-center gap-1 md:gap-2 text-[9px] md:text-xs">
+                            <div className="text-xs md:text-base font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
+                            <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-sm mt-0.5">
                               <span className="flex items-center gap-0.5 text-destructive">
-                                <Heart className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                                <Heart className="h-3 md:h-4 w-3 md:w-4" />
                                 {getMonsterPvMax(monster)}
                               </span>
                               <span className="flex items-center gap-0.5 text-amber-500">
-                                <Trophy className="h-2.5 md:h-3 w-2.5 md:w-3" />
+                                <Trophy className="h-3 md:h-4 w-3 md:w-4" />
                                 {getMonsterReward(monster)}
                               </span>
                             </div>
                           </>
                         ) : (
-                          <span className="text-muted-foreground text-[10px] md:text-xs">Vide</span>
+                          <span className="text-muted-foreground text-xs md:text-sm py-4">Vide</span>
                         )}
                       </div>
                     );
@@ -1062,8 +1063,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                       const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                       return (
                         <div key={slot} className="bg-purple-500/20 rounded-lg p-1.5 md:p-2 border border-purple-500/30">
-                          <div className="text-center text-[9px] md:text-[10px] text-muted-foreground mb-1">
-                            Slot {slot} {monster ? `- ${getMonsterName(monster)}` : ''}
+                          <div className="text-center mb-1.5">
+                            <span className="text-lg md:text-xl font-bold text-purple-400">{slot}</span>
+                            {monster && (
+                              <div className="text-[8px] md:text-[9px] text-muted-foreground truncate">{getMonsterName(monster)}</div>
+                            )}
                           </div>
                           <div className="flex flex-wrap justify-center gap-1">
                             {playersAtSlot.length > 0 ? (
@@ -1094,7 +1098,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
             </div>
 
             {/* Right section: Status + Rankings + Priority */}
-            <div className="md:col-span-5 flex flex-col gap-3 md:gap-4 md:overflow-hidden">
+            <div className="md:col-span-6 flex flex-col gap-3 md:gap-4 md:overflow-hidden">
               {/* Validation status for Phase 1 or Phase 2 before positions */}
               {(isPhase1 || (isPhase2 && !hasPositions)) && (
                 <div className="grid grid-cols-2 gap-2 md:gap-3">
@@ -1138,14 +1142,14 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                     {teams.map((team, index) => (
                       <div 
                         key={team.teamName}
-                        className={`flex items-center justify-between p-1.5 md:p-2 rounded-lg ${
+                        className={`flex items-center justify-between p-1.5 md:p-2.5 rounded-lg ${
                           index === 0 ? 'bg-amber-500/30 border border-amber-500' :
                           index === 1 ? 'bg-secondary border border-border' :
                           index === 2 ? 'bg-amber-700/30 border border-amber-700' :
                           'bg-secondary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
+                        <div className="flex items-center gap-1.5 md:gap-2 min-w-0 flex-1">
                           <span className="text-lg md:text-2xl flex-shrink-0">
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
@@ -1161,12 +1165,42 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                               </div>
                             ))}
                           </div>
-                          {team.members.length === 1 && team.members[0].clan && (
-                            <span className="text-sm md:text-base flex-shrink-0" title={team.members[0].clan}>{getClanEmoji(team.members[0].clan)}</span>
-                          )}
-                          <span className="font-medium text-xs md:text-base truncate max-w-[80px] md:max-w-[150px]">{team.teamName}</span>
+                          {/* Full display on large screens, truncated with tooltip on smaller */}
+                          <div className="flex items-center gap-1 min-w-0 flex-1">
+                            {team.members.length === 1 && team.members[0].clan && (
+                              <span className="text-sm md:text-base flex-shrink-0" title={team.members[0].clan}>{getClanEmoji(team.members[0].clan)}</span>
+                            )}
+                            {/* Show full name on larger screens */}
+                            <span className="hidden lg:block font-medium text-xs md:text-base">{team.teamName}</span>
+                            {team.members.length === 1 && team.members[0].clan && (
+                              <span className="hidden lg:block text-[10px] md:text-xs text-muted-foreground">({team.members[0].clan})</span>
+                            )}
+                            {/* Show truncated with info tooltip on smaller screens */}
+                            <div className="lg:hidden flex items-center gap-1 min-w-0">
+                              <span className="font-medium text-xs md:text-base truncate max-w-[60px] md:max-w-[100px]">{team.teamName}</span>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
+                                      <Info className="h-3 md:h-3.5 w-3 md:w-3.5 text-amber-400" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[200px]">
+                                    <div className="text-sm">
+                                      <p className="font-semibold">{team.teamName}</p>
+                                      {team.members.map(m => (
+                                        <p key={m.id} className="text-xs text-muted-foreground">
+                                          {m.display_name}{m.clan ? ` (${m.clan})` : ''}
+                                        </p>
+                                      ))}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </div>
                         </div>
-                        <span className="font-bold text-amber-500 text-sm md:text-xl">{team.teamScore}</span>
+                        <span className="font-bold text-amber-500 text-sm md:text-xl flex-shrink-0">{team.teamScore}</span>
                       </div>
                     ))}
                   </div>
