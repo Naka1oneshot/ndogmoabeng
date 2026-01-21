@@ -16,13 +16,26 @@ interface TeamRanking {
   isTeam: boolean;
 }
 
+interface GameStats {
+  totalManches: number;
+  totalKills: number;
+  totalRecompenses: number;
+  totalJetons: number;
+  topKiller: { name: string; kills: number } | null;
+  topEarner: { name: string; recompenses: number } | null;
+  hasTeams: boolean;
+  teamCount: number;
+  soloCount: number;
+}
+
 interface VictoryPodiumAnimationProps {
   show: boolean;
   rankings: TeamRanking[];
+  gameStats?: GameStats;
   onComplete?: () => void;
 }
 
-export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPodiumAnimationProps) {
+export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }: VictoryPodiumAnimationProps) {
   const [animationStep, setAnimationStep] = useState(0);
   
   // Confetti burst function
@@ -170,7 +183,7 @@ export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPo
   const podiumRanks = top3.length >= 3 ? [2, 1, 3] : [1, 2, 3].slice(0, top3.length);
   
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-black via-black/95 to-primary/20">
+    <div className="fixed inset-0 z-50 flex bg-gradient-to-b from-black via-black/95 to-primary/20">
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {animationStep >= 1 && (
@@ -183,19 +196,21 @@ export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPo
         )}
       </div>
       
-      {/* Title */}
-      <div className={`mb-8 text-center transition-all duration-1000 ${animationStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}`}>
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <Trophy className="h-12 w-12 text-yellow-400 animate-bounce" />
-          <h1 className="font-display text-4xl sm:text-6xl text-yellow-400 text-glow">
-            FIN DE PARTIE
-          </h1>
-          <Trophy className="h-12 w-12 text-yellow-400 animate-bounce" />
+      {/* Main content - Podium area */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4">
+        {/* Title */}
+        <div className={`mb-8 text-center transition-all duration-1000 ${animationStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}`}>
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <Trophy className="h-12 w-12 text-yellow-400 animate-bounce" />
+            <h1 className="font-display text-4xl sm:text-5xl text-yellow-400 text-glow">
+              FIN DE PARTIE
+            </h1>
+            <Trophy className="h-12 w-12 text-yellow-400 animate-bounce" />
+          </div>
+          <p className="text-lg text-muted-foreground">
+            La forêt de Ndogmoabeng a été conquise !
+          </p>
         </div>
-        <p className="text-xl text-muted-foreground">
-          La forêt de Ndogmoabeng a été conquise !
-        </p>
-      </div>
       
       {/* Podium */}
       <div className={`flex items-end justify-center gap-4 mb-8 transition-all duration-1000 ${animationStep >= 2 ? 'opacity-100' : 'opacity-0'}`}>
@@ -350,6 +365,108 @@ export function VictoryPodiumAnimation({ show, rankings, onComplete }: VictoryPo
                   </Badge>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
+
+      {/* Stats Panel - Right side */}
+      {gameStats && (
+        <div className={`hidden lg:flex w-80 flex-col p-6 bg-black/60 backdrop-blur-sm border-l border-border/30 transition-all duration-1000 ${animationStep >= 6 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
+          <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2">
+            <Trophy className="h-5 w-5" />
+            Statistiques de la partie
+          </h3>
+          
+          <div className="space-y-4 flex-1 overflow-y-auto">
+            {/* General stats */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 bg-secondary/40 rounded-lg">
+                <span className="text-muted-foreground">Manches jouées</span>
+                <span className="font-bold text-lg">{gameStats.totalManches}</span>
+              </div>
+              
+              <div className="flex justify-between items-center p-3 bg-secondary/40 rounded-lg">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Skull className="h-4 w-4 text-red-500" />
+                  Monstres tués
+                </span>
+                <span className="font-bold text-lg text-red-400">{gameStats.totalKills}</span>
+              </div>
+              
+              <div className="flex justify-between items-center p-3 bg-secondary/40 rounded-lg">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Gift className="h-4 w-4 text-green-500" />
+                  Récompenses totales
+                </span>
+                <span className="font-bold text-lg text-green-400">{gameStats.totalRecompenses}</span>
+              </div>
+              
+              <div className="flex justify-between items-center p-3 bg-secondary/40 rounded-lg">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Coins className="h-4 w-4 text-primary" />
+                  Jetons restants
+                </span>
+                <span className="font-bold text-lg text-primary">{gameStats.totalJetons}</span>
+              </div>
+            </div>
+
+            {/* Team composition */}
+            {gameStats.hasTeams && (
+              <div className="border-t border-border/30 pt-4">
+                <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Composition</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-secondary/30 rounded text-center">
+                    <div className="text-2xl font-bold">{gameStats.teamCount}</div>
+                    <div className="text-xs text-muted-foreground">Équipes</div>
+                  </div>
+                  <div className="p-2 bg-secondary/30 rounded text-center">
+                    <div className="text-2xl font-bold">{gameStats.soloCount}</div>
+                    <div className="text-xs text-muted-foreground">Solo</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Top performers */}
+            <div className="border-t border-border/30 pt-4">
+              <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Performances</h4>
+              
+              {gameStats.topKiller && gameStats.topKiller.kills > 0 && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg mb-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Skull className="h-4 w-4 text-red-500" />
+                    <span className="text-xs text-red-400 uppercase">Chasseur</span>
+                  </div>
+                  <div className="font-bold truncate">{gameStats.topKiller.name}</div>
+                  <div className="text-sm text-muted-foreground">{gameStats.topKiller.kills} kills</div>
+                </div>
+              )}
+              
+              {gameStats.topEarner && (
+                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Gift className="h-4 w-4 text-green-500" />
+                    <span className="text-xs text-green-400 uppercase">Meilleur butin</span>
+                  </div>
+                  <div className="font-bold truncate">{gameStats.topEarner.name}</div>
+                  <div className="text-sm text-muted-foreground">{gameStats.topEarner.recompenses} récompenses</div>
+                </div>
+              )}
+            </div>
+
+            {/* Score formula explanation */}
+            <div className="border-t border-border/30 pt-4">
+              <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Calcul du score</h4>
+              <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg text-sm">
+                <div className="font-mono text-primary">Score = Récompenses + (Jetons ÷ 3)</div>
+                {gameStats.hasTeams && (
+                  <div className="text-xs text-muted-foreground mt-2">
+                    * Les joueurs solo ont leur score doublé pour équilibrer
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

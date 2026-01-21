@@ -27,7 +27,7 @@ import { BotVsHumanStatsSheet } from './BotVsHumanStatsSheet';
 import {
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
-  Bug, Store, Swords, Target, SkipForward, Trash2, FastForward, UserPlus, Presentation
+  Bug, Store, Swords, Target, SkipForward, Trash2, FastForward, UserPlus, Presentation, Trophy
 } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -578,6 +578,18 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
               startingTokens={game.starting_tokens}
             />
           </>
+        )}
+
+        {/* Podium button for ended games */}
+        {(game.selected_game_type_code === 'FORET' || !game.selected_game_type_code) && game.status === 'ENDED' && (
+          <ForestButton 
+            size="sm" 
+            onClick={() => window.open(`/presentation/${game.id}`, '_blank')}
+            className="bg-yellow-600 hover:bg-yellow-700"
+          >
+            <Trophy className="h-4 w-4 mr-1" />
+            Voir le Podium
+          </ForestButton>
         )}
         
         <ForestButton 
