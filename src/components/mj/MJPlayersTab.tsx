@@ -118,7 +118,9 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
       const activePlayers = players.filter(p => !p.is_host && p.status === 'ACTIVE');
       const totalPlayers = activePlayers.length;
       
-      if (game.phase === 'PHASE1') {
+      const phase = game.phase || '';
+      
+      if (phase.startsWith('PHASE1')) {
         // Count players who have placed bets for current manche
         let query = supabase
           .from('round_bets')
@@ -132,7 +134,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
         setPositionsPublished(false);
         setCombatResolved(false);
         setShopResolved(false);
-      } else if (game.phase === 'PHASE2') {
+      } else if (phase.startsWith('PHASE2')) {
         // Count players who have submitted actions
         let actionsQuery = supabase
           .from('actions')
@@ -166,7 +168,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
         const { count: combatCount } = await combatQuery;
         setCombatResolved((combatCount || 0) > 0);
         setShopResolved(false);
-      } else if (game.phase === 'PHASE3') {
+      } else if (phase.startsWith('PHASE3')) {
         // Count players who submitted shop requests
         let shopQuery = supabase
           .from('game_item_purchases')
@@ -226,29 +228,30 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   // Phase action handlers
   const handlePhaseAction = async () => {
     setPhaseActionLoading(true);
+    const phase = game.phase || '';
     try {
-      if (game.phase === 'PHASE1') {
+      if (phase.startsWith('PHASE1')) {
         // Close bets and calculate priorities
         const { data, error } = await supabase.functions.invoke('close-phase1-bets', {
           body: { gameId: game.id },
         });
         if (error || !data?.success) throw new Error(data?.error || 'Erreur');
         toast.success('Mises clôturées, priorités calculées !');
-      } else if (game.phase === 'PHASE2' && !positionsPublished) {
+      } else if (phase.startsWith('PHASE2') && !positionsPublished) {
         // Publish positions
         const { data, error } = await supabase.functions.invoke('publish-positions', {
           body: { gameId: game.id },
         });
         if (error || !data?.success) throw new Error(data?.error || 'Erreur');
         toast.success('Positions publiées !');
-      } else if (game.phase === 'PHASE2' && positionsPublished && !combatResolved) {
+      } else if (phase.startsWith('PHASE2') && positionsPublished && !combatResolved) {
         // Resolve combat
         const { data, error } = await supabase.functions.invoke('resolve-combat', {
           body: { gameId: game.id },
         });
         if (error || !data?.success) throw new Error(data?.error || 'Erreur');
         toast.success('Combat résolu !');
-      } else if (game.phase === 'PHASE3') {
+      } else if (phase.startsWith('PHASE3')) {
         // Resolve shop
         const { data, error } = await supabase.functions.invoke('resolve-shop', {
           body: { gameId: game.id },
@@ -275,10 +278,12 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     let buttonIcon = <Lock className="h-4 w-4 mr-2" />;
     let isDisabled = false;
     
-    if (game.phase === 'PHASE1') {
+    const phase = game.phase || '';
+    
+    if (phase.startsWith('PHASE1')) {
       buttonText = 'Clôturer et calculer priorités';
       buttonIcon = <Lock className="h-4 w-4 mr-2" />;
-    } else if (game.phase === 'PHASE2') {
+    } else if (phase.startsWith('PHASE2')) {
       if (!positionsPublished) {
         buttonText = 'Publier les positions';
         buttonIcon = <Play className="h-4 w-4 mr-2" />;
@@ -289,7 +294,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
         buttonText = 'Combat résolu ✓';
         isDisabled = true;
       }
-    } else if (game.phase === 'PHASE3') {
+    } else if (phase.startsWith('PHASE3')) {
       if (!shopResolved) {
         buttonText = 'Résoudre le Shop';
         buttonIcon = <ShoppingBag className="h-4 w-4 mr-2" />;
