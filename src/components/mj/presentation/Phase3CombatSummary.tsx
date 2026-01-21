@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Skull, Swords, Target, Loader2 } from 'lucide-react';
+import { Trophy, Skull, Swords, Target, Loader2, Timer, Bomb } from 'lucide-react';
 
 interface Kill {
   killerName: string;
@@ -19,6 +19,8 @@ interface PublicSummaryEntry {
   totalDamage: number;
   weapons: string[];
   cancelled?: boolean;
+  minePlaced?: { slot: number; weapon: string };
+  mineExplosion?: boolean;
 }
 
 interface CombatResult {
@@ -240,22 +242,48 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
                 Résumé Actions - Manche {lastMancheResult.manche}
               </div>
               <div className={`flex-1 space-y-0.5 mt-0.5 ${needsScroll ? 'overflow-y-auto' : 'overflow-hidden'}`}>
-                {activeEntries.map((entry, idx) => (
-                  <div 
-                    key={idx}
-                    className="text-[7px] md:text-[8px] bg-secondary/30 rounded p-0.5 md:p-1"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium truncate max-w-[60px]">{entry.nom}</span>
-                      <span className="text-blue-500 font-bold">{entry.totalDamage} dégâts</span>
-                    </div>
-                    {entry.weapons && entry.weapons.length > 0 && (
-                      <div className="text-muted-foreground mt-0.5">
-                        {entry.weapons.join(', ')}
+                {activeEntries.map((entry, idx) => {
+                  const isMineExplosion = entry.mineExplosion;
+                  const hasMinePlaced = entry.minePlaced;
+                  
+                  return (
+                    <div 
+                      key={idx}
+                      className={`text-[7px] md:text-[8px] rounded p-0.5 md:p-1 ${
+                        isMineExplosion 
+                          ? 'bg-orange-500/20 border border-orange-500/30' 
+                          : 'bg-secondary/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <Badge variant="outline" className={`text-[6px] px-0.5 py-0 ${isMineExplosion ? 'border-orange-500/50 text-orange-400' : ''}`}>
+                            #{entry.position}
+                          </Badge>
+                          <span className="font-medium truncate max-w-[50px]">{entry.nom}</span>
+                        </div>
+                        {isMineExplosion ? (
+                          <span className="text-orange-400 font-bold flex items-center gap-0.5">
+                            <Bomb className="h-2 w-2" />
+                            {entry.totalDamage} dégâts
+                          </span>
+                        ) : hasMinePlaced ? (
+                          <span className="text-amber-400 font-bold flex items-center gap-0.5">
+                            <Timer className="h-2 w-2" />
+                            Slot {entry.minePlaced?.slot}
+                          </span>
+                        ) : (
+                          <span className="text-blue-500 font-bold">{entry.totalDamage} dégâts</span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {entry.weapons && entry.weapons.length > 0 && (
+                        <div className="text-muted-foreground mt-0.5">
+                          {entry.weapons.join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               {lastMancheResult.public_summary.filter(e => e.cancelled).length > 0 && (
                 <div className="text-[6px] md:text-[7px] text-muted-foreground/70 italic flex-shrink-0">
