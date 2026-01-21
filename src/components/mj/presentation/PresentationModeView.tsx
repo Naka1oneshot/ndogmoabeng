@@ -14,6 +14,7 @@ import { getMonsterImage } from '@/lib/monsterImages';
 import { CombatHistorySummarySheet } from './CombatHistorySummarySheet';
 import { Phase3CombatSummary } from './Phase3CombatSummary';
 import { MonsterReplacementAnimation, MonsterReplacementInfo } from '@/components/game/MonsterReplacementAnimation';
+import { PlayerNameTooltip } from './PlayerNameTooltip';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
@@ -910,15 +911,17 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                     {priorities.map((pr, index) => {
                       const player = players.find(p => p.player_number === pr.num_joueur);
                       return (
-                        <div key={pr.player_id} className="flex items-center gap-0.5">
-                          <Avatar className={`h-5 md:h-6 w-5 md:w-6 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
-                            <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
-                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[8px] md:text-[9px]`}>
-                              {pr.display_name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-[9px] md:text-[11px] font-medium">#{pr.rank}</span>
-                        </div>
+                        <PlayerNameTooltip key={pr.player_id} fullName={pr.display_name}>
+                          <div className="flex items-center gap-0.5">
+                            <Avatar className={`h-5 md:h-6 w-5 md:w-6 border ${index === 0 ? 'border-blue-500' : 'border-blue-500/50'}`}>
+                              <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
+                              <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[8px] md:text-[9px]`}>
+                                {pr.display_name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-[9px] md:text-[11px] font-medium">#{pr.rank}</span>
+                          </div>
+                        </PlayerNameTooltip>
                       );
                     })}
                   </div>
@@ -988,9 +991,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   </div>
                   <div className="flex-1 flex flex-wrap content-start gap-0.5 overflow-y-auto">
                     {validatedPlayers.map(p => (
-                      <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[8px] md:text-[9px] py-0 px-1 h-5">
-                        {p.display_name.slice(0, 5)}
-                      </Badge>
+                      <PlayerNameTooltip key={p.id} fullName={p.display_name}>
+                        <Badge className="bg-green-600/50 text-green-100 text-[8px] md:text-[9px] py-0 px-1 h-5">
+                          {p.display_name.slice(0, 5)}
+                        </Badge>
+                      </PlayerNameTooltip>
                     ))}
                   </div>
                 </div>
@@ -1001,9 +1006,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   </div>
                   <div className="flex-1 flex flex-wrap content-start gap-0.5 overflow-y-auto">
                     {pendingPlayers.map(p => (
-                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[8px] md:text-[9px] py-0 px-1 h-5">
-                        {p.display_name.slice(0, 5)}
-                      </Badge>
+                      <PlayerNameTooltip key={p.id} fullName={p.display_name}>
+                        <Badge className="bg-orange-600/50 text-orange-100 text-[8px] md:text-[9px] py-0 px-1 h-5">
+                          {p.display_name.slice(0, 5)}
+                        </Badge>
+                      </PlayerNameTooltip>
                     ))}
                   </div>
                 </div>
@@ -1033,20 +1040,24 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           <span className="text-[10px] md:text-xs flex-shrink-0">
                             {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                           </span>
-                          {/* Avatars */}
+                          {/* Avatars with tooltip */}
                           <div className="flex items-center">
                             {team.members.slice(0, 2).map((member, mi) => (
-                              <Avatar key={member.id} className={`h-4 md:h-5 w-4 md:w-5 border ${mi > 0 ? '-ml-1' : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
-                                <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
-                                <AvatarFallback className="bg-secondary text-foreground text-[6px] md:text-[7px]">
-                                  {member.display_name.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
+                              <PlayerNameTooltip key={member.id} fullName={member.display_name}>
+                                <Avatar className={`h-4 md:h-5 w-4 md:w-5 border ${mi > 0 ? '-ml-1' : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
+                                  <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
+                                  <AvatarFallback className="bg-secondary text-foreground text-[6px] md:text-[7px]">
+                                    {member.display_name.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </PlayerNameTooltip>
                             ))}
                           </div>
-                          <span className="font-medium truncate max-w-[40px] md:max-w-[50px] text-[8px] md:text-[10px]">
-                            {team.teamName.length > 6 ? team.teamName.slice(0, 6) + '..' : team.teamName}
-                          </span>
+                          <PlayerNameTooltip fullName={team.teamName}>
+                            <span className="font-medium truncate max-w-[40px] md:max-w-[50px] text-[8px] md:text-[10px]">
+                              {team.teamName.length > 6 ? team.teamName.slice(0, 6) + '..' : team.teamName}
+                            </span>
+                          </PlayerNameTooltip>
                           {/* Info button with popover for member details */}
                           <Popover>
                             <PopoverTrigger asChild>
@@ -1237,23 +1248,24 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                       const player = players.find(p => p.player_number === pos.num_joueur);
                       const isCompact = positions.length > 15;
                       return (
-                        <div 
-                          key={pos.num_joueur}
-                          className={`flex items-center gap-1 bg-purple-500/20 border border-purple-500/30 ${isCompact ? 'rounded-lg px-1.5 py-1' : 'rounded-lg px-2 py-1.5'}`}
-                        >
-                          <span className={`font-bold text-purple-400 ${isCompact ? 'text-[9px] md:text-xs' : 'text-xs md:text-sm'}`}>
-                            #{pos.position_finale}
-                          </span>
-                          <Avatar className={`${isCompact ? 'h-5 w-5 md:h-6 md:w-6' : 'h-6 w-6 md:h-8 md:w-8'} border border-purple-400/50`}>
-                            <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
-                            <AvatarFallback className={`bg-purple-600/50 text-white ${isCompact ? 'text-[6px] md:text-[8px]' : 'text-[8px] md:text-xs'}`}>
-                              {pos.nom.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className={`truncate font-medium ${isCompact ? 'text-[9px] md:text-xs max-w-[40px] md:max-w-[60px]' : 'text-xs md:text-sm max-w-[60px] md:max-w-[100px]'}`}>
-                            {pos.nom}
-                          </span>
-                        </div>
+                        <PlayerNameTooltip key={pos.num_joueur} fullName={pos.nom}>
+                          <div 
+                            className={`flex items-center gap-1 bg-purple-500/20 border border-purple-500/30 ${isCompact ? 'rounded-lg px-1.5 py-1' : 'rounded-lg px-2 py-1.5'}`}
+                          >
+                            <span className={`font-bold text-purple-400 ${isCompact ? 'text-[9px] md:text-xs' : 'text-xs md:text-sm'}`}>
+                              #{pos.position_finale}
+                            </span>
+                            <Avatar className={`${isCompact ? 'h-5 w-5 md:h-6 md:w-6' : 'h-6 w-6 md:h-8 md:w-8'} border border-purple-400/50`}>
+                              <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
+                              <AvatarFallback className={`bg-purple-600/50 text-white ${isCompact ? 'text-[6px] md:text-[8px]' : 'text-[8px] md:text-xs'}`}>
+                                {pos.nom.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className={`truncate font-medium ${isCompact ? 'text-[9px] md:text-xs max-w-[40px] md:max-w-[60px]' : 'text-xs md:text-sm max-w-[60px] md:max-w-[100px]'}`}>
+                              {pos.nom}
+                            </span>
+                          </div>
+                        </PlayerNameTooltip>
                       );
                     })}
                   </div>
@@ -1273,9 +1285,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {validatedPlayers.map(p => (
-                        <Badge key={p.id} className="bg-green-600/50 text-green-100 text-xs py-0.5">
-                          {p.display_name}
-                        </Badge>
+                        <PlayerNameTooltip key={p.id} fullName={p.display_name}>
+                          <Badge className="bg-green-600/50 text-green-100 text-xs py-0.5">
+                            {p.display_name.length > 10 ? p.display_name.slice(0, 10) + '..' : p.display_name}
+                          </Badge>
+                        </PlayerNameTooltip>
                       ))}
                     </div>
                   </div>
@@ -1286,9 +1300,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {pendingPlayers.map(p => (
-                        <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-xs py-0.5">
-                          {p.display_name}
-                        </Badge>
+                        <PlayerNameTooltip key={p.id} fullName={p.display_name}>
+                          <Badge className="bg-orange-600/50 text-orange-100 text-xs py-0.5">
+                            {p.display_name.length > 10 ? p.display_name.slice(0, 10) + '..' : p.display_name}
+                          </Badge>
+                        </PlayerNameTooltip>
                       ))}
                     </div>
                   </div>
@@ -1323,14 +1339,16 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           </span>
                           <div className={`flex items-center ${isCompact ? 'gap-0.5' : 'gap-1 md:gap-2'}`}>
                             {team.members.slice(0, isCompact ? 2 : undefined).map((member, mi) => (
-                              <div key={member.id} className="flex items-center">
-                                <Avatar className={`${isCompact ? 'h-4 md:h-5 w-4 md:w-5' : 'h-5 md:h-8 w-5 md:w-8'} border-2 ${mi > 0 ? (isCompact ? '-ml-1.5' : '-ml-2 md:-ml-3') : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
-                                  <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
-                                  <AvatarFallback className={`bg-secondary text-foreground ${isCompact ? 'text-[7px] md:text-[9px]' : 'text-[9px] md:text-xs'}`}>
-                                    {member.display_name.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                              </div>
+                              <PlayerNameTooltip key={member.id} fullName={member.display_name}>
+                                <div className="flex items-center">
+                                  <Avatar className={`${isCompact ? 'h-4 md:h-5 w-4 md:w-5' : 'h-5 md:h-8 w-5 md:w-8'} border-2 ${mi > 0 ? (isCompact ? '-ml-1.5' : '-ml-2 md:-ml-3') : ''} ${index === 0 ? 'border-amber-400' : 'border-border'}`}>
+                                    <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
+                                    <AvatarFallback className={`bg-secondary text-foreground ${isCompact ? 'text-[7px] md:text-[9px]' : 'text-[9px] md:text-xs'}`}>
+                                      {member.display_name.charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </div>
+                              </PlayerNameTooltip>
                             ))}
                           </div>
                           {/* Full display on large screens, truncated with tooltip on smaller */}
@@ -1415,21 +1433,22 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                     {priorities.map((pr, index) => {
                       const player = players.find(p => p.player_number === pr.num_joueur);
                       return (
-                        <div 
-                          key={pr.player_id} 
-                          className={`flex items-center gap-1 px-1.5 md:px-2 py-0.5 rounded-lg ${
-                            index === 0 ? 'bg-blue-600/40 border border-blue-500' : 'bg-blue-500/20'
-                          }`}
-                        >
-                          <Avatar className={`h-4 md:h-6 w-4 md:w-6 border ${index === 0 ? 'border-blue-400' : 'border-blue-500/50'}`}>
-                            <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
-                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[8px] md:text-[10px]`}>
-                              {pr.display_name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-[10px] md:text-xs font-medium">{pr.display_name}</span>
-                          <span className="text-[9px] md:text-[10px] text-blue-400">#{pr.rank}</span>
-                        </div>
+                        <PlayerNameTooltip key={pr.player_id} fullName={pr.display_name}>
+                          <div 
+                            className={`flex items-center gap-1 px-1.5 md:px-2 py-0.5 rounded-lg ${
+                              index === 0 ? 'bg-blue-600/40 border border-blue-500' : 'bg-blue-500/20'
+                            }`}
+                          >
+                            <Avatar className={`h-4 md:h-6 w-4 md:w-6 border ${index === 0 ? 'border-blue-400' : 'border-blue-500/50'}`}>
+                              <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
+                              <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[8px] md:text-[10px]`}>
+                                {pr.display_name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-[10px] md:text-xs font-medium truncate max-w-[50px] md:max-w-[80px]">{pr.display_name}</span>
+                            <span className="text-[9px] md:text-[10px] text-blue-400">#{pr.rank}</span>
+                          </div>
+                        </PlayerNameTooltip>
                       );
                     })}
                   </div>
