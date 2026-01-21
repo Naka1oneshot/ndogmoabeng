@@ -265,9 +265,16 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }
                 {player.display_name}
               </p>
               
-              <Badge variant="outline" className={`mt-1 ${getPlaceColor(rank)} border-current`}>
-                {player.total_score.toFixed(1)} pts
-              </Badge>
+              <div className="flex items-center gap-1 mt-1">
+                <Badge variant="outline" className={`${getPlaceColor(rank)} border-current`}>
+                  {player.total_score.toFixed(1)} pts
+                </Badge>
+                {!player.isTeam && gameStats?.hasTeams && (
+                  <Badge variant="secondary" className="text-[10px] bg-blue-600/80 text-white border-blue-500">
+                    Solo x2
+                  </Badge>
+                )}
+              </div>
               
               {/* Detailed stats */}
               <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
@@ -343,6 +350,11 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }
                   )}
                   <span className={`flex-1 font-medium truncate ${player.isTeam ? 'text-sm' : ''}`}>
                     {player.display_name}
+                    {!player.isTeam && gameStats?.hasTeams && (
+                      <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0 bg-blue-600/80 text-white border-blue-500">
+                        x2
+                      </Badge>
+                    )}
                   </span>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <div className="flex items-center gap-0.5" title="Jetons (÷3)">
