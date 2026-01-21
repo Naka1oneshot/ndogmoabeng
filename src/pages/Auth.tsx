@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ForestButton } from '@/components/ui/ForestButton';
@@ -6,10 +6,12 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, Lock, AlertCircle, User, Phone, CheckCircle, Edit2, Clock } from 'lucide-react';
+import { Mail, Lock, AlertCircle, User, Phone, CheckCircle, Edit2, Clock, Camera, X, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
+import { toast } from 'sonner';
 
 const loginSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -36,6 +38,17 @@ export default function Auth() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
+  // Avatar upload states
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Forgot password states
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
+  
   // New states for display name confirmation
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [finalDisplayName, setFinalDisplayName] = useState('');
@@ -49,6 +62,65 @@ export default function Auth() {
   const locationState = location.state as { from?: string; sessionExpired?: boolean } | null;
   const from = locationState?.from || '/';
   const sessionExpired = locationState?.sessionExpired || false;
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Veuillez sélectionner une image valide');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('L\'image ne doit pas dépasser 5 Mo');
+      return;
+    }
+    
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+
+  const removeAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!forgotPasswordEmail) {
+      setError('Veuillez entrer votre adresse email');
+      return;
+    }
+    
+    setForgotPasswordLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+        redirectTo: `${window.location.origin}/auth?reset=true`,
+      });
+      
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      
+      setForgotPasswordSent(true);
+      toast.success('Un email de réinitialisation a été envoyé');
+    } catch (err) {
+      console.error('Forgot password error:', err);
+      setError('Erreur lors de l\'envoi de l\'email');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
 
   const checkDisplayNameAvailability = async () => {
     setCheckingDisplayName(true);
@@ -139,6 +211,27 @@ export default function Auth() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
+        let avatarUrl = null;
+        
+        // Upload avatar if provided
+        if (avatarFile) {
+          const fileExt = avatarFile.name.split('.').pop();
+          const fileName = `${user.id}/avatar.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, avatarFile, { upsert: true });
+          
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from('avatars')
+              .getPublicUrl(fileName);
+            avatarUrl = urlData.publicUrl;
+          } else {
+            console.error('Error uploading avatar:', uploadError);
+          }
+        }
+        
         // Create profile with the confirmed display name
         const { error: profileError } = await supabase
           .from('profiles')
@@ -148,6 +241,7 @@ export default function Auth() {
             last_name: lastName,
             display_name: finalDisplayName,
             phone: phone || null,
+            avatar_url: avatarUrl,
           });
         
         if (profileError) {
@@ -178,12 +272,104 @@ export default function Auth() {
     setError('');
     setShowConfirmation(false);
     setFinalDisplayName('');
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setShowForgotPassword(false);
+    setForgotPasswordEmail('');
+    setForgotPasswordSent(false);
   };
 
   const toggleMode = () => {
     setIsLogin(!isLogin);
     resetForm();
   };
+
+  // Forgot password screen
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <Link to="/" className="inline-flex items-center justify-center w-24 h-24 mb-4 animate-float">
+              <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />
+            </Link>
+            <h1 className="font-display text-2xl text-glow mb-2">
+              Mot de passe oublié
+            </h1>
+            <p className="text-muted-foreground">
+              Entrez votre email pour recevoir un lien de réinitialisation
+            </p>
+          </div>
+
+          <div className="card-gradient rounded-lg border border-border p-6 space-y-4">
+            {forgotPasswordSent ? (
+              <div className="text-center space-y-4">
+                <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-full bg-green-500/20">
+                  <CheckCircle className="h-8 w-8 text-green-500" />
+                </div>
+                <h2 className="text-lg font-semibold">Email envoyé !</h2>
+                <p className="text-muted-foreground text-sm">
+                  Si un compte existe avec l'adresse <strong>{forgotPasswordEmail}</strong>, 
+                  vous recevrez un lien de réinitialisation.
+                </p>
+                <ForestButton onClick={() => setShowForgotPassword(false)} className="w-full">
+                  Retour à la connexion
+                </ForestButton>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                {error && (
+                  <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive border border-destructive/20">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    <span className="text-sm">{error}</span>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="forgot-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="votre@email.com"
+                      value={forgotPasswordEmail}
+                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <ForestButton type="submit" className="w-full" disabled={forgotPasswordLoading}>
+                  {forgotPasswordLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Envoi en cours...
+                    </>
+                  ) : (
+                    'Envoyer le lien'
+                  )}
+                </ForestButton>
+                
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(false)}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Retour à la connexion
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Confirmation screen for display name
   if (showConfirmation && !isLogin) {
@@ -213,6 +399,16 @@ export default function Auth() {
               <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive border border-destructive/20">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            {/* Avatar preview */}
+            {avatarPreview && (
+              <div className="flex justify-center">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={avatarPreview} alt="Avatar" />
+                  <AvatarFallback>{finalDisplayName.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
               </div>
             )}
 
@@ -258,7 +454,14 @@ export default function Auth() {
                 className="flex-1"
                 disabled={loading}
               >
-                {loading ? 'Inscription...' : 'Confirmer'}
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Inscription...
+                  </>
+                ) : (
+                  'Confirmer'
+                )}
               </ForestButton>
             </div>
 
@@ -316,6 +519,46 @@ export default function Auth() {
 
           {!isLogin && (
             <>
+              {/* Avatar upload */}
+              <div className="flex justify-center">
+                <div className="relative">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                    id="avatar-upload"
+                  />
+                  <label
+                    htmlFor="avatar-upload"
+                    className="cursor-pointer block"
+                  >
+                    <Avatar className="h-20 w-20 border-2 border-dashed border-border hover:border-primary transition-colors">
+                      {avatarPreview ? (
+                        <AvatarImage src={avatarPreview} alt="Avatar" />
+                      ) : (
+                        <AvatarFallback className="bg-secondary">
+                          <Camera className="h-6 w-6 text-muted-foreground" />
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  </label>
+                  {avatarPreview && (
+                    <button
+                      type="button"
+                      onClick={removeAvatar}
+                      className="absolute -top-1 -right-1 p-1 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p className="text-center text-xs text-muted-foreground">
+                Cliquez pour ajouter une photo de profil (facultatif)
+              </p>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Nom *</Label>
@@ -415,8 +658,32 @@ export default function Auth() {
             </div>
           </div>
 
+          {isLogin && (
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-sm text-primary hover:underline"
+            >
+              Mot de passe oublié ?
+            </button>
+          )}
+
           <ForestButton type="submit" className="w-full" disabled={loading || checkingDisplayName}>
-            {loading ? 'Chargement...' : checkingDisplayName ? 'Vérification...' : isLogin ? 'Se connecter' : 'Continuer'}
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Chargement...
+              </>
+            ) : checkingDisplayName ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Vérification...
+              </>
+            ) : isLogin ? (
+              'Se connecter'
+            ) : (
+              'Continuer'
+            )}
           </ForestButton>
 
           <div className="text-center">

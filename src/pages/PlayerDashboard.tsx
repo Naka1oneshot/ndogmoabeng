@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { GameStartAnimation } from '@/components/game/GameStartAnimation';
 import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
+import { CombatHistorySummarySheet } from '@/components/mj/presentation/CombatHistorySummarySheet';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
 import { EventsFeed } from '@/components/player/EventsFeed';
@@ -571,14 +572,17 @@ export default function PlayerDashboard() {
                 currentPlayerNumber={player.playerNumber}
               />
               
-              {/* Manche Selector */}
-              <div className="card-gradient rounded-lg border border-border p-3 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Historique</span>
-                <MancheSelector
-                  currentManche={game.manche_active}
-                  selectedManche={selectedManche}
-                  onMancheChange={setSelectedManche}
-                />
+              {/* Manche Selector + History Button */}
+              <div className="card-gradient rounded-lg border border-border p-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Historique</span>
+                  <MancheSelector
+                    currentManche={game.manche_active}
+                    selectedManche={selectedManche}
+                    onMancheChange={setSelectedManche}
+                  />
+                </div>
+                <CombatHistorySummarySheet gameId={game.id} sessionGameId={game.current_session_game_id} />
               </div>
 
               <PositionsRankingPanel 
