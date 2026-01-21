@@ -7,7 +7,7 @@ import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { useUserRole } from '@/hooks/useUserRole';
 import { 
   User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, 
-  Users, UserX, Play, Lock, Coins, ShieldCheck, Swords, ShoppingBag, Bot, Plus
+  Users, UserX, Play, Lock, Coins, ShieldCheck, Swords, ShoppingBag, Bot, Plus, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -84,6 +84,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   
   // Bot addition state
   const [addingBots, setAddingBots] = useState(false);
+  const [deletingBots, setDeletingBots] = useState(false);
   const [botCount, setBotCount] = useState(5);
   const [botsWithClans, setBotsWithClans] = useState(false);
   const [botsWithMates, setBotsWithMates] = useState(false);
@@ -403,6 +404,39 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     }
   };
 
+  // Delete all bots handler
+  const handleDeleteAllBots = async () => {
+    if (!isAdmin) {
+      toast.error('Seuls les administrateurs peuvent supprimer les bots');
+      return;
+    }
+    
+    const botPlayers = players.filter(p => p.is_bot && p.status === 'ACTIVE');
+    if (botPlayers.length === 0) {
+      toast.info('Aucun bot à supprimer');
+      return;
+    }
+    
+    setDeletingBots(true);
+    try {
+      const { error } = await supabase
+        .from('game_players')
+        .delete()
+        .eq('game_id', game.id)
+        .eq('is_bot', true);
+
+      if (error) throw error;
+
+      toast.success(`${botPlayers.length} bots supprimés !`);
+      fetchPlayers();
+    } catch (error: any) {
+      console.error('Error deleting bots:', error);
+      toast.error(error.message || 'Erreur lors de la suppression des bots');
+    } finally {
+      setDeletingBots(false);
+    }
+  };
+
   const handleResetToken = async (playerId: string, playerName: string) => {
     setResettingId(playerId);
     try {
@@ -687,6 +721,19 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
                   {addingBots ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Ajouter
                 </ForestButton>
+                
+                {players.some(p => p.is_bot && p.status === 'ACTIVE') && (
+                  <ForestButton
+                    size="sm"
+                    onClick={handleDeleteAllBots}
+                    disabled={deletingBots}
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    {deletingBots ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    Supprimer tous
+                  </ForestButton>
+                )}
               </div>
             )}
           </div>
