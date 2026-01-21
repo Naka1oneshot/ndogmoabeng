@@ -1168,49 +1168,53 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   )}
                 </div>
               )}
-              {/* Attack positions display - below Queue on left side */}
+              {/* Attack positions ranking - linear display of all players by position_finale */}
               {isPhase2 && hasPositions && (
                 <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-2 md:p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <Swords className="h-3.5 md:h-4 w-3.5 md:w-4 text-purple-500" />
-                    <h3 className="text-xs md:text-sm font-semibold text-purple-500">Positions d'attaque</h3>
+                    <Target className="h-3.5 md:h-4 w-3.5 md:w-4 text-purple-500" />
+                    <h3 className="text-xs md:text-sm font-semibold text-purple-500">Classement d'attaque</h3>
                   </div>
                   {(() => {
-                    const activePlayerCount = players.length;
-                    const slotsToShow = Math.max(1, Math.min(3, activePlayerCount));
-                    const gridCols = slotsToShow === 1 ? 'grid-cols-1' : slotsToShow === 2 ? 'grid-cols-2' : 'grid-cols-3';
+                    const useCompactPositions = positions.length > 8;
+                    const topPositions = useCompactPositions ? positions.slice(0, 3) : positions;
+                    const bottomPositions = useCompactPositions ? positions.slice(3) : [];
+                    
+                    const renderPositionBadge = (pos: Position, isCompact: boolean) => {
+                      const player = players.find(p => p.player_number === pos.num_joueur);
+                      return (
+                        <div 
+                          key={pos.num_joueur}
+                          className={`flex items-center gap-1 ${isCompact ? 'bg-purple-500/20 rounded px-1 py-0.5' : 'bg-purple-500/20 rounded-lg px-2 py-1'} border border-purple-500/30`}
+                        >
+                          <span className={`font-bold text-purple-400 ${isCompact ? 'text-[9px] md:text-[10px]' : 'text-[10px] md:text-xs'}`}>
+                            #{pos.position_finale}
+                          </span>
+                          <Avatar className={`${isCompact ? 'h-4 w-4' : 'h-5 w-5'} border border-purple-400/50`}>
+                            <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
+                            <AvatarFallback className={`bg-purple-600/50 text-white ${isCompact ? 'text-[6px]' : 'text-[8px]'}`}>
+                              {pos.nom.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className={`${isCompact ? 'text-[8px] md:text-[9px] max-w-[35px]' : 'text-[9px] md:text-[10px] max-w-[50px]'} truncate`}>
+                            {pos.nom}
+                          </span>
+                        </div>
+                      );
+                    };
+                    
                     return (
-                      <div className={`grid ${gridCols} gap-2 md:gap-3`}>
-                        {Array.from({ length: slotsToShow }, (_, i) => i + 1).map(slot => {
-                          const playersAtSlot = positions.filter(p => p.position_finale === slot);
-                          return (
-                            <div key={slot} className="bg-purple-500/20 rounded-lg p-1.5 md:p-2 border border-purple-500/30">
-                              <div className="text-center mb-1.5">
-                                <span className="text-lg md:text-xl font-bold text-purple-400">{slot}</span>
-                              </div>
-                              <div className="flex flex-wrap justify-center gap-1">
-                                {playersAtSlot.length > 0 ? (
-                                  playersAtSlot.map((pos, idx) => {
-                                    const player = players.find(p => p.player_number === pos.num_joueur);
-                                    return (
-                                      <div key={pos.num_joueur} className="flex flex-col items-center gap-0.5">
-                                        <Avatar className={`h-5 md:h-7 w-5 md:w-7 border-2 ${idx === 0 ? 'border-purple-400' : 'border-purple-500/50'}`}>
-                                          <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
-                                          <AvatarFallback className="bg-purple-600/50 text-white text-[8px] md:text-[10px]">
-                                            {pos.nom.charAt(0).toUpperCase()}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-[8px] md:text-[9px] text-center truncate max-w-[40px]">{pos.nom}</span>
-                                      </div>
-                                    );
-                                  })
-                                ) : (
-                                  <span className="text-[9px] text-muted-foreground italic">Aucun</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+                      <div className="space-y-1.5">
+                        {/* Top positions - larger display */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {topPositions.map(pos => renderPositionBadge(pos, false))}
+                        </div>
+                        {/* Remaining positions - compact 2-column grid when many players */}
+                        {bottomPositions.length > 0 && (
+                          <div className="grid grid-cols-2 gap-1 mt-1">
+                            {bottomPositions.map(pos => renderPositionBadge(pos, true))}
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
