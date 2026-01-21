@@ -11,8 +11,7 @@ import {
   Users, 
   Crown,
   ChevronLeft,
-  ChevronRight,
-  Eye
+  ChevronRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -166,9 +165,10 @@ export function GameHistorySection() {
                     variant="outline"
                     size="sm"
                     onClick={() => navigate(`/presentation/${game.game_id}`)}
-                    title="Voir le podium"
+                    className="gap-1.5"
                   >
-                    <Eye className="w-4 h-4" />
+                    <Trophy className="w-4 h-4" />
+                    <span className="hidden sm:inline">Podium</span>
                   </Button>
                 </div>
               </div>
