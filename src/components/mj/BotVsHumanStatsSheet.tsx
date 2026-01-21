@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, BarChart3, Bot, User, Trophy, Coins, Swords, Target, TrendingUp, TrendingDown } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface PlayerStats {
   id: string;
@@ -33,6 +34,14 @@ interface CombatStats {
   totalDamage: number;
 }
 
+interface MancheData {
+  manche: number;
+  botKills: number;
+  humanKills: number;
+  botDamage: number;
+  humanDamage: number;
+}
+
 interface BotVsHumanStatsSheetProps {
   gameId: string;
   sessionGameId?: string | null;
@@ -47,6 +56,7 @@ export function BotVsHumanStatsSheet({ gameId, sessionGameId, startingTokens }: 
     bots: { kills: 0, totalDamage: 0 },
     humans: { kills: 0, totalDamage: 0 }
   });
+  const [mancheData, setMancheData] = useState<MancheData[]>([]);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -68,11 +78,12 @@ export function BotVsHumanStatsSheet({ gameId, sessionGameId, startingTokens }: 
       }));
       setPlayers(mappedPlayers);
 
-      // Fetch combat results for kills and damage
+      // Fetch combat results for kills and damage - include manche for per-round data
       let combatQuery = supabase
         .from('combat_results')
-        .select('kills, public_summary')
-        .eq('game_id', gameId);
+        .select('manche, kills, public_summary')
+        .eq('game_id', gameId)
+        .order('manche', { ascending: true });
       
       if (sessionGameId) {
         combatQuery = combatQuery.eq('session_game_id', sessionGameId);
@@ -88,11 +99,26 @@ export function BotVsHumanStatsSheet({ gameId, sessionGameId, startingTokens }: 
         playerBotMap.set(p.display_name, p.is_bot);
       });
 
-      // Aggregate combat stats
+      // Aggregate combat stats - total and per manche
       const botCombat: CombatStats = { kills: 0, totalDamage: 0 };
       const humanCombat: CombatStats = { kills: 0, totalDamage: 0 };
+      const perManche = new Map<number, MancheData>();
 
       (combatResults || []).forEach(result => {
+        const manche = result.manche || 1;
+        
+        // Initialize manche data if not exists
+        if (!perManche.has(manche)) {
+          perManche.set(manche, {
+            manche,
+            botKills: 0,
+            humanKills: 0,
+            botDamage: 0,
+            humanDamage: 0
+          });
+        }
+        const mancheStats = perManche.get(manche)!;
+
         // Process kills
         const kills = Array.isArray(result.kills) ? result.kills : [];
         kills.forEach((kill: { killerName?: string }) => {
@@ -100,8 +126,10 @@ export function BotVsHumanStatsSheet({ gameId, sessionGameId, startingTokens }: 
             const isBot = playerBotMap.get(kill.killerName);
             if (isBot === true) {
               botCombat.kills++;
+              mancheStats.botKills++;
             } else if (isBot === false) {
               humanCombat.kills++;
+              mancheStats.humanKills++;
             }
           }
         });
@@ -115,13 +143,18 @@ export function BotVsHumanStatsSheet({ gameId, sessionGameId, startingTokens }: 
             const dmg = entry.totalDamage || 0;
             if (isBot === true) {
               botCombat.totalDamage += dmg;
+              mancheStats.botDamage += dmg;
             } else if (isBot === false) {
               humanCombat.totalDamage += dmg;
+              mancheStats.humanDamage += dmg;
             }
           }
         });
       });
 
+      // Convert to sorted array for chart
+      const mancheArray = Array.from(perManche.values()).sort((a, b) => a.manche - b.manche);
+      setMancheData(mancheArray);
       setCombatData({ bots: botCombat, humans: humanCombat });
     } catch (err) {
       console.error('[BotVsHumanStats] Error:', err);
@@ -291,6 +324,117 @@ export function BotVsHumanStatsSheet({ gameId, sessionGameId, startingTokens }: 
                   <span className="text-[10px] text-green-400">{(100 - botPercentage).toFixed(0)}%</span>
                 </div>
               </div>
+
+              {/* Evolution Chart */}
+              {mancheData.length > 0 && (
+                <div className="bg-card/50 rounded-xl border border-border p-4">
+                  <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    Évolution par Manche
+                  </h3>
+                  
+                  {/* Damage Chart */}
+                  <div className="mb-4">
+                    <p className="text-xs text-muted-foreground mb-2">Dégâts infligés</p>
+                    <div className="h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={mancheData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis 
+                            dataKey="manche" 
+                            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                            tickFormatter={(v) => `M${v}`}
+                          />
+                          <YAxis 
+                            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                            width={35}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                              fontSize: '12px'
+                            }}
+                            labelFormatter={(v) => `Manche ${v}`}
+                          />
+                          <Legend 
+                            wrapperStyle={{ fontSize: '10px' }}
+                            iconSize={8}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="botDamage" 
+                            name="Bots" 
+                            stroke="#3b82f6" 
+                            strokeWidth={2}
+                            dot={{ fill: '#3b82f6', r: 3 }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="humanDamage" 
+                            name="Humains" 
+                            stroke="#22c55e" 
+                            strokeWidth={2}
+                            dot={{ fill: '#22c55e', r: 3 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  
+                  {/* Kills Chart */}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Coups de grâce</p>
+                    <div className="h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={mancheData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis 
+                            dataKey="manche" 
+                            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                            tickFormatter={(v) => `M${v}`}
+                          />
+                          <YAxis 
+                            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                            width={35}
+                            allowDecimals={false}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                              fontSize: '12px'
+                            }}
+                            labelFormatter={(v) => `Manche ${v}`}
+                          />
+                          <Legend 
+                            wrapperStyle={{ fontSize: '10px' }}
+                            iconSize={8}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="botKills" 
+                            name="Bots" 
+                            stroke="#3b82f6" 
+                            strokeWidth={2}
+                            dot={{ fill: '#3b82f6', r: 3 }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="humanKills" 
+                            name="Humains" 
+                            stroke="#22c55e" 
+                            strokeWidth={2}
+                            dot={{ fill: '#22c55e', r: 3 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Economic Stats */}
               <div className="space-y-3">
