@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Trophy, Medal, Award, Crown, Star, Sparkles, Coins, Skull, Gift } from 'lucide-react';
+import { Trophy, Medal, Award, Crown, Star, Sparkles, Coins, Skull, Gift, Sword, Target } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import confetti from 'canvas-confetti';
@@ -23,6 +23,8 @@ interface GameStats {
   totalJetons: number;
   topKiller: { name: string; kills: number } | null;
   topEarner: { name: string; recompenses: number } | null;
+  topWeaponUser: { name: string; weapons: number } | null;
+  topBetter: { name: string; bet: number } | null;
   hasTeams: boolean;
   teamCount: number;
   soloCount: number;
@@ -457,13 +459,35 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }
               )}
               
               {gameStats.topEarner && (
-                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg mb-2">
                   <div className="flex items-center gap-2 mb-1">
                     <Gift className="h-4 w-4 text-green-500" />
                     <span className="text-xs text-green-400 uppercase">Meilleur butin</span>
                   </div>
                   <div className="font-bold truncate">{gameStats.topEarner.name}</div>
                   <div className="text-sm text-muted-foreground">{gameStats.topEarner.recompenses} récompenses</div>
+                </div>
+              )}
+
+              {gameStats.topWeaponUser && gameStats.topWeaponUser.weapons > 0 && (
+                <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg mb-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sword className="h-4 w-4 text-orange-500" />
+                    <span className="text-xs text-orange-400 uppercase">Arsenal</span>
+                  </div>
+                  <div className="font-bold truncate">{gameStats.topWeaponUser.name}</div>
+                  <div className="text-sm text-muted-foreground">{gameStats.topWeaponUser.weapons} armes utilisées</div>
+                </div>
+              )}
+
+              {gameStats.topBetter && gameStats.topBetter.bet > 0 && (
+                <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Target className="h-4 w-4 text-purple-500" />
+                    <span className="text-xs text-purple-400 uppercase">Gros parieur</span>
+                  </div>
+                  <div className="font-bold truncate">{gameStats.topBetter.name}</div>
+                  <div className="text-sm text-muted-foreground">{gameStats.topBetter.bet} jetons misés</div>
                 </div>
               )}
             </div>
