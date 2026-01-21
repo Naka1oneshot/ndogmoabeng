@@ -721,26 +721,26 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
         {/* Main content grid - Phase 3 specific compact layout */}
         {isPhase3 ? (
           <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:flex-1 md:overflow-hidden">
-            {/* Left: Battlefield compact + Validation status */}
-            <div className="md:col-span-4 flex flex-col gap-3">
-              {/* Battlefield compact */}
-              <div className="bg-card/50 rounded-xl border border-border p-2 md:p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Swords className="h-4 w-4 text-destructive" />
-                  <h2 className="text-sm font-bold">Champ de Bataille</h2>
+            {/* Left: Battlefield + Queue - increased size */}
+            <div className="md:col-span-5 flex flex-col gap-3">
+              {/* Battlefield - larger for Phase 3 */}
+              <div className="bg-card/50 rounded-xl border border-border p-3 md:p-4 flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <Swords className="h-5 w-5 text-destructive" />
+                  <h2 className="text-base font-bold">Champ de Bataille</h2>
                 </div>
-                <div className="grid grid-cols-3 gap-1 md:gap-2">
+                <div className="grid grid-cols-3 gap-2 md:gap-3">
                   {[1, 2, 3].map(slot => {
                     const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
-                      <div key={slot} className="flex flex-col items-center p-1.5 md:p-2 rounded-lg bg-secondary/50 border border-border">
-                        <div className="text-[10px] text-muted-foreground">Slot {slot}</div>
+                      <div key={slot} className="flex flex-col items-center p-2 md:p-3 rounded-lg bg-secondary/50 border border-border">
+                        <div className="text-[10px] md:text-xs text-muted-foreground mb-1">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden my-1 bg-secondary/50">
+                            <div className="w-14 h-14 md:w-20 md:h-20 rounded-lg overflow-hidden my-1.5 bg-secondary/50">
                               {monster.status === 'MORT' ? (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <Skull className="h-5 md:h-6 w-5 md:w-6 text-muted-foreground" />
+                                  <Skull className="h-7 md:h-10 w-7 md:w-10 text-muted-foreground" />
                                 </div>
                               ) : getMonsterImage(monster.monster_id) ? (
                                 <img 
@@ -749,22 +749,22 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-xl md:text-2xl">🐉</div>
+                                <div className="w-full h-full flex items-center justify-center text-2xl md:text-3xl">🐉</div>
                               )}
                             </div>
                             {getMonsterType(monster) && (
-                              <div className="text-[8px] md:text-[10px] text-muted-foreground">{getMonsterType(monster)}</div>
+                              <div className="text-[9px] md:text-xs text-muted-foreground">{getMonsterType(monster)}</div>
                             )}
-                            <div className="text-[10px] md:text-xs font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
-                            <div className="flex items-center gap-1 text-[8px] md:text-[10px] mt-0.5">
-                              <Heart className="h-2.5 md:h-3 w-2.5 md:w-3 text-destructive" />
+                            <div className="text-xs md:text-sm font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
+                            <div className="flex items-center gap-1.5 text-[10px] md:text-xs mt-1">
+                              <Heart className="h-3 md:h-4 w-3 md:w-4 text-destructive" />
                               {getMonsterPvMax(monster)}
-                              <Trophy className="h-2.5 md:h-3 w-2.5 md:w-3 text-amber-500 ml-1" />
+                              <Trophy className="h-3 md:h-4 w-3 md:w-4 text-amber-500 ml-1" />
                               {getMonsterReward(monster)}
                             </div>
                           </>
                         ) : (
-                          <span className="text-muted-foreground text-xs py-4">Vide</span>
+                          <span className="text-muted-foreground text-sm py-6">Vide</span>
                         )}
                       </div>
                     );
@@ -774,63 +774,65 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
               {/* Queue compact */}
               {queueMonsters.length > 0 && (
-                <div className="bg-card/50 rounded-lg border border-amber-600/50 p-2">
-                  <div className="flex items-center gap-1 mb-1">
-                    <Users className="h-3 w-3 text-amber-500" />
-                    <span className="text-xs font-semibold text-amber-500">File ({queueMonsters.length})</span>
+                <div className="bg-card/50 rounded-lg border border-amber-600/50 p-2 md:p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Users className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-semibold text-amber-500">File d'attente ({queueMonsters.length})</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {queueMonsters.slice(0, 4).map(m => (
-                      <div key={m.id} className="flex items-center gap-1 text-[10px] md:text-xs bg-amber-500/10 px-1.5 md:px-2 py-0.5 rounded">
-                        <div className="w-4 h-4 md:w-5 md:h-5 rounded overflow-hidden flex-shrink-0">
+                  <div className="flex flex-wrap gap-1.5">
+                    {queueMonsters.slice(0, 6).map(m => (
+                      <div key={m.id} className="flex items-center gap-1 text-xs bg-amber-500/10 px-2 py-1 rounded">
+                        <div className="w-5 h-5 md:w-6 md:h-6 rounded overflow-hidden flex-shrink-0">
                           {getMonsterImage(m.monster_id) ? (
                             <img src={getMonsterImage(m.monster_id)} alt={getMonsterName(m)} className="w-full h-full object-cover" />
                           ) : (
                             <span>🐉</span>
                           )}
                         </div>
-                        <span className="hidden sm:inline">{getMonsterName(m)}</span>
-                        <span className="sm:hidden">{getMonsterName(m).slice(0, 6)}</span>
+                        <span>{getMonsterName(m)}</span>
                       </div>
                     ))}
-                    {queueMonsters.length > 4 && <span className="text-[10px] md:text-xs text-amber-500">+{queueMonsters.length - 4}</span>}
+                    {queueMonsters.length > 6 && <span className="text-xs text-amber-500">+{queueMonsters.length - 6}</span>}
                   </div>
                 </div>
               )}
+            </div>
 
-              {/* Validation status */}
-              <div className="flex-1 flex flex-col gap-2">
+            {/* Middle: Validation status (compact) + Shop */}
+            <div className="md:col-span-4 flex flex-col gap-3">
+              {/* Validation status - compact row */}
+              <div className="flex gap-2">
                 <div className="bg-green-500/10 rounded-lg border border-green-600/30 p-2 flex-1">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-sm font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
+                  <div className="flex items-center gap-1 mb-1">
+                    <CheckCircle className="h-3 w-3 text-green-500" />
+                    <span className="text-xs font-semibold text-green-500">Validés ({validatedPlayers.length})</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {validatedPlayers.map(p => (
-                      <Badge key={p.id} className="bg-green-600/50 text-green-100 text-xs py-0.5">
-                        {p.display_name}
+                  <div className="flex flex-wrap gap-0.5">
+                    {validatedPlayers.slice(0, 6).map(p => (
+                      <Badge key={p.id} className="bg-green-600/50 text-green-100 text-[10px] py-0">
+                        {p.display_name.slice(0, 8)}
                       </Badge>
                     ))}
+                    {validatedPlayers.length > 6 && <span className="text-[10px] text-green-500">+{validatedPlayers.length - 6}</span>}
                   </div>
                 </div>
                 <div className="bg-orange-500/10 rounded-lg border border-orange-600/30 p-2 flex-1">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Clock className="h-4 w-4 text-orange-500" />
-                    <span className="text-sm font-semibold text-orange-500">En attente ({pendingPlayers.length})</span>
+                  <div className="flex items-center gap-1 mb-1">
+                    <Clock className="h-3 w-3 text-orange-500" />
+                    <span className="text-xs font-semibold text-orange-500">En attente ({pendingPlayers.length})</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {pendingPlayers.map(p => (
-                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-xs py-0.5">
-                        {p.display_name}
+                  <div className="flex flex-wrap gap-0.5">
+                    {pendingPlayers.slice(0, 6).map(p => (
+                      <Badge key={p.id} className="bg-orange-600/50 text-orange-100 text-[10px] py-0">
+                        {p.display_name.slice(0, 8)}
                       </Badge>
                     ))}
+                    {pendingPlayers.length > 6 && <span className="text-[10px] text-orange-500">+{pendingPlayers.length - 6}</span>}
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Middle: Shop items */}
-            <div className="md:col-span-5 flex flex-col gap-3">
+              {/* Shop items */}
               <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-2 md:p-3 flex-1 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
