@@ -100,7 +100,7 @@ serve(async (req) => {
     // Get ACTIVE players count - this is our N (source of truth)
     const { data: activePlayers, error: playersError } = await supabase
       .from('game_players')
-      .select('player_number, display_name, clan, jetons')
+      .select('player_number, display_name, clan, jetons, is_bot')
       .eq('game_id', gameId)
       .eq('is_host', false)
       .in('status', ['ACTIVE', 'IN_GAME']);
@@ -124,6 +124,77 @@ serve(async (req) => {
     }
 
     console.log(`[publish-positions] N = ${N} active players, session_game_id: ${sessionGameId}`);
+
+    // Generate random actions for bots
+    const botPlayers = activePlayers?.filter(p => p.is_bot) || [];
+    if (botPlayers.length > 0) {
+      console.log(`[publish-positions] Generating random actions for ${botPlayers.length} bots`);
+      
+      // Get existing actions to avoid duplicates
+      const { data: existingActions } = await supabase
+        .from('actions')
+        .select('num_joueur')
+        .eq('game_id', gameId)
+        .eq('manche', manche);
+      
+      const existingActionNums = new Set((existingActions || []).map(a => a.num_joueur));
+      
+      // Get player inventory for possible attack items
+      for (const bot of botPlayers) {
+        if (existingActionNums.has(bot.player_number)) {
+          console.log(`[publish-positions] Bot ${bot.display_name} already has action, skipping`);
+          continue;
+        }
+        
+        // Get bot inventory
+        const { data: inventory } = await supabase
+          .from('inventory')
+          .select('objet, disponible, dispo_attaque')
+          .eq('game_id', gameId)
+          .eq('owner_num', bot.player_number)
+          .eq('disponible', true);
+        
+        const attackItems = (inventory || []).filter(i => i.dispo_attaque);
+        const protectionItems = (inventory || []).filter(i => !i.dispo_attaque);
+        
+        // Random position (1 to N)
+        const randomPosition = Math.floor(Math.random() * N) + 1;
+        
+        // Random attack slot (1 to 3) - targeting monsters
+        const randomSlotAttaque = Math.floor(Math.random() * 3) + 1;
+        
+        // Pick random attack item if available
+        let attaque1 = null;
+        if (attackItems.length > 0 && Math.random() > 0.3) { // 70% chance to use an item
+          const randomIndex = Math.floor(Math.random() * attackItems.length);
+          attaque1 = attackItems[randomIndex].objet;
+        }
+        
+        // Pick random protection item if available
+        let protection = null;
+        let slotProtection = null;
+        if (protectionItems.length > 0 && Math.random() > 0.5) { // 50% chance to use protection
+          const randomIndex = Math.floor(Math.random() * protectionItems.length);
+          protection = protectionItems[randomIndex].objet;
+          slotProtection = Math.floor(Math.random() * 3) + 1;
+        }
+        
+        await supabase.from('actions').insert({
+          game_id: gameId,
+          session_game_id: sessionGameId,
+          manche,
+          num_joueur: bot.player_number,
+          position_souhaitee: randomPosition,
+          slot_attaque: randomSlotAttaque,
+          attaque1: attaque1,
+          attaque2: null,
+          protection_objet: protection,
+          slot_protection: slotProtection,
+        });
+        
+        console.log(`[publish-positions] Bot ${bot.display_name}: pos=${randomPosition}, slot=${randomSlotAttaque}, atk=${attaque1 || 'none'}, prot=${protection || 'none'}`);
+      }
+    }
 
     // Get priority rankings (order from Phase 1)
     let rankingsQuery = supabase

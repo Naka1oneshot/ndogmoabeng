@@ -125,7 +125,7 @@ serve(async (req) => {
     // Get active players (IN_GAME equivalent = ACTIVE, not LEFT/KICKED/REMOVED)
     const { data: players, error: playersError } = await supabase
       .from('game_players')
-      .select('id, player_number, display_name, jetons, status')
+      .select('id, player_number, display_name, jetons, status, is_bot')
       .eq('game_id', gameId)
       .eq('is_host', false)
       .in('status', ['ACTIVE', 'IN_GAME'])
@@ -147,6 +147,60 @@ serve(async (req) => {
     }
 
     console.log(`[close-phase1] Found ${players.length} active players`);
+
+    // Generate random bets for bots
+    const botPlayers = players.filter(p => p.is_bot);
+    if (botPlayers.length > 0) {
+      console.log(`[close-phase1] Generating random bets for ${botPlayers.length} bots`);
+      
+      for (const bot of botPlayers) {
+        // Random bet between 0 and player's tokens (inclusive)
+        const maxBet = bot.jetons || 0;
+        const randomBet = Math.floor(Math.random() * (maxBet + 1));
+        
+        // Check if bot already has a bet for this round
+        let existingBotBetQuery = supabase
+          .from('round_bets')
+          .select('id')
+          .eq('game_id', gameId)
+          .eq('manche', manche)
+          .eq('num_joueur', bot.player_number);
+        
+        if (sessionGameId) {
+          existingBotBetQuery = existingBotBetQuery.eq('session_game_id', sessionGameId);
+        }
+        
+        const { data: existingBotBet } = await existingBotBetQuery.maybeSingle();
+        
+        if (!existingBotBet) {
+          // Insert new bet for bot
+          await supabase.from('round_bets').insert({
+            game_id: gameId,
+            session_game_id: sessionGameId,
+            manche,
+            num_joueur: bot.player_number,
+            mise: randomBet,
+            mise_demandee: randomBet,
+            status: 'SUBMITTED',
+            submitted_at: new Date().toISOString(),
+            note: `Bot mise automatique: ${randomBet}`,
+          });
+          console.log(`[close-phase1] Bot ${bot.display_name} bet ${randomBet}/${maxBet}`);
+        } else {
+          // Update existing bet
+          await supabase.from('round_bets')
+            .update({
+              mise: randomBet,
+              mise_demandee: randomBet,
+              status: 'SUBMITTED',
+              submitted_at: new Date().toISOString(),
+              note: `Bot mise automatique: ${randomBet}`,
+            })
+            .eq('id', existingBotBet.id);
+          console.log(`[close-phase1] Bot ${bot.display_name} updated bet to ${randomBet}/${maxBet}`);
+        }
+      }
+    }
 
     // Get all bets for this round (filter by session_game_id if available)
     let betsQuery = supabase

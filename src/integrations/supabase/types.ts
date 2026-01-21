@@ -657,6 +657,7 @@ export type Database = {
           immune_permanent: boolean | null
           infected_at_manche: number | null
           is_alive: boolean | null
+          is_bot: boolean
           is_carrier: boolean | null
           is_contagious: boolean | null
           is_host: boolean
@@ -690,6 +691,7 @@ export type Database = {
           immune_permanent?: boolean | null
           infected_at_manche?: number | null
           is_alive?: boolean | null
+          is_bot?: boolean
           is_carrier?: boolean | null
           is_contagious?: boolean | null
           is_host?: boolean
@@ -723,6 +725,7 @@ export type Database = {
           immune_permanent?: boolean | null
           infected_at_manche?: number | null
           is_alive?: boolean | null
+          is_bot?: boolean
           is_carrier?: boolean | null
           is_contagious?: boolean | null
           is_host?: boolean

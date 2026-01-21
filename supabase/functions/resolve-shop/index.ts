@@ -142,11 +142,11 @@ Deno.serve(async (req) => {
     // Get all players
     const { data: players } = await supabase
       .from('game_players')
-      .select('id, player_number, display_name, jetons, clan')
+      .select('id, player_number, display_name, jetons, clan, is_bot')
       .eq('game_id', gameId)
       .eq('status', 'ACTIVE');
 
-    const playerMap = new Map<string, Player>();
+    const playerMap = new Map<string, Player & { is_bot?: boolean }>();
     (players || []).forEach(p => playerMap.set(p.id, p));
 
     // Get prices
@@ -164,6 +164,63 @@ Deno.serve(async (req) => {
 
     const itemMap = new Map<string, ItemCatalog>();
     (itemCatalog || []).forEach(i => itemMap.set(i.name, i));
+
+    // Generate random shop requests for bots
+    const botPlayers = (players || []).filter(p => p.is_bot);
+    if (botPlayers.length > 0) {
+      console.log(`[resolve-shop] Generating random shop requests for ${botPlayers.length} bots`);
+      
+      for (const bot of botPlayers) {
+        // Check if bot already has a request
+        const existingRequest = requestMap.get(bot.id);
+        if (existingRequest) {
+          console.log(`[resolve-shop] Bot ${bot.display_name} already has request, skipping`);
+          continue;
+        }
+        
+        // 60% chance bot wants to buy something
+        const wantBuy = Math.random() > 0.4;
+        
+        let itemName = null;
+        if (wantBuy && shopOffer.item_ids.length > 0) {
+          // Pick a random item from the shop that bot can afford
+          const affordableItems = shopOffer.item_ids.filter((itemId: string) => {
+            const priceInfo = priceMap.get(itemId);
+            if (!priceInfo) return false;
+            const isAkila = bot.clan?.toLowerCase().includes('akila') || false;
+            const cost = isAkila ? priceInfo.cost_akila : priceInfo.cost_normal;
+            return bot.jetons >= cost;
+          });
+          
+          if (affordableItems.length > 0) {
+            const randomIndex = Math.floor(Math.random() * affordableItems.length);
+            itemName = affordableItems[randomIndex];
+          }
+        }
+        
+        // Insert shop request for bot
+        await supabase.from('shop_requests').insert({
+          game_id: gameId,
+          session_game_id: sessionGameId,
+          manche,
+          player_id: bot.id,
+          player_num: bot.player_number,
+          want_buy: wantBuy && itemName !== null,
+          item_name: itemName,
+        });
+        
+        // Update the request map
+        requestMap.set(bot.id, {
+          id: crypto.randomUUID(),
+          player_id: bot.id,
+          player_num: bot.player_number,
+          want_buy: wantBuy && itemName !== null,
+          item_name: itemName,
+        });
+        
+        console.log(`[resolve-shop] Bot ${bot.display_name}: want_buy=${wantBuy}, item=${itemName || 'none'}`);
+      }
+    }
 
     // Initialize stock for this round
     // - Totem/Flèche: 1 each per round

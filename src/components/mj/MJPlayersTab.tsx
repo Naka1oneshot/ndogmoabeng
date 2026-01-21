@@ -7,7 +7,7 @@ import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { useUserRole } from '@/hooks/useUserRole';
 import { 
   User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, 
-  Users, UserX, Play, Lock, Coins, ShieldCheck, Swords, ShoppingBag
+  Users, UserX, Play, Lock, Coins, ShieldCheck, Swords, ShoppingBag, Bot, Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -42,6 +42,7 @@ interface Player {
   clan_locked: boolean;
   clan_token_used: boolean;
   user_id: string | null;
+  is_bot?: boolean;
 }
 
 interface Game {
@@ -80,6 +81,10 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   const [positionsPublished, setPositionsPublished] = useState(false);
   const [combatResolved, setCombatResolved] = useState(false);
   const [shopResolved, setShopResolved] = useState(false);
+  
+  // Bot addition state
+  const [addingBots, setAddingBots] = useState(false);
+  const [botCount, setBotCount] = useState(5);
 
   const isLobby = game.status === 'LOBBY';
   const isInGame = game.status === 'IN_GAME';
@@ -369,6 +374,33 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     }
   };
 
+  // Add bots handler
+  const handleAddBots = async () => {
+    if (!isAdmin) {
+      toast.error('Seuls les administrateurs peuvent ajouter des bots');
+      return;
+    }
+    
+    setAddingBots(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('add-bots', {
+        body: { gameId: game.id, count: botCount },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || 'Erreur lors de l\'ajout des bots');
+      }
+
+      toast.success(`${data.botsAdded} bots ajoutés !`);
+      fetchPlayers();
+    } catch (error: any) {
+      console.error('Error adding bots:', error);
+      toast.error(error.message || 'Erreur lors de l\'ajout des bots');
+    } finally {
+      setAddingBots(false);
+    }
+  };
+
   const handleResetToken = async (playerId: string, playerName: string) => {
     setResettingId(playerId);
     try {
@@ -606,6 +638,31 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
               {starting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
               Démarrer la partie ({activePlayers.length} joueurs)
             </ForestButton>
+            
+            {/* Add bots - Admin only */}
+            {isAdmin && (
+              <div className="flex items-center gap-2 ml-4 p-2 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+                <Bot className="h-4 w-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Bots:</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={botCount}
+                  onChange={(e) => setBotCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+                  className="h-8 w-16 text-sm text-center"
+                />
+                <ForestButton
+                  size="sm"
+                  onClick={handleAddBots}
+                  disabled={addingBots}
+                  variant="outline"
+                >
+                  {addingBots ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Ajouter
+                </ForestButton>
+              </div>
+            )}
           </div>
         )}
 
@@ -741,8 +798,16 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
                           </span>
                         </div>
                       </div>
-                      <div className="col-span-2">
-                        <span className="font-medium text-sm truncate block">{player.display_name}</span>
+                      <div className="col-span-2 flex items-center gap-1">
+                        <span className="font-medium text-sm truncate">{player.display_name}</span>
+                        {player.is_bot && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Bot className="h-3 w-3 text-primary" />
+                            </TooltipTrigger>
+                            <TooltipContent>Bot automatique</TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
                       <div className="col-span-2 text-sm text-muted-foreground flex items-center gap-1">
                         {player.clan || '-'}
