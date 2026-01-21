@@ -222,7 +222,23 @@ serve(async (req) => {
       );
     }
 
-    // Load data
+    // Load data - filter by session_game_id for Adventure mode
+    const monstersQuery = supabase.from('game_state_monsters').select('*').eq('game_id', gameId);
+    if (sessionGameId) {
+      monstersQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const inventoryQuery = supabase.from('inventory').select('*').eq('game_id', gameId);
+    if (sessionGameId) {
+      inventoryQuery.eq('session_game_id', sessionGameId);
+    }
+    
+    const positionsQuery = supabase.from('positions_finales').select('*').eq('game_id', gameId).eq('manche', manche);
+    if (sessionGameId) {
+      positionsQuery.eq('session_game_id', sessionGameId);
+    }
+    positionsQuery.order('position_finale', { ascending: true });
+    
     const [
       { data: positions },
       { data: itemCatalog },
@@ -231,11 +247,11 @@ serve(async (req) => {
       { data: inventory },
       { data: players },
     ] = await Promise.all([
-      supabase.from('positions_finales').select('*').eq('game_id', gameId).eq('manche', manche).order('position_finale', { ascending: true }),
+      positionsQuery,
       supabase.from('item_catalog').select('*'),
-      supabase.from('game_state_monsters').select('*').eq('game_id', gameId),
+      monstersQuery,
       supabase.from('monster_catalog').select('*'),
-      supabase.from('inventory').select('*').eq('game_id', gameId),
+      inventoryQuery,
       supabase.from('game_players').select('*').eq('game_id', gameId).eq('status', 'ACTIVE'),
     ]);
 
@@ -1083,13 +1099,16 @@ serve(async (req) => {
     const itemsMissingFromInventory: ConsumedItem[] = [];
     
     for (const item of consumedItems) {
-      const { data: invRow, error: invError } = await supabase
+      const invQuery = supabase
         .from('inventory')
         .select('*')
         .eq('game_id', gameId)
         .eq('owner_num', item.playerNum)
-        .eq('objet', item.itemName)
-        .single();
+        .eq('objet', item.itemName);
+      if (sessionGameId) {
+        invQuery.eq('session_game_id', sessionGameId);
+      }
+      const { data: invRow, error: invError } = await invQuery.single();
       
       if (invError || !invRow) {
         console.log(`[resolve-combat] Item not found in inventory: ${item.itemName} for player ${item.playerNum}`);
@@ -1151,11 +1170,15 @@ serve(async (req) => {
       });
     }
 
-    // Calculate forest state
-    const { data: updatedMonsters } = await supabase
+    // Calculate forest state - filter by session_game_id for Adventure mode
+    const forestQuery = supabase
       .from('game_state_monsters')
       .select('pv_current, status')
       .eq('game_id', gameId);
+    if (sessionGameId) {
+      forestQuery.eq('session_game_id', sessionGameId);
+    }
+    const { data: updatedMonsters } = await forestQuery;
 
     const totalPvCurrent = updatedMonsters?.reduce((sum, m) => sum + (m.pv_current || 0), 0) || 0;
     const forestState = {
@@ -1285,66 +1308,77 @@ serve(async (req) => {
       }),
       mineLogs.length > 0 ? supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'MINE_EXPLOSION',
         message: mineLogs.join('\n'),
       }) : Promise.resolve(),
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'ATTAQUES_RESUME',
         message: publicAttackMessages,
       }),
       kills.length > 0 ? supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'COUP_DE_GRACE',
         message: killMessages,
       }) : Promise.resolve(),
       bersekerPenaltyMessages ? supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'PENALITE_BERSEKER',
         message: bersekerPenaltyMessages,
       }) : Promise.resolve(),
       dotPublicMessages ? supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'EFFETS_RETARDES',
         message: dotPublicMessages,
       }) : Promise.resolve(),
       killBonusMessages ? supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'BONUS_KILL',
         message: killBonusMessages,
       }) : Promise.resolve(),
       voilePenaltyMessages ? supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'PENALITE_VOILE',
         message: voilePenaltyMessages,
       }) : Promise.resolve(),
       amuletteMessages ? supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'AMULETTE_SOUTIEN',
         message: amuletteMessages,
       }) : Promise.resolve(),
       mineMessages ? supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'MINE_POSEE',
         message: mineMessages,
       }) : Promise.resolve(),
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'ETAT_FORET',
         message: `🌲 État de la forêt: ${forestState.totalPvRemaining} PV restants (${kills.length} monstre(s) éliminé(s))`,
       }),
       supabase.from('logs_joueurs').insert({
         game_id: gameId,
+        session_game_id: sessionGameId,
         manche: manche,
         type: 'PHASE',
         message: '🛒 Phase 3 : Le marché est ouvert !',
