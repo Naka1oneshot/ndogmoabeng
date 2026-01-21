@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords, RefreshCw, Coins, Sparkles, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
@@ -1003,26 +1004,24 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                           <div className="flex items-center gap-0.5 min-w-0 flex-1">
                             <span className={`font-medium truncate ${isCompact ? 'max-w-[35px] md:max-w-[50px] text-[8px] md:text-[10px]' : 'max-w-[50px] md:max-w-[80px] text-[10px] md:text-xs'}`}>{team.teamName}</span>
                             {!isCompact && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
-                                      <Info className="h-2.5 md:h-3 w-2.5 md:w-3 text-amber-400" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="left" className="max-w-[180px]">
-                                    <div className="text-xs">
-                                      <p className="font-semibold">{team.teamName}</p>
-                                      {team.members.map(m => (
-                                        <p key={m.id} className="text-[10px] text-muted-foreground">
-                                          {m.display_name}{m.clan ? ` (${m.clan})` : ''}
-                                        </p>
-                                      ))}
-                                      <p className="text-amber-400 font-medium mt-1">Score: {team.teamScore}</p>
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button className="flex-shrink-0 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
+                                    <Info className="h-2.5 md:h-3 w-2.5 md:w-3 text-amber-400" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent side="left" className="max-w-[180px] p-2 bg-card border-border z-[300]">
+                                  <div className="text-xs">
+                                    <p className="font-semibold">{team.teamName}</p>
+                                    {team.members.map(m => (
+                                      <p key={m.id} className="text-[10px] text-muted-foreground">
+                                        {m.display_name}{m.clan ? ` (${m.clan})` : ''}
+                                      </p>
+                                    ))}
+                                    <p className="text-amber-400 font-medium mt-1">Score: {team.teamScore}</p>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
                             )}
                           </div>
                         </div>
