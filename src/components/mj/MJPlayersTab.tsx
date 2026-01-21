@@ -537,9 +537,9 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        {/* Actions principales */}
-        <div className="flex flex-wrap gap-3 items-center">
-          {isLobby && (
+        {/* Actions principales - Lobby */}
+        {isLobby && (
+          <div className="flex flex-wrap gap-3 items-center">
             <ForestButton
               onClick={handleStartGame}
               disabled={starting || activePlayers.length === 0}
@@ -548,11 +548,19 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
               {starting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
               Démarrer la partie ({activePlayers.length} joueurs)
             </ForestButton>
-          )}
-          
-          {/* Phase action button */}
-          {getPhaseActionButton()}
-        </div>
+          </div>
+        )}
+
+        {/* Phase action button - In Game */}
+        {isInGame && (
+          <div className="card-gradient rounded-lg border border-primary/30 bg-primary/5 p-4">
+            <h3 className="font-display text-sm mb-3 flex items-center gap-2 text-muted-foreground">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              Action de phase - Manche {game.manche_active || 1} ({game.phase || 'N/A'})
+            </h3>
+            {getPhaseActionButton()}
+          </div>
+        )}
 
         {/* Liste des joueurs actifs */}
         <div className="card-gradient rounded-lg border border-border p-4">
