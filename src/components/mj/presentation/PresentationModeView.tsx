@@ -955,27 +955,27 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
           <div className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:flex-1 md:overflow-hidden">
             {/* Left section: Battlefield + Queue */}
             <div className="md:col-span-7 flex flex-col gap-3 md:gap-4">
-              {/* Battlefield monsters */}
-              <div className="flex-1 bg-card/50 rounded-xl border border-border p-3 md:p-4">
-                <div className="flex items-center gap-2 mb-3 md:mb-4">
+              {/* Battlefield monsters - compact version */}
+              <div className="bg-card/50 rounded-xl border border-border p-2 md:p-3">
+                <div className="flex items-center gap-2 mb-2 md:mb-3">
                   <Swords className="h-4 md:h-5 w-4 md:w-5 text-destructive" />
-                  <h2 className="text-base md:text-lg font-bold">Champ de Bataille</h2>
+                  <h2 className="text-sm md:text-base font-bold">Champ de Bataille</h2>
                 </div>
-                <div className="grid grid-cols-3 gap-2 md:gap-6">
+                <div className="grid grid-cols-3 gap-2 md:gap-4">
                   {[1, 2, 3].map(slot => {
                     const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
                     return (
                       <div 
                         key={slot}
-                        className="flex flex-col items-center justify-center p-2 md:p-4 rounded-xl bg-secondary/50 border border-border"
+                        className="flex flex-col items-center justify-center p-1.5 md:p-2 rounded-lg bg-secondary/50 border border-border"
                       >
-                        <div className="text-[10px] md:text-xs text-muted-foreground mb-1 md:mb-2">Slot {slot}</div>
+                        <div className="text-[9px] md:text-[10px] text-muted-foreground mb-0.5 md:mb-1">Slot {slot}</div>
                         {monster ? (
                           <>
-                            <div className="w-14 h-14 md:w-24 md:h-24 rounded-lg md:rounded-xl overflow-hidden mb-1 md:mb-3 bg-secondary">
+                            <div className="w-10 h-10 md:w-16 md:h-16 rounded-lg overflow-hidden mb-0.5 md:mb-1 bg-secondary">
                               {monster.status === 'MORT' ? (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <Skull className="h-8 md:h-16 w-8 md:w-16 text-muted-foreground" />
+                                  <Skull className="h-6 md:h-10 w-6 md:w-10 text-muted-foreground" />
                                 </div>
                               ) : getMonsterImage(monster.monster_id) ? (
                                 <img 
@@ -984,26 +984,26 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-3xl md:text-6xl">🐉</div>
+                                <div className="w-full h-full flex items-center justify-center text-2xl md:text-4xl">🐉</div>
                               )}
                             </div>
                             {getMonsterType(monster) && (
-                              <div className="text-[10px] md:text-xs text-muted-foreground">{getMonsterType(monster)}</div>
+                              <div className="text-[8px] md:text-[10px] text-muted-foreground">{getMonsterType(monster)}</div>
                             )}
-                            <div className="text-xs md:text-lg font-bold text-center mb-1 md:mb-2 truncate w-full">{getMonsterName(monster)}</div>
-                            <div className="flex items-center gap-2 md:gap-4 text-[10px] md:text-sm">
-                              <span className="flex items-center gap-0.5 md:gap-1 text-destructive">
-                                <Heart className="h-3 md:h-4 w-3 md:w-4" />
+                            <div className="text-[10px] md:text-sm font-bold text-center truncate w-full">{getMonsterName(monster)}</div>
+                            <div className="flex items-center gap-1 md:gap-2 text-[9px] md:text-xs">
+                              <span className="flex items-center gap-0.5 text-destructive">
+                                <Heart className="h-2.5 md:h-3 w-2.5 md:w-3" />
                                 {getMonsterPvMax(monster)}
                               </span>
-                              <span className="flex items-center gap-0.5 md:gap-1 text-amber-500">
-                                <Trophy className="h-3 md:h-4 w-3 md:w-4" />
+                              <span className="flex items-center gap-0.5 text-amber-500">
+                                <Trophy className="h-2.5 md:h-3 w-2.5 md:w-3" />
                                 {getMonsterReward(monster)}
                               </span>
                             </div>
                           </>
                         ) : (
-                          <span className="text-muted-foreground text-xs md:text-sm">Vide</span>
+                          <span className="text-muted-foreground text-[10px] md:text-xs">Vide</span>
                         )}
                       </div>
                     );
@@ -1049,9 +1049,51 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   </div>
                 </div>
               )}
+              {/* Attack positions display - below Queue on left side */}
+              {isPhase2 && hasPositions && (
+                <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-2 md:p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Swords className="h-3.5 md:h-4 w-3.5 md:w-4 text-purple-500" />
+                    <h3 className="text-xs md:text-sm font-semibold text-purple-500">Positions d'attaque</h3>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 md:gap-3">
+                    {[1, 2, 3].map(slot => {
+                      const playersAtSlot = positions.filter(p => p.position_finale === slot);
+                      const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
+                      return (
+                        <div key={slot} className="bg-purple-500/20 rounded-lg p-1.5 md:p-2 border border-purple-500/30">
+                          <div className="text-center text-[9px] md:text-[10px] text-muted-foreground mb-1">
+                            Slot {slot} {monster ? `- ${getMonsterName(monster)}` : ''}
+                          </div>
+                          <div className="flex flex-wrap justify-center gap-1">
+                            {playersAtSlot.length > 0 ? (
+                              playersAtSlot.map((pos, idx) => {
+                                const player = players.find(p => p.player_number === pos.num_joueur);
+                                return (
+                                  <div key={pos.num_joueur} className="flex flex-col items-center gap-0.5">
+                                    <Avatar className={`h-5 md:h-7 w-5 md:w-7 border-2 ${idx === 0 ? 'border-purple-400' : 'border-purple-500/50'}`}>
+                                      <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
+                                      <AvatarFallback className="bg-purple-600/50 text-white text-[8px] md:text-[10px]">
+                                        {pos.nom.charAt(0).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-[8px] md:text-[9px] text-center truncate max-w-[40px]">{pos.nom}</span>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <span className="text-[9px] text-muted-foreground italic">Aucun</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Right section: Status + Rankings */}
+            {/* Right section: Status + Rankings + Priority */}
             <div className="md:col-span-5 flex flex-col gap-3 md:gap-4 md:overflow-hidden">
               {/* Validation status for Phase 1 or Phase 2 before positions */}
               {(isPhase1 || (isPhase2 && !hasPositions)) && (
@@ -1085,82 +1127,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                 </div>
               )}
 
-              {/* Priority order in Phase 2 (always if priorities exist) or in combat */}
-              {(isPhase2 || isPhase4) && priorities.length > 0 && (
-                <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-2 md:p-4">
-                  <div className="flex items-center gap-2 mb-2 md:mb-3">
-                    <Target className="h-4 md:h-5 w-4 md:w-5 text-blue-500" />
-                    <h3 className="text-sm md:text-base font-semibold text-blue-500">Ordre d'attaque (mises)</h3>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-                    {priorities.map((pr, index) => {
-                      const player = players.find(p => p.player_number === pr.num_joueur);
-                      return (
-                        <div 
-                          key={pr.player_id} 
-                          className={`flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-0.5 md:py-1 rounded-lg ${
-                            index === 0 ? 'bg-blue-600/40 border border-blue-500' : 'bg-blue-500/20'
-                          }`}
-                        >
-                          <Avatar className={`h-5 md:h-7 w-5 md:w-7 border-2 ${index === 0 ? 'border-blue-400' : 'border-blue-500/50'}`}>
-                            <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
-                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[9px] md:text-xs`}>
-                              {pr.display_name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs md:text-sm font-medium">{pr.display_name}</span>
-                          <span className="text-[10px] md:text-xs text-blue-400">#{pr.rank}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Attack positions display - after positions are published */}
-              {isPhase2 && hasPositions && (
-                <div className="bg-purple-500/10 rounded-xl border border-purple-600/30 p-2 md:p-4">
-                  <div className="flex items-center gap-2 mb-2 md:mb-3">
-                    <Swords className="h-4 md:h-5 w-4 md:w-5 text-purple-500" />
-                    <h3 className="text-sm md:text-base font-semibold text-purple-500">Positions d'attaque</h3>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 md:gap-3">
-                    {[1, 2, 3].map(slot => {
-                      const playersAtSlot = positions.filter(p => p.position_finale === slot);
-                      const monster = battlefieldMonsters.find(m => m.battlefield_slot === slot);
-                      return (
-                        <div key={slot} className="bg-purple-500/20 rounded-lg p-2 md:p-3 border border-purple-500/30">
-                          <div className="text-center text-[10px] md:text-xs text-muted-foreground mb-1.5">
-                            Slot {slot} {monster ? `- ${getMonsterName(monster)}` : ''}
-                          </div>
-                          <div className="flex flex-wrap justify-center gap-1">
-                            {playersAtSlot.length > 0 ? (
-                              playersAtSlot.map((pos, idx) => {
-                                const player = players.find(p => p.player_number === pos.num_joueur);
-                                return (
-                                  <div key={pos.num_joueur} className="flex flex-col items-center gap-0.5">
-                                    <Avatar className={`h-6 md:h-8 w-6 md:w-8 border-2 ${idx === 0 ? 'border-purple-400' : 'border-purple-500/50'}`}>
-                                      <AvatarImage src={player?.avatar_url || undefined} alt={pos.nom} />
-                                      <AvatarFallback className="bg-purple-600/50 text-white text-[9px] md:text-xs">
-                                        {pos.nom.charAt(0).toUpperCase()}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-[9px] md:text-[10px] text-center truncate max-w-[50px]">{pos.nom}</span>
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground italic">Aucun</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Team Ranking */}
+              {/* Team Ranking - first on right side */}
               <div className="flex-1 bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 md:p-4 overflow-hidden flex flex-col">
                 <div className="flex items-center gap-2 mb-2 md:mb-3">
                   <Trophy className="h-4 md:h-5 w-4 md:w-5 text-amber-500" />
@@ -1205,6 +1172,38 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
                   </div>
                 </ScrollArea>
               </div>
+
+              {/* Priority order - below Team Ranking */}
+              {(isPhase2 || isPhase4) && priorities.length > 0 && (
+                <div className="bg-blue-500/10 rounded-xl border border-blue-600/30 p-2 md:p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target className="h-3.5 md:h-4 w-3.5 md:w-4 text-blue-500" />
+                    <h3 className="text-xs md:text-sm font-semibold text-blue-500">Ordre de priorité (mises)</h3>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1 md:gap-1.5">
+                    {priorities.map((pr, index) => {
+                      const player = players.find(p => p.player_number === pr.num_joueur);
+                      return (
+                        <div 
+                          key={pr.player_id} 
+                          className={`flex items-center gap-1 px-1.5 md:px-2 py-0.5 rounded-lg ${
+                            index === 0 ? 'bg-blue-600/40 border border-blue-500' : 'bg-blue-500/20'
+                          }`}
+                        >
+                          <Avatar className={`h-4 md:h-6 w-4 md:w-6 border ${index === 0 ? 'border-blue-400' : 'border-blue-500/50'}`}>
+                            <AvatarImage src={player?.avatar_url || undefined} alt={pr.display_name} />
+                            <AvatarFallback className={`${index === 0 ? 'bg-blue-600' : 'bg-blue-600/50'} text-white text-[8px] md:text-[10px]`}>
+                              {pr.display_name.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-[10px] md:text-xs font-medium">{pr.display_name}</span>
+                          <span className="text-[9px] md:text-[10px] text-blue-400">#{pr.rank}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
