@@ -520,8 +520,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
   const teams = buildTeams();
   
-  // Check if game is ended
-  const isGameEnded = game.phase === 'FINISHED' || game.phase === 'ENDED';
+  // Check if game is ended - ONLY when phase is explicitly FINISHED/ENDED
+  // Explicitly exclude shop phases to prevent false positives when battlefield is empty
+  const gamePhase = game.phase;
+  const isShopPhase = gamePhase === 'PHASE3_SHOP' || gamePhase === 'SHOP';
+  const isGameEnded = !isShopPhase && (gamePhase === 'FINISHED' || gamePhase === 'ENDED');
   
   // Build player rankings for victory screen with detailed stats
   const playerRankings = players
