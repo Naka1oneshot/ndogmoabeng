@@ -193,13 +193,37 @@ export function MJCombatTab({ game, isAdventure, onNextGame }: MJCombatTabProps)
   const handleEndGame = async () => {
     setEndingGame(true);
     try {
+      // Find winner (player with highest score)
+      const winnerUserId = playerRanking[0]?.id ? 
+        players.find(p => p.id === playerRanking[0].id)?.id : null;
+      
+      // We need to get the user_id from game_players
+      const { data: winnerData } = await supabase
+        .from('game_players')
+        .select('user_id')
+        .eq('game_id', game.id)
+        .eq('status', 'ACTIVE')
+        .order('jetons', { ascending: false })
+        .limit(1)
+        .single();
+      
       // Update game status to ENDED
       const { error } = await supabase
         .from('games')
-        .update({ status: 'ENDED', phase: 'ENDED' })
+        .update({ status: 'ENDED', phase: 'FINISHED', winner_declared: true })
         .eq('id', game.id);
 
       if (error) throw error;
+
+      // Update player profile statistics
+      const { error: statsError } = await supabase.rpc('update_player_stats_on_game_end', {
+        p_game_id: game.id,
+        p_winner_user_id: winnerData?.user_id || null
+      });
+      
+      if (statsError) {
+        console.error('Stats update error:', statsError);
+      }
 
       // Log the end
       await supabase.from('logs_mj').insert({
@@ -216,7 +240,7 @@ export function MJCombatTab({ game, isAdventure, onNextGame }: MJCombatTabProps)
         message: 'La partie est terminée ! Tous les monstres ont été vaincus.',
       });
 
-      toast.success('Partie terminée !');
+      toast.success('Partie terminée ! Statistiques mises à jour.');
       setShowFinalRanking(true);
     } catch (error) {
       console.error('Error ending game:', error);
