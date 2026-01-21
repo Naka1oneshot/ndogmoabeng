@@ -26,9 +26,13 @@ export function usePresentationAnimations({
   const [showCoupDeGrace, setShowCoupDeGrace] = useState(false);
   const [coupDeGraceInfo, setCoupDeGraceInfo] = useState<CoupDeGraceInfo | null>(null);
   
-  const previousPhaseRef = useRef<string>(phase);
+  // Track the previous phase to detect actual changes
+  const previousPhaseRef = useRef<string | null>(null);
   const previousKillsCountRef = useRef<number>(0);
-  const initialLoadDone = useRef(false);
+  // Track if the hook has been properly initialized (not just first render)
+  const isInitializedRef = useRef(false);
+  // Track the last enabled state to detect when hook becomes active
+  const wasEnabledRef = useRef(false);
 
   const triggerPhaseTransition = useCallback((newPhase: string) => {
     const phaseNames: Record<string, string> = {
@@ -50,18 +54,35 @@ export function usePresentationAnimations({
     setTimeout(() => setShowCoupDeGrace(false), 3500);
   }, []);
 
-  // Phase change detection
+  // Phase change detection - only trigger on actual phase changes after initialization
   useEffect(() => {
-    if (!enabled || !initialLoadDone.current) {
-      initialLoadDone.current = true;
-      previousPhaseRef.current = phase;
+    // If hook is not enabled, reset state and return
+    if (!enabled) {
+      wasEnabledRef.current = false;
       return;
     }
 
-    if (previousPhaseRef.current !== phase) {
-      triggerPhaseTransition(phase);
+    // If hook just became enabled (player joined mid-game), just record current phase without animating
+    if (!wasEnabledRef.current) {
+      wasEnabledRef.current = true;
       previousPhaseRef.current = phase;
+      isInitializedRef.current = true;
+      return;
     }
+
+    // If not yet initialized (shouldn't happen at this point but safety check)
+    if (!isInitializedRef.current) {
+      previousPhaseRef.current = phase;
+      isInitializedRef.current = true;
+      return;
+    }
+
+    // Only trigger animation if phase actually changed from a known previous phase
+    if (previousPhaseRef.current !== null && previousPhaseRef.current !== phase) {
+      triggerPhaseTransition(phase);
+    }
+    
+    previousPhaseRef.current = phase;
   }, [phase, enabled, triggerPhaseTransition]);
 
   // Subscribe to combat results for coup de grâce
