@@ -9,7 +9,7 @@ import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { useUserRole } from '@/hooks/useUserRole';
 import { 
   Users, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, 
-  UserX, Lock, Coins, ShieldCheck, Bot
+  UserX, Lock, Coins, ShieldCheck, Bot, Plus, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -50,10 +50,11 @@ interface RiverPlayerStats {
 interface MJRivieresPlayersTabProps {
   gameId: string;
   sessionGameId: string;
+  gameStatus?: string;
   onRefresh: () => void;
 }
 
-export function MJRivieresPlayersTab({ gameId, sessionGameId, onRefresh }: MJRivieresPlayersTabProps) {
+export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, onRefresh }: MJRivieresPlayersTabProps) {
   const { isAdmin } = useUserRole();
   const [players, setPlayers] = useState<Player[]>([]);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats[]>([]);
@@ -66,6 +67,15 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, onRefresh }: MJRiv
   
   const [kickModalOpen, setKickModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; name: string } | null>(null);
+
+  // Bot management state
+  const [addingBots, setAddingBots] = useState(false);
+  const [deletingBots, setDeletingBots] = useState(false);
+  const [botCount, setBotCount] = useState(5);
+  const [botsWithClans, setBotsWithClans] = useState(false);
+  const [botsWithMates, setBotsWithMates] = useState(false);
+  
+  const isLobby = gameStatus === 'LOBBY';
 
   useEffect(() => {
     fetchData();
@@ -105,6 +115,66 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, onRefresh }: MJRiv
       .eq('session_game_id', sessionGameId)
       .order('player_num');
     if (data) setPlayerStats(data);
+  };
+
+  // Add bots handler
+  const handleAddBots = async () => {
+    if (!isAdmin) {
+      toast.error('Seuls les administrateurs peuvent ajouter des bots');
+      return;
+    }
+    
+    setAddingBots(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('add-bots', {
+        body: { gameId, count: botCount, withClans: botsWithClans, withMates: botsWithMates },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || 'Erreur lors de l\'ajout des bots');
+      }
+
+      toast.success(`${data.botsAdded} bots ajoutés !`);
+      fetchData();
+    } catch (error: any) {
+      console.error('Error adding bots:', error);
+      toast.error(error.message || 'Erreur lors de l\'ajout des bots');
+    } finally {
+      setAddingBots(false);
+    }
+  };
+
+  // Delete all bots handler
+  const handleDeleteAllBots = async () => {
+    if (!isAdmin) {
+      toast.error('Seuls les administrateurs peuvent supprimer les bots');
+      return;
+    }
+    
+    const botPlayers = players.filter(p => p.is_bot && p.status === 'ACTIVE');
+    if (botPlayers.length === 0) {
+      toast.info('Aucun bot à supprimer');
+      return;
+    }
+    
+    setDeletingBots(true);
+    try {
+      const { error } = await supabase
+        .from('game_players')
+        .delete()
+        .eq('game_id', gameId)
+        .eq('is_bot', true);
+
+      if (error) throw error;
+
+      toast.success(`${botPlayers.length} bots supprimés !`);
+      fetchData();
+    } catch (error: any) {
+      console.error('Error deleting bots:', error);
+      toast.error(error.message || 'Erreur lors de la suppression des bots');
+    } finally {
+      setDeletingBots(false);
+    }
   };
 
   const handleResetToken = async (playerId: string, playerName: string) => {
@@ -314,6 +384,68 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, onRefresh }: MJRiv
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* Bot management - Admin only, Lobby only */}
+        {isAdmin && isLobby && (
+          <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-dashed border-[#D4AF37]/30 bg-[#D4AF37]/5">
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-[#D4AF37]" />
+              <span className="text-sm text-[#9CA3AF]">Bots:</span>
+              <Input
+                type="number"
+                min={1}
+                max={50}
+                value={botCount}
+                onChange={(e) => setBotCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+                className="h-8 w-16 text-sm text-center bg-[#0B1020] border-[#D4AF37]/30 text-[#E8E8E8]"
+              />
+            </div>
+            
+            <div className="flex items-center gap-3 text-sm">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={botsWithClans}
+                  onChange={(e) => setBotsWithClans(e.target.checked)}
+                  className="h-4 w-4 rounded border-[#D4AF37]/30 accent-[#D4AF37]"
+                />
+                <span className="text-[#9CA3AF]">Clans aléatoires</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={botsWithMates}
+                  onChange={(e) => setBotsWithMates(e.target.checked)}
+                  className="h-4 w-4 rounded border-[#D4AF37]/30 accent-[#D4AF37]"
+                />
+                <span className="text-[#9CA3AF]">Mates aléatoires</span>
+              </label>
+            </div>
+            
+            <ForestButton
+              size="sm"
+              onClick={handleAddBots}
+              disabled={addingBots}
+              className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
+            >
+              {addingBots ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Ajouter
+            </ForestButton>
+            
+            {players.some(p => p.is_bot && p.status === 'ACTIVE') && (
+              <ForestButton
+                size="sm"
+                onClick={handleDeleteAllBots}
+                disabled={deletingBots}
+                variant="ghost"
+                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              >
+                {deletingBots ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Supprimer tous
+              </ForestButton>
+            )}
+          </div>
+        )}
 
         {/* Liste des joueurs actifs */}
         <div className={rivieresCardStyle}>
