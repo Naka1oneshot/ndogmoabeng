@@ -107,6 +107,17 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Persist active tab across refreshes
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return sessionStorage.getItem(`rivieres-tab-${sessionGameId}`) || 'players';
+  });
+
+  // Save tab to sessionStorage when it changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    sessionStorage.setItem(`rivieres-tab-${sessionGameId}`, value);
+  };
+
   // Danger form
   const [diceCount, setDiceCount] = useState(3);
   const [manualDanger, setManualDanger] = useState(0);
@@ -888,7 +899,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         </div>
       )}
 
-      <Tabs defaultValue={isGameFinished ? "players" : "players"} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-[#20232A]">
           <TabsTrigger value="players" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
             <Users className="h-4 w-4 mr-1" /> Joueurs
