@@ -74,7 +74,14 @@ interface AuditLogEntry {
   performed_by_email: string;
   target_user_email: string;
   action: string;
-  details: { display_name?: string } | null;
+  details: { 
+    display_name?: string;
+    tokens_count?: number;
+    points_count?: number;
+    note?: string;
+    previous_balance?: number;
+    new_balance?: number;
+  } | null;
   created_at: string;
 }
 
@@ -1029,6 +1036,16 @@ export default function AdminSubscriptions() {
                                 <Badge className="bg-destructive/20 text-destructive border-destructive/30">
                                   <UserX className="w-3 h-3 mr-1" />
                                   Révocation
+                                </Badge>
+                              ) : entry.action === 'GRANT_TOKENS' ? (
+                                <Badge className="bg-accent/20 text-accent border-accent/30">
+                                  <Zap className="w-3 h-3 mr-1" />
+                                  +{entry.details?.tokens_count || '?'} Tokens
+                                </Badge>
+                              ) : entry.action === 'GRANT_LOYALTY' ? (
+                                <Badge className="bg-primary/20 text-primary border-primary/30">
+                                  <Star className="w-3 h-3 mr-1" />
+                                  +{entry.details?.points_count || '?'} Points
                                 </Badge>
                               ) : (
                                 <Badge variant="outline">{entry.action}</Badge>

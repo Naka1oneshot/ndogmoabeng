@@ -35,12 +35,12 @@ serve(async (req) => {
 
     logStep("Authenticated user", { userId: userData.user.id });
 
-    // Check if user is admin
+    // Check if user is admin or super_admin
     const { data: roleData, error: roleError } = await supabaseClient
       .from("user_roles")
       .select("role")
       .eq("user_id", userData.user.id)
-      .eq("role", "admin")
+      .in("role", ["admin", "super_admin"])
       .maybeSingle();
 
     if (roleError || !roleData) {
@@ -75,6 +75,10 @@ serve(async (req) => {
 
     logStep("Target user found", { targetUserId: profile.user_id });
 
+    // Get target user email for audit log
+    const { data: targetUserData } = await supabaseClient.auth.admin.getUserById(profile.user_id);
+    const targetEmail = targetUserData?.user?.email || 'unknown';
+
     // Grant loyalty points using the database function
     const { data: newBalance, error: pointsError } = await supabaseClient.rpc(
       "add_loyalty_points",
@@ -94,6 +98,21 @@ serve(async (req) => {
     }
 
     logStep("Points granted successfully", { newBalance });
+
+    // Log the action in audit log
+    await supabaseClient.from("admin_audit_log").insert({
+      performed_by: userData.user.id,
+      performed_by_email: userData.user.email || 'unknown',
+      target_user_id: profile.user_id,
+      target_user_email: targetEmail,
+      action: 'GRANT_LOYALTY',
+      details: { 
+        display_name: profile.display_name,
+        points_count,
+        note: note || null,
+        new_balance: newBalance
+      }
+    });
 
     return new Response(
       JSON.stringify({

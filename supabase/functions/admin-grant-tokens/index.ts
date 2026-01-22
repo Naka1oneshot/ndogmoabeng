@@ -37,18 +37,22 @@ serve(async (req) => {
     const adminUserId = claimsData.claims.sub as string;
     logStep("Admin user authenticated", { adminUserId });
 
-    // Verify admin role
+    // Verify admin role (admin or super_admin)
     const { data: adminRole, error: roleError } = await supabaseClient
       .from("user_roles")
       .select("role")
       .eq("user_id", adminUserId)
-      .eq("role", "admin")
+      .in("role", ["admin", "super_admin"])
       .maybeSingle();
 
     if (roleError || !adminRole) {
       throw new Error("Unauthorized: Admin role required");
     }
     logStep("Admin role verified");
+
+    // Get admin email for audit log
+    const { data: adminUserData } = await supabaseClient.auth.admin.getUserById(adminUserId);
+    const adminEmail = adminUserData?.user?.email || 'unknown';
 
     const { display_name, tokens_count } = await req.json();
     
@@ -68,6 +72,10 @@ serve(async (req) => {
       throw new Error(`User not found with display name: ${display_name}`);
     }
     logStep("Target user found", { userId: targetProfile.user_id });
+
+    // Get target user email for audit log
+    const { data: targetUserData } = await supabaseClient.auth.admin.getUserById(targetProfile.user_id);
+    const targetEmail = targetUserData?.user?.email || 'unknown';
 
     // Upsert the bonus tokens
     const { data: existingBonus } = await supabaseClient
@@ -100,6 +108,21 @@ serve(async (req) => {
       previousTokens: currentTokens, 
       addedTokens: tokens_count, 
       newTotal: newTokens 
+    });
+
+    // Log the action in audit log
+    await supabaseClient.from("admin_audit_log").insert({
+      performed_by: adminUserId,
+      performed_by_email: adminEmail,
+      target_user_id: targetProfile.user_id,
+      target_user_email: targetEmail,
+      action: 'GRANT_TOKENS',
+      details: { 
+        display_name: targetProfile.display_name,
+        tokens_count,
+        previous_balance: currentTokens,
+        new_balance: newTokens
+      }
     });
 
     return new Response(JSON.stringify({
