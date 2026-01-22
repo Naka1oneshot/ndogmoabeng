@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target, Vote, Crosshair, Clock } from 'lucide-react';
+import { Target, Vote, Crosshair, Clock, Bot, CheckCircle, XCircle } from 'lucide-react';
 import { INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Player {
   id: string;
@@ -41,6 +42,23 @@ interface InfectionShot {
   manche: number;
 }
 
+interface BotDecisionLog {
+  id: string;
+  manche: number;
+  timestamp: string;
+  details: string;
+}
+
+interface BotDecisionResult {
+  player_number: number;
+  display_name: string;
+  role_code: string;
+  action?: string;
+  target?: number;
+  amount?: number;
+  skipped_reason?: string;
+}
+
 interface MJActionsTabProps {
   gameId: string;
   sessionGameId: string;
@@ -52,6 +70,7 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
   const theme = getInfectionThemeClasses();
   const [inputs, setInputs] = useState<InfectionInput[]>([]);
   const [shots, setShots] = useState<InfectionShot[]>([]);
+  const [botLogs, setBotLogs] = useState<BotDecisionLog[]>([]);
   const [subTab, setSubTab] = useState('roles');
 
   useEffect(() => {
@@ -61,13 +80,14 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
       .channel(`mj-actions-${sessionGameId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_inputs', filter: `session_game_id=eq.${sessionGameId}` }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_shots', filter: `session_game_id=eq.${sessionGameId}` }, fetchData)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs_mj', filter: `game_id=eq.${gameId}` }, fetchData)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [sessionGameId, manche]);
+  }, [sessionGameId, manche, gameId]);
 
   const fetchData = async () => {
-    const [{ data: inputsData }, { data: shotsData }] = await Promise.all([
+    const [{ data: inputsData }, { data: shotsData }, { data: logsData }] = await Promise.all([
       supabase
         .from('infection_inputs')
         .select('*')
@@ -79,10 +99,26 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
         .eq('session_game_id', sessionGameId)
         .eq('manche', manche)
         .order('server_ts', { ascending: true }),
+      supabase
+        .from('logs_mj')
+        .select('id, manche, timestamp, details')
+        .eq('game_id', gameId)
+        .eq('action', 'BOT_DECISIONS')
+        .order('timestamp', { ascending: false })
+        .limit(20),
     ]);
 
     if (inputsData) setInputs(inputsData);
     if (shotsData) setShots(shotsData);
+    if (logsData) setBotLogs(logsData as BotDecisionLog[]);
+  };
+
+  const parseBotDecisions = (details: string): { bots_processed: number; inputs_created: number; shots_created: number; results: BotDecisionResult[] } | null => {
+    try {
+      return JSON.parse(details);
+    } catch {
+      return null;
+    }
   };
 
   const getPlayerName = (num: number | null) => {
@@ -106,16 +142,20 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
     <div className="space-y-4">
       <Tabs value={subTab} onValueChange={setSubTab}>
         <TabsList className="w-full bg-[#121A2B] border-b border-[#2D3748] rounded-none">
-          <TabsTrigger value="roles" className="flex-1 data-[state=active]:bg-[#1A2235]">
+          <TabsTrigger value="roles" className="flex-1 data-[state=active]:bg-[#1A2235] text-xs sm:text-sm">
             Par rôle
           </TabsTrigger>
-          <TabsTrigger value="shots" className="flex-1 data-[state=active]:bg-[#1A2235]">
-            <Crosshair className="h-3 w-3 mr-1" />
-            Tirs ({shots.length})
+          <TabsTrigger value="shots" className="flex-1 data-[state=active]:bg-[#1A2235] text-xs sm:text-sm">
+            <Crosshair className="h-3 w-3 sm:mr-1" />
+            <span className="hidden sm:inline">Tirs</span> ({shots.length})
           </TabsTrigger>
-          <TabsTrigger value="votes" className="flex-1 data-[state=active]:bg-[#1A2235]">
-            <Vote className="h-3 w-3 mr-1" />
-            Votes
+          <TabsTrigger value="votes" className="flex-1 data-[state=active]:bg-[#1A2235] text-xs sm:text-sm">
+            <Vote className="h-3 w-3 sm:mr-1" />
+            <span className="hidden sm:inline">Votes</span>
+          </TabsTrigger>
+          <TabsTrigger value="bots" className="flex-1 data-[state=active]:bg-[#1A2235] text-xs sm:text-sm">
+            <Bot className="h-3 w-3 sm:mr-1" />
+            <span className="hidden sm:inline">Bots</span> ({botLogs.length})
           </TabsTrigger>
         </TabsList>
 
@@ -354,6 +394,95 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
                 })()
               )}
             </div>
+          </div>
+        </TabsContent>
+
+        {/* Bot Decisions History */}
+        <TabsContent value="bots" className="mt-4 space-y-4">
+          <div className={theme.card}>
+            <div className="p-3 border-b border-[#2D3748]">
+              <span className="font-semibold">Historique des décisions bots</span>
+            </div>
+            <ScrollArea className="max-h-[500px]">
+              <div className="divide-y divide-[#2D3748]">
+                {botLogs.length === 0 ? (
+                  <div className="p-4 text-center text-[#6B7280]">
+                    Aucune décision de bot enregistrée
+                  </div>
+                ) : (
+                  botLogs.map(log => {
+                    const parsed = parseBotDecisions(log.details);
+                    const logManche = log.manche;
+                    const isCurrentManche = logManche === manche;
+                    
+                    return (
+                      <div key={log.id} className={`p-3 ${isCurrentManche ? 'bg-[#D4AF37]/5' : ''}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={isCurrentManche ? 'default' : 'outline'} className={isCurrentManche ? 'bg-[#D4AF37] text-black' : ''}>
+                              M.{logManche}
+                            </Badge>
+                            <span className="text-xs text-[#6B7280]">
+                              {new Date(log.timestamp).toLocaleTimeString('fr-FR')}
+                            </span>
+                          </div>
+                          {parsed && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-[#2AB3A6]">{parsed.inputs_created + parsed.shots_created} actions</span>
+                              <span className="text-[#6B7280]">/</span>
+                              <span className="text-[#9CA3AF]">{parsed.bots_processed} bots</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {parsed?.results && parsed.results.length > 0 && (
+                          <div className="space-y-1 mt-2">
+                            {parsed.results.map((result, idx) => {
+                              const roleInfo = INFECTION_ROLE_LABELS[result.role_code];
+                              const hasAction = !!result.action;
+                              
+                              return (
+                                <div key={idx} className="flex items-center gap-2 text-xs">
+                                  {hasAction ? (
+                                    <CheckCircle className="h-3 w-3 text-[#2AB3A6] shrink-0" />
+                                  ) : (
+                                    <XCircle className="h-3 w-3 text-[#6B7280] shrink-0" />
+                                  )}
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-xs px-1 py-0"
+                                    style={{ 
+                                      borderColor: roleInfo?.color || '#666', 
+                                      color: roleInfo?.color || '#666' 
+                                    }}
+                                  >
+                                    {roleInfo?.short || result.role_code}
+                                  </Badge>
+                                  <span className={hasAction ? 'text-white' : 'text-[#6B7280]'}>
+                                    #{result.player_number} {result.display_name}
+                                  </span>
+                                  {hasAction ? (
+                                    <span className="text-[#D4AF37]">
+                                      → {result.action}
+                                      {result.target && ` (${getPlayerName(result.target)})`}
+                                      {result.amount && ` [${result.amount}j]`}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[#6B7280] italic truncate max-w-[150px]">
+                                      {result.skipped_reason}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </ScrollArea>
           </div>
         </TabsContent>
       </Tabs>
