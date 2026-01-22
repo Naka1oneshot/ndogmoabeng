@@ -912,7 +912,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                 <Flag className="h-5 w-5 mr-2" />
                 Jeu suivant
               </ForestButton>
-            ) : (
+            ) : gameStatus !== 'ENDED' ? (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <ForestButton
@@ -939,7 +939,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            )}
+            ) : null}
           </div>
         </div>
       )}
