@@ -231,8 +231,9 @@ export default function MJ() {
   // Game actions
   const [deleting, setDeleting] = useState<string | null>(null);
   
-  // Search filter
+  // Search and filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [gameTypeFilter, setGameTypeFilter] = useState<string | null>(null);
 
   // Check if user can create a new game based on subscription limits
   const { canCreateGame, limits, max_limits } = useSubscription();
@@ -694,24 +695,71 @@ export default function MJ() {
               </ForestButton>
             </div>
 
-            {/* Barre de recherche */}
+            {/* Barre de recherche et filtres */}
             {games.length > 0 && (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher par nom ou code..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-10"
-                />
-                {searchQuery && (
+              <div className="space-y-3">
+                {/* Recherche textuelle */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher par nom ou code..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-10"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                
+                {/* Filtres par type de jeu */}
+                <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setGameTypeFilter(null)}
+                    className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                      gameTypeFilter === null 
+                        ? 'bg-primary text-primary-foreground border-primary' 
+                        : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+                    }`}
                   >
-                    <X className="h-4 w-4" />
+                    Tous
                   </button>
-                )}
+                  <button
+                    onClick={() => setGameTypeFilter(gameTypeFilter === 'FORET' ? null : 'FORET')}
+                    className={`px-3 py-1.5 text-sm rounded-full border transition-colors flex items-center gap-1.5 ${
+                      gameTypeFilter === 'FORET' 
+                        ? 'bg-emerald-600 text-white border-emerald-600' 
+                        : 'bg-muted/50 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
+                    }`}
+                  >
+                    🌲 Forêt
+                  </button>
+                  <button
+                    onClick={() => setGameTypeFilter(gameTypeFilter === 'RIVIERES' ? null : 'RIVIERES')}
+                    className={`px-3 py-1.5 text-sm rounded-full border transition-colors flex items-center gap-1.5 ${
+                      gameTypeFilter === 'RIVIERES' 
+                        ? 'bg-blue-600 text-white border-blue-600' 
+                        : 'bg-muted/50 text-blue-400 border-blue-500/30 hover:bg-blue-500/10'
+                    }`}
+                  >
+                    🌊 Rivières
+                  </button>
+                  <button
+                    onClick={() => setGameTypeFilter(gameTypeFilter === 'INFECTION' ? null : 'INFECTION')}
+                    className={`px-3 py-1.5 text-sm rounded-full border transition-colors flex items-center gap-1.5 ${
+                      gameTypeFilter === 'INFECTION' 
+                        ? 'bg-purple-600 text-white border-purple-600' 
+                        : 'bg-muted/50 text-purple-400 border-purple-500/30 hover:bg-purple-500/10'
+                    }`}
+                  >
+                    🧟 Infection
+                  </button>
+                </div>
               </div>
             )}
 
@@ -734,29 +782,45 @@ export default function MJ() {
                   <p className="text-sm mt-2">Cliquez sur "Nouvelle partie" pour commencer</p>
                 </div>
               ) : (() => {
-                // Filter games by search query
+                // Filter games by search query and game type
                 const query = searchQuery.toLowerCase().trim();
-                const filteredGames = query
-                  ? games.filter(g => 
-                      g.name.toLowerCase().includes(query) || 
-                      g.join_code.toLowerCase().includes(query)
-                    )
-                  : games;
+                let filteredGames = games;
+                
+                // Apply text search filter
+                if (query) {
+                  filteredGames = filteredGames.filter(g => 
+                    g.name.toLowerCase().includes(query) || 
+                    g.join_code.toLowerCase().includes(query)
+                  );
+                }
+                
+                // Apply game type filter
+                if (gameTypeFilter) {
+                  filteredGames = filteredGames.filter(g => 
+                    g.selected_game_type_code === gameTypeFilter
+                  );
+                }
 
                 const inProgress = filteredGames.filter(g => g.status === 'IN_GAME' || g.status === 'RUNNING');
                 const waiting = filteredGames.filter(g => g.status === 'LOBBY');
                 const finished = filteredGames.filter(g => g.status === 'FINISHED' || g.status === 'ENDED');
 
                 if (filteredGames.length === 0) {
+                  const hasFilters = query || gameTypeFilter;
                   return (
                     <div className="card-gradient rounded-lg border border-border p-8 text-center text-muted-foreground">
-                      <p>Aucune partie trouvée pour "{searchQuery}"</p>
-                      <button 
-                        onClick={() => setSearchQuery('')}
-                        className="text-sm mt-2 text-primary hover:underline"
-                      >
-                        Effacer la recherche
-                      </button>
+                      <p>Aucune partie trouvée{hasFilters ? ' avec ces critères' : ''}</p>
+                      {hasFilters && (
+                        <button 
+                          onClick={() => {
+                            setSearchQuery('');
+                            setGameTypeFilter(null);
+                          }}
+                          className="text-sm mt-2 text-primary hover:underline"
+                        >
+                          Effacer les filtres
+                        </button>
+                      )}
                     </div>
                   );
                 }
