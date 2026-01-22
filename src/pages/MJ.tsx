@@ -16,7 +16,7 @@ import { AdminBadge } from '@/components/game/AdminBadge';
 import { MJDashboard } from '@/components/mj/MJDashboard';
 import { 
   Plus, Loader2, 
-  ChevronLeft, Trash2, Eye, Users, Map, Gamepad2, Globe, Lock, Crown
+  ChevronLeft, Trash2, Eye, Users, Map, Gamepad2, Globe, Lock, Crown, Search, X
 } from 'lucide-react';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { Badge } from '@/components/ui/badge';
@@ -230,6 +230,9 @@ export default function MJ() {
   
   // Game actions
   const [deleting, setDeleting] = useState<string | null>(null);
+  
+  // Search filter
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Check if user can create a new game based on subscription limits
   const { canCreateGame, limits, max_limits } = useSubscription();
@@ -669,7 +672,7 @@ export default function MJ() {
         {viewMode === 'list' && (
           <>
             {/* Header avec bouton créer */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h2 className="font-display text-lg">
                   {isAdmin ? 'Toutes les Parties' : 'Mes Parties'}
@@ -691,6 +694,27 @@ export default function MJ() {
               </ForestButton>
             </div>
 
+            {/* Barre de recherche */}
+            {games.length > 0 && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher par nom ou code..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Info message for non-admins who can't create */}
             {!isAdmin && !canCreateNewGame() && (
               <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-destructive text-sm">
@@ -709,81 +733,110 @@ export default function MJ() {
                   <p>Aucune partie créée</p>
                   <p className="text-sm mt-2">Cliquez sur "Nouvelle partie" pour commencer</p>
                 </div>
-              ) : (
-                <>
-                  {/* Parties en cours */}
-                  {games.filter(g => g.status === 'IN_GAME' || g.status === 'RUNNING').length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="font-display text-base flex items-center gap-2 text-emerald-400">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        En cours
-                        <Badge variant="outline" className="ml-2 text-emerald-400 border-emerald-500/30">
-                          {games.filter(g => g.status === 'IN_GAME' || g.status === 'RUNNING').length}
-                        </Badge>
-                      </h3>
-                      {games.filter(g => g.status === 'IN_GAME' || g.status === 'RUNNING').map((game) => (
-                        <GameListItem
-                          key={game.id}
-                          game={game}
-                          isAdmin={isAdmin}
-                          userId={user?.id}
-                          deleting={deleting}
-                          onOpenDetail={openGameDetail}
-                          onDelete={handleDeleteGame}
-                        />
-                      ))}
-                    </div>
-                  )}
+              ) : (() => {
+                // Filter games by search query
+                const query = searchQuery.toLowerCase().trim();
+                const filteredGames = query
+                  ? games.filter(g => 
+                      g.name.toLowerCase().includes(query) || 
+                      g.join_code.toLowerCase().includes(query)
+                    )
+                  : games;
 
-                  {/* Parties en attente (LOBBY) */}
-                  {games.filter(g => g.status === 'LOBBY').length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="font-display text-base flex items-center gap-2 text-amber-400">
-                        <span className="w-2 h-2 rounded-full bg-amber-500" />
-                        En attente
-                        <Badge variant="outline" className="ml-2 text-amber-400 border-amber-500/30">
-                          {games.filter(g => g.status === 'LOBBY').length}
-                        </Badge>
-                      </h3>
-                      {games.filter(g => g.status === 'LOBBY').map((game) => (
-                        <GameListItem
-                          key={game.id}
-                          game={game}
-                          isAdmin={isAdmin}
-                          userId={user?.id}
-                          deleting={deleting}
-                          onOpenDetail={openGameDetail}
-                          onDelete={handleDeleteGame}
-                        />
-                      ))}
-                    </div>
-                  )}
+                const inProgress = filteredGames.filter(g => g.status === 'IN_GAME' || g.status === 'RUNNING');
+                const waiting = filteredGames.filter(g => g.status === 'LOBBY');
+                const finished = filteredGames.filter(g => g.status === 'FINISHED' || g.status === 'ENDED');
 
-                  {/* Parties terminées */}
-                  {games.filter(g => g.status === 'FINISHED' || g.status === 'ENDED').length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="font-display text-base flex items-center gap-2 text-muted-foreground">
-                        <span className="w-2 h-2 rounded-full bg-muted-foreground" />
-                        Terminées
-                        <Badge variant="outline" className="ml-2 text-muted-foreground border-muted-foreground/30">
-                          {games.filter(g => g.status === 'FINISHED' || g.status === 'ENDED').length}
-                        </Badge>
-                      </h3>
-                      {games.filter(g => g.status === 'FINISHED' || g.status === 'ENDED').map((game) => (
-                        <GameListItem
-                          key={game.id}
-                          game={game}
-                          isAdmin={isAdmin}
-                          userId={user?.id}
-                          deleting={deleting}
-                          onOpenDetail={openGameDetail}
-                          onDelete={handleDeleteGame}
-                        />
-                      ))}
+                if (filteredGames.length === 0) {
+                  return (
+                    <div className="card-gradient rounded-lg border border-border p-8 text-center text-muted-foreground">
+                      <p>Aucune partie trouvée pour "{searchQuery}"</p>
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="text-sm mt-2 text-primary hover:underline"
+                      >
+                        Effacer la recherche
+                      </button>
                     </div>
-                  )}
-                </>
-              )}
+                  );
+                }
+
+                return (
+                  <>
+                    {/* Parties en cours */}
+                    {inProgress.length > 0 && (
+                      <div className="space-y-3">
+                        <h3 className="font-display text-base flex items-center gap-2 text-emerald-400">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          En cours
+                          <Badge variant="outline" className="ml-2 text-emerald-400 border-emerald-500/30">
+                            {inProgress.length}
+                          </Badge>
+                        </h3>
+                        {inProgress.map((game) => (
+                          <GameListItem
+                            key={game.id}
+                            game={game}
+                            isAdmin={isAdmin}
+                            userId={user?.id}
+                            deleting={deleting}
+                            onOpenDetail={openGameDetail}
+                            onDelete={handleDeleteGame}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Parties en attente (LOBBY) */}
+                    {waiting.length > 0 && (
+                      <div className="space-y-3">
+                        <h3 className="font-display text-base flex items-center gap-2 text-amber-400">
+                          <span className="w-2 h-2 rounded-full bg-amber-500" />
+                          En attente
+                          <Badge variant="outline" className="ml-2 text-amber-400 border-amber-500/30">
+                            {waiting.length}
+                          </Badge>
+                        </h3>
+                        {waiting.map((game) => (
+                          <GameListItem
+                            key={game.id}
+                            game={game}
+                            isAdmin={isAdmin}
+                            userId={user?.id}
+                            deleting={deleting}
+                            onOpenDetail={openGameDetail}
+                            onDelete={handleDeleteGame}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Parties terminées */}
+                    {finished.length > 0 && (
+                      <div className="space-y-3">
+                        <h3 className="font-display text-base flex items-center gap-2 text-muted-foreground">
+                          <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                          Terminées
+                          <Badge variant="outline" className="ml-2 text-muted-foreground border-muted-foreground/30">
+                            {finished.length}
+                          </Badge>
+                        </h3>
+                        {finished.map((game) => (
+                          <GameListItem
+                            key={game.id}
+                            game={game}
+                            isAdmin={isAdmin}
+                            userId={user?.id}
+                            deleting={deleting}
+                            onOpenDetail={openGameDetail}
+                            onDelete={handleDeleteGame}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </>
         )}
