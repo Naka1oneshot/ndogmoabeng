@@ -72,6 +72,13 @@ export function RivieresVictoryPodium({ ranking, levelHistory, onClose }: Rivier
   const successLevels = levelHistory.filter(l => l.outcome === 'SUCCESS').length;
   const failLevels = levelHistory.filter(l => l.outcome === 'FAIL').length;
 
+  // Calculate additional stats
+  const totalPlayers = ranking.length;
+  const survivorsCount = ranking.filter(p => p.validated_levels >= 9).length;
+  const totalJetons = ranking.reduce((sum, p) => sum + p.jetons, 0);
+  const avgScore = totalPlayers > 0 ? Math.round(ranking.reduce((sum, p) => sum + p.score_value, 0) / totalPlayers) : 0;
+  const topScorer = ranking[0];
+
   const top3 = ranking.slice(0, 3);
   const others = ranking.slice(3);
 
@@ -110,56 +117,70 @@ export function RivieresVictoryPodium({ ranking, levelHistory, onClose }: Rivier
       </Button>
 
       {/* Main content */}
-      <div className="relative z-10 h-full flex flex-col items-center pt-8 px-6">
+      <div className="relative z-10 h-full flex flex-col items-center pt-6 px-6 overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <img src={logoNdogmoabeng} alt="Logo" className="h-16 w-16" />
+        <div className="flex items-center gap-4 mb-6">
+          <img src={logoNdogmoabeng} alt="Logo" className="h-14 w-14" />
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-[#D4AF37] flex items-center gap-3">
-              <Trophy className="h-10 w-10 animate-bounce" />
+            <h1 className="text-3xl md:text-4xl font-bold text-[#D4AF37] flex items-center gap-3">
+              <Trophy className="h-8 w-8 md:h-10 md:w-10 animate-bounce" />
               VICTOIRE RIVIÈRES
-              <Trophy className="h-10 w-10 animate-bounce" />
+              <Trophy className="h-8 w-8 md:h-10 md:w-10 animate-bounce" />
             </h1>
             <p className="text-[#9CA3AF] mt-1">Classement Final</p>
           </div>
         </div>
 
-        {/* Stats row */}
-        <div className="flex items-center gap-8 mb-8">
-          <div className="bg-[#151B2D] border border-[#D4AF37]/20 rounded-lg px-6 py-3 text-center">
-            <div className="text-[#9CA3AF] text-sm">Niveaux joués</div>
-            <div className="text-2xl font-bold text-[#D4AF37]">{totalLevels}/15</div>
+        {/* Stats row - Game stats */}
+        <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6 mb-6">
+          <div className="bg-[#151B2D] border border-[#D4AF37]/20 rounded-lg px-4 py-2 text-center">
+            <div className="text-[#9CA3AF] text-xs">Niveaux joués</div>
+            <div className="text-xl font-bold text-[#D4AF37]">{totalLevels}/15</div>
           </div>
-          <div className="bg-[#151B2D] border border-green-500/30 rounded-lg px-6 py-3 text-center">
-            <div className="flex items-center gap-2 text-green-400 text-sm">
-              <CheckCircle className="h-4 w-4" /> Réussites
+          <div className="bg-[#151B2D] border border-green-500/30 rounded-lg px-4 py-2 text-center">
+            <div className="flex items-center gap-1 text-green-400 text-xs">
+              <CheckCircle className="h-3 w-3" /> Réussites
             </div>
-            <div className="text-2xl font-bold text-green-400">{successLevels}</div>
+            <div className="text-xl font-bold text-green-400">{successLevels}</div>
           </div>
-          <div className="bg-[#151B2D] border border-red-500/30 rounded-lg px-6 py-3 text-center">
-            <div className="flex items-center gap-2 text-red-400 text-sm">
-              <XCircle className="h-4 w-4" /> Échecs
+          <div className="bg-[#151B2D] border border-red-500/30 rounded-lg px-4 py-2 text-center">
+            <div className="flex items-center gap-1 text-red-400 text-xs">
+              <XCircle className="h-3 w-3" /> Échecs
             </div>
-            <div className="text-2xl font-bold text-red-400">{failLevels}</div>
+            <div className="text-xl font-bold text-red-400">{failLevels}</div>
+          </div>
+          <div className="bg-[#151B2D] border border-blue-500/30 rounded-lg px-4 py-2 text-center">
+            <div className="text-blue-400 text-xs">Joueurs</div>
+            <div className="text-xl font-bold text-blue-400">{totalPlayers}</div>
+          </div>
+          <div className="bg-[#151B2D] border border-[#4ADE80]/30 rounded-lg px-4 py-2 text-center">
+            <div className="text-[#4ADE80] text-xs">Survivants (9+)</div>
+            <div className="text-xl font-bold text-[#4ADE80]">{survivorsCount}</div>
+          </div>
+          <div className="bg-[#151B2D] border border-cyan-500/30 rounded-lg px-4 py-2 text-center">
+            <div className="text-cyan-400 text-xs">Score moyen</div>
+            <div className="text-xl font-bold text-cyan-400">{avgScore}</div>
           </div>
         </div>
 
         {/* Podium for top 3 */}
-        <div className="flex items-end justify-center gap-4 mb-8">
+        <div className="flex items-end justify-center gap-4 md:gap-8 mb-6">
           {/* 2nd place */}
           {top3[1] && (
             <div className="flex flex-col items-center animate-slide-up-fade" style={{ animationDelay: '0.3s' }}>
-              <Avatar className="h-20 w-20 border-4 border-gray-300 mb-2">
+              <Avatar className="h-16 w-16 md:h-20 md:w-20 border-4 border-gray-300 mb-2">
                 <AvatarImage src={top3[1].avatar_url || undefined} />
-                <AvatarFallback className="bg-gray-500/20 text-gray-300 text-xl">
+                <AvatarFallback className="bg-gray-500/20 text-gray-300 text-lg md:text-xl">
                   {top3[1].display_name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-lg font-medium text-[#E8E8E8] max-w-24 truncate">{top3[1].display_name}</span>
-              <span className="text-sm text-gray-400">{top3[1].validated_levels} niv.</span>
-              <span className="text-2xl font-bold text-gray-300">{top3[1].score_value} pts</span>
-              <div className="h-24 w-24 bg-gray-600 rounded-t-lg flex items-center justify-center mt-2">
-                <span className="text-4xl">🥈</span>
+              <span className="text-sm md:text-lg font-medium text-[#E8E8E8] max-w-32 md:max-w-40 text-center break-words">
+                {top3[1].display_name}
+              </span>
+              <span className="text-xs md:text-sm text-gray-400">{top3[1].validated_levels} niv.</span>
+              <span className="text-xl md:text-2xl font-bold text-gray-300">{top3[1].score_value} pts</span>
+              <div className="h-20 w-20 md:h-24 md:w-24 bg-gray-600 rounded-t-lg flex items-center justify-center mt-2">
+                <span className="text-3xl md:text-4xl">🥈</span>
               </div>
             </div>
           )}
@@ -168,21 +189,23 @@ export function RivieresVictoryPodium({ ranking, levelHistory, onClose }: Rivier
           {top3[0] && (
             <div className="flex flex-col items-center animate-slide-up-fade" style={{ animationDelay: '0.1s' }}>
               <div className="relative">
-                <Avatar className="h-28 w-28 border-4 border-[#D4AF37] mb-2">
+                <Avatar className="h-24 w-24 md:h-28 md:w-28 border-4 border-[#D4AF37] mb-2">
                   <AvatarImage src={top3[0].avatar_url || undefined} />
-                  <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-2xl">
+                  <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-xl md:text-2xl">
                     {top3[0].display_name.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="text-3xl">👑</span>
+                  <span className="text-2xl md:text-3xl">👑</span>
                 </div>
               </div>
-              <span className="text-xl font-bold text-[#D4AF37] max-w-28 truncate">{top3[0].display_name}</span>
-              <span className="text-sm text-[#9CA3AF]">{top3[0].validated_levels} niveaux</span>
-              <span className="text-3xl font-bold text-[#D4AF37]">{top3[0].score_value} pts</span>
-              <div className="h-32 w-28 bg-[#D4AF37] rounded-t-lg flex items-center justify-center mt-2">
-                <span className="text-5xl">🥇</span>
+              <span className="text-lg md:text-xl font-bold text-[#D4AF37] max-w-36 md:max-w-48 text-center break-words">
+                {top3[0].display_name}
+              </span>
+              <span className="text-xs md:text-sm text-[#9CA3AF]">{top3[0].validated_levels} niveaux</span>
+              <span className="text-2xl md:text-3xl font-bold text-[#D4AF37]">{top3[0].score_value} pts</span>
+              <div className="h-28 w-24 md:h-32 md:w-28 bg-[#D4AF37] rounded-t-lg flex items-center justify-center mt-2">
+                <span className="text-4xl md:text-5xl">🥇</span>
               </div>
             </div>
           )}
@@ -190,69 +213,73 @@ export function RivieresVictoryPodium({ ranking, levelHistory, onClose }: Rivier
           {/* 3rd place */}
           {top3[2] && (
             <div className="flex flex-col items-center animate-slide-up-fade" style={{ animationDelay: '0.5s' }}>
-              <Avatar className="h-16 w-16 border-4 border-amber-600 mb-2">
+              <Avatar className="h-14 w-14 md:h-16 md:w-16 border-4 border-amber-600 mb-2">
                 <AvatarImage src={top3[2].avatar_url || undefined} />
-                <AvatarFallback className="bg-amber-600/20 text-amber-500 text-lg">
+                <AvatarFallback className="bg-amber-600/20 text-amber-500 text-base md:text-lg">
                   {top3[2].display_name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-base font-medium text-[#E8E8E8] max-w-20 truncate">{top3[2].display_name}</span>
-              <span className="text-sm text-[#9CA3AF]">{top3[2].validated_levels} niv.</span>
-              <span className="text-xl font-bold text-amber-500">{top3[2].score_value} pts</span>
-              <div className="h-16 w-20 bg-amber-700 rounded-t-lg flex items-center justify-center mt-2">
-                <span className="text-3xl">🥉</span>
+              <span className="text-sm md:text-base font-medium text-[#E8E8E8] max-w-28 md:max-w-36 text-center break-words">
+                {top3[2].display_name}
+              </span>
+              <span className="text-xs md:text-sm text-[#9CA3AF]">{top3[2].validated_levels} niv.</span>
+              <span className="text-lg md:text-xl font-bold text-amber-500">{top3[2].score_value} pts</span>
+              <div className="h-14 w-18 md:h-16 md:w-20 bg-amber-700 rounded-t-lg flex items-center justify-center mt-2">
+                <span className="text-2xl md:text-3xl">🥉</span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Rest of rankings */}
+        {/* Rest of rankings - 2 columns on desktop */}
         {others.length > 0 && (
-          <div className="w-full max-w-2xl bg-[#151B2D] border border-[#D4AF37]/20 rounded-lg p-4 flex-1 min-h-0">
+          <div className="w-full max-w-4xl bg-[#151B2D] border border-[#D4AF37]/20 rounded-lg p-4 flex-1 min-h-0 mb-20">
             <ScrollArea className="h-full">
-              <table className="w-full text-sm">
-                <thead className="bg-[#0B1020] sticky top-0">
-                  <tr>
-                    <th className="p-2 text-left text-[#9CA3AF]">Rang</th>
-                    <th className="p-2 text-left text-[#9CA3AF]">Joueur</th>
-                    <th className="p-2 text-center text-[#9CA3AF]">Niveaux</th>
-                    <th className="p-2 text-center text-[#9CA3AF]">Jetons</th>
-                    <th className="p-2 text-right text-[#D4AF37]">Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {others.map((p, idx) => (
-                    <tr key={p.id} className="border-t border-[#D4AF37]/10">
-                      <td className="p-2 text-[#9CA3AF]">#{idx + 4}</td>
-                      <td className="p-2">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={p.avatar_url || undefined} />
-                            <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs">
-                              {p.display_name.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-[#E8E8E8]">{p.display_name}</span>
-                        </div>
-                      </td>
-                      <td className="p-2 text-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {others.map((p, idx) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-[#0B1020]/50 border border-[#D4AF37]/10 hover:border-[#D4AF37]/30 transition-colors"
+                  >
+                    {/* Rank */}
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
+                      <span className="text-sm font-bold text-[#D4AF37]">#{idx + 4}</span>
+                    </div>
+
+                    {/* Avatar */}
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      <AvatarImage src={p.avatar_url || undefined} />
+                      <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs">
+                        {p.display_name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    {/* Name and stats */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[#E8E8E8] font-medium break-words">{p.display_name}</div>
+                      <div className="flex items-center gap-2 text-xs text-[#9CA3AF]">
                         <span className={p.validated_levels >= 9 ? 'text-[#4ADE80]' : 'text-amber-400'}>
-                          {p.validated_levels}
+                          {p.validated_levels} niv.
                         </span>
-                        {p.penalty_applied && <span className="text-red-400 ml-1">⚠️</span>}
-                      </td>
-                      <td className="p-2 text-center text-[#4ADE80]">{p.jetons}💎</td>
-                      <td className="p-2 text-right font-bold text-[#D4AF37]">{p.score_value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        {p.penalty_applied && <span className="text-red-400">⚠️</span>}
+                        <span className="text-[#4ADE80]">{p.jetons}💎</span>
+                      </div>
+                    </div>
+
+                    {/* Score */}
+                    <div className="flex-shrink-0 text-right">
+                      <div className="text-lg font-bold text-[#D4AF37]">{p.score_value}</div>
+                      <div className="text-xs text-[#9CA3AF]">pts</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </ScrollArea>
           </div>
         )}
 
         {/* Ship decoration at bottom */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-20">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-20 pointer-events-none">
           <Ship className="h-24 w-24 text-[#D4AF37]" />
         </div>
       </div>
