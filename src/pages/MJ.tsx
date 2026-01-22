@@ -235,6 +235,7 @@ export default function MJ() {
   // Search and filters
   const [searchQuery, setSearchQuery] = useState('');
   const [gameTypeFilter, setGameTypeFilter] = useState<string | null>(null);
+  const [gameModeFilter, setGameModeFilter] = useState<'SINGLE_GAME' | 'ADVENTURE' | null>(null);
   
   // Pagination for finished games
   const ITEMS_PER_PAGE = 10;
@@ -738,7 +739,7 @@ export default function MJ() {
                         : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground'
                     }`}
                   >
-                    Tous
+                    Tous les types
                   </button>
                   <button
                     onClick={() => {
@@ -778,6 +779,51 @@ export default function MJ() {
                     }`}
                   >
                     🧟 Infection
+                  </button>
+                </div>
+
+                {/* Filtres par mode de partie */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => {
+                      setGameModeFilter(null);
+                      setFinishedPage(1);
+                    }}
+                    className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                      gameModeFilter === null 
+                        ? 'bg-primary text-primary-foreground border-primary' 
+                        : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    Tous les modes
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGameModeFilter(gameModeFilter === 'SINGLE_GAME' ? null : 'SINGLE_GAME');
+                      setFinishedPage(1);
+                    }}
+                    className={`px-3 py-1.5 text-sm rounded-full border transition-colors flex items-center gap-1.5 ${
+                      gameModeFilter === 'SINGLE_GAME' 
+                        ? 'bg-emerald-600 text-white border-emerald-600' 
+                        : 'bg-muted/50 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
+                    }`}
+                  >
+                    <Gamepad2 className="h-3.5 w-3.5" />
+                    Partie unique
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGameModeFilter(gameModeFilter === 'ADVENTURE' ? null : 'ADVENTURE');
+                      setFinishedPage(1);
+                    }}
+                    className={`px-3 py-1.5 text-sm rounded-full border transition-colors flex items-center gap-1.5 ${
+                      gameModeFilter === 'ADVENTURE' 
+                        ? 'bg-amber-600 text-white border-amber-600' 
+                        : 'bg-muted/50 text-amber-400 border-amber-500/30 hover:bg-amber-500/10'
+                    }`}
+                  >
+                    <Map className="h-3.5 w-3.5" />
+                    Aventure
                   </button>
                 </div>
               </div>
@@ -820,13 +866,20 @@ export default function MJ() {
                     g.selected_game_type_code === gameTypeFilter
                   );
                 }
+                
+                // Apply game mode filter
+                if (gameModeFilter) {
+                  filteredGames = filteredGames.filter(g => 
+                    g.mode === gameModeFilter
+                  );
+                }
 
                 const inProgress = filteredGames.filter(g => g.status === 'IN_GAME' || g.status === 'RUNNING');
                 const waiting = filteredGames.filter(g => g.status === 'LOBBY');
                 const finished = filteredGames.filter(g => g.status === 'FINISHED' || g.status === 'ENDED');
 
                 if (filteredGames.length === 0) {
-                  const hasFilters = query || gameTypeFilter;
+                  const hasFilters = query || gameTypeFilter || gameModeFilter;
                   return (
                     <div className="card-gradient rounded-lg border border-border p-8 text-center text-muted-foreground">
                       <p>Aucune partie trouvée{hasFilters ? ' avec ces critères' : ''}</p>
@@ -835,6 +888,7 @@ export default function MJ() {
                           onClick={() => {
                             setSearchQuery('');
                             setGameTypeFilter(null);
+                            setGameModeFilter(null);
                           }}
                           className="text-sm mt-2 text-primary hover:underline"
                         >
