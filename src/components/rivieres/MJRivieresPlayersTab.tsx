@@ -13,6 +13,7 @@ import {
   UserX, Lock, Coins, ShieldCheck, Bot, Plus, Trash2,
   TrendingUp, BarChart3, Target
 } from 'lucide-react';
+import { PlayerRowCompact } from '@/components/mj/PlayerRowCompact';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -545,30 +546,128 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
               Aucun joueur n'a encore rejoint la partie
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              {/* Header */}
-              <div className="hidden lg:grid grid-cols-12 gap-2 text-xs text-[#9CA3AF] px-3 py-2 bg-[#0B1020] rounded-t-lg">
-                <div className="col-span-1">#</div>
-                <div className="col-span-2">Nom</div>
-                <div className="col-span-2">Clan</div>
-                <div className="col-span-1">Mate</div>
-                <div className="col-span-1">Jetons</div>
-                <div className="col-span-1">Niveaux</div>
-                <div className="col-span-1">Rejoint</div>
-                <div className="col-span-1">Statut</div>
-                <div className="col-span-2 text-right">Actions</div>
-              </div>
-
-              <div className="space-y-1 p-2">
+            <>
+              {/* Mobile compact view */}
+              <div className="lg:hidden space-y-1 p-2">
                 {activePlayers.map((player) => {
                   const stats = getStatsByPlayerId(player.id);
                   
+                  if (editingId === player.id) {
+                    return (
+                      <div key={player.id} className={`p-3 rounded-md bg-[#20232A] border border-[#D4AF37]/10 ${!player.is_alive ? 'opacity-50' : ''}`}>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-xs text-[#9CA3AF]">Nom</label>
+                              <Input
+                                value={editForm.display_name || ''}
+                                onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                                className="h-8 text-sm bg-[#0B1020] border-[#D4AF37]/30 text-[#E8E8E8]"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-[#9CA3AF]">Clan</label>
+                              <Select
+                                value={editForm.clan || 'none'}
+                                onValueChange={(val) => setEditForm({ ...editForm, clan: val === 'none' ? '' : val })}
+                                disabled={!canEditClan(player)}
+                              >
+                                <SelectTrigger className="h-8 text-sm bg-[#0B1020] border-[#D4AF37]/30 text-[#E8E8E8]">
+                                  <SelectValue placeholder="Clan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {RIVIERES_CLANS.map(c => (
+                                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <label className="text-xs text-[#9CA3AF]">Mate</label>
+                              <Select
+                                value={editForm.mate_num?.toString() || 'none'}
+                                onValueChange={(val) => setEditForm({ ...editForm, mate_num: val === 'none' ? null : parseInt(val) })}
+                              >
+                                <SelectTrigger className="h-8 text-sm bg-[#0B1020] border-[#D4AF37]/30 text-[#E8E8E8]">
+                                  <SelectValue placeholder="Mate" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Aucun</SelectItem>
+                                  {availablePlayerNumbers
+                                    .filter(n => n !== player.player_number)
+                                    .map(n => (
+                                      <SelectItem key={n} value={n.toString()}>Joueur {n}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <label className="text-xs text-[#9CA3AF]">Jetons</label>
+                              <NumberInput
+                                value={editForm.jetons || 0}
+                                onChange={(v) => setEditForm({ ...editForm, jetons: v })}
+                                defaultValue={0}
+                                min={0}
+                                className="h-8 text-sm bg-[#0B1020] border-[#D4AF37]/30 text-[#E8E8E8]"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <ForestButton variant="ghost" size="sm" onClick={cancelEditing} className="text-[#9CA3AF]">
+                              <X className="h-4 w-4" /> Annuler
+                            </ForestButton>
+                            <ForestButton size="sm" onClick={() => handleSave(player.id)} disabled={saving} className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black">
+                              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Sauvegarder
+                            </ForestButton>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
                   return (
-                    <div
+                    <PlayerRowCompact
                       key={player.id}
-                      className={`p-3 rounded-md bg-[#20232A] border border-[#D4AF37]/10 ${!player.is_alive ? 'opacity-50' : ''}`}
-                    >
-                      {editingId === player.id ? (
+                      player={player}
+                      validatedLevels={stats?.validated_levels}
+                      presenceBadge={getPresenceBadge(player.last_seen)}
+                      onEdit={startEditing}
+                      onCopyLink={(id) => handleCopyJoinLink(id, player.player_token!)}
+                      onResetToken={handleResetToken}
+                      onKick={(p) => openKickModal(p.id, p.name)}
+                      copiedId={copiedId}
+                      resettingId={resettingId}
+                      variant="rivieres"
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Desktop full view */}
+              <div className="hidden lg:block overflow-x-auto">
+                {/* Header */}
+                <div className="grid grid-cols-12 gap-2 text-xs text-[#9CA3AF] px-3 py-2 bg-[#0B1020] rounded-t-lg">
+                  <div className="col-span-1">#</div>
+                  <div className="col-span-2">Nom</div>
+                  <div className="col-span-2">Clan</div>
+                  <div className="col-span-1">Mate</div>
+                  <div className="col-span-1">Jetons</div>
+                  <div className="col-span-1">Niveaux</div>
+                  <div className="col-span-1">Rejoint</div>
+                  <div className="col-span-1">Statut</div>
+                  <div className="col-span-2 text-right">Actions</div>
+                </div>
+
+                <div className="space-y-1 p-2">
+                  {activePlayers.map((player) => {
+                    const stats = getStatsByPlayerId(player.id);
+                    
+                    return (
+                      <div
+                        key={player.id}
+                        className={`p-3 rounded-md bg-[#20232A] border border-[#D4AF37]/10 ${!player.is_alive ? 'opacity-50' : ''}`}
+                      >
+                        {editingId === player.id ? (
                         // Mode édition
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -783,6 +882,7 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
                 })}
               </div>
             </div>
+            </>
           )}
         </div>
 
