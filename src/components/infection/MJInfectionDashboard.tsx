@@ -389,20 +389,20 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   if (game.status === 'LOBBY') {
     return (
       <div className={theme.container}>
-        <div className={`${theme.header} p-4`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={onBack}>
+      <div className={`${theme.header} p-3 sm:p-4`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div>
-                <h1 className="text-xl font-bold text-[#D4AF37]">{game.name}</h1>
-                <p className="text-sm text-[#9CA3AF]">Code: {game.join_code}</p>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-xl font-bold text-[#D4AF37] truncate">{game.name}</h1>
+                <p className="text-xs sm:text-sm text-[#9CA3AF]">Code: {game.join_code}</p>
               </div>
             </div>
-            <Badge className="bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/30">
-              <Syringe className="h-3 w-3 mr-1" />
-              INFECTION
+            <Badge className="bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/30 shrink-0">
+              <Syringe className="h-3 w-3 sm:mr-1" />
+              <span className="hidden sm:inline">INFECTION</span>
             </Badge>
           </div>
         </div>
@@ -431,7 +431,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                       {editingId === player.id ? (
                         // Edit mode
                         <div className="space-y-3">
-                          <div className="grid grid-cols-3 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                             <div>
                               <label className="text-xs text-[#6B7280]">Nom</label>
                               <Input
@@ -440,32 +440,34 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                                 className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
                               />
                             </div>
-                            <div>
-                              <label className="text-xs text-[#6B7280]">Numéro</label>
-                              <Select
-                                value={editForm.player_number?.toString() || ''}
-                                onValueChange={(val) => setEditForm({ ...editForm, player_number: parseInt(val) })}
-                              >
-                                <SelectTrigger className="h-8 text-sm bg-[#0F1729] border-[#2D3748]">
-                                  <SelectValue placeholder="#" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availablePlayerNumbers.map(n => (
-                                    <SelectItem key={n} value={n.toString()}>
-                                      #{n}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <label className="text-xs text-[#6B7280]">Jetons</label>
-                              <Input
-                                type="number"
-                                value={editForm.jetons}
-                                onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
-                                className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
-                              />
+                            <div className="grid grid-cols-2 sm:grid-cols-1 gap-2">
+                              <div>
+                                <label className="text-xs text-[#6B7280]">Numéro</label>
+                                <Select
+                                  value={editForm.player_number?.toString() || ''}
+                                  onValueChange={(val) => setEditForm({ ...editForm, player_number: parseInt(val) })}
+                                >
+                                  <SelectTrigger className="h-8 text-sm bg-[#0F1729] border-[#2D3748]">
+                                    <SelectValue placeholder="#" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availablePlayerNumbers.map(n => (
+                                      <SelectItem key={n} value={n.toString()}>
+                                        #{n}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <label className="text-xs text-[#6B7280]">Jetons</label>
+                                <Input
+                                  type="number"
+                                  value={editForm.jetons}
+                                  onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                                  className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                                />
+                              </div>
                             </div>
                           </div>
                           <div className="flex justify-end gap-2">
@@ -638,23 +640,23 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   return (
     <div className={theme.container}>
       {/* Header */}
-      <div className={`${theme.header} p-4`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={onBack}>
+      <div className={`${theme.header} p-3 sm:p-4`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="text-xl font-bold text-[#D4AF37]">{game.name}</h1>
-              <div className="flex items-center gap-2 text-sm text-[#9CA3AF]">
-                <span>Manche {game.manche_active || 1}</span>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl font-bold text-[#D4AF37] truncate">{game.name}</h1>
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-[#9CA3AF]">
+                <span>M.{game.manche_active || 1}</span>
                 {roundState && (
                   <Badge 
-                    className={
+                    className={`text-xs ${
                       roundState.status === 'OPEN' ? 'bg-[#2AB3A6]/20 text-[#2AB3A6]' :
                       roundState.status === 'LOCKED' ? 'bg-[#E6A23C]/20 text-[#E6A23C]' :
                       'bg-[#6B7280]/20 text-[#6B7280]'
-                    }
+                    }`}
                   >
                     {roundState.status}
                   </Badge>
@@ -662,13 +664,14 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6]">
-              {alivePlayers.length} vivants
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6] text-xs">
+              {alivePlayers.length} <span className="hidden sm:inline">vivants</span>
             </Badge>
-            <Badge className="bg-[#B00020]/20 text-[#B00020]">
-              <Skull className="h-3 w-3 mr-1" />
-              {activePlayers.length - alivePlayers.length} morts
+            <Badge className="bg-[#B00020]/20 text-[#B00020] text-xs">
+              <Skull className="h-3 w-3 sm:mr-1" />
+              <span className="hidden sm:inline">{activePlayers.length - alivePlayers.length}</span>
+              <span className="sm:hidden">{activePlayers.length - alivePlayers.length}</span>
             </Badge>
           </div>
         </div>
@@ -676,22 +679,22 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-        <TabsList className="w-full bg-[#121A2B] border-b border-[#2D3748] rounded-none p-0">
-          <TabsTrigger value="control" className="flex-1 data-[state=active]:bg-[#1A2235]">
-            <Activity className="h-4 w-4 mr-1" />
-            Contrôle
+        <TabsList className="w-full bg-[#121A2B] border-b border-[#2D3748] rounded-none p-0 h-auto">
+          <TabsTrigger value="control" className="flex-1 data-[state=active]:bg-[#1A2235] py-2 px-1 sm:px-3">
+            <Activity className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Contrôle</span>
           </TabsTrigger>
-          <TabsTrigger value="players" className="flex-1 data-[state=active]:bg-[#1A2235]">
-            <Users className="h-4 w-4 mr-1" />
-            Joueurs
+          <TabsTrigger value="players" className="flex-1 data-[state=active]:bg-[#1A2235] py-2 px-1 sm:px-3">
+            <Users className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Joueurs</span>
           </TabsTrigger>
-          <TabsTrigger value="actions" className="flex-1 data-[state=active]:bg-[#1A2235]">
-            <Target className="h-4 w-4 mr-1" />
-            Actions
+          <TabsTrigger value="actions" className="flex-1 data-[state=active]:bg-[#1A2235] py-2 px-1 sm:px-3">
+            <Target className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Actions</span>
           </TabsTrigger>
-          <TabsTrigger value="chat" className="flex-1 data-[state=active]:bg-[#1A2235]">
-            <MessageSquare className="h-4 w-4 mr-1" />
-            Chats
+          <TabsTrigger value="chat" className="flex-1 data-[state=active]:bg-[#1A2235] py-2 px-1 sm:px-3">
+            <MessageSquare className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Chats</span>
           </TabsTrigger>
         </TabsList>
 
@@ -767,7 +770,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                     {editingId === player.id ? (
                       // Edit mode in-game
                       <div className="space-y-3">
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                           <div>
                             <label className="text-xs text-[#6B7280]">Nom</label>
                             <Input
@@ -776,23 +779,25 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                               className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
                             />
                           </div>
-                          <div>
-                            <label className="text-xs text-[#6B7280]">Numéro</label>
-                            <Input
-                              type="number"
-                              value={editForm.player_number || ''}
-                              onChange={(e) => setEditForm({ ...editForm, player_number: parseInt(e.target.value) || null })}
-                              className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-[#6B7280]">Jetons</label>
-                            <Input
-                              type="number"
-                              value={editForm.jetons}
-                              onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
-                              className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
-                            />
+                          <div className="grid grid-cols-2 sm:grid-cols-1 gap-2">
+                            <div>
+                              <label className="text-xs text-[#6B7280]">Numéro</label>
+                              <Input
+                                type="number"
+                                value={editForm.player_number || ''}
+                                onChange={(e) => setEditForm({ ...editForm, player_number: parseInt(e.target.value) || null })}
+                                className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-[#6B7280]">Jetons</label>
+                              <Input
+                                type="number"
+                                value={editForm.jetons}
+                                onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                                className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                              />
+                            </div>
                           </div>
                         </div>
                         <div className="flex justify-end gap-2">
