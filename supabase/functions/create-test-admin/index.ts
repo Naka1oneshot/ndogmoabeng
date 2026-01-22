@@ -12,11 +12,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Check if test admin creation is allowed
-    const allowTestAdmin = Deno.env.get('ALLOW_TEST_ADMIN') ?? 'true'
+    // Check if test admin creation is allowed - secure by default (disabled unless explicitly enabled)
+    const allowTestAdmin = Deno.env.get('ALLOW_TEST_ADMIN')
     if (allowTestAdmin !== 'true') {
       return new Response(
-        JSON.stringify({ error: 'Test admin creation is disabled in production' }),
+        JSON.stringify({ error: 'Test admin creation is disabled. Set ALLOW_TEST_ADMIN=true to enable.' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
