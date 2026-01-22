@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Trophy, Ship, Waves, CheckCircle, XCircle, X } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { Trophy, Ship, Waves, CheckCircle, XCircle, X, Coins, TrendingDown, Award } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,13 +26,30 @@ interface LevelHistory {
   outcome: 'SUCCESS' | 'FAIL';
 }
 
+interface HistoricalDecision {
+  player_id: string;
+  player_num: number;
+  decision: string;
+  mise_effective: number | null;
+  manche: number;
+  niveau: number;
+}
+
+interface Player {
+  id: string;
+  display_name: string;
+  player_number: number | null;
+}
+
 interface RivieresVictoryPodiumProps {
   ranking: RankedPlayer[];
   levelHistory: LevelHistory[];
+  allDecisions: HistoricalDecision[];
+  players: Player[];
   onClose: () => void;
 }
 
-export function RivieresVictoryPodium({ ranking, levelHistory, onClose }: RivieresVictoryPodiumProps) {
+export function RivieresVictoryPodium({ ranking, levelHistory, allDecisions, players, onClose }: RivieresVictoryPodiumProps) {
   // Trigger confetti on mount
   useEffect(() => {
     const duration = 5000;
@@ -75,9 +92,70 @@ export function RivieresVictoryPodium({ ranking, levelHistory, onClose }: Rivier
   // Calculate additional stats
   const totalPlayers = ranking.length;
   const survivorsCount = ranking.filter(p => p.validated_levels >= 9).length;
-  const totalJetons = ranking.reduce((sum, p) => sum + p.jetons, 0);
   const avgScore = totalPlayers > 0 ? Math.round(ranking.reduce((sum, p) => sum + p.score_value, 0) / totalPlayers) : 0;
-  const topScorer = ranking[0];
+
+  // Calculate betting stats
+  const bettingStats = useMemo(() => {
+    const getPlayerName = (playerNum: number) => {
+      const player = players.find(p => p.player_number === playerNum);
+      return player?.display_name ?? `Joueur ${playerNum}`;
+    };
+
+    // Only consider decisions where player stayed in boat (RESTE)
+    const stayDecisions = allDecisions.filter(d => d.decision === 'RESTE' && d.mise_effective !== null);
+    
+    // Calculate total bets per player (only when staying)
+    const playerTotalBets = new Map<number, { total: number; count: number }>();
+    stayDecisions.forEach(d => {
+      const current = playerTotalBets.get(d.player_num) || { total: 0, count: 0 };
+      playerTotalBets.set(d.player_num, { 
+        total: current.total + (d.mise_effective || 0), 
+        count: current.count + 1 
+      });
+    });
+
+    // Find most stingy player (lowest average bet when staying)
+    let mostStingyPlayer: { name: string; avgBet: number } | null = null;
+    playerTotalBets.forEach((data, playerNum) => {
+      if (data.count > 0) {
+        const avg = data.total / data.count;
+        if (!mostStingyPlayer || avg < mostStingyPlayer.avgBet) {
+          mostStingyPlayer = { name: getPlayerName(playerNum), avgBet: Math.round(avg) };
+        }
+      }
+    });
+
+    // Find smallest bet on a successful level
+    let smallestBetOnSuccess: { playerName: string; amount: number; level: string } | null = null;
+    stayDecisions.forEach(d => {
+      const level = levelHistory.find(l => l.manche === d.manche && l.niveau === d.niveau);
+      if (level?.outcome === 'SUCCESS' && d.mise_effective !== null) {
+        if (!smallestBetOnSuccess || d.mise_effective < smallestBetOnSuccess.amount) {
+          smallestBetOnSuccess = {
+            playerName: getPlayerName(d.player_num),
+            amount: d.mise_effective,
+            level: `M${d.manche}N${d.niveau}`
+          };
+        }
+      }
+    });
+
+    // Find smallest bet overall (when staying in boat)
+    let smallestBetOverall: { playerName: string; amount: number; level: string } | null = null;
+    stayDecisions.forEach(d => {
+      if (d.mise_effective !== null && d.mise_effective > 0) {
+        if (!smallestBetOverall || d.mise_effective < smallestBetOverall.amount) {
+          smallestBetOverall = {
+            playerName: getPlayerName(d.player_num),
+            amount: d.mise_effective,
+            level: `M${d.manche}N${d.niveau}`
+          };
+        }
+      }
+    });
+
+    return { mostStingyPlayer, smallestBetOnSuccess, smallestBetOverall };
+  }, [allDecisions, levelHistory, players]);
 
   const top3 = ranking.slice(0, 3);
   const others = ranking.slice(3);
@@ -163,7 +241,42 @@ export function RivieresVictoryPodium({ ranking, levelHistory, onClose }: Rivier
           </div>
         </div>
 
-        {/* Podium for top 3 */}
+        {/* Fun Stats row - betting awards */}
+        {(bettingStats.mostStingyPlayer || bettingStats.smallestBetOnSuccess || bettingStats.smallestBetOverall) && (
+          <div className="flex flex-wrap items-stretch justify-center gap-3 md:gap-4 mb-6 max-w-4xl">
+            {bettingStats.mostStingyPlayer && (
+              <div className="bg-[#151B2D] border border-amber-500/30 rounded-lg px-4 py-3 text-center flex-1 min-w-[180px] max-w-[250px]">
+                <div className="flex items-center justify-center gap-1 text-amber-400 text-xs mb-1">
+                  <TrendingDown className="h-3 w-3" /> Le plus Radin
+                </div>
+                <div className="text-sm font-bold text-amber-400 break-words">{bettingStats.mostStingyPlayer.name}</div>
+                <div className="text-xs text-[#9CA3AF]">Moy. {bettingStats.mostStingyPlayer.avgBet}💎/niveau</div>
+              </div>
+            )}
+            {bettingStats.smallestBetOnSuccess && (
+              <div className="bg-[#151B2D] border border-emerald-500/30 rounded-lg px-4 py-3 text-center flex-1 min-w-[180px] max-w-[250px]">
+                <div className="flex items-center justify-center gap-1 text-emerald-400 text-xs mb-1">
+                  <Award className="h-3 w-3" /> Plus petit pari gagnant
+                </div>
+                <div className="text-sm font-bold text-emerald-400">{bettingStats.smallestBetOnSuccess.amount}💎</div>
+                <div className="text-xs text-[#9CA3AF] break-words">
+                  {bettingStats.smallestBetOnSuccess.playerName} ({bettingStats.smallestBetOnSuccess.level})
+                </div>
+              </div>
+            )}
+            {bettingStats.smallestBetOverall && (
+              <div className="bg-[#151B2D] border border-purple-500/30 rounded-lg px-4 py-3 text-center flex-1 min-w-[180px] max-w-[250px]">
+                <div className="flex items-center justify-center gap-1 text-purple-400 text-xs mb-1">
+                  <Coins className="h-3 w-3" /> Plus petite mise en bateau
+                </div>
+                <div className="text-sm font-bold text-purple-400">{bettingStats.smallestBetOverall.amount}💎</div>
+                <div className="text-xs text-[#9CA3AF] break-words">
+                  {bettingStats.smallestBetOverall.playerName} ({bettingStats.smallestBetOverall.level})
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex items-end justify-center gap-4 md:gap-8 mb-6">
           {/* 2nd place */}
           {top3[1] && (

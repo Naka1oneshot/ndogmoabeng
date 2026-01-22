@@ -60,8 +60,18 @@ interface RiverDecision {
   player_num: number;
   decision: string;
   mise_demandee: number;
+  mise_effective: number | null;
   keryndes_choice: string;
   status: string;
+}
+
+interface HistoricalDecision {
+  player_id: string;
+  player_num: number;
+  decision: string;
+  mise_effective: number | null;
+  manche: number;
+  niveau: number;
 }
 
 interface Player {
@@ -93,6 +103,7 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
   const [levelHistory, setLevelHistory] = useState<RiverLevelHistory[]>([]);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats[]>([]);
   const [decisions, setDecisions] = useState<RiverDecision[]>([]);
+  const [allDecisions, setAllDecisions] = useState<HistoricalDecision[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [stageScores, setStageScores] = useState<StageScore[]>([]);
   const [loading, setLoading] = useState(true);
@@ -275,6 +286,17 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
 
     if (scoresData) setStageScores(scoresData as StageScore[]);
 
+    // Fetch ALL decisions for stats (for victory podium)
+    const { data: allDecisionsData } = await supabase
+      .from('river_decisions')
+      .select('player_id, player_num, decision, mise_effective, manche, niveau')
+      .eq('session_game_id', sessionGameId)
+      .eq('status', 'LOCKED');
+    
+    if (allDecisionsData) {
+      setAllDecisions(allDecisionsData as HistoricalDecision[]);
+    }
+
     setLastUpdate(new Date());
     setLoading(false);
     setIsRefreshing(false);
@@ -389,6 +411,8 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
       <RivieresVictoryPodium
         ranking={ranking}
         levelHistory={levelHistory}
+        allDecisions={allDecisions}
+        players={players}
         onClose={onClose}
       />
     );
