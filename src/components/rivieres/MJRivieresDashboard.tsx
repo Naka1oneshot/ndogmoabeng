@@ -1216,6 +1216,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           <MJRivieresPlayersTab
             gameId={gameId}
             sessionGameId={sessionGameId}
+            gameStatus={gameStatus}
             onRefresh={fetchData}
           />
         </TabsContent>
