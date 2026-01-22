@@ -449,6 +449,7 @@ Deno.serve(async (req) => {
 
           case 'OC': {
             // OC: Use crystal ball to investigate a random non-OC player
+            // PRIORITY: Always prefer humans over bots (bots are predictable)
             if (existingInputsSet.has(`${bot.player_number}-ORACLE`)) {
               result.skipped_reason = 'Already used oracle';
               break;
@@ -460,19 +461,31 @@ Deno.serve(async (req) => {
               break;
             }
 
-            // Pick a random non-OC alive player (prioritize humans, avoid already-investigated)
-            const nonOCPlayers = alivePlayers.filter(
-              p => p.role_code !== 'OC' && !botMemory.oc_pv_targets.includes(p.player_number!)
+            // Filter out self, other OCs, and already-discovered PVs
+            const validTargets = alivePlayers.filter(
+              p => p.role_code !== 'OC' && 
+                   p.player_number !== bot.player_number &&
+                   !botMemory.oc_pv_targets.includes(p.player_number!)
             );
-            const humanNonOC = nonOCPlayers.filter(p => !p.is_bot);
-            const pool = humanNonOC.length > 0 ? humanNonOC : nonOCPlayers;
 
-            if (pool.length === 0) {
+            // STRONG PRIORITY: Human players first (investigating bots is less valuable)
+            const humanTargets = validTargets.filter(p => !p.is_bot);
+            
+            let targetNum: number | null = null;
+            
+            if (humanTargets.length > 0) {
+              // Always pick from humans if any are available
+              targetNum = humanTargets[Math.floor(Math.random() * humanTargets.length)].player_number!;
+            } else if (validTargets.length > 0) {
+              // Fallback to bots only if no humans left to investigate
+              targetNum = validTargets[Math.floor(Math.random() * validTargets.length)].player_number!;
+            }
+
+            if (!targetNum) {
               result.skipped_reason = 'No valid target for oracle';
               break;
             }
 
-            const targetNum = pool[Math.floor(Math.random() * pool.length)].player_number!;
             inputsToInsert.push({
               game_id: gameId,
               session_game_id: sessionGameId,
