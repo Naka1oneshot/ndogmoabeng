@@ -16,6 +16,7 @@ import { BoatProgressBar } from './BoatProgressBar';
 import { RivieresLockAnimation } from './RivieresLockAnimation';
 import { RivieresResolveAnimation } from './RivieresResolveAnimation';
 import { RivieresVictoryPodium } from './RivieresVictoryPodium';
+import { RivieresPlayerSortAnimation } from './RivieresPlayerSortAnimation';
 
 interface Game {
   id: string;
@@ -101,6 +102,7 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
   // Animation states
   const [showLockAnimation, setShowLockAnimation] = useState(false);
   const [showResolveAnimation, setShowResolveAnimation] = useState(false);
+  const [showPlayerSortAnimation, setShowPlayerSortAnimation] = useState(false);
   const [resolveAnimationData, setResolveAnimationData] = useState<{
     danger: number;
     totalMises: number;
@@ -108,10 +110,17 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
     niveau: number;
     manche: number;
   } | null>(null);
+  const [playerSortData, setPlayerSortData] = useState<{
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+    decision: 'RESTE' | 'DESCENDS';
+  }[]>([]);
 
   // Previous state refs for detecting changes
   const previousDecisionsLockedRef = useRef<boolean>(false);
   const previousLevelHistoryCountRef = useRef<number>(0);
+  const previousDangerEffectifRef = useRef<number | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!game.current_session_game_id) {
@@ -128,7 +137,15 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
       .eq('session_game_id', sessionGameId)
       .single();
 
-    if (stateData) setSessionState(stateData);
+    if (stateData) {
+      // Check if danger just got set to trigger player sort animation
+      if (stateData.danger_effectif !== null && previousDangerEffectifRef.current === null) {
+        // Danger was just set - we need to prepare the player sort animation
+        // This will be triggered after the lock animation completes
+      }
+      previousDangerEffectifRef.current = stateData.danger_effectif;
+      setSessionState(stateData);
+    }
 
     // Fetch level history
     const { data: historyData } = await supabase
@@ -346,11 +363,43 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
     );
   }
 
+  // Check if all decisions are locked (for showing different UI)
+  const allDecisionsLocked = lockedDecisions.length > 0 && lockedDecisions.length === enBateauPlayers.length;
+
+  // Build player sort data when lock animation completes
+  const handleLockAnimationComplete = () => {
+    setShowLockAnimation(false);
+    
+    // Prepare player sort animation data
+    const sortData = lockedDecisions.map(d => {
+      const player = players.find(p => p.id === d.player_id);
+      return {
+        id: d.player_id,
+        display_name: player?.display_name ?? `Joueur ${d.player_num}`,
+        avatar_url: player?.avatar_url ?? null,
+        decision: d.decision as 'RESTE' | 'DESCENDS',
+      };
+    });
+    
+    if (sortData.length > 0) {
+      setPlayerSortData(sortData);
+      setShowPlayerSortAnimation(true);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-gradient-to-br from-[#0B1020] via-[#151B2D] to-[#0B1020] overflow-hidden">
       {/* Lock Animation Overlay */}
       {showLockAnimation && (
-        <RivieresLockAnimation onComplete={() => setShowLockAnimation(false)} />
+        <RivieresLockAnimation onComplete={handleLockAnimationComplete} />
+      )}
+
+      {/* Player Sort Animation Overlay */}
+      {showPlayerSortAnimation && playerSortData.length > 0 && (
+        <RivieresPlayerSortAnimation
+          players={playerSortData}
+          onComplete={() => setShowPlayerSortAnimation(false)}
+        />
       )}
 
       {/* Resolve Animation Overlay */}
@@ -480,60 +529,122 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
               </div>
             </div>
 
-            {/* Validated Players */}
-            <div className="bg-[#151B2D] border border-green-500/30 rounded-lg p-4 flex-1 min-h-0">
-              <h3 className="text-sm font-bold text-green-400 flex items-center gap-2 mb-3">
-                <CheckCircle className="h-4 w-4" />
-                Validés ({validatedPlayers.length})
-              </h3>
-              <ScrollArea className="h-[calc(100%-2rem)]">
-                <div className="grid grid-cols-2 gap-2">
-                  {validatedPlayers.map(p => {
-                    const decision = decisions.find(d => d.player_id === p.id);
-                    return (
-                      <div key={p.id} className="flex items-center gap-2 bg-[#0B1020] rounded-lg p-2">
-                        <Avatar className="h-8 w-8">
+            {/* Before lock: En attente de décision / Choix effectué */}
+            {/* After lock: Dans le bateau / A terre */}
+            {!allDecisionsLocked ? (
+              <>
+                {/* Choix effectué (avant clôture) */}
+                <div className="bg-[#151B2D] border border-green-500/30 rounded-lg p-4 flex-1 min-h-0">
+                  <h3 className="text-sm font-bold text-green-400 flex items-center gap-2 mb-3">
+                    <CheckCircle className="h-4 w-4" />
+                    Choix effectué ({validatedPlayers.length})
+                  </h3>
+                  <ScrollArea className="h-[calc(100%-2rem)]">
+                    <div className="grid grid-cols-2 gap-2">
+                      {validatedPlayers.map(p => (
+                        <div key={p.id} className="flex items-center gap-2 bg-[#0B1020] rounded-lg p-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={p.avatar_url || undefined} />
+                            <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs">
+                              {p.display_name.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs text-[#E8E8E8] truncate">{p.display_name}</div>
+                          </div>
+                          <CheckCircle className="h-4 w-4 text-green-400" />
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                {/* En attente de décision (avant clôture) */}
+                <div className="bg-[#151B2D] border border-amber-500/30 rounded-lg p-4">
+                  <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2 mb-3">
+                    <Clock className="h-4 w-4" />
+                    En attente de décision ({pendingPlayers.length})
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {pendingPlayers.map(p => (
+                      <div key={p.id} className="flex items-center gap-2 bg-[#0B1020] rounded-full px-3 py-1">
+                        <Avatar className="h-6 w-6">
                           <AvatarImage src={p.avatar_url || undefined} />
-                          <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs">
+                          <AvatarFallback className="bg-amber-500/20 text-amber-400 text-xs">
                             {p.display_name.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs text-[#E8E8E8] truncate">{p.display_name}</div>
-                          <div className={`text-xs ${decision?.decision === 'RESTE' ? 'text-blue-400' : 'text-amber-400'}`}>
-                            {decision?.decision === 'RESTE' ? `🚣 ${decision.mise_demandee}💎` : '⬇️ Descend'}
-                          </div>
-                        </div>
+                        <span className="text-xs text-[#E8E8E8]">{p.display_name}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            </div>
-
-            {/* Pending Players */}
-            <div className="bg-[#151B2D] border border-amber-500/30 rounded-lg p-4">
-              <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2 mb-3">
-                <Clock className="h-4 w-4" />
-                En attente ({pendingPlayers.length})
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {pendingPlayers.map(p => (
-                  <div key={p.id} className="flex items-center gap-2 bg-[#0B1020] rounded-full px-3 py-1">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={p.avatar_url || undefined} />
-                      <AvatarFallback className="bg-amber-500/20 text-amber-400 text-xs">
-                        {p.display_name.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs text-[#E8E8E8]">{p.display_name}</span>
+                    ))}
+                    {pendingPlayers.length === 0 && (
+                      <span className="text-xs text-[#9CA3AF]">Tous les joueurs ont fait leur choix</span>
+                    )}
                   </div>
-                ))}
-                {pendingPlayers.length === 0 && (
-                  <span className="text-xs text-[#9CA3AF]">Tous les joueurs ont validé</span>
-                )}
-              </div>
-            </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Dans le bateau (après clôture) */}
+                <div className="bg-[#151B2D] border border-blue-500/30 rounded-lg p-4 flex-1 min-h-0">
+                  <h3 className="text-sm font-bold text-blue-400 flex items-center gap-2 mb-3">
+                    <Ship className="h-4 w-4" />
+                    Dans le bateau ({lockedDecisions.filter(d => d.decision === 'RESTE').length})
+                  </h3>
+                  <ScrollArea className="h-[calc(100%-2rem)]">
+                    <div className="grid grid-cols-2 gap-2">
+                      {lockedDecisions.filter(d => d.decision === 'RESTE').map(d => {
+                        const player = players.find(p => p.id === d.player_id);
+                        if (!player) return null;
+                        return (
+                          <div key={d.id} className="flex items-center gap-2 bg-[#0B1020] rounded-lg p-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={player.avatar_url || undefined} />
+                              <AvatarFallback className="bg-blue-500/20 text-blue-400 text-xs">
+                                {player.display_name.slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs text-[#E8E8E8] truncate">{player.display_name}</div>
+                            </div>
+                            <Ship className="h-4 w-4 text-blue-400" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                {/* A terre (après clôture) */}
+                <div className="bg-[#151B2D] border border-green-500/30 rounded-lg p-4">
+                  <h3 className="text-sm font-bold text-green-400 flex items-center gap-2 mb-3">
+                    <Anchor className="h-4 w-4" />
+                    A terre ({lockedDecisions.filter(d => d.decision === 'DESCENDS').length})
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {lockedDecisions.filter(d => d.decision === 'DESCENDS').map(d => {
+                      const player = players.find(p => p.id === d.player_id);
+                      if (!player) return null;
+                      return (
+                        <div key={d.id} className="flex items-center gap-2 bg-[#0B1020] rounded-full px-3 py-1">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={player.avatar_url || undefined} />
+                            <AvatarFallback className="bg-green-500/20 text-green-400 text-xs">
+                              {player.display_name.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs text-[#E8E8E8]">{player.display_name}</span>
+                          <Anchor className="h-3 w-3 text-green-400" />
+                        </div>
+                      );
+                    })}
+                    {lockedDecisions.filter(d => d.decision === 'DESCENDS').length === 0 && (
+                      <span className="text-xs text-[#9CA3AF]">Personne ne descend</span>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Right Panel: Live Ranking */}
