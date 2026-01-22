@@ -1,20 +1,28 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { useActiveGames } from '@/hooks/useActiveGames';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
-import { Menu, X, Gamepad2, LogIn } from 'lucide-react';
+import { Menu, X, Gamepad2, LogIn, User, LogOut, Shield } from 'lucide-react';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 export function LandingNavbar() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const { isAdmin, isSuperAdmin } = useUserRole();
   const { gamesCount } = useActiveGames();
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    setMobileMenuOpen(false);
+    navigate('/');
+  };
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -118,14 +126,44 @@ export function LandingNavbar() {
           </div>
 
           {/* Mobile Navigation */}
-          {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-border">
-              <div className="flex flex-col gap-4">
-                {/* Profile at the top of mobile menu */}
+          <div className="md:hidden py-4 border-t border-border">
+              <div className="flex flex-col gap-2">
+                {/* Profile section at the top of mobile menu */}
                 <div className="flex items-center gap-3 pb-3 border-b border-border">
                   <UserAvatarButton size="md" />
                   <span className="text-sm text-muted-foreground">Mon profil</span>
                 </div>
+                
+                {/* Quick actions */}
+                {user && (
+                  <div className="flex flex-col gap-1 pb-3 border-b border-border">
+                    <button
+                      onClick={() => { navigate('/profile'); setMobileMenuOpen(false); }}
+                      className="flex items-center gap-2 text-left text-foreground hover:text-primary transition-colors py-2 px-2 rounded-md hover:bg-muted/50"
+                    >
+                      <User className="h-4 w-4" />
+                      Profil
+                    </button>
+                    
+                    {(isAdmin || isSuperAdmin) && (
+                      <button
+                        onClick={() => { navigate('/admin/subscriptions'); setMobileMenuOpen(false); }}
+                        className="flex items-center gap-2 text-left text-primary hover:text-primary/80 transition-colors py-2 px-2 rounded-md hover:bg-muted/50"
+                      >
+                        <Shield className="h-4 w-4" />
+                        Administration
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={handleSignOut}
+                      className="flex items-center gap-2 text-left text-destructive hover:text-destructive/80 transition-colors py-2 px-2 rounded-md hover:bg-muted/50"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Se déconnecter
+                    </button>
+                  </div>
+                )}
                 
                 <button 
                   onClick={() => scrollToSection('concept')}
@@ -159,7 +197,6 @@ export function LandingNavbar() {
                 )}
               </div>
             </div>
-          )}
         </div>
       </nav>
 
