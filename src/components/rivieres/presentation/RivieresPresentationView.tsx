@@ -521,16 +521,10 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="bg-[#0B1020] rounded-lg p-3">
                   <div className="text-[#9CA3AF] text-xs">En bateau</div>
                   <div className="text-xl font-bold text-blue-400">{enBateauPlayers.length}</div>
-                </div>
-                <div className="bg-[#0B1020] rounded-lg p-3">
-                  <div className="text-[#9CA3AF] text-xs">Mises totales</div>
-                  <div className="text-xl font-bold text-[#4ADE80]">
-                    {lockedDecisions.reduce((sum, d) => d.decision === 'RESTE' ? sum + d.mise_demandee : sum, 0)}💎
-                  </div>
                 </div>
                 <div className="bg-[#0B1020] rounded-lg p-3">
                   <div className="text-[#9CA3AF] text-xs">Descentes</div>
