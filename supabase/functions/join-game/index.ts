@@ -1,21 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { validateJoinGameInput, generateSecurePlayerToken } from "../_shared/validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Generate a unique player token (reconnect_key)
-function generatePlayerToken(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 32; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
+// Use cryptographically secure token generation
+const generatePlayerToken = generateSecurePlayerToken;
 
 // Normalize name for matching (trim + lowercase)
 function normalizeName(name: string): string {
@@ -117,21 +111,18 @@ serve(async (req) => {
   }
 
   try {
-    const { joinCode, displayName, clan, deviceId, reconnectKey, useTokenForClan, lockClan } = await req.json();
-
-    if (!joinCode || !displayName) {
+    // Validate and sanitize all inputs
+    const rawInput = await req.json();
+    const validation = validateJoinGameInput(rawInput);
+    
+    if (!validation.valid || !validation.data) {
       return new Response(
-        JSON.stringify({ error: "Code et pseudo requis" }),
+        JSON.stringify({ error: validation.error || "Données invalides" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    if (!deviceId) {
-      return new Response(
-        JSON.stringify({ error: "Device ID requis" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    
+    const { joinCode, displayName, clan, deviceId, reconnectKey, useTokenForClan, lockClan } = validation.data;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
