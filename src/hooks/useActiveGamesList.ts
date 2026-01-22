@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ActiveGame {
@@ -14,68 +14,79 @@ interface ActiveGame {
   adventure_id: string | null;
 }
 
+// Throttle updates to prevent excessive re-renders
+const THROTTLE_MS = 2000;
+
 export function useActiveGamesList() {
   const [games, setGames] = useState<ActiveGame[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastFetchRef = useRef<number>(0);
+  const pendingFetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
-  useEffect(() => {
-    const fetchGames = async () => {
-      try {
-        // Fetch all active games (public and private)
-        const { data, error: gamesError } = await supabase
-          .from('games')
-          .select('*')
-          .in('status', ['LOBBY', 'IN_GAME', 'RUNNING'])
-          .eq('winner_declared', false)
-          .order('created_at', { ascending: false })
-          .limit(20);
+  const fetchGames = useCallback(async (force = false) => {
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchRef.current;
 
-        if (gamesError) throw gamesError;
+    // Throttle fetches unless forced
+    if (!force && timeSinceLastFetch < THROTTLE_MS) {
+      // Schedule a fetch for later if not already pending
+      if (!pendingFetchRef.current) {
+        pendingFetchRef.current = setTimeout(() => {
+          pendingFetchRef.current = null;
+          if (mountedRef.current) fetchGames(true);
+        }, THROTTLE_MS - timeSinceLastFetch);
+      }
+      return;
+    }
 
-        const activeGames = data || [];
+    lastFetchRef.current = now;
 
-        if (activeGames.length === 0) {
-          setGames([]);
-          setLoading(false);
-          return;
-        }
+    try {
+      // Use RPC function for better performance
+      const { data, error } = await supabase
+        .rpc('public_list_live_games');
 
-        // Fetch player counts for each game
-        const gamesWithCounts = await Promise.all(
-          activeGames.slice(0, 10).map(async (game) => {
-            const { count } = await supabase
-              .from('game_players')
-              .select('*', { count: 'exact', head: true })
-              .eq('game_id', game.id)
-              .eq('is_host', false)
-              .is('removed_at', null);
+      if (error) throw error;
 
-            return {
-              id: game.id,
-              name: game.name,
-              mode: game.mode,
-              selected_game_type_code: game.selected_game_type_code,
-              join_code: game.join_code,
-              status: game.status,
-              is_public: (game as any).is_public || false,
-              playerCount: count || 0,
-              current_step_index: game.current_step_index || 0,
-              adventure_id: game.adventure_id || null,
-            };
-          })
-        );
+      if (!mountedRef.current) return;
 
-        setGames(gamesWithCounts);
-      } catch (error) {
-        console.error('Error fetching active games:', error);
-      } finally {
+      const mappedGames: ActiveGame[] = (data || []).map((game: {
+        game_id: string;
+        name: string;
+        mode: string;
+        selected_game_type_code: string | null;
+        status: string;
+        current_step_index: number;
+        player_count: number;
+      }) => ({
+        id: game.game_id,
+        name: game.name,
+        mode: game.mode,
+        selected_game_type_code: game.selected_game_type_code,
+        join_code: '', // Not exposed in public function
+        playerCount: Number(game.player_count) || 0,
+        status: game.status,
+        is_public: true, // Only public games are listed
+        current_step_index: game.current_step_index || 0,
+        adventure_id: null,
+      }));
+
+      setGames(mappedGames);
+    } catch (error) {
+      console.error('Error fetching active games:', error);
+    } finally {
+      if (mountedRef.current) {
         setLoading(false);
       }
-    };
+    }
+  }, []);
 
-    fetchGames();
+  useEffect(() => {
+    mountedRef.current = true;
+    fetchGames(true);
 
-    // Realtime subscription
+    // Realtime subscription with throttled updates
     const channel = supabase
       .channel('active-games-list')
       .on(
@@ -91,9 +102,14 @@ export function useActiveGamesList() {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
+      if (pendingFetchRef.current) {
+        clearTimeout(pendingFetchRef.current);
+      }
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchGames]);
 
-  return { games, loading };
+  // Memoize return value
+  return useMemo(() => ({ games, loading }), [games, loading]);
 }
