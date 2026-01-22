@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Login from "./pages/Login";
 import MJ from "./pages/MJ";
+import MJGameManage from "./pages/MJGameManage";
 import Presentation from "./pages/Presentation";
 import JoinAnonymous from "./pages/JoinAnonymous";
 import PlayerDashboard from "./pages/PlayerDashboard";
@@ -41,7 +42,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/mj" element={<MJ />} />
-                <Route path="/mj/:gameId" element={<MJ />} />
+                <Route path="/mj/:gameId" element={<MJGameManage />} />
                 <Route path="/join/:code" element={<JoinAnonymous />} />
                 <Route path="/player/:gameId" element={<PlayerDashboard />} />
                 <Route path="/play/:gameId" element={<PlayerDashboard />} />
