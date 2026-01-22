@@ -8,8 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, Dice6, Lock, Play, Users, History, 
   AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship, Waves,
-  RefreshCw, Copy, Check, UserX, Calculator, Zap
+  RefreshCw, Copy, Check, UserX, Calculator, Zap, Bot, Plus, Trash2
 } from 'lucide-react';
+import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
 import { 
   rivieresCardStyle, 
@@ -97,6 +98,7 @@ interface MJRivieresDashboardProps {
 }
 
 export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false, onNextGame, gameStatus = 'IN_GAME' }: MJRivieresDashboardProps) {
+  const { isAdmin } = useUserRole();
   const [state, setState] = useState<RiverSessionState | null>(null);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats[]>([]);
   const [decisions, setDecisions] = useState<RiverDecision[]>([]);
@@ -129,6 +131,10 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [kickModalOpen, setKickModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; name: string } | null>(null);
+
+  // Bot management state
+  const [botCount, setBotCount] = useState(5);
+  const [withClans, setWithClans] = useState(true);
 
   // Refresh decisions when manche/niveau changes
   const stateRef = useRef(state);
@@ -474,6 +480,67 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
     setKickModalOpen(true);
   };
 
+  // Bot management functions
+  const handleAddBots = async () => {
+    if (botCount < 1 || botCount > 50) {
+      toast.error('Nombre de bots invalide (1-50)');
+      return;
+    }
+    setActionLoading('addBots');
+    try {
+      const { data, error } = await supabase.functions.invoke('add-bots', {
+        body: { gameId, count: botCount, withClans, withMates: false },
+      });
+      if (error) throw error;
+      toast.success(`${data.botsAdded} bot(s) ajouté(s)`);
+      fetchData();
+    } catch (err: any) {
+      console.error('Add bots error:', err);
+      toast.error(err.message || 'Erreur lors de l\'ajout des bots');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteAllBots = async () => {
+    setActionLoading('deleteBots');
+    try {
+      const { error } = await supabase
+        .from('game_players')
+        .delete()
+        .eq('game_id', gameId)
+        .eq('is_bot', true);
+      if (error) throw error;
+      toast.success('Bots supprimés');
+      fetchData();
+    } catch (err: any) {
+      console.error('Delete bots error:', err);
+      toast.error('Erreur lors de la suppression');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBotDecisions = async () => {
+    setActionLoading('botDecisions');
+    try {
+      const { data, error } = await supabase.functions.invoke('rivieres-bot-decisions', {
+        body: { session_game_id: sessionGameId },
+      });
+      if (error) throw error;
+      toast.success(`${data.decisions_made} décision(s) de bot générée(s)`);
+      fetchData();
+    } catch (err: any) {
+      console.error('Bot decisions error:', err);
+      toast.error(err.message || 'Erreur lors des décisions bots');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const botPlayers = players.filter(p => p.display_name.includes('🤖'));
+  const humanPlayers = players.filter(p => !p.display_name.includes('🤖'));
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -577,8 +644,76 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           </p>
           <p className="text-[#E8E8E8]">
             <span className="text-[#D4AF37] font-bold text-2xl">{players.length}</span> joueur{players.length > 1 ? 's' : ''} connecté{players.length > 1 ? 's' : ''}
+            {botPlayers.length > 0 && (
+              <span className="text-[#9CA3AF] text-sm ml-2">
+                (dont {botPlayers.length} 🤖)
+              </span>
+            )}
           </p>
         </div>
+
+        {/* Bot Controls - Only for admins */}
+        {isAdmin && (
+          <div className="bg-[#0B1020] rounded-lg p-4 mb-6 border border-[#D4AF37]/20">
+            <h3 className="text-[#D4AF37] font-medium mb-3 flex items-center gap-2">
+              <Bot className="h-4 w-4" />
+              Gestion des Bots (Admin)
+            </h3>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={botCount}
+                  onChange={(e) => setBotCount(parseInt(e.target.value) || 1)}
+                  className="w-20 h-9 bg-[#20232A] border-[#D4AF37]/30 text-[#E8E8E8]"
+                />
+                <label className="flex items-center gap-2 text-sm text-[#9CA3AF]">
+                  <input
+                    type="checkbox"
+                    checked={withClans}
+                    onChange={(e) => setWithClans(e.target.checked)}
+                    className="rounded border-[#D4AF37]/30"
+                  />
+                  Clans aléatoires
+                </label>
+              </div>
+              <ForestButton
+                size="sm"
+                onClick={handleAddBots}
+                disabled={actionLoading === 'addBots'}
+                className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
+              >
+                {actionLoading === 'addBots' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Ajouter bots
+                  </>
+                )}
+              </ForestButton>
+              {botPlayers.length > 0 && (
+                <ForestButton
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleDeleteAllBots}
+                  disabled={actionLoading === 'deleteBots'}
+                >
+                  {actionLoading === 'deleteBots' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Supprimer {botPlayers.length} bot(s)
+                    </>
+                  )}
+                </ForestButton>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Player list */}
         {players.length > 0 && (
@@ -984,6 +1119,18 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                     <Lock className="h-5 w-5" /> Actions MJ
                   </h3>
                   <div className="flex gap-3 flex-wrap">
+                    {/* Bot Decisions Button - only if there are bots */}
+                    {isAdmin && botPlayers.length > 0 && (
+                      <ForestButton
+                        onClick={handleBotDecisions}
+                        disabled={actionLoading === 'botDecisions'}
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        {actionLoading === 'botDecisions' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4 mr-1" />}
+                        Décisions Bots ({botPlayers.length})
+                      </ForestButton>
+                    )}
+                    
                     <ForestButton
                       onClick={handleLockDecisions}
                       disabled={actionLoading === 'lock' || allLocked}
