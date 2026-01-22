@@ -579,9 +579,15 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                       ) : (
                         // View mode
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3">
                             <span className="text-[#D4AF37] font-mono">#{player.player_number}</span>
                             <span className="font-medium">{player.display_name}</span>
+                            {player.is_bot && (
+                              <Badge className="bg-[#6366F1]/20 text-[#A5B4FC] border-[#6366F1]/30 text-xs px-1.5 py-0">
+                                <Bot className="h-3 w-3 mr-1" />
+                                Bot
+                              </Badge>
+                            )}
                             {player.clan && (
                               <Badge variant="outline" className="text-xs">
                                 {player.clan}
@@ -1028,6 +1034,12 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                             <span className={player.is_alive === false ? 'line-through text-[#6B7280]' : ''}>
                               {player.display_name}
                             </span>
+                            {player.is_bot && (
+                              <Badge className="bg-[#6366F1]/20 text-[#A5B4FC] border-[#6366F1]/30 text-xs px-1.5 py-0">
+                                <Bot className="h-3 w-3 mr-1" />
+                                Bot
+                              </Badge>
+                            )}
                             {roleInfo && (
                               <Badge 
                                 style={{ 
