@@ -50,12 +50,13 @@ interface RiverPlayerStats {
 
 interface MJRivieresPlayersTabProps {
   gameId: string;
-  sessionGameId: string;
+  sessionGameId?: string;
   gameStatus?: string;
+  isLobby?: boolean;
   onRefresh: () => void;
 }
 
-export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, onRefresh }: MJRivieresPlayersTabProps) {
+export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobby: isLobbyProp, onRefresh }: MJRivieresPlayersTabProps) {
   const { isAdmin } = useUserRole();
   const [players, setPlayers] = useState<Player[]>([]);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats[]>([]);
@@ -76,7 +77,7 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, onRefr
   const [botsWithClans, setBotsWithClans] = useState(false);
   const [botsWithMates, setBotsWithMates] = useState(false);
   
-  const isLobby = gameStatus === 'LOBBY';
+  const isLobby = isLobbyProp || gameStatus === 'LOBBY';
 
   useEffect(() => {
     fetchData();
@@ -84,10 +85,15 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, onRefr
     const channel = supabase
       .channel(`mj-rivieres-players-${gameId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` }, 
-        () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'river_player_stats', filter: `session_game_id=eq.${sessionGameId}` },
-        () => fetchStats())
-      .subscribe();
+        () => fetchData());
+    
+    // Only subscribe to river_player_stats if we have a sessionGameId
+    if (sessionGameId) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table: 'river_player_stats', filter: `session_game_id=eq.${sessionGameId}` },
+        () => fetchStats());
+    }
+    
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -110,6 +116,10 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, onRefr
   };
 
   const fetchStats = async () => {
+    if (!sessionGameId) {
+      setPlayerStats([]);
+      return;
+    }
     const { data } = await supabase
       .from('river_player_stats')
       .select('*')

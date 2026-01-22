@@ -613,7 +613,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
     );
   }
 
-  // LOBBY VIEW - Show waiting room with player list
+  // LOBBY VIEW - Use unified MJRivieresPlayersTab for player management
   if (gameStatus === 'LOBBY') {
     const handleStartGame = async () => {
       if (players.length < 1) {
@@ -671,101 +671,19 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           </p>
         </div>
 
-        {/* Bot Controls - Only for admins */}
-        {isAdmin && (
-          <div className="bg-[#0B1020] rounded-lg p-4 mb-6 border border-[#D4AF37]/20">
-            <h3 className="text-[#D4AF37] font-medium mb-3 flex items-center gap-2">
-              <Bot className="h-4 w-4" />
-              Gestion des Bots (Admin)
-            </h3>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={botCount}
-                  onChange={(e) => setBotCount(parseInt(e.target.value) || 1)}
-                  className="w-20 h-9 bg-[#20232A] border-[#D4AF37]/30 text-[#E8E8E8]"
-                />
-                <label className="flex items-center gap-2 text-sm text-[#9CA3AF]">
-                  <input
-                    type="checkbox"
-                    checked={withClans}
-                    onChange={(e) => setWithClans(e.target.checked)}
-                    className="rounded border-[#D4AF37]/30"
-                  />
-                  Clans aléatoires
-                </label>
-              </div>
-              <ForestButton
-                size="sm"
-                onClick={handleAddBots}
-                disabled={actionLoading === 'addBots'}
-                className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
-              >
-                {actionLoading === 'addBots' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Ajouter bots
-                  </>
-                )}
-              </ForestButton>
-              {botPlayers.length > 0 && (
-                <ForestButton
-                  size="sm"
-                  variant="destructive"
-                  onClick={handleDeleteAllBots}
-                  disabled={actionLoading === 'deleteBots'}
-                >
-                  {actionLoading === 'deleteBots' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Supprimer {botPlayers.length} bot(s)
-                    </>
-                  )}
-                </ForestButton>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Player list */}
-        {players.length > 0 && (
-          <div className="bg-[#0B1020] rounded-lg p-4 mb-6">
-            <h3 className="text-[#D4AF37] font-medium mb-3 flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Joueurs inscrits
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-              {players.map(player => (
-                <div 
-                  key={player.id} 
-                  className="flex items-center gap-2 p-2 bg-[#20232A] rounded border border-[#D4AF37]/20"
-                >
-                  <span className="w-6 h-6 bg-[#D4AF37]/20 rounded-full flex items-center justify-center text-xs font-bold text-[#D4AF37]">
-                    {player.player_number || '?'}
-                  </span>
-                  <span className="text-[#E8E8E8] text-sm truncate flex-1">{player.display_name}</span>
-                  {player.clan && (
-                    <span className="text-xs text-[#9CA3AF]">{player.clan}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Use the unified player management tab */}
+        <MJRivieresPlayersTab 
+          gameId={gameId} 
+          isLobby={true} 
+          onRefresh={fetchData} 
+        />
 
         {/* Start button */}
         <ForestButton
           size="lg"
           onClick={handleStartGame}
           disabled={actionLoading === 'start' || players.length < 1}
-          className="w-full bg-[#4ADE80] hover:bg-[#4ADE80]/80 text-black text-lg py-6 font-bold"
+          className="w-full mt-6 bg-[#4ADE80] hover:bg-[#4ADE80]/80 text-black text-lg py-6 font-bold"
         >
           {actionLoading === 'start' ? (
             <>
