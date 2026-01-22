@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Ship, Anchor, User } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Ship, Anchor } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface PlayerDecision {
@@ -20,12 +20,28 @@ export function RivieresPlayerSortAnimation({
 }: RivieresPlayerSortAnimationProps) {
   const [phase, setPhase] = useState<'intro' | 'sorting' | 'done'>('intro');
   const [visiblePlayers, setVisiblePlayers] = useState<string[]>([]);
+  
+  // Use refs to avoid re-triggering effect
+  const onCompleteRef = useRef(onComplete);
+  const playersRef = useRef(players);
+  const hasStartedRef = useRef(false);
+  
+  // Update refs when props change
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+    playersRef.current = players;
+  }, [onComplete, players]);
 
   const stayingPlayers = players.filter(p => p.decision === 'RESTE');
   const descendingPlayers = players.filter(p => p.decision === 'DESCENDS');
 
   useEffect(() => {
-    let intervalRef: NodeJS.Timeout | null = null;
+    // Prevent running multiple times
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+    
+    const currentPlayers = playersRef.current;
+    let intervalRef: ReturnType<typeof setInterval> | null = null;
     
     // Phase 1: Intro (1s)
     const introTimer = setTimeout(() => setPhase('sorting'), 1000);
@@ -34,8 +50,9 @@ export function RivieresPlayerSortAnimation({
     const sortingTimer = setTimeout(() => {
       let index = 0;
       intervalRef = setInterval(() => {
-        if (index < players.length) {
-          setVisiblePlayers(prev => [...prev, players[index].id]);
+        if (index < currentPlayers.length) {
+          const playerId = currentPlayers[index].id;
+          setVisiblePlayers(prev => [...prev, playerId]);
           index++;
         } else {
           if (intervalRef) clearInterval(intervalRef);
@@ -44,11 +61,13 @@ export function RivieresPlayerSortAnimation({
     }, 1000);
 
     // Phase 3: Done (after all players + 1.5s)
-    const totalAnimationTime = 1000 + (players.length * 150) + 1500;
+    const totalAnimationTime = 1000 + (currentPlayers.length * 150) + 1500;
     const doneTimer = setTimeout(() => setPhase('done'), totalAnimationTime);
 
     // Complete
-    const completeTimer = setTimeout(onComplete, totalAnimationTime + 500);
+    const completeTimer = setTimeout(() => {
+      onCompleteRef.current();
+    }, totalAnimationTime + 500);
 
     return () => {
       clearTimeout(introTimer);
@@ -57,7 +76,7 @@ export function RivieresPlayerSortAnimation({
       clearTimeout(completeTimer);
       if (intervalRef) clearInterval(intervalRef);
     };
-  }, [players, onComplete]);
+  }, []); // Empty dependency array - run once on mount
 
   // Play sound on intro
   useEffect(() => {
