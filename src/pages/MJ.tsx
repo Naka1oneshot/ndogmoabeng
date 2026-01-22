@@ -86,7 +86,8 @@ function GameListItem({
 
   return (
     <div
-      className="card-gradient rounded-lg border border-border p-4 hover:border-primary/50 transition-colors"
+      className="card-gradient rounded-lg border border-border p-4 hover:border-primary/50 transition-colors cursor-pointer"
+      onClick={() => onOpenDetail(game)}
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -141,7 +142,7 @@ function GameListItem({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <ForestButton
             variant="outline"
             size="sm"
