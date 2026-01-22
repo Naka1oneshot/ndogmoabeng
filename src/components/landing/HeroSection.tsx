@@ -28,19 +28,21 @@ export function HeroSection() {
   };
 
   return (
-    <section className="min-h-screen flex items-center pt-20 pb-16 md:pb-8">
+    <section className="min-h-screen flex items-center pt-20 pb-16 md:pb-8" aria-labelledby="hero-title">
       <div className="container mx-auto px-4">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           {/* Left: Title & Subtitle */}
-          <div className="text-center md:text-left">
+          <header className="text-center md:text-left">
             <div className="inline-flex items-center justify-center w-24 h-24 md:w-32 md:h-32 mb-6 animate-float">
               <img 
                 src={logoNdogmoabeng} 
-                alt="Ndogmoabeng" 
-                className="w-full h-full object-contain" 
+                alt="Logo Ndogmoabeng - Jeux de société interactifs" 
+                className="w-full h-full object-contain"
+                width={128}
+                height={128}
               />
             </div>
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-glow mb-6">
+            <h1 id="hero-title" className="font-display text-4xl md:text-5xl lg:text-6xl text-glow mb-6">
               Ndogmoabeng
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-lg mx-auto md:mx-0 mb-8">
@@ -61,10 +63,10 @@ export function HeroSection() {
                 </div>
               )}
             </div>
-          </div>
+          </header>
 
           {/* Right: CTA Card */}
-          <div className="flex justify-center md:justify-end">
+          <aside className="flex justify-center md:justify-end">
             <Card className="w-full max-w-md card-gradient border-border/50">
               <CardContent className="p-6">
                 <h2 className="font-display text-xl mb-6 text-center">
@@ -144,7 +146,7 @@ export function HeroSection() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </aside>
         </div>
       </div>
 
