@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PresentationModeView } from "@/components/mj/presentation/PresentationModeView";
+import { RivieresPresentationView } from "@/components/rivieres/presentation/RivieresPresentationView";
 
 interface Game {
   id: string;
@@ -70,6 +71,12 @@ const Presentation = () => {
     );
   }
 
+  // Route to appropriate presentation based on game type
+  if (game.selected_game_type_code === 'RIVIERES') {
+    return <RivieresPresentationView game={game} onClose={() => window.close()} />;
+  }
+
+  // Default to Forest presentation
   return <PresentationModeView game={game} onClose={() => window.close()} />;
 };
 
