@@ -739,7 +739,7 @@ export default function MJ() {
                         : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground'
                     }`}
                   >
-                    Tous les types
+                    Tous les jeux
                   </button>
                   <button
                     onClick={() => {
