@@ -588,21 +588,21 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
                   {ranking.slice(3).map((p, idx) => (
                     <div 
                       key={p.id} 
-                      className={`flex items-center gap-2 p-2 rounded-lg bg-[#0B1020] ${p.current_status === 'A_TERRE' ? 'opacity-60' : ''}`}
+                      className={`flex items-center gap-1.5 p-2 rounded-lg bg-[#0B1020] ${p.current_status === 'A_TERRE' ? 'opacity-60' : ''}`}
                     >
-                      <span className="text-sm font-bold text-[#9CA3AF] w-6">
+                      <span className="text-xs font-bold text-[#9CA3AF] w-5 flex-shrink-0">
                         #{idx + 4}
                       </span>
-                      <Avatar className="h-7 w-7">
+                      <Avatar className="h-6 w-6 flex-shrink-0">
                         <AvatarImage src={p.avatar_url || undefined} />
-                        <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs">
+                        <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-[10px]">
                           {p.display_name.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[#E8E8E8] text-sm truncate">{p.display_name}</div>
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="text-[#E8E8E8] text-xs truncate">{p.display_name}</div>
                       </div>
-                      <Badge className={`text-xs ${
+                      <Badge className={`text-[10px] px-1.5 flex-shrink-0 ${
                         p.current_status === 'EN_BATEAU' ? 'bg-blue-600' :
                         p.current_status === 'A_TERRE' ? 'bg-green-600' :
                         'bg-red-600'
@@ -610,8 +610,8 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
                         {p.current_status === 'EN_BATEAU' ? '🚣' : 
                          p.current_status === 'A_TERRE' ? '🏝️' : '💀'}
                       </Badge>
-                      <span className={`text-xs ${p.validated_levels >= 9 ? 'text-[#4ADE80]' : 'text-amber-400'}`}>
-                        {p.validated_levels}
+                      <span className={`text-xs flex-shrink-0 min-w-[28px] text-right ${p.validated_levels >= 9 ? 'text-[#4ADE80]' : 'text-amber-400'}`}>
+                        {p.validated_levels}/15
                       </span>
                     </div>
                   ))}
