@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { KickPlayerModal } from '@/components/game/KickPlayerModal';
+import { MJRivieresPlayersTab } from './MJRivieresPlayersTab';
 import {
   calculateDangerRange,
   generateSuggestedDanger,
@@ -1212,132 +1213,11 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
 
         {/* Players Tab */}
         <TabsContent value="players" className="mt-4">
-          <div className="flex justify-end mb-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={async () => {
-                const { data } = await supabase
-                  .from('game_players')
-                  .select('id, display_name, player_number, clan, jetons, is_host, player_token')
-                  .eq('game_id', gameId)
-                  .eq('status', 'ACTIVE')
-                  .order('player_number');
-                if (data) setPlayers(data.filter(p => !p.is_host && p.player_number !== null));
-                const { data: statsData } = await supabase
-                  .from('river_player_stats')
-                  .select('*')
-                  .eq('session_game_id', sessionGameId)
-                  .order('player_num');
-                if (statsData) setPlayerStats(statsData);
-                toast.success('Joueurs actualisés');
-              }}
-              className="text-[#D4AF37] hover:bg-[#D4AF37]/10"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className={`${rivieresCardStyle} overflow-hidden`}>
-            <table className="w-full text-sm">
-              <thead className="bg-[#0B1020]">
-                <tr>
-                  <th className="p-2 text-left text-[#9CA3AF]">#</th>
-                  <th className="p-2 text-left text-[#9CA3AF]">Nom</th>
-                  <th className="p-2 text-left text-[#9CA3AF]">Clan</th>
-                  <th className="p-2 text-right text-[#9CA3AF]">Jetons</th>
-                  <th className="p-2 text-center text-[#9CA3AF]">Statut</th>
-                  <th className="p-2 text-center text-[#9CA3AF]">Niveaux</th>
-                  <th className="p-2 text-center text-[#9CA3AF]">PVic pot.</th>
-                  <th className="p-2 text-center text-[#9CA3AF]">Keryndes</th>
-                  <th className="p-2 text-right text-[#9CA3AF]">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {players.map((p) => {
-                  const stats = getStatsByPlayerId(p.id);
-                  const statusDisplay = stats ? getStatusDisplay(stats.current_round_status) : null;
-                  return (
-                    <tr key={p.id} className="border-t border-[#D4AF37]/10">
-                      <td className="p-2 text-[#D4AF37] font-bold">{p.player_number}</td>
-                      <td className="p-2 text-[#E8E8E8]">{p.display_name}</td>
-                      <td className="p-2 text-[#9CA3AF]">{p.clan || '-'}</td>
-                      <td className="p-2 text-right text-[#4ADE80] font-mono">{p.jetons}</td>
-                      <td className="p-2 text-center">
-                        {statusDisplay && (
-                          <Badge className={statusDisplay.className}>{statusDisplay.label}</Badge>
-                        )}
-                      </td>
-                      <td className="p-2 text-center text-[#E8E8E8]">{stats?.validated_levels ?? 0}/15</td>
-                      <td className="p-2 text-center">
-                        {(() => {
-                          const levels = stats?.validated_levels ?? 0;
-                          const tokens = p.jetons;
-                          const potentialReward = levels >= 9 ? tokens : Math.round((levels * tokens) / 9);
-                          return (
-                            <span className={levels >= 9 ? 'text-[#4ADE80] font-bold' : 'text-amber-400'}>
-                              {potentialReward}
-                              {levels < 9 && <span className="text-xs ml-0.5">⚠️</span>}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="p-2 text-center">
-                        {p.clan === 'Keryndes' ? (
-                          stats?.keryndes_available ? (
-                            <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">Dispo</Badge>
-                          ) : (
-                            <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Utilisé</Badge>
-                          )
-                        ) : '-'}
-                      </td>
-                      <td className="p-2">
-                        <div className="flex items-center justify-end gap-1">
-                          {p.player_token && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleCopyJoinLink(p.id, p.player_token!)}
-                              title="Copier le lien de reconnexion"
-                              className="h-7 w-7 p-0"
-                            >
-                              {copiedId === p.id ? (
-                                <Check className="h-3 w-3 text-green-500" />
-                              ) : (
-                                <Copy className="h-3 w-3" />
-                              )}
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleResetToken(p.id, p.display_name)}
-                            disabled={resettingId === p.id}
-                            title="Réinitialiser le token"
-                            className="h-7 w-7 p-0"
-                          >
-                            {resettingId === p.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <RefreshCw className="h-3 w-3" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openKickModal(p.id, p.display_name)}
-                            className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            title="Expulser le joueur"
-                          >
-                            <UserX className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <MJRivieresPlayersTab
+            gameId={gameId}
+            sessionGameId={sessionGameId}
+            onRefresh={fetchData}
+          />
         </TabsContent>
 
         {/* Decisions Tab */}
