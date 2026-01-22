@@ -51,10 +51,22 @@ interface BotVsHumanStatsSheetProps {
   gameId: string;
   sessionGameId?: string | null;
   startingTokens: number;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function BotVsHumanStatsSheet({ gameId, sessionGameId, startingTokens }: BotVsHumanStatsSheetProps) {
-  const [open, setOpen] = useState(false);
+export function BotVsHumanStatsSheet({ 
+  gameId, 
+  sessionGameId, 
+  startingTokens,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange
+}: BotVsHumanStatsSheetProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Use controlled state if provided, otherwise use internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [players, setPlayers] = useState<PlayerStats[]>([]);
   const [combatData, setCombatData] = useState<{ bots: CombatStats; humans: CombatStats }>({

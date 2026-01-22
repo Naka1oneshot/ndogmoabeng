@@ -23,28 +23,17 @@ import MJTeamChatViewer from './MJTeamChatViewer';
 import MJLobbyChatViewer from './MJLobbyChatViewer';
 import { MJRivieresDashboard } from '@/components/rivieres/MJRivieresDashboard';
 import { MJInfectionDashboard } from '@/components/infection/MJInfectionDashboard';
-import { BotVsHumanStatsSheet } from './BotVsHumanStatsSheet';
+import { MJActionsMenu } from './MJActionsMenu';
 import {
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
-  Bug, Store, Swords, Target, SkipForward, Trash2, FastForward, UserPlus, Presentation, Trophy
+  Bug, Store, Swords, Target, UserPlus
 } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 // Implemented game types
 const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION'];
@@ -560,111 +549,21 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {(game.selected_game_type_code === 'FORET' || !game.selected_game_type_code) && game.status === 'IN_GAME' && (
-          <>
-            <ForestButton 
-              size="sm" 
-              onClick={() => window.open(`/presentation/${game.id}`, '_blank')}
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              <Presentation className="h-4 w-4 mr-1" />
-              Mode Présentation
-            </ForestButton>
-            <BotVsHumanStatsSheet 
-              gameId={game.id} 
-              sessionGameId={game.current_session_game_id}
-              startingTokens={game.starting_tokens}
-            />
-          </>
-        )}
-
-        {/* Podium button for ended games */}
-        {(game.selected_game_type_code === 'FORET' || !game.selected_game_type_code) && game.status === 'ENDED' && (
-          <ForestButton 
-            size="sm" 
-            onClick={() => window.open(`/presentation/${game.id}`, '_blank')}
-            className="bg-yellow-600 hover:bg-yellow-700"
-          >
-            <Trophy className="h-4 w-4 mr-1" />
-            Voir le Podium
-          </ForestButton>
-        )}
-
-        {isAdventure && game.status === 'IN_GAME' && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <ForestButton
-                size="sm"
-                className="bg-primary hover:bg-primary/90"
-                disabled={advancingStep}
-              >
-                {advancingStep ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  <FastForward className="h-4 w-4 mr-1" />
-                )}
-                Jeu suivant
-              </ForestButton>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Passer au jeu suivant ?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Cette action terminera le jeu actuel (étape {game.current_step_index}) et démarrera 
-                  la prochaine étape de l'aventure. Les inventaires seront réinitialisés.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                  onClick={handleNextSessionGame}
-                >
-                  Continuer l'aventure
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
-
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <ForestButton
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              disabled={deleting}
-            >
-              {deleting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-1" />
-              )}
-              Supprimer la partie
-            </ForestButton>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Supprimer la partie ?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Cette action est irréversible. Toutes les données de la partie
-                "{game.name}" seront définitivement supprimées.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={handleDeleteGame}
-              >
-                Supprimer
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+      {/* Action buttons - now using MJActionsMenu */}
+      <MJActionsMenu
+        gameId={game.id}
+        gameName={game.name}
+        gameStatus={game.status}
+        gameTypeCode={game.selected_game_type_code}
+        sessionGameId={game.current_session_game_id}
+        startingTokens={game.starting_tokens}
+        isAdventure={!!isAdventure}
+        currentStepIndex={game.current_step_index}
+        advancingStep={advancingStep}
+        deleting={deleting}
+        onNextSessionGame={handleNextSessionGame}
+        onDeleteGame={handleDeleteGame}
+      />
       {/* QR Code (collapsible on mobile) */}
       {game.status === 'LOBBY' && (
         <details className="card-gradient rounded-lg border border-border p-4">
