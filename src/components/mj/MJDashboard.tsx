@@ -24,6 +24,7 @@ import MJLobbyChatViewer from './MJLobbyChatViewer';
 import { MJRivieresDashboard } from '@/components/rivieres/MJRivieresDashboard';
 import { MJInfectionDashboard } from '@/components/infection/MJInfectionDashboard';
 import { MJActionsMenu } from './MJActionsMenu';
+import { LandscapeModePrompt } from './LandscapeModePrompt';
 import {
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
@@ -456,6 +457,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
   return (
     <>
+    <LandscapeModePrompt storageKey="mj-foret-landscape-dismissed" />
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

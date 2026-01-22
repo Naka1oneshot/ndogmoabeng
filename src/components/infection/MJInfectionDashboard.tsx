@@ -17,6 +17,7 @@ import { MJActionsTab } from './MJActionsTab';
 import { MJChatsTab } from './MJChatsTab';
 import { MJRoundHistorySelector } from './MJRoundHistorySelector';
 import { KickPlayerModal } from '@/components/game/KickPlayerModal';
+import { LandscapeModePrompt } from '@/components/mj/LandscapeModePrompt';
 
 interface Game {
   id: string;
@@ -638,6 +639,8 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
 
   // In-game view
   return (
+    <>
+    <LandscapeModePrompt storageKey="mj-infection-landscape-dismissed" />
     <div className={theme.container}>
       {/* Header */}
       <div className={`${theme.header} p-3 sm:p-4`}>
@@ -987,5 +990,6 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
         />
       )}
     </div>
+    </>
   );
 }
