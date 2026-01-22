@@ -20,7 +20,7 @@ export default function AdminMeetups() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   const { events, loading: eventsLoading, archiveEvent, updateEvent } = useAdminMeetups();
   
   const [selectedEvent, setSelectedEvent] = useState<MeetupEventAdmin | null>(null);
@@ -57,7 +57,7 @@ export default function AdminMeetups() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdminOrSuper) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <p className="text-destructive">Accès réservé aux administrateurs</p>

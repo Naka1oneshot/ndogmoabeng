@@ -2739,6 +2739,10 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: undefined
       }
+      assign_super_admin_role: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
       can_change_display_name: { Args: { p_user_id: string }; Returns: boolean }
       generate_unique_display_name: {
         Args: { p_display_name: string; p_user_id?: string }
@@ -2827,6 +2831,8 @@ export type Database = {
             Args: { p_game_id: string; p_session_game_id?: string }
             Returns: undefined
           }
+      is_admin_or_super: { Args: { _user_id: string }; Returns: boolean }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       public_game_feed: {
         Args: { p_game_id: string }
         Returns: {
@@ -2902,7 +2908,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "super_admin" | "admin" | "user"
       game_type_status: "PROJECT" | "COMING_SOON" | "AVAILABLE"
       item_category: "ATTAQUE" | "PROTECTION" | "UTILITAIRE"
       monster_initial_status: "EN_BATAILLE" | "EN_FILE"
@@ -3034,7 +3040,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["super_admin", "admin", "user"],
       game_type_status: ["PROJECT", "COMING_SOON", "AVAILABLE"],
       item_category: ["ATTAQUE", "PROTECTION", "UTILITAIRE"],
       monster_initial_status: ["EN_BATAILLE", "EN_FILE"],

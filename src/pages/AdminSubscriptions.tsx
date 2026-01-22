@@ -48,7 +48,7 @@ export default function AdminSubscriptions() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   
   // Tokens state
   const [searchTerm, setSearchTerm] = useState('');
@@ -74,7 +74,7 @@ export default function AdminSubscriptions() {
   }, [user, authLoading, navigate, location.pathname]);
 
   useEffect(() => {
-    if (!roleLoading && !isAdmin) {
+    if (!roleLoading && !isAdminOrSuper) {
       toast({
         title: "Accès refusé",
         description: "Vous n'avez pas les droits administrateur",
@@ -82,14 +82,14 @@ export default function AdminSubscriptions() {
       });
       navigate('/profile');
     }
-  }, [isAdmin, roleLoading, navigate]);
+  }, [isAdminOrSuper, roleLoading, navigate]);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdminOrSuper) {
       fetchRecentBonuses();
       fetchRecentLoyaltyUsers();
     }
-  }, [isAdmin]);
+  }, [isAdminOrSuper]);
 
   const fetchRecentBonuses = async () => {
     setLoadingBonuses(true);
@@ -300,7 +300,7 @@ export default function AdminSubscriptions() {
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!user || !isAdminOrSuper) {
     return null;
   }
 

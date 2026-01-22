@@ -37,7 +37,7 @@ import { toast } from '@/hooks/use-toast';
 
 export function SubscriptionSection() {
   const navigate = useNavigate();
-  const { isAdmin } = useUserRole();
+  const { isAdminOrSuper } = useUserRole();
   const {
     tier,
     limits,
@@ -149,7 +149,7 @@ export function SubscriptionSection() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {isAdmin && (
+            {isAdminOrSuper && (
               <Button
                 variant="outline"
                 size="sm"
