@@ -57,11 +57,15 @@ interface Game {
   host_email?: string;
 }
 
+// Generate cryptographically secure join code
 function generateJoinCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excludes confusing characters like 0, O, 1, I
+  const randomBytes = new Uint8Array(6);
+  crypto.getRandomValues(randomBytes);
+  
   let code = '';
   for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars.charAt(randomBytes[i] % chars.length);
   }
   return code;
 }

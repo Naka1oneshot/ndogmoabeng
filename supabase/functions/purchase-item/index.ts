@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { validatePurchaseItemInput } from '../_shared/validation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,14 +13,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { gameId, playerNumber, itemName, playerToken } = await req.json();
+    // Validate and sanitize all inputs
+    const rawInput = await req.json();
+    const validation = validatePurchaseItemInput(rawInput);
     
-    if (!gameId || !playerNumber || !itemName) {
+    if (!validation.valid || !validation.data) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Paramètres manquants (gameId, playerNumber, itemName)' }),
+        JSON.stringify({ success: false, error: validation.error || 'Paramètres invalides' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    const { gameId, playerNumber, itemName, playerToken } = validation.data;
 
     console.log(`[purchase-item] Player ${playerNumber} attempting to buy ${itemName} in game ${gameId}`);
 
