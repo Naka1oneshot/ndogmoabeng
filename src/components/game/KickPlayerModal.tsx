@@ -72,7 +72,7 @@ export function KickPlayerModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg w-[95vw]">
         <DialogHeader>
           <DialogTitle>Expulser {playerName}</DialogTitle>
           <DialogDescription>
@@ -93,12 +93,12 @@ export function KickPlayerModal({
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
           <ForestButton
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={kicking}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto order-3 sm:order-1"
           >
             Annuler
           </ForestButton>
@@ -106,7 +106,7 @@ export function KickPlayerModal({
             variant="outline"
             onClick={() => handleKick(false)}
             disabled={kicking || !reason.trim()}
-            className="w-full sm:w-auto text-orange-500 border-orange-500/50 hover:bg-orange-500/10"
+            className="w-full sm:w-auto text-orange-500 border-orange-500/50 hover:bg-orange-500/10 order-2"
           >
             {kicking ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -118,7 +118,7 @@ export function KickPlayerModal({
           <ForestButton
             onClick={() => handleKick(true)}
             disabled={kicking || !reason.trim()}
-            className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90 order-1 sm:order-3"
           >
             {kicking ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
