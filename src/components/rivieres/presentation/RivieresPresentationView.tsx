@@ -315,13 +315,17 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
   const enBateauPlayers = playerStats.filter(s => s.current_round_status === 'EN_BATEAU');
   const lockedDecisions = decisions.filter(d => d.status === 'LOCKED');
   const draftDecisions = decisions.filter(d => d.status === 'DRAFT');
-  const validatedPlayers = players.filter(p => {
+  
+  // "Choix effectué" = players with any decision (DRAFT or LOCKED)
+  const playersWithDecision = players.filter(p => {
     const decision = decisions.find(d => d.player_id === p.id);
-    return decision && decision.status === 'LOCKED';
+    return decision !== undefined;
   });
+  
+  // "En attente de décision" = en bateau players WITHOUT any decision
   const pendingPlayers = enBateauPlayers
     .map(s => players.find(p => p.id === s.player_id))
-    .filter((p): p is Player => !!p && !decisions.some(d => d.player_id === p.id && d.status === 'LOCKED'));
+    .filter((p): p is Player => !!p && !decisions.some(d => d.player_id === p.id));
 
   // Calculate danger range for display
   const dangerRange = sessionState ? 
@@ -537,11 +541,11 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
                 <div className="bg-[#151B2D] border border-green-500/30 rounded-lg p-4 flex-1 min-h-0">
                   <h3 className="text-sm font-bold text-green-400 flex items-center gap-2 mb-3">
                     <CheckCircle className="h-4 w-4" />
-                    Choix effectué ({validatedPlayers.length})
+                    Choix effectué ({playersWithDecision.length})
                   </h3>
                   <ScrollArea className="h-[calc(100%-2rem)]">
                     <div className="grid grid-cols-2 gap-2">
-                      {validatedPlayers.map(p => (
+                      {playersWithDecision.map(p => (
                         <div key={p.id} className="flex items-center gap-2 bg-[#0B1020] rounded-lg p-2">
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={p.avatar_url || undefined} />
