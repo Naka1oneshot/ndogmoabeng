@@ -109,6 +109,21 @@ export default {
           "0%, 100%": { transform: "translateY(0) rotate(-5deg)" },
           "50%": { transform: "translateY(-10px) rotate(5deg)" },
         },
+        "wave-violent": {
+          "0%, 100%": { transform: "translateY(0) rotate(-15deg) scale(1)" },
+          "25%": { transform: "translateY(-20px) rotate(15deg) scale(1.1)" },
+          "50%": { transform: "translateY(5px) rotate(-10deg) scale(0.95)" },
+          "75%": { transform: "translateY(-15px) rotate(20deg) scale(1.05)" },
+        },
+        "wave-flow": {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
+        "shake": {
+          "0%, 100%": { transform: "translateX(0)" },
+          "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-5px)" },
+          "20%, 40%, 60%, 80%": { transform: "translateX(5px)" },
+        },
         "bounce-x": {
           "0%, 100%": { transform: "translateX(0)" },
           "50%": { transform: "translateX(10px)" },
@@ -121,6 +136,14 @@ export default {
           "0%, 100%": { boxShadow: "0 0 20px hsl(var(--glow-primary))" },
           "50%": { boxShadow: "0 0 40px hsl(var(--glow-primary))" },
         },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "scale-in": {
+          "0%": { transform: "scale(0.8)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -129,9 +152,14 @@ export default {
         "game-start-fade": "game-start-fade 0.5s ease-out forwards",
         "slide-up-fade": "slide-up-fade 0.5s ease-out forwards",
         "wave": "wave 2s ease-in-out infinite",
+        "wave-violent": "wave-violent 0.5s ease-in-out infinite",
+        "wave-flow": "wave-flow 4s linear infinite",
+        "shake": "shake 0.5s ease-in-out infinite",
         "bounce-x": "bounce-x 1s ease-in-out infinite",
         "spin-slow": "spin-slow 3s linear infinite",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "fade-in": "fade-in 0.3s ease-out forwards",
+        "scale-in": "scale-in 0.4s ease-out forwards",
       },
     },
   },
