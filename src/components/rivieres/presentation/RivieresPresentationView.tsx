@@ -156,7 +156,11 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
 
     if (historyData) {
       // Check for new level resolution to trigger animation
-      if (historyData.length > previousLevelHistoryCountRef.current && historyData.length > 0) {
+      // Update ref FIRST to prevent multiple triggers from rapid fetchData calls
+      const previousCount = previousLevelHistoryCountRef.current;
+      previousLevelHistoryCountRef.current = historyData.length;
+      
+      if (historyData.length > previousCount && historyData.length > 0 && !showResolveAnimation) {
         const latestLevel = historyData[historyData.length - 1];
         setResolveAnimationData({
           danger: latestLevel.danger_effectif,
@@ -167,7 +171,6 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
         });
         setShowResolveAnimation(true);
       }
-      previousLevelHistoryCountRef.current = historyData.length;
       setLevelHistory(historyData as RiverLevelHistory[]);
     }
 
@@ -191,11 +194,26 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
 
       if (decisionsData) {
         // Check if all just got locked to trigger animation
+        // Update ref FIRST to prevent multiple triggers
+        const wasLocked = previousDecisionsLockedRef.current;
         const allLocked = decisionsData.length > 0 && decisionsData.every(d => d.status === 'LOCKED');
-        if (allLocked && !previousDecisionsLockedRef.current) {
+        previousDecisionsLockedRef.current = allLocked;
+        
+        if (allLocked && !wasLocked && !showLockAnimation) {
+          // Prepare player sort animation data NOW before triggering lock animation
+          // Use current players state since playersData fetch happens later
+          const sortData = decisionsData.map(d => {
+            const player = players.find(p => p.id === d.player_id);
+            return {
+              id: d.player_id,
+              display_name: player?.display_name ?? `Joueur ${d.player_num}`,
+              avatar_url: player?.avatar_url ?? null,
+              decision: d.decision as 'RESTE' | 'DESCENDS',
+            };
+          });
+          setPlayerSortData(sortData);
           setShowLockAnimation(true);
         }
-        previousDecisionsLockedRef.current = allLocked;
         setDecisions(decisionsData);
       }
     }
@@ -374,19 +392,9 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
   const handleLockAnimationComplete = () => {
     setShowLockAnimation(false);
     
-    // Prepare player sort animation data
-    const sortData = lockedDecisions.map(d => {
-      const player = players.find(p => p.id === d.player_id);
-      return {
-        id: d.player_id,
-        display_name: player?.display_name ?? `Joueur ${d.player_num}`,
-        avatar_url: player?.avatar_url ?? null,
-        decision: d.decision as 'RESTE' | 'DESCENDS',
-      };
-    });
-    
-    if (sortData.length > 0) {
-      setPlayerSortData(sortData);
+    // Player sort data is already prepared when lock was triggered
+    // Just show the animation if we have data
+    if (playerSortData.length > 0) {
       setShowPlayerSortAnimation(true);
     }
   };
