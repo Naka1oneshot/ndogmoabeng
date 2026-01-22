@@ -826,46 +826,6 @@ export default function MJ() {
                     Aventure
                   </button>
                 </div>
-                
-                {/* Indicateur du nombre de parties */}
-                {(() => {
-                  const query = searchQuery.toLowerCase().trim();
-                  let count = games.length;
-                  
-                  if (query) {
-                    count = games.filter(g => 
-                      g.name.toLowerCase().includes(query) || 
-                      g.join_code.toLowerCase().includes(query)
-                    ).length;
-                  }
-                  if (gameTypeFilter) {
-                    const baseGames = query 
-                      ? games.filter(g => g.name.toLowerCase().includes(query) || g.join_code.toLowerCase().includes(query))
-                      : games;
-                    count = baseGames.filter(g => g.selected_game_type_code === gameTypeFilter).length;
-                  }
-                  if (gameModeFilter) {
-                    let baseGames = games;
-                    if (query) {
-                      baseGames = baseGames.filter(g => g.name.toLowerCase().includes(query) || g.join_code.toLowerCase().includes(query));
-                    }
-                    if (gameTypeFilter) {
-                      baseGames = baseGames.filter(g => g.selected_game_type_code === gameTypeFilter);
-                    }
-                    count = baseGames.filter(g => g.mode === gameModeFilter).length;
-                  }
-                  
-                  const hasFilters = query || gameTypeFilter || gameModeFilter;
-                  
-                  return (
-                    <p className="text-sm text-muted-foreground">
-                      {hasFilters 
-                        ? `${count} partie${count > 1 ? 's' : ''} sur ${games.length} affichée${count > 1 ? 's' : ''}`
-                        : `${games.length} partie${games.length > 1 ? 's' : ''} au total`
-                      }
-                    </p>
-                  );
-                })()}
               </div>
             )}
 
