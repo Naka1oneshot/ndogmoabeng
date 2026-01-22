@@ -4,8 +4,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
-import { Loader2, ShieldAlert, Eye, Trash2, LogOut, Users } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, ShieldAlert, Eye, Trash2, Users, Crown, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import {
@@ -38,7 +41,7 @@ interface GameRow {
 }
 
 export default function AdminGames() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const [games, setGames] = useState<GameRow[]>([]);
@@ -177,11 +180,6 @@ export default function AdminGames() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-  };
-
   if (authLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -209,16 +207,24 @@ export default function AdminGames() {
     <div className="min-h-screen px-4 py-6">
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 max-w-5xl mx-auto">
         <div className="flex items-center gap-3">
+          <ForestButton
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/mj')}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Retour</span>
+          </ForestButton>
           <Link to="/"><img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain" /></Link>
           <h1 className="font-display text-xl">Gestion des Parties</h1>
+          <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30">
+            <Crown className="h-3 w-3 mr-1" />
+            Admin
+          </Badge>
         </div>
         <div className="flex items-center gap-3">
-          <ForestButton variant="outline" size="sm" onClick={() => navigate('/mj')}>
-            Retour MJ
-          </ForestButton>
-          <ForestButton variant="ghost" size="sm" onClick={handleSignOut}>
-            <LogOut className="h-4 w-4" />
-          </ForestButton>
+          <ThemeToggle />
+          <UserAvatarButton size="sm" />
         </div>
       </header>
 

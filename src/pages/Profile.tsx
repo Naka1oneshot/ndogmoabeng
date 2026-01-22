@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import { FriendsSection } from '@/components/profile/FriendsSection';
 import { GameInvitationsSection } from '@/components/profile/GameInvitationsSection';
 import { SubscriptionSection } from '@/components/profile/SubscriptionSection';
@@ -194,7 +195,12 @@ export default function Profile() {
         <div className="max-w-4xl mx-auto p-4 md:p-8">
           {/* Top row: navigation buttons */}
           <div className="flex items-center justify-between mb-4">
-            <ThemeToggle />
+            <div className="flex items-center gap-3">
+              <Link to="/">
+                <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain" />
+              </Link>
+              <ThemeToggle />
+            </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigate('/')}>
                 Accueil

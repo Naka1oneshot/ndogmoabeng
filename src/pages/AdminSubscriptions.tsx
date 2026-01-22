@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
+import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -532,36 +535,40 @@ export default function AdminSubscriptions() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-gradient-to-r from-accent/20 via-accent/10 to-background border-b">
-        <div className="max-w-4xl mx-auto p-4 md:p-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+      <header className="bg-gradient-to-r from-accent/20 via-accent/10 to-background border-b">
+        <div className="max-w-5xl mx-auto p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
                 <ChevronLeft className="w-5 h-5" />
               </Button>
+              <Link to="/">
+                <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain" />
+              </Link>
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-                  <Shield className="w-8 h-8 text-accent" />
+                <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+                  <Shield className="w-6 h-6 text-accent" />
                   Administration
                 </h1>
-                <p className="text-muted-foreground">
-                  Gestion des utilisateurs et ressources
-                </p>
               </div>
+              {isSuperAdmin ? (
+                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                  <Crown className="w-3 h-3 mr-1" />
+                  Super Admin
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="border-accent text-accent">
+                  Admin
+                </Badge>
+              )}
             </div>
-            {isSuperAdmin ? (
-              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-                <Crown className="w-3 h-3 mr-1" />
-                Super Admin
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="border-accent text-accent">
-                Admin
-              </Badge>
-            )}
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <UserAvatarButton size="sm" />
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         <Tabs defaultValue="tokens" className="space-y-6">
