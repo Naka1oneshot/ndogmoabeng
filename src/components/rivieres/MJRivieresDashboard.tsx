@@ -38,6 +38,7 @@ import {
   getDangerCalculationExplanation,
   getDifficultyLabel,
 } from '@/lib/rivieresDangerCalculator';
+import { LandscapeModePrompt } from '@/components/mj/LandscapeModePrompt';
 
 interface RiverSessionState {
   id: string;
@@ -845,6 +846,8 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
     .sort((a, b) => b.score_value - a.score_value);
 
   return (
+    <>
+    <LandscapeModePrompt storageKey="mj-rivieres-landscape-dismissed" />
     <div className="space-y-4">
       {/* FINAL RANKING MODAL when game is finished */}
       {(isGameFinished || showFinalRanking) && (
@@ -1409,5 +1412,6 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         />
       )}
     </div>
+    </>
   );
 }
