@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -1074,29 +1075,28 @@ export default function MJ() {
                     <span className="text-xs text-amber-500 ml-2">({getMinPlayersLabel()})</span>
                   )}
                 </Label>
-                <Input
+                <NumberInput
                   id="xNbJoueurs"
-                  type="number"
                   min={getMinimumPlayers()}
                   max={20}
                   value={xNbJoueurs}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value) || getMinimumPlayers();
+                  onChange={(value) => {
                     const minPlayers = getMinimumPlayers();
                     setXNbJoueurs(Math.max(minPlayers, value));
                   }}
+                  defaultValue={getMinimumPlayers()}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="startingTokens">Jetons de départ</Label>
-                <Input
+                <NumberInput
                   id="startingTokens"
-                  type="number"
                   min={0}
                   max={1000}
                   value={startingTokens}
-                  onChange={(e) => setStartingTokens(Math.max(0, parseInt(e.target.value) || 50))}
+                  onChange={setStartingTokens}
+                  defaultValue={50}
                 />
               </div>
             </div>
