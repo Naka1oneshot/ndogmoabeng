@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,7 +44,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
-  DoorOpen
+  DoorOpen,
+  ShieldCheck
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -58,6 +60,7 @@ export default function Profile() {
   const location = useLocation();
   const { user, loading: authLoading, signOut } = useAuth();
   const { profile, stats, currentGames, loading, canChangeDisplayName, updateProfile, uploadAvatar, leaveGame, deleteGame } = useUserProfile();
+  const { isSuperAdmin, isAdmin, loading: roleLoading } = useUserRole();
   
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -144,7 +147,7 @@ export default function Profile() {
     return profile?.display_name?.[0]?.toUpperCase() || 'U';
   };
 
-  if (authLoading || loading) {
+  if (authLoading || loading || roleLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-8">
         <div className="max-w-4xl mx-auto space-y-6">
@@ -232,9 +235,22 @@ export default function Profile() {
               />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl md:text-3xl font-bold truncate">
-                {profile?.display_name || 'Mon Profil'}
-              </h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl md:text-3xl font-bold truncate">
+                  {profile?.display_name || 'Mon Profil'}
+                </h1>
+                {isSuperAdmin ? (
+                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                    <Crown className="w-3 h-3 mr-1" />
+                    Super Admin
+                  </Badge>
+                ) : isAdmin ? (
+                  <Badge className="bg-primary/20 text-primary border-primary/30">
+                    <ShieldCheck className="w-3 h-3 mr-1" />
+                    Admin
+                  </Badge>
+                ) : null}
+              </div>
               <p className="text-muted-foreground flex items-center gap-2 text-sm md:text-base">
                 <Mail className="w-4 h-4 flex-shrink-0" />
                 <span className="truncate">{user.email}</span>
