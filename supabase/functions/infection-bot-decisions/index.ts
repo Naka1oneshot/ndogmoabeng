@@ -170,16 +170,20 @@ Deno.serve(async (req) => {
     
     const inventory = inventoryData || [];
 
-    // Fetch existing inputs this round (to avoid duplicates)
-    const { data: existingInputs } = await supabase
+    // Fetch existing inputs this round (to check for duplicates)
+    const { data: existingInputsData } = await supabase
       .from('infection_inputs')
-      .select('player_num, action_type')
+      .select('player_num, ae_sabotage_target_num, sy_research_target_num, oc_lookup_target_num, corruption_amount')
       .eq('session_game_id', sessionGameId)
       .eq('manche', manche);
+    
+    const existingInputs = existingInputsData || [];
 
-    const existingInputsSet = new Set(
-      (existingInputs || []).map(i => `${i.player_num}-${i.action_type}`)
-    );
+    type ExistingInput = { player_num: number; ae_sabotage_target_num: number | null; sy_research_target_num: number | null; oc_lookup_target_num: number | null; corruption_amount: number | null };
+    const existingInputsMap = new Map<number, ExistingInput>();
+    for (const input of existingInputs || []) {
+      existingInputsMap.set(input.player_num, input);
+    }
 
     // Fetch existing shots this round
     const { data: existingShots } = await supabase
@@ -218,6 +222,7 @@ Deno.serve(async (req) => {
 
     const results: BotDecisionResult[] = [];
     const inputsToInsert: any[] = [];
+    const inputsToUpdate: { player_num: number; updates: any }[] = [];
     const shotsToInsert: any[] = [];
     const inventoryUpdates: { id: string; quantite: number }[] = [];
 
@@ -230,16 +235,32 @@ Deno.serve(async (req) => {
       return targets[Math.floor(Math.random() * targets.length)].player_number!;
     }
 
-    // Helper: get human SY vote target for research
-    function getHumanSYResearchTarget(): number | null {
-      const humanSY = humanPlayers.find(p => p.role_code === 'SY' && p.is_alive !== false);
-      if (!humanSY) return null;
+    // Find the BA player for AE sabotage
+    const baPlayer = players.find(p => p.role_code === 'BA' && p.is_alive !== false);
 
-      // Check if human SY has submitted a research input
-      const humanResearch = existingInputs?.find(
-        i => i.player_num === humanSY.player_number && i.action_type === 'RECHERCHE_SY'
-      );
-      return null; // We'd need to fetch the actual target - for now bots will pick randomly
+    // Pre-compute SY coordination target (all bot SY will use same target)
+    let syCoordinatedTarget: number | null = null;
+    
+    // First check if human SY has submitted
+    const humanSYs = humanPlayers.filter(p => p.role_code === 'SY');
+    for (const humanSY of humanSYs) {
+      const humanInput = existingInputsMap.get(humanSY.player_number!);
+      if (humanInput?.sy_research_target_num) {
+        syCoordinatedTarget = humanInput.sy_research_target_num;
+        console.log('[infection-bot-decisions] SY bots will follow human SY target:', syCoordinatedTarget);
+        break;
+      }
+    }
+    
+    // If no human SY vote, pick ONE random target for all bot SYs
+    if (!syCoordinatedTarget) {
+      const nonSYPlayers = alivePlayers.filter(p => p.role_code !== 'SY');
+      const humanNonSY = nonSYPlayers.filter(p => !p.is_bot);
+      const pool = humanNonSY.length > 0 ? humanNonSY : nonSYPlayers;
+      if (pool.length > 0) {
+        syCoordinatedTarget = pool[Math.floor(Math.random() * pool.length)].player_number!;
+        console.log('[infection-bot-decisions] SY bots will all target:', syCoordinatedTarget);
+      }
     }
 
     // Process each bot based on role
@@ -251,6 +272,7 @@ Deno.serve(async (req) => {
       };
 
       const playerInventory = inventory.filter(i => i.owner_num === bot.player_number);
+      const existingInput = existingInputsMap.get(bot.player_number);
 
       try {
         switch (bot.role_code) {
@@ -295,13 +317,14 @@ Deno.serve(async (req) => {
               break;
             }
 
+            // Insert shot with correct schema: shooter_role instead of weapon_type
             shotsToInsert.push({
               game_id: gameId,
               session_game_id: sessionGameId,
               manche,
               shooter_num: bot.player_number,
               target_num: targetNum,
-              weapon_type: 'Balle BA',
+              shooter_role: 'BA',
               status: 'PENDING',
             });
 
@@ -322,14 +345,22 @@ Deno.serve(async (req) => {
                 i.objet === 'Antidote PV' && i.quantite > 0
               );
               if (antidote) {
-                inputsToInsert.push({
-                  game_id: gameId,
-                  session_game_id: sessionGameId,
-                  manche,
-                  player_num: bot.player_number,
-                  action_type: 'ANTIDOTE',
-                  target_num: bot.player_number,
-                });
+                // Use correct schema: pv_antidote_target_num
+                if (existingInput) {
+                  inputsToUpdate.push({
+                    player_num: bot.player_number,
+                    updates: { pv_antidote_target_num: bot.player_number }
+                  });
+                } else {
+                  inputsToInsert.push({
+                    game_id: gameId,
+                    session_game_id: sessionGameId,
+                    manche,
+                    player_id: bot.id,
+                    player_num: bot.player_number,
+                    pv_antidote_target_num: bot.player_number,
+                  });
+                }
                 inventoryUpdates.push({ id: antidote.id, quantite: antidote.quantite - 1 });
                 result.action = 'ANTIDOTE';
                 result.target = bot.player_number;
@@ -346,13 +377,14 @@ Deno.serve(async (req) => {
                   // Cannot target other PVs
                   const targetNum = getRandomTarget([bot.player_number, ...otherPVNums]);
                   if (targetNum) {
+                    // Insert shot with correct schema: shooter_role instead of weapon_type
                     shotsToInsert.push({
                       game_id: gameId,
                       session_game_id: sessionGameId,
                       manche,
                       shooter_num: bot.player_number,
                       target_num: targetNum,
-                      weapon_type: 'Balle PV',
+                      shooter_role: 'PV',
                       status: 'PENDING',
                     });
                     inventoryUpdates.push({ id: bullets.id, quantite: bullets.quantite - 1 });
@@ -366,54 +398,31 @@ Deno.serve(async (req) => {
           }
 
           case 'SY': {
-            // SY: Vote together, priority to human SY vote
-            if (existingInputsSet.has(`${bot.player_number}-RECHERCHE_SY`)) {
+            // SY: ALL bots vote for the same target (coordinated)
+            if (existingInput?.sy_research_target_num) {
               result.skipped_reason = 'Already submitted research';
               break;
             }
 
-            // Find human SY's vote first
-            const humanSYs = humanPlayers.filter(p => p.role_code === 'SY');
-            let targetNum: number | null = null;
-
-            // Check if any human SY has submitted
-            for (const humanSY of humanSYs) {
-              const humanInput = await supabase
-                .from('infection_inputs')
-                .select('target_num')
-                .eq('session_game_id', sessionGameId)
-                .eq('manche', manche)
-                .eq('player_num', humanSY.player_number)
-                .eq('action_type', 'RECHERCHE_SY')
-                .maybeSingle();
-
-              if (humanInput.data?.target_num) {
-                targetNum = humanInput.data.target_num;
-                break;
+            if (syCoordinatedTarget) {
+              // Use correct schema: sy_research_target_num
+              if (existingInput) {
+                inputsToUpdate.push({
+                  player_num: bot.player_number,
+                  updates: { sy_research_target_num: syCoordinatedTarget }
+                });
+              } else {
+                inputsToInsert.push({
+                  game_id: gameId,
+                  session_game_id: sessionGameId,
+                  manche,
+                  player_id: bot.id,
+                  player_num: bot.player_number,
+                  sy_research_target_num: syCoordinatedTarget,
+                });
               }
-            }
-
-            // If no human SY vote, pick a random non-SY target (prioritize non-bots)
-            if (!targetNum) {
-              const nonSYPlayers = alivePlayers.filter(p => p.role_code !== 'SY');
-              const humanNonSY = nonSYPlayers.filter(p => !p.is_bot);
-              const pool = humanNonSY.length > 0 ? humanNonSY : nonSYPlayers;
-              if (pool.length > 0) {
-                targetNum = pool[Math.floor(Math.random() * pool.length)].player_number!;
-              }
-            }
-
-            if (targetNum) {
-              inputsToInsert.push({
-                game_id: gameId,
-                session_game_id: sessionGameId,
-                manche,
-                player_num: bot.player_number,
-                action_type: 'RECHERCHE_SY',
-                target_num: targetNum,
-              });
               result.action = 'RECHERCHE_SY';
-              result.target = targetNum;
+              result.target = syCoordinatedTarget;
             } else {
               result.skipped_reason = 'No valid target for research';
             }
@@ -421,35 +430,62 @@ Deno.serve(async (req) => {
           }
 
           case 'AE': {
-            // AE: 40% chance to sabotage BA, 90% if successful before
-            if (existingInputsSet.has(`${bot.player_number}-SABOTAGE`)) {
+            // AE: ALWAYS tries to sabotage, success depends on probability
+            // First check if already submitted this round
+            if (existingInput?.ae_sabotage_target_num !== undefined && existingInput?.ae_sabotage_target_num !== null) {
               result.skipped_reason = 'Already submitted sabotage';
               break;
             }
 
+            // AE ALWAYS submits a sabotage attempt targeting the BA
+            if (!baPlayer) {
+              result.skipped_reason = 'No BA player to sabotage';
+              break;
+            }
+
+            // Determine if this sabotage attempt will be "successful" based on probability
             const sabotageChance = botMemory.ae_sabotage_count > 0 
               ? (botConfig.ae_sabotage_after_success / 100) 
               : (botConfig.ae_sabotage_base / 100);
-            if (Math.random() < sabotageChance) {
-              inputsToInsert.push({
-                game_id: gameId,
-                session_game_id: sessionGameId,
-                manche,
-                player_num: bot.player_number,
-                action_type: 'SABOTAGE',
-                target_num: null,
-                amount: null,
-              });
+            
+            // AE always tries to identify the BA, success rate determines if they correctly identify
+            const correctlyIdentifiesBA = Math.random() < sabotageChance;
+            const targetNum = correctlyIdentifiesBA ? baPlayer.player_number : getRandomTarget([bot.player_number], ['AE']);
+
+            if (targetNum) {
+              // Use correct schema: ae_sabotage_target_num
+              if (existingInput) {
+                inputsToUpdate.push({
+                  player_num: bot.player_number,
+                  updates: { ae_sabotage_target_num: targetNum }
+                });
+              } else {
+                inputsToInsert.push({
+                  game_id: gameId,
+                  session_game_id: sessionGameId,
+                  manche,
+                  player_id: bot.id,
+                  player_num: bot.player_number,
+                  ae_sabotage_target_num: targetNum,
+                });
+              }
               result.action = 'SABOTAGE';
+              result.target = targetNum;
+              
+              if (correctlyIdentifiesBA) {
+                console.log(`[infection-bot-decisions] AE bot ${bot.player_number} correctly identified BA ${targetNum}`);
+              } else {
+                console.log(`[infection-bot-decisions] AE bot ${bot.player_number} incorrectly targeted ${targetNum} (BA was ${baPlayer.player_number})`);
+              }
             } else {
-              result.skipped_reason = `Chose not to sabotage (${Math.round((1 - sabotageChance) * 100)}% chance)`;
+              result.skipped_reason = 'No valid sabotage target';
             }
             break;
           }
 
           case 'OC': {
             // OC: Use crystal ball to investigate a random non-OC player
-            if (existingInputsSet.has(`${bot.player_number}-ORACLE`)) {
+            if (existingInput?.oc_lookup_target_num) {
               result.skipped_reason = 'Already used oracle';
               break;
             }
@@ -475,14 +511,22 @@ Deno.serve(async (req) => {
             // Random target among all valid players (bots and humans equally)
             const targetNum = validTargets[Math.floor(Math.random() * validTargets.length)].player_number!;
 
-            inputsToInsert.push({
-              game_id: gameId,
-              session_game_id: sessionGameId,
-              manche,
-              player_num: bot.player_number,
-              action_type: 'ORACLE',
-              target_num: targetNum,
-            });
+            // Use correct schema: oc_lookup_target_num
+            if (existingInput) {
+              inputsToUpdate.push({
+                player_num: bot.player_number,
+                updates: { oc_lookup_target_num: targetNum }
+              });
+            } else {
+              inputsToInsert.push({
+                game_id: gameId,
+                session_game_id: sessionGameId,
+                manche,
+                player_id: bot.id,
+                player_num: bot.player_number,
+                oc_lookup_target_num: targetNum,
+              });
+            }
             inventoryUpdates.push({ id: crystalBall.id, quantite: crystalBall.quantite - 1 });
             result.action = 'ORACLE';
             result.target = targetNum;
@@ -493,26 +537,39 @@ Deno.serve(async (req) => {
           case 'KK':
           default: {
             // CV/KK/other: Attempt to corrupt AE if sabotage happened 2+ times
-            if (botMemory.ae_sabotage_count >= 2 && !existingInputsSet.has(`${bot.player_number}-CORRUPTION`)) {
+            if (botMemory.ae_sabotage_count >= 2) {
               const aePlayer = alivePlayers.find(p => p.role_code === 'AE');
               if (aePlayer && bot.jetons >= botConfig.corruption_min) {
-                // Corruption amount: configurable range
-                const maxCorruption = Math.min(botConfig.corruption_max, bot.jetons);
-                const minCorruption = botConfig.corruption_min;
-                const corruptionAmount = Math.floor(Math.random() * (maxCorruption - minCorruption + 1)) + minCorruption;
+                // Check if already submitted corruption
+                const alreadyCorrupted = existingInput?.corruption_amount && existingInput.corruption_amount > 0;
+                if (!alreadyCorrupted) {
+                  // Corruption amount: configurable range
+                  const maxCorruption = Math.min(botConfig.corruption_max, bot.jetons);
+                  const minCorruption = botConfig.corruption_min;
+                  const corruptionAmount = Math.floor(Math.random() * (maxCorruption - minCorruption + 1)) + minCorruption;
 
-                inputsToInsert.push({
-                  game_id: gameId,
-                  session_game_id: sessionGameId,
-                  manche,
-                  player_num: bot.player_number,
-                  action_type: 'CORRUPTION',
-                  target_num: aePlayer.player_number,
-                  amount: corruptionAmount,
-                });
-                result.action = 'CORRUPTION';
-                result.target = aePlayer.player_number!;
-                result.amount = corruptionAmount;
+                  // Use correct schema: corruption_amount
+                  if (existingInput) {
+                    inputsToUpdate.push({
+                      player_num: bot.player_number,
+                      updates: { corruption_amount: corruptionAmount }
+                    });
+                  } else {
+                    inputsToInsert.push({
+                      game_id: gameId,
+                      session_game_id: sessionGameId,
+                      manche,
+                      player_id: bot.id,
+                      player_num: bot.player_number,
+                      corruption_amount: corruptionAmount,
+                    });
+                  }
+                  result.action = 'CORRUPTION';
+                  result.target = aePlayer.player_number!;
+                  result.amount = corruptionAmount;
+                } else {
+                  result.skipped_reason = 'Already submitted corruption';
+                }
               } else {
                 result.skipped_reason = 'No AE to corrupt or insufficient tokens';
               }
@@ -530,13 +587,26 @@ Deno.serve(async (req) => {
       results.push(result);
     }
 
-    // Insert all inputs
+    // Insert all new inputs
     if (inputsToInsert.length > 0) {
       const { error: inputError } = await supabase
         .from('infection_inputs')
         .insert(inputsToInsert);
       if (inputError) {
         console.error('[infection-bot-decisions] Error inserting inputs:', inputError);
+      }
+    }
+
+    // Update existing inputs
+    for (const { player_num, updates } of inputsToUpdate) {
+      const { error: updateError } = await supabase
+        .from('infection_inputs')
+        .update(updates)
+        .eq('session_game_id', sessionGameId)
+        .eq('manche', manche)
+        .eq('player_num', player_num);
+      if (updateError) {
+        console.error(`[infection-bot-decisions] Error updating input for player ${player_num}:`, updateError);
       }
     }
 
@@ -567,6 +637,7 @@ Deno.serve(async (req) => {
       details: JSON.stringify({
         bots_processed: bots.length,
         inputs_created: inputsToInsert.length,
+        inputs_updated: inputsToUpdate.length,
         shots_created: shotsToInsert.length,
         results,
       }),
@@ -575,13 +646,14 @@ Deno.serve(async (req) => {
     console.log('[infection-bot-decisions] Completed:', {
       bots_processed: bots.length,
       inputs_created: inputsToInsert.length,
+      inputs_updated: inputsToUpdate.length,
       shots_created: shotsToInsert.length,
     });
 
     return new Response(
       JSON.stringify({
         success: true,
-        decisions_made: inputsToInsert.length + shotsToInsert.length,
+        decisions_made: inputsToInsert.length + inputsToUpdate.length + shotsToInsert.length,
         bots_processed: bots.length,
         results,
       }),
