@@ -16,7 +16,7 @@ import { AdminBadge } from '@/components/game/AdminBadge';
 import { MJDashboard } from '@/components/mj/MJDashboard';
 import { 
   Plus, Loader2, 
-  ChevronLeft, Trash2, Eye, Users, Map, Gamepad2, Globe, Lock, Crown, Search, X
+  ChevronLeft, ChevronRight, Trash2, Eye, Users, Map, Gamepad2, Globe, Lock, Crown, Search, X
 } from 'lucide-react';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { Badge } from '@/components/ui/badge';
@@ -234,6 +234,10 @@ export default function MJ() {
   // Search and filters
   const [searchQuery, setSearchQuery] = useState('');
   const [gameTypeFilter, setGameTypeFilter] = useState<string | null>(null);
+  
+  // Pagination for finished games
+  const ITEMS_PER_PAGE = 10;
+  const [finishedPage, setFinishedPage] = useState(1);
 
   // Check if user can create a new game based on subscription limits
   const { canCreateGame, limits, max_limits } = useSubscription();
@@ -704,7 +708,10 @@ export default function MJ() {
                   <Input
                     placeholder="Rechercher par nom ou code..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setFinishedPage(1); // Reset pagination on search
+                    }}
                     className="pl-10 pr-10"
                   />
                   {searchQuery && (
@@ -720,7 +727,10 @@ export default function MJ() {
                 {/* Filtres par type de jeu */}
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => setGameTypeFilter(null)}
+                    onClick={() => {
+                      setGameTypeFilter(null);
+                      setFinishedPage(1);
+                    }}
                     className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
                       gameTypeFilter === null 
                         ? 'bg-primary text-primary-foreground border-primary' 
@@ -730,7 +740,10 @@ export default function MJ() {
                     Tous
                   </button>
                   <button
-                    onClick={() => setGameTypeFilter(gameTypeFilter === 'FORET' ? null : 'FORET')}
+                    onClick={() => {
+                      setGameTypeFilter(gameTypeFilter === 'FORET' ? null : 'FORET');
+                      setFinishedPage(1);
+                    }}
                     className={`px-3 py-1.5 text-sm rounded-full border transition-colors flex items-center gap-1.5 ${
                       gameTypeFilter === 'FORET' 
                         ? 'bg-emerald-600 text-white border-emerald-600' 
@@ -740,7 +753,10 @@ export default function MJ() {
                     🌲 Forêt
                   </button>
                   <button
-                    onClick={() => setGameTypeFilter(gameTypeFilter === 'RIVIERES' ? null : 'RIVIERES')}
+                    onClick={() => {
+                      setGameTypeFilter(gameTypeFilter === 'RIVIERES' ? null : 'RIVIERES');
+                      setFinishedPage(1);
+                    }}
                     className={`px-3 py-1.5 text-sm rounded-full border transition-colors flex items-center gap-1.5 ${
                       gameTypeFilter === 'RIVIERES' 
                         ? 'bg-blue-600 text-white border-blue-600' 
@@ -750,7 +766,10 @@ export default function MJ() {
                     🌊 Rivières
                   </button>
                   <button
-                    onClick={() => setGameTypeFilter(gameTypeFilter === 'INFECTION' ? null : 'INFECTION')}
+                    onClick={() => {
+                      setGameTypeFilter(gameTypeFilter === 'INFECTION' ? null : 'INFECTION');
+                      setFinishedPage(1);
+                    }}
                     className={`px-3 py-1.5 text-sm rounded-full border transition-colors flex items-center gap-1.5 ${
                       gameTypeFilter === 'INFECTION' 
                         ? 'bg-purple-600 text-white border-purple-600' 
@@ -875,29 +894,87 @@ export default function MJ() {
                       </div>
                     )}
 
-                    {/* Parties terminées */}
-                    {finished.length > 0 && (
-                      <div className="space-y-3">
-                        <h3 className="font-display text-base flex items-center gap-2 text-muted-foreground">
-                          <span className="w-2 h-2 rounded-full bg-muted-foreground" />
-                          Terminées
-                          <Badge variant="outline" className="ml-2 text-muted-foreground border-muted-foreground/30">
-                            {finished.length}
-                          </Badge>
-                        </h3>
-                        {finished.map((game) => (
-                          <GameListItem
-                            key={game.id}
-                            game={game}
-                            isAdmin={isAdmin}
-                            userId={user?.id}
-                            deleting={deleting}
-                            onOpenDetail={openGameDetail}
-                            onDelete={handleDeleteGame}
-                          />
-                        ))}
-                      </div>
-                    )}
+                    {/* Parties terminées avec pagination */}
+                    {finished.length > 0 && (() => {
+                      const totalPages = Math.ceil(finished.length / ITEMS_PER_PAGE);
+                      const currentPage = Math.min(finishedPage, totalPages);
+                      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+                      const paginatedFinished = finished.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+                      
+                      return (
+                        <div className="space-y-3">
+                          <h3 className="font-display text-base flex items-center gap-2 text-muted-foreground">
+                            <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                            Terminées
+                            <Badge variant="outline" className="ml-2 text-muted-foreground border-muted-foreground/30">
+                              {finished.length}
+                            </Badge>
+                          </h3>
+                          {paginatedFinished.map((game) => (
+                            <GameListItem
+                              key={game.id}
+                              game={game}
+                              isAdmin={isAdmin}
+                              userId={user?.id}
+                              deleting={deleting}
+                              onOpenDetail={openGameDetail}
+                              onDelete={handleDeleteGame}
+                            />
+                          ))}
+                          
+                          {/* Pagination controls */}
+                          {totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-2 pt-4">
+                              <button
+                                onClick={() => setFinishedPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="p-2 rounded-lg border border-border bg-muted/50 hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                              </button>
+                              
+                              <div className="flex items-center gap-1">
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                                  // Show first, last, current, and adjacent pages
+                                  const showPage = page === 1 || 
+                                    page === totalPages || 
+                                    Math.abs(page - currentPage) <= 1;
+                                  const showEllipsis = page === 2 && currentPage > 3 ||
+                                    page === totalPages - 1 && currentPage < totalPages - 2;
+                                  
+                                  if (!showPage && !showEllipsis) return null;
+                                  if (showEllipsis && !showPage) {
+                                    return <span key={page} className="px-2 text-muted-foreground">...</span>;
+                                  }
+                                  
+                                  return (
+                                    <button
+                                      key={page}
+                                      onClick={() => setFinishedPage(page)}
+                                      className={`min-w-[36px] h-9 px-3 rounded-lg border transition-colors ${
+                                        page === currentPage
+                                          ? 'bg-primary text-primary-foreground border-primary'
+                                          : 'border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                                      }`}
+                                    >
+                                      {page}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              
+                              <button
+                                onClick={() => setFinishedPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="p-2 rounded-lg border border-border bg-muted/50 hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </>
                 );
               })()}
