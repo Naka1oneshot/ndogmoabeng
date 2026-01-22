@@ -13,6 +13,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { 
   Shield, 
   Zap, 
   Search, 
@@ -21,7 +32,12 @@ import {
   ChevronLeft,
   User,
   Clock,
-  Star
+  Star,
+  Crown,
+  UserCheck,
+  UserX,
+  ShieldAlert,
+  ShieldCheck
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -44,11 +60,19 @@ interface LoyaltyUser {
   updated_at: string;
 }
 
+interface UserWithRole {
+  user_id: string;
+  display_name: string;
+  email: string;
+  role: 'super_admin' | 'admin' | null;
+  created_at: string;
+}
+
 export default function AdminSubscriptions() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
-  const { isAdminOrSuper, loading: roleLoading } = useUserRole();
+  const { isAdminOrSuper, isSuperAdmin, loading: roleLoading } = useUserRole();
   
   // Tokens state
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,6 +90,14 @@ export default function AdminSubscriptions() {
   const [loyaltyGrantLoading, setLoyaltyGrantLoading] = useState(false);
   const [recentLoyaltyUsers, setRecentLoyaltyUsers] = useState<LoyaltyUser[]>([]);
   const [loadingLoyalty, setLoadingLoyalty] = useState(true);
+
+  // Roles state (super_admin only)
+  const [rolesSearchTerm, setRolesSearchTerm] = useState('');
+  const [usersWithRoles, setUsersWithRoles] = useState<UserWithRole[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(true);
+  const [promoteDisplayName, setPromoteDisplayName] = useState('');
+  const [promotingUser, setPromotingUser] = useState(false);
+  const [revokingUserId, setRevokingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -89,7 +121,10 @@ export default function AdminSubscriptions() {
       fetchRecentBonuses();
       fetchRecentLoyaltyUsers();
     }
-  }, [isAdminOrSuper]);
+    if (isSuperAdmin) {
+      fetchUsersWithRoles();
+    }
+  }, [isAdminOrSuper, isSuperAdmin]);
 
   const fetchRecentBonuses = async () => {
     setLoadingBonuses(true);
@@ -103,7 +138,6 @@ export default function AdminSubscriptions() {
 
       if (error) throw error;
 
-      // Fetch display names for these users
       if (bonuses && bonuses.length > 0) {
         const userIds = bonuses.map(b => b.user_id);
         const { data: profiles } = await supabase
@@ -162,6 +196,53 @@ export default function AdminSubscriptions() {
     }
   };
 
+  const fetchUsersWithRoles = async () => {
+    setLoadingRoles(true);
+    try {
+      // Get all user_roles
+      const { data: roles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role, created_at')
+        .order('created_at', { ascending: false });
+
+      if (rolesError) throw rolesError;
+
+      if (roles && roles.length > 0) {
+        const userIds = roles.map(r => r.user_id);
+        
+        // Fetch profiles
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, display_name')
+          .in('user_id', userIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
+        
+        // Fetch emails via RPC (admin only)
+        const usersWithEmails: UserWithRole[] = await Promise.all(
+          roles.map(async (r) => {
+            const { data: email } = await supabase.rpc('get_user_email', { user_id: r.user_id });
+            return {
+              user_id: r.user_id,
+              display_name: profileMap.get(r.user_id) || 'Inconnu',
+              email: email || 'N/A',
+              role: r.role as 'super_admin' | 'admin',
+              created_at: r.created_at,
+            };
+          })
+        );
+
+        setUsersWithRoles(usersWithEmails);
+      } else {
+        setUsersWithRoles([]);
+      }
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+    } finally {
+      setLoadingRoles(false);
+    }
+  };
+
   const handleGrantTokens = async () => {
     if (!targetDisplayName.trim()) {
       toast({
@@ -183,13 +264,6 @@ export default function AdminSubscriptions() {
 
     setGrantLoading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-
-      if (!token) {
-        throw new Error("Session non valide");
-      }
-
       const response = await supabase.functions.invoke('admin-grant-tokens', {
         body: {
           display_name: targetDisplayName.trim(),
@@ -288,6 +362,82 @@ export default function AdminSubscriptions() {
     }
   };
 
+  const handlePromoteToAdmin = async () => {
+    if (!promoteDisplayName.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez entrer un pseudo",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPromotingUser(true);
+    try {
+      const response = await supabase.functions.invoke('manage-user-role', {
+        body: {
+          display_name: promoteDisplayName.trim(),
+          action: 'promote',
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const result = response.data;
+
+      toast({
+        title: "Utilisateur promu",
+        description: `${result.display_name} est maintenant administrateur`,
+      });
+
+      setPromoteDisplayName('');
+      fetchUsersWithRoles();
+    } catch (error) {
+      console.error('Error promoting user:', error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Impossible de promouvoir l'utilisateur",
+        variant: "destructive",
+      });
+    } finally {
+      setPromotingUser(false);
+    }
+  };
+
+  const handleRevokeAdmin = async (userId: string, displayName: string) => {
+    setRevokingUserId(userId);
+    try {
+      const response = await supabase.functions.invoke('manage-user-role', {
+        body: {
+          user_id: userId,
+          action: 'revoke',
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      toast({
+        title: "Rôle révoqué",
+        description: `${displayName} n'est plus administrateur`,
+      });
+
+      fetchUsersWithRoles();
+    } catch (error) {
+      console.error('Error revoking admin:', error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Impossible de révoquer le rôle",
+        variant: "destructive",
+      });
+    } finally {
+      setRevokingUserId(null);
+    }
+  };
+
   if (authLoading || roleLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-8">
@@ -312,6 +462,31 @@ export default function AdminSubscriptions() {
     l.display_name.toLowerCase().includes(loyaltySearchTerm.toLowerCase())
   );
 
+  const filteredUsersWithRoles = usersWithRoles.filter(u =>
+    u.display_name.toLowerCase().includes(rolesSearchTerm.toLowerCase()) ||
+    u.email.toLowerCase().includes(rolesSearchTerm.toLowerCase())
+  );
+
+  const getRoleBadge = (role: 'super_admin' | 'admin' | null) => {
+    if (role === 'super_admin') {
+      return (
+        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+          <Crown className="w-3 h-3 mr-1" />
+          Super Admin
+        </Badge>
+      );
+    }
+    if (role === 'admin') {
+      return (
+        <Badge className="bg-primary/20 text-primary border-primary/30">
+          <ShieldCheck className="w-3 h-3 mr-1" />
+          Admin
+        </Badge>
+      );
+    }
+    return <Badge variant="outline">Utilisateur</Badge>;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -325,31 +500,47 @@ export default function AdminSubscriptions() {
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
                   <Shield className="w-8 h-8 text-accent" />
-                  Gestion Admin
+                  Administration
                 </h1>
                 <p className="text-muted-foreground">
-                  Tokens et Points de Fidélité
+                  Gestion des utilisateurs et ressources
                 </p>
               </div>
             </div>
-            <Badge variant="outline" className="border-accent text-accent">
-              Admin
-            </Badge>
+            {isSuperAdmin ? (
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                <Crown className="w-3 h-3 mr-1" />
+                Super Admin
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="border-accent text-accent">
+                Admin
+              </Badge>
+            )}
           </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         <Tabs defaultValue="tokens" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <TabsTrigger value="tokens" className="flex items-center gap-2">
               <Zap className="w-4 h-4" />
-              Tokens NDG
+              <span className="hidden sm:inline">Tokens NDG</span>
+              <span className="sm:hidden">Tokens</span>
             </TabsTrigger>
             <TabsTrigger value="loyalty" className="flex items-center gap-2">
               <Star className="w-4 h-4" />
-              Points Fidélité
+              <span className="hidden sm:inline">Points Fidélité</span>
+              <span className="sm:hidden">Fidélité</span>
             </TabsTrigger>
+            {isSuperAdmin && (
+              <TabsTrigger value="roles" className="flex items-center gap-2">
+                <Crown className="w-4 h-4" />
+                <span className="hidden sm:inline">Rôles</span>
+                <span className="sm:hidden">Rôles</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* TOKENS TAB */}
@@ -583,20 +774,20 @@ export default function AdminSubscriptions() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredLoyaltyUsers.map((user) => (
-                        <TableRow key={user.user_id}>
-                          <TableCell className="font-medium">{user.display_name}</TableCell>
+                      {filteredLoyaltyUsers.map((loyaltyUser) => (
+                        <TableRow key={loyaltyUser.user_id}>
+                          <TableCell className="font-medium">{loyaltyUser.display_name}</TableCell>
                           <TableCell className="text-center">
                             <Badge>
                               <Star className="w-3 h-3 mr-1" />
-                              {user.balance}
+                              {loyaltyUser.balance}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center text-muted-foreground">
-                            {user.total_earned} pts
+                            {loyaltyUser.total_earned} pts
                           </TableCell>
                           <TableCell className="text-right text-muted-foreground">
-                            {format(new Date(user.updated_at), 'dd MMM yyyy', { locale: fr })}
+                            {format(new Date(loyaltyUser.updated_at), 'dd MMM yyyy', { locale: fr })}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -606,6 +797,158 @@ export default function AdminSubscriptions() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* ROLES TAB - Super Admin only */}
+          {isSuperAdmin && (
+            <TabsContent value="roles" className="space-y-6">
+              <Card className="border-amber-500/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCheck className="w-5 h-5 text-amber-400" />
+                    Promouvoir un Administrateur
+                  </CardTitle>
+                  <CardDescription>
+                    Donner les droits d'administration à un utilisateur existant
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="promoteDisplayName">Pseudo de l'utilisateur à promouvoir</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="promoteDisplayName"
+                        placeholder="Entrez le pseudo exact..."
+                        value={promoteDisplayName}
+                        onChange={(e) => setPromoteDisplayName(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-sm text-muted-foreground">
+                      <ShieldAlert className="inline w-4 h-4 mr-1 text-amber-400" />
+                      Cette action donnera un accès complet à l'administration
+                    </p>
+                    <Button 
+                      onClick={handlePromoteToAdmin} 
+                      disabled={promotingUser || !promoteDisplayName.trim()}
+                      className="bg-amber-500 hover:bg-amber-600 text-black"
+                    >
+                      {promotingUser ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <UserCheck className="w-4 h-4 mr-2" />
+                      )}
+                      Promouvoir Admin
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Crown className="w-5 h-5 text-amber-400" />
+                    Utilisateurs avec Rôles
+                  </CardTitle>
+                  <CardDescription>
+                    Liste des administrateurs et super administrateurs
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Rechercher par pseudo ou email..."
+                        value={rolesSearchTerm}
+                        onChange={(e) => setRolesSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  {loadingRoles ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}
+                    </div>
+                  ) : filteredUsersWithRoles.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      Aucun utilisateur avec un rôle spécial
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Pseudo</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead className="text-center">Rôle</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredUsersWithRoles.map((userRole) => (
+                          <TableRow key={userRole.user_id}>
+                            <TableCell className="font-medium">{userRole.display_name}</TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {userRole.email}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {getRoleBadge(userRole.role)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {userRole.role === 'admin' && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      disabled={revokingUserId === userRole.user_id}
+                                    >
+                                      {revokingUserId === userRole.user_id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <UserX className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Révoquer le rôle admin ?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        {userRole.display_name} perdra ses droits d'administration.
+                                        Cette action peut être annulée en le promouvant à nouveau.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        onClick={() => handleRevokeAdmin(userRole.user_id, userRole.display_name)}
+                                      >
+                                        Révoquer
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                              {userRole.role === 'super_admin' && (
+                                <Badge variant="outline" className="text-amber-400 border-amber-400/30">
+                                  Protégé
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

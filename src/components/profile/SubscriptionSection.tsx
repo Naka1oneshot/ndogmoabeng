@@ -157,7 +157,7 @@ export function SubscriptionSection() {
                 className="border-accent text-accent"
               >
                 <Settings className="w-4 h-4 mr-2" />
-                Gérer les tokens
+                Administration
               </Button>
             )}
             <Badge variant={getTierBadgeVariant(tier)} className="text-sm px-3 py-1">
