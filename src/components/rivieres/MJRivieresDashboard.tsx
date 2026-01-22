@@ -945,28 +945,43 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       )}
 
       {/* Status bar */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <div className={`${rivieresCardStyle} p-3 text-center`}>
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:gap-3">
+        <div className={`${rivieresCardStyle} p-2 md:p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Manche</div>
-          <div className="text-2xl font-bold text-[#D4AF37]">{state.manche_active}/3</div>
+          <div className="text-lg md:text-2xl font-bold text-[#D4AF37]">{state.manche_active}/3</div>
         </div>
-        <div className={`${rivieresCardStyle} p-3 text-center`}>
+        <div className={`${rivieresCardStyle} p-2 md:p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Niveau</div>
-          <div className="text-2xl font-bold text-[#E8E8E8]">{state.niveau_active}/5</div>
+          <div className="text-lg md:text-2xl font-bold text-[#E8E8E8]">{state.niveau_active}/5</div>
         </div>
-        <div className={`${rivieresCardStyle} p-3 text-center`}>
+        <div className={`${rivieresCardStyle} p-2 md:p-3 text-center`}>
           <div className="text-[#9CA3AF] text-xs">Cagnotte</div>
-          <div className="text-2xl font-bold text-[#4ADE80]">{state.cagnotte_manche}💎</div>
+          <div className="text-lg md:text-2xl font-bold text-[#4ADE80]">{state.cagnotte_manche}💎</div>
         </div>
-        <div className={`${rivieresCardStyle} p-3 text-center`}>
+        <div className={`${rivieresCardStyle} p-2 md:p-3 text-center hidden sm:block`}>
           <div className="text-[#9CA3AF] text-xs">Danger</div>
-          <div className={`text-2xl font-bold ${state.danger_effectif !== null ? 'text-[#FF6B6B]' : 'text-[#9CA3AF]'}`}>
+          <div className={`text-lg md:text-2xl font-bold ${state.danger_effectif !== null ? 'text-[#FF6B6B]' : 'text-[#9CA3AF]'}`}>
             {state.danger_effectif ?? '—'}
           </div>
         </div>
-        <div className={`${rivieresCardStyle} p-3 text-center`}>
+        <div className={`${rivieresCardStyle} p-2 md:p-3 text-center hidden sm:block`}>
           <div className="text-[#9CA3AF] text-xs">Statut</div>
           <Badge className={state.status === 'RUNNING' ? 'bg-green-600' : state.status === 'ENDED' ? 'bg-purple-600' : 'bg-gray-600'}>
+            {state.status}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Mobile-only: Danger & Status inline */}
+      <div className="flex sm:hidden gap-2">
+        <div className={`${rivieresCardStyle} p-2 text-center flex-1`}>
+          <span className="text-[#9CA3AF] text-xs mr-1">Danger:</span>
+          <span className={`font-bold ${state.danger_effectif !== null ? 'text-[#FF6B6B]' : 'text-[#9CA3AF]'}`}>
+            {state.danger_effectif ?? '—'}
+          </span>
+        </div>
+        <div className={`${rivieresCardStyle} p-2 text-center flex-1`}>
+          <Badge className={`text-xs ${state.status === 'RUNNING' ? 'bg-green-600' : state.status === 'ENDED' ? 'bg-purple-600' : 'bg-gray-600'}`}>
             {state.status}
           </Badge>
         </div>
@@ -995,18 +1010,18 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-[#20232A]">
-          <TabsTrigger value="players" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
-            <Users className="h-4 w-4 mr-1" /> Joueurs
+        <TabsList className="grid w-full grid-cols-4 bg-[#20232A] h-auto">
+          <TabsTrigger value="players" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black py-2 px-1 sm:px-3 text-xs sm:text-sm">
+            <Users className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Joueurs</span>
           </TabsTrigger>
-          <TabsTrigger value="actions" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
-            <Play className="h-4 w-4 mr-1" /> Actions
+          <TabsTrigger value="actions" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black py-2 px-1 sm:px-3 text-xs sm:text-sm">
+            <Play className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Actions</span>
           </TabsTrigger>
-          <TabsTrigger value="decisions" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
-            <Anchor className="h-4 w-4 mr-1" /> Décisions
+          <TabsTrigger value="decisions" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black py-2 px-1 sm:px-3 text-xs sm:text-sm">
+            <Anchor className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Décisions</span>
           </TabsTrigger>
-          <TabsTrigger value="logs" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">
-            <History className="h-4 w-4 mr-1" /> Logs
+          <TabsTrigger value="logs" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black py-2 px-1 sm:px-3 text-xs sm:text-sm">
+            <History className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Logs</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1054,18 +1069,18 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                     </Badge>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4">
                     <div className="text-center">
-                      <div className="text-[#9CA3AF] text-xs">Joueurs en bateau</div>
-                      <div className="text-2xl font-bold text-[#E8E8E8]">{enBateauPlayers.length}</div>
+                      <div className="text-[#9CA3AF] text-xs">Joueurs</div>
+                      <div className="text-lg md:text-2xl font-bold text-[#E8E8E8]">{enBateauPlayers.length}</div>
                     </div>
                     <div className="text-center">
                       <div className="text-[#9CA3AF] text-xs">Manche</div>
-                      <div className="text-2xl font-bold text-[#D4AF37]">{state.manche_active}/3</div>
+                      <div className="text-lg md:text-2xl font-bold text-[#D4AF37]">{state.manche_active}/3</div>
                     </div>
                     <div className="text-center">
                       <div className="text-[#9CA3AF] text-xs">Niveau</div>
-                      <div className={`text-2xl font-bold ${dangerCalc.range.isLevel5 ? 'text-[#FF6B6B]' : 'text-[#E8E8E8]'}`}>
+                      <div className={`text-lg md:text-2xl font-bold ${dangerCalc.range.isLevel5 ? 'text-[#FF6B6B]' : 'text-[#E8E8E8]'}`}>
                         {state.niveau_active}/5
                         {dangerCalc.range.isLevel5 && <span className="text-sm ml-1">⚠️</span>}
                       </div>

@@ -530,33 +530,33 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       />
 
       {/* Game info bar */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 md:gap-3 text-sm">
         {isAdventure && (
-          <div className="p-3 bg-primary/20 rounded-lg text-center border border-primary/30">
-            <div className="text-muted-foreground">Étape</div>
-            <div className="font-bold text-lg">{game.current_step_index}</div>
-            <div className="text-xs text-muted-foreground">{game.selected_game_type_code}</div>
+          <div className="p-2 md:p-3 bg-primary/20 rounded-lg text-center border border-primary/30">
+            <div className="text-muted-foreground text-xs">Étape</div>
+            <div className="font-bold text-base md:text-lg">{game.current_step_index}</div>
+            <div className="text-xs text-muted-foreground hidden sm:block">{game.selected_game_type_code}</div>
           </div>
         )}
-        <div className="p-3 bg-secondary/50 rounded-lg text-center">
-          <div className="text-muted-foreground">Manche</div>
-          <div className="font-bold text-lg">{game.manche_active}</div>
+        <div className="p-2 md:p-3 bg-secondary/50 rounded-lg text-center">
+          <div className="text-muted-foreground text-xs">Manche</div>
+          <div className="font-bold text-base md:text-lg">{game.manche_active}</div>
         </div>
-        <div className="p-3 bg-secondary/50 rounded-lg text-center">
-          <div className="text-muted-foreground">Phase</div>
-          <div className="font-bold text-sm">{game.phase.replace('PHASE', 'P').replace('_', ' ')}</div>
+        <div className="p-2 md:p-3 bg-secondary/50 rounded-lg text-center">
+          <div className="text-muted-foreground text-xs">Phase</div>
+          <div className="font-bold text-xs md:text-sm">{game.phase.replace('PHASE', 'P').replace('_', ' ')}</div>
         </div>
-        <div className="p-3 bg-secondary/50 rounded-lg text-center">
-          <div className="text-muted-foreground">Verrouillée</div>
-          <div className="font-bold">{game.phase_locked ? 'Oui' : 'Non'}</div>
+        <div className="p-2 md:p-3 bg-secondary/50 rounded-lg text-center">
+          <div className="text-muted-foreground text-xs">Verrouillée</div>
+          <div className="font-bold text-sm">{game.phase_locked ? 'Oui' : 'Non'}</div>
         </div>
-        <div className="p-3 bg-secondary/50 rounded-lg text-center">
-          <div className="text-muted-foreground">Jetons départ</div>
-          <div className="font-bold">{game.starting_tokens}</div>
+        <div className="p-2 md:p-3 bg-secondary/50 rounded-lg text-center">
+          <div className="text-muted-foreground text-xs">Jetons</div>
+          <div className="font-bold text-sm">{game.starting_tokens}</div>
         </div>
-        <div className="p-3 bg-secondary/50 rounded-lg text-center">
-          <div className="text-muted-foreground">Max joueurs</div>
-          <div className="font-bold">{game.x_nb_joueurs || '∞'}</div>
+        <div className="p-2 md:p-3 bg-secondary/50 rounded-lg text-center">
+          <div className="text-muted-foreground text-xs">Max</div>
+          <div className="font-bold text-sm">{game.x_nb_joueurs || '∞'}</div>
         </div>
       </div>
 
@@ -722,40 +722,60 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       {/* FORET Tabs (original) - Only show for FORET games or when no game type is selected */}
       {(game.selected_game_type_code === 'FORET' || !game.selected_game_type_code) ? (
       <Tabs defaultValue="players" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
-          <TabsTrigger value="players" className="flex items-center gap-1">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto">
+          <TabsTrigger value="players" className="flex items-center gap-1 py-2 px-1 sm:px-3">
             <Users className="h-4 w-4" />
-            <span className="hidden md:inline">Joueurs</span>
+            <span className="hidden sm:inline">Joueurs</span>
           </TabsTrigger>
-          <TabsTrigger value="bets" className="flex items-center gap-1">
+          <TabsTrigger value="bets" className="flex items-center gap-1 py-2 px-1 sm:px-3">
             <Coins className="h-4 w-4" />
-            <span className="hidden md:inline">Phase 1</span>
+            <span className="hidden sm:inline">Phase 1</span>
           </TabsTrigger>
-          <TabsTrigger value="phase2" className="flex items-center gap-1">
+          <TabsTrigger value="phase2" className="flex items-center gap-1 py-2 px-1 sm:px-3">
             <Target className="h-4 w-4" />
-            <span className="hidden md:inline">Phase 2</span>
+            <span className="hidden sm:inline">Phase 2</span>
           </TabsTrigger>
-          <TabsTrigger value="shop" className="flex items-center gap-1">
+          <TabsTrigger value="shop" className="flex items-center gap-1 py-2 px-1 sm:px-3">
             <Store className="h-4 w-4" />
-            <span className="hidden md:inline">Phase 3</span>
+            <span className="hidden sm:inline">Phase 3</span>
           </TabsTrigger>
-          <TabsTrigger value="monsters" className="flex items-center gap-1">
+          <TabsTrigger value="monsters" className="flex items-center gap-1 py-2 px-1 sm:px-3 hidden sm:flex">
             <Bug className="h-4 w-4" />
             <span className="hidden md:inline">Monstres</span>
           </TabsTrigger>
-          <TabsTrigger value="inventory" className="flex items-center gap-1">
+          <TabsTrigger value="inventory" className="flex items-center gap-1 py-2 px-1 sm:px-3 hidden sm:flex">
             <Package className="h-4 w-4" />
             <span className="hidden md:inline">Inventaires</span>
           </TabsTrigger>
-          <TabsTrigger value="combat" className="flex items-center gap-1">
+          <TabsTrigger value="combat" className="flex items-center gap-1 py-2 px-1 sm:px-3 hidden sm:flex">
             <Swords className="h-4 w-4" />
             <span className="hidden md:inline">Combat</span>
           </TabsTrigger>
-          <TabsTrigger value="events" className="flex items-center gap-1">
+          <TabsTrigger value="events" className="flex items-center gap-1 py-2 px-1 sm:px-3 hidden sm:flex">
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">Events</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Mobile-only secondary tabs for hidden tabs */}
+        <div className="flex sm:hidden gap-1 mt-2 overflow-x-auto pb-2">
+          <TabsTrigger value="monsters" className="flex items-center gap-1 py-1.5 px-2 text-xs rounded-md border border-border">
+            <Bug className="h-3 w-3" />
+            Monstres
+          </TabsTrigger>
+          <TabsTrigger value="inventory" className="flex items-center gap-1 py-1.5 px-2 text-xs rounded-md border border-border">
+            <Package className="h-3 w-3" />
+            Inv.
+          </TabsTrigger>
+          <TabsTrigger value="combat" className="flex items-center gap-1 py-1.5 px-2 text-xs rounded-md border border-border">
+            <Swords className="h-3 w-3" />
+            Combat
+          </TabsTrigger>
+          <TabsTrigger value="events" className="flex items-center gap-1 py-1.5 px-2 text-xs rounded-md border border-border">
+            <MessageSquare className="h-3 w-3" />
+            Events
+          </TabsTrigger>
+        </div>
 
         <TabsContent value="players" className="mt-6">
           <MJPlayersTab game={game} onGameUpdate={fetchGame} />
