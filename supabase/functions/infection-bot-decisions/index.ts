@@ -449,7 +449,6 @@ Deno.serve(async (req) => {
 
           case 'OC': {
             // OC: Use crystal ball to investigate a random non-OC player
-            // PRIORITY: Always prefer humans over bots (bots are predictable)
             if (existingInputsSet.has(`${bot.player_number}-ORACLE`)) {
               result.skipped_reason = 'Already used oracle';
               break;
@@ -468,23 +467,13 @@ Deno.serve(async (req) => {
                    !botMemory.oc_pv_targets.includes(p.player_number!)
             );
 
-            // STRONG PRIORITY: Human players first (investigating bots is less valuable)
-            const humanTargets = validTargets.filter(p => !p.is_bot);
-            
-            let targetNum: number | null = null;
-            
-            if (humanTargets.length > 0) {
-              // Always pick from humans if any are available
-              targetNum = humanTargets[Math.floor(Math.random() * humanTargets.length)].player_number!;
-            } else if (validTargets.length > 0) {
-              // Fallback to bots only if no humans left to investigate
-              targetNum = validTargets[Math.floor(Math.random() * validTargets.length)].player_number!;
-            }
-
-            if (!targetNum) {
+            if (validTargets.length === 0) {
               result.skipped_reason = 'No valid target for oracle';
               break;
             }
+
+            // Random target among all valid players (bots and humans equally)
+            const targetNum = validTargets[Math.floor(Math.random() * validTargets.length)].player_number!;
 
             inputsToInsert.push({
               game_id: gameId,
