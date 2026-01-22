@@ -10,6 +10,7 @@ import {
   User, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, 
   Users, UserX, Play, Lock, Coins, ShieldCheck, Swords, ShoppingBag, Bot, Plus, Trash2, Trophy
 } from 'lucide-react';
+import { PlayerRowCompact } from './PlayerRowCompact';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -876,7 +877,97 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
             </p>
           ) : (
             <div className="space-y-2">
-              {/* Header */}
+              {/* Mobile compact view */}
+              <div className="lg:hidden space-y-1">
+                {activePlayers.map((player) => (
+                  editingId === player.id ? (
+                    <div key={player.id} className={`p-3 rounded-md bg-secondary/50 ${!player.is_alive ? 'opacity-50' : ''}`}>
+                      {/* Edit form - same as desktop */}
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Nom</label>
+                            <Input
+                              value={editForm.display_name || ''}
+                              onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Clan</label>
+                            <Select
+                              value={editForm.clan || 'none'}
+                              onValueChange={(val) => setEditForm({ ...editForm, clan: val === 'none' ? '' : val })}
+                              disabled={!canEditClan(player)}
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Clan" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {getAvailableClans(player).map(c => (
+                                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Mate</label>
+                            <Select
+                              value={editForm.mate_num?.toString() || 'none'}
+                              onValueChange={(val) => setEditForm({ ...editForm, mate_num: val === 'none' ? null : parseInt(val) })}
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Mate" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Aucun</SelectItem>
+                                {availablePlayerNumbers
+                                  .filter(n => n !== player.player_number)
+                                  .map(n => (
+                                    <SelectItem key={n} value={n.toString()}>Joueur {n}</SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Jetons</label>
+                            <NumberInput
+                              value={editForm.jetons || 0}
+                              onChange={(v) => setEditForm({ ...editForm, jetons: v })}
+                              defaultValue={0}
+                              min={0}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <ForestButton variant="ghost" size="sm" onClick={cancelEditing}>
+                            <X className="h-4 w-4" /> Annuler
+                          </ForestButton>
+                          <ForestButton size="sm" onClick={() => handleSave(player.id)} disabled={saving}>
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Sauvegarder
+                          </ForestButton>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <PlayerRowCompact
+                      key={player.id}
+                      player={player}
+                      presenceBadge={getPresenceBadge(player.last_seen)}
+                      onEdit={startEditing}
+                      onCopyLink={(id) => handleCopyJoinLink(id, player.player_token!)}
+                      onResetToken={handleResetToken}
+                      onKick={(p) => openKickModal(p.id, p.name)}
+                      copiedId={copiedId}
+                      resettingId={resettingId}
+                      variant="forest"
+                    />
+                  )
+                ))}
+              </div>
+
+              {/* Desktop full view - Header */}
               <div className="hidden lg:grid grid-cols-12 gap-2 text-xs text-muted-foreground px-3 py-1">
                 <div className="col-span-1">#</div>
                 <div className="col-span-2">Nom</div>
@@ -888,10 +979,11 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
                 <div className="col-span-2 text-right">Actions</div>
               </div>
 
+              {/* Desktop full view - Rows */}
               {activePlayers.map((player) => (
                 <div
                   key={player.id}
-                  className={`p-3 rounded-md bg-secondary/50 ${!player.is_alive ? 'opacity-50' : ''}`}
+                  className={`hidden lg:block p-3 rounded-md bg-secondary/50 ${!player.is_alive ? 'opacity-50' : ''}`}
                 >
                   {editingId === player.id ? (
                     <div className="space-y-3">
