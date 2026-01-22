@@ -274,7 +274,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   };
 
   const handleNextRound = async () => {
-    if (!game.current_session_game_id) return;
+    if (!game.current_session_game_id || !roundState) return;
     
     toast.info('Ouverture de la manche suivante...');
 
@@ -283,6 +283,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
         body: {
           gameId: game.id,
           sessionGameId: game.current_session_game_id,
+          currentManche: roundState.manche,
         },
       });
 
