@@ -10,7 +10,7 @@ import {
   ArrowLeft, Users, Syringe, Target, MessageSquare, 
   Activity, Play, Lock, CheckCircle, Settings, Skull,
   RefreshCw, Copy, Check, UserX, Loader2, Pencil, Save, X,
-  Bot, Trash2, Zap
+  Bot, Trash2, Zap, ChevronDown
 } from 'lucide-react';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { toast } from 'sonner';
@@ -22,7 +22,10 @@ import { LandscapeModePrompt } from '@/components/mj/LandscapeModePrompt';
 import { useUserRole } from '@/hooks/useUserRole';
 import { BotConfigPanel, BotConfig, DEFAULT_BOT_CONFIG } from './BotConfigPanel';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
+import { PlayerRowCompact } from '@/components/mj/PlayerRowCompact';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface Game {
   id: string;
@@ -86,6 +89,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   const navigate = useNavigate();
   const theme = getInfectionThemeClasses();
   const { isAdminOrSuper } = useUserRole();
+  const isMobile = useIsMobile();
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [roundState, setRoundState] = useState<RoundState | null>(null);
@@ -109,6 +113,15 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   const [deletingBots, setDeletingBots] = useState(false);
   const [botCount, setBotCount] = useState(5);
   const [triggeringBotDecisions, setTriggeringBotDecisions] = useState(false);
+
+  // Presence helper
+  const getPresenceBadge = (lastSeen: string | null) => {
+    if (!lastSeen) return { color: 'bg-red-500', textColor: 'text-red-500', label: 'Déconnecté' };
+    const diff = Date.now() - new Date(lastSeen).getTime();
+    if (diff < 30000) return { color: 'bg-green-500', textColor: 'text-green-500', label: 'En ligne' };
+    if (diff < 90000) return { color: 'bg-yellow-500', textColor: 'text-yellow-500', label: 'Hors ligne' };
+    return { color: 'bg-red-500', textColor: 'text-red-500', label: 'Déconnecté' };
+  };
 
   // Reset selected manche when game.manche_active changes
   useEffect(() => {
@@ -513,24 +526,21 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {activePlayers.map((player) => (
-                    <div 
-                      key={player.id}
-                      className="p-3 bg-[#1A2235] rounded-lg"
-                    >
-                      {editingId === player.id ? (
-                        // Edit mode
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-                            <div>
-                              <label className="text-xs text-[#6B7280]">Nom</label>
-                              <Input
-                                value={editForm.display_name}
-                                onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
-                                className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-1 gap-2">
+                  {/* Mobile compact view */}
+                  {isMobile ? (
+                    <div className="space-y-1">
+                      {activePlayers.map((player) => (
+                        editingId === player.id ? (
+                          <div key={player.id} className="p-3 bg-[#1A2235] rounded-lg space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs text-[#6B7280]">Nom</label>
+                                <Input
+                                  value={editForm.display_name}
+                                  onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                                  className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                                />
+                              </div>
                               <div>
                                 <label className="text-xs text-[#6B7280]">Numéro</label>
                                 <Select
@@ -542,112 +552,138 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                                   </SelectTrigger>
                                   <SelectContent>
                                     {availablePlayerNumbers.map(n => (
-                                      <SelectItem key={n} value={n.toString()}>
-                                        #{n}
-                                      </SelectItem>
+                                      <SelectItem key={n} value={n.toString()}>#{n}</SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
                               </div>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                                <X className="h-4 w-4 mr-1" />Annuler
+                              </Button>
+                              <Button size="sm" onClick={() => handleSave(player.id)} disabled={saving} className={theme.button}>
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                                Sauvegarder
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <PlayerRowCompact
+                            key={player.id}
+                            player={{
+                              id: player.id,
+                              display_name: player.display_name,
+                              player_number: player.player_number,
+                              clan: player.clan,
+                              mate_num: null,
+                              jetons: player.jetons || 0,
+                              is_bot: player.is_bot,
+                              last_seen: player.last_seen,
+                              joined_at: new Date().toISOString(),
+                              player_token: player.player_token,
+                            }}
+                            presenceBadge={getPresenceBadge(player.last_seen)}
+                            onEdit={() => startEditing(player)}
+                            onCopyLink={(id) => player.player_token && handleCopyJoinLink(id, player.player_token)}
+                            onResetToken={handleResetToken}
+                            onKick={(p) => openKickModal(p.id, p.name)}
+                            copiedId={copiedId}
+                            resettingId={resettingId}
+                            variant="infection"
+                          />
+                        )
+                      ))}
+                    </div>
+                  ) : (
+                    /* Desktop full view */
+                    activePlayers.map((player) => (
+                      <div key={player.id} className="p-3 bg-[#1A2235] rounded-lg">
+                        {editingId === player.id ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                               <div>
-                                <label className="text-xs text-[#6B7280]">Jetons</label>
+                                <label className="text-xs text-[#6B7280]">Nom</label>
                                 <Input
-                                  type="number"
-                                  value={editForm.jetons}
-                                  onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                                  value={editForm.display_name}
+                                  onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
                                   className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
                                 />
                               </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-1 gap-2">
+                                <div>
+                                  <label className="text-xs text-[#6B7280]">Numéro</label>
+                                  <Select
+                                    value={editForm.player_number?.toString() || ''}
+                                    onValueChange={(val) => setEditForm({ ...editForm, player_number: parseInt(val) })}
+                                  >
+                                    <SelectTrigger className="h-8 text-sm bg-[#0F1729] border-[#2D3748]">
+                                      <SelectValue placeholder="#" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {availablePlayerNumbers.map(n => (
+                                        <SelectItem key={n} value={n.toString()}>#{n}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-[#6B7280]">Jetons</label>
+                                  <Input
+                                    type="number"
+                                    value={editForm.jetons}
+                                    onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                                    className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                                <X className="h-4 w-4 mr-1" />Annuler
+                              </Button>
+                              <Button size="sm" onClick={() => handleSave(player.id)} disabled={saving} className={theme.button}>
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                                Sauvegarder
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="sm" onClick={cancelEditing}>
-                              <X className="h-4 w-4 mr-1" />
-                              Annuler
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleSave(player.id)} 
-                              disabled={saving}
-                              className={theme.button}
-                            >
-                              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-                              Sauvegarder
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        // View mode
-                        <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <span className="text-[#D4AF37] font-mono">#{player.player_number}</span>
-                            <span className="font-medium">{player.display_name}</span>
-                            {player.is_bot && (
-                              <Badge className="bg-[#6366F1]/20 text-[#A5B4FC] border-[#6366F1]/30 text-xs px-1.5 py-0">
-                                <Bot className="h-3 w-3 mr-1" />
-                                Bot
-                              </Badge>
-                            )}
-                            {player.clan && (
-                              <Badge variant="outline" className="text-xs">
-                                {player.clan}
-                              </Badge>
-                            )}
-                            <span className="text-xs text-[#6B7280]">💰 {player.jetons || 0}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => startEditing(player)}
-                              title="Modifier"
-                              className="h-7 w-7 p-0"
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            {player.player_token && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
-                                title="Copier le lien"
-                                className="h-7 w-7 p-0"
-                              >
-                                {copiedId === player.id ? (
-                                  <Check className="h-3 w-3 text-green-500" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleResetToken(player.id, player.display_name)}
-                              disabled={resettingId === player.id}
-                              title="Reset token"
-                              className="h-7 w-7 p-0"
-                            >
-                              {resettingId === player.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <RefreshCw className="h-3 w-3" />
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="text-[#D4AF37] font-mono">#{player.player_number}</span>
+                              <span className="font-medium">{player.display_name}</span>
+                              {player.is_bot && (
+                                <Badge className="bg-[#6366F1]/20 text-[#A5B4FC] border-[#6366F1]/30 text-xs px-1.5 py-0">
+                                  <Bot className="h-3 w-3 mr-1" />Bot
+                                </Badge>
                               )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openKickModal(player.id, player.display_name)}
-                              className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title="Expulser"
-                            >
-                              <UserX className="h-3 w-3" />
-                            </Button>
+                              {player.clan && (
+                                <Badge variant="outline" className="text-xs">{player.clan}</Badge>
+                              )}
+                              <span className="text-xs text-[#6B7280]">💰 {player.jetons || 0}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => startEditing(player)} title="Modifier" className="h-7 w-7 p-0">
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              {player.player_token && (
+                                <Button variant="ghost" size="sm" onClick={() => handleCopyJoinLink(player.id, player.player_token!)} title="Copier le lien" className="h-7 w-7 p-0">
+                                  {copiedId === player.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="sm" onClick={() => handleResetToken(player.id, player.display_name)} disabled={resettingId === player.id} title="Reset token" className="h-7 w-7 p-0">
+                                {resettingId === player.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => openKickModal(player.id, player.display_name)} className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" title="Expulser">
+                                <UserX className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -969,170 +1005,180 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
             <div className="p-4 border-b border-[#2D3748]">
               <h2 className="font-semibold">Joueurs ({activePlayers.length})</h2>
             </div>
-            <div className="divide-y divide-[#2D3748]">
-              {activePlayers.map(player => {
-                const roleInfo = player.role_code ? INFECTION_ROLE_LABELS[player.role_code] : null;
-                return (
-                  <div key={player.id} className="p-4">
-                    {editingId === player.id ? (
-                      // Edit mode in-game
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-                          <div>
-                            <label className="text-xs text-[#6B7280]">Nom</label>
-                            <Input
-                              value={editForm.display_name}
-                              onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
-                              className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-1 gap-2">
-                            <div>
-                              <label className="text-xs text-[#6B7280]">Numéro</label>
-                              <Input
-                                type="number"
-                                value={editForm.player_number || ''}
-                                onChange={(e) => setEditForm({ ...editForm, player_number: parseInt(e.target.value) || null })}
-                                className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-[#6B7280]">Jetons</label>
-                              <Input
-                                type="number"
-                                value={editForm.jetons}
-                                onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
-                                className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
-                              />
-                            </div>
-                          </div>
+            <div className={isMobile ? "p-2 space-y-1" : "divide-y divide-[#2D3748]"}>
+              {isMobile ? (
+                /* Mobile compact view */
+                activePlayers.map(player => {
+                  const roleInfo = player.role_code ? INFECTION_ROLE_LABELS[player.role_code] : null;
+                  return editingId === player.id ? (
+                    <div key={player.id} className="p-3 bg-[#1A2235] rounded-lg space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-[#6B7280]">Nom</label>
+                          <Input
+                            value={editForm.display_name}
+                            onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                            className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                          />
                         </div>
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={cancelEditing}>
-                            <X className="h-4 w-4 mr-1" />
-                            Annuler
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleSave(player.id)} 
-                            disabled={saving}
-                            className={theme.button}
-                          >
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-                            Sauvegarder
-                          </Button>
+                        <div>
+                          <label className="text-xs text-[#6B7280]">Jetons</label>
+                          <Input
+                            type="number"
+                            value={editForm.jetons}
+                            onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                            className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                          />
                         </div>
                       </div>
-                    ) : (
-                      // View mode in-game
-                      <>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <span className="text-[#D4AF37] font-mono">
-                              #{player.player_number}
-                            </span>
-                            <span className={player.is_alive === false ? 'line-through text-[#6B7280]' : ''}>
-                              {player.display_name}
-                            </span>
-                            {player.is_bot && (
-                              <Badge className="bg-[#6366F1]/20 text-[#A5B4FC] border-[#6366F1]/30 text-xs px-1.5 py-0">
-                                <Bot className="h-3 w-3 mr-1" />
-                                Bot
-                              </Badge>
-                            )}
-                            {roleInfo && (
-                              <Badge 
-                                style={{ 
-                                  backgroundColor: `${roleInfo.color}20`,
-                                  color: roleInfo.color,
-                                  borderColor: `${roleInfo.color}50`
-                                }}
-                              >
-                                {roleInfo.short}
-                              </Badge>
-                            )}
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                          <X className="h-4 w-4 mr-1" />Annuler
+                        </Button>
+                        <Button size="sm" onClick={() => handleSave(player.id)} disabled={saving} className={theme.button}>
+                          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                          Sauvegarder
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={player.id} className={`${player.is_alive === false ? 'opacity-50' : ''}`}>
+                      <PlayerRowCompact
+                        player={{
+                          id: player.id,
+                          display_name: player.display_name,
+                          player_number: player.player_number,
+                          clan: player.clan,
+                          mate_num: null,
+                          jetons: player.jetons || 0,
+                          is_bot: player.is_bot,
+                          last_seen: player.last_seen,
+                          joined_at: new Date().toISOString(),
+                          player_token: player.player_token,
+                          is_alive: player.is_alive ?? true,
+                        }}
+                        presenceBadge={getPresenceBadge(player.last_seen)}
+                        onEdit={() => startEditing(player)}
+                        onCopyLink={(id) => player.player_token && handleCopyJoinLink(id, player.player_token)}
+                        onResetToken={handleResetToken}
+                        onKick={(p) => openKickModal(p.id, p.name)}
+                        copiedId={copiedId}
+                        resettingId={resettingId}
+                        variant="infection"
+                      />
+                      {/* Role badge overlay for mobile */}
+                      {roleInfo && (
+                        <div className="flex flex-wrap gap-1 px-2 py-1 text-xs">
+                          <Badge style={{ backgroundColor: `${roleInfo.color}20`, color: roleInfo.color }}>{roleInfo.short}</Badge>
+                          {player.is_carrier && <Badge className="bg-[#B00020]/20 text-[#B00020]">Porteur</Badge>}
+                          {player.is_contagious && <Badge className="bg-[#E6A23C]/20 text-[#E6A23C]">Contagieux</Badge>}
+                          {player.immune_permanent && <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6]">Immunisé</Badge>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                /* Desktop full view */
+                activePlayers.map(player => {
+                  const roleInfo = player.role_code ? INFECTION_ROLE_LABELS[player.role_code] : null;
+                  return (
+                    <div key={player.id} className="p-4">
+                      {editingId === player.id ? (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                            <div>
+                              <label className="text-xs text-[#6B7280]">Nom</label>
+                              <Input
+                                value={editForm.display_name}
+                                onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                                className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-1 gap-2">
+                              <div>
+                                <label className="text-xs text-[#6B7280]">Numéro</label>
+                                <Input
+                                  type="number"
+                                  value={editForm.player_number || ''}
+                                  onChange={(e) => setEditForm({ ...editForm, player_number: parseInt(e.target.value) || null })}
+                                  className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-[#6B7280]">Jetons</label>
+                                <Input
+                                  type="number"
+                                  value={editForm.jetons}
+                                  onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                                  className="h-8 text-sm bg-[#0F1729] border-[#2D3748]"
+                                />
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-xs">
-                            {player.is_carrier && (
-                              <Badge className="bg-[#B00020]/20 text-[#B00020]">Porteur</Badge>
-                            )}
-                            {player.is_contagious && (
-                              <Badge className="bg-[#E6A23C]/20 text-[#E6A23C]">Contagieux</Badge>
-                            )}
-                            {player.immune_permanent && (
-                              <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6]">Immunisé</Badge>
-                            )}
-                            {player.has_antibodies && (
-                              <Badge className="bg-[#D4AF37]/20 text-[#D4AF37]">Anticorps</Badge>
-                            )}
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                              <X className="h-4 w-4 mr-1" />Annuler
+                            </Button>
+                            <Button size="sm" onClick={() => handleSave(player.id)} disabled={saving} className={theme.button}>
+                              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                              Sauvegarder
+                            </Button>
                           </div>
                         </div>
-                        <div className="mt-2 flex items-center justify-between">
-                          <div className="flex items-center gap-4 text-xs text-[#6B7280]">
-                            <span>💰 {player.jetons || 0} jetons</span>
-                            <span>⭐ {player.pvic || 0} PVic</span>
-                            {player.infected_at_manche && (
-                              <span className="text-[#B00020]">
-                                Infecté M{player.infected_at_manche}
-                              </span>
-                            )}
-                          </div>
-                          {/* Player management actions */}
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => startEditing(player)}
-                              title="Modifier"
-                              className="h-7 w-7 p-0"
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            {player.player_token && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
-                                title="Copier le lien de reconnexion"
-                                className="h-7 w-7 p-0"
-                              >
-                                {copiedId === player.id ? (
-                                  <Check className="h-3 w-3 text-green-500" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleResetToken(player.id, player.display_name)}
-                              disabled={resettingId === player.id}
-                              title="Réinitialiser le token"
-                              className="h-7 w-7 p-0"
-                            >
-                              {resettingId === player.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <RefreshCw className="h-3 w-3" />
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="text-[#D4AF37] font-mono">#{player.player_number}</span>
+                              <span className={player.is_alive === false ? 'line-through text-[#6B7280]' : ''}>{player.display_name}</span>
+                              {player.is_bot && (
+                                <Badge className="bg-[#6366F1]/20 text-[#A5B4FC] border-[#6366F1]/30 text-xs px-1.5 py-0">
+                                  <Bot className="h-3 w-3 mr-1" />Bot
+                                </Badge>
                               )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openKickModal(player.id, player.display_name)}
-                              className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title="Expulser le joueur"
-                            >
-                              <UserX className="h-3 w-3" />
-                            </Button>
+                              {roleInfo && (
+                                <Badge style={{ backgroundColor: `${roleInfo.color}20`, color: roleInfo.color, borderColor: `${roleInfo.color}50` }}>
+                                  {roleInfo.short}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs">
+                              {player.is_carrier && <Badge className="bg-[#B00020]/20 text-[#B00020]">Porteur</Badge>}
+                              {player.is_contagious && <Badge className="bg-[#E6A23C]/20 text-[#E6A23C]">Contagieux</Badge>}
+                              {player.immune_permanent && <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6]">Immunisé</Badge>}
+                              {player.has_antibodies && <Badge className="bg-[#D4AF37]/20 text-[#D4AF37]">Anticorps</Badge>}
+                            </div>
                           </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+                          <div className="mt-2 flex items-center justify-between">
+                            <div className="flex items-center gap-4 text-xs text-[#6B7280]">
+                              <span>💰 {player.jetons || 0} jetons</span>
+                              <span>⭐ {player.pvic || 0} PVic</span>
+                              {player.infected_at_manche && <span className="text-[#B00020]">Infecté M{player.infected_at_manche}</span>}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => startEditing(player)} title="Modifier" className="h-7 w-7 p-0">
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              {player.player_token && (
+                                <Button variant="ghost" size="sm" onClick={() => handleCopyJoinLink(player.id, player.player_token!)} title="Copier le lien" className="h-7 w-7 p-0">
+                                  {copiedId === player.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="sm" onClick={() => handleResetToken(player.id, player.display_name)} disabled={resettingId === player.id} title="Reset token" className="h-7 w-7 p-0">
+                                {resettingId === player.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => openKickModal(player.id, player.display_name)} className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" title="Expulser">
+                                <UserX className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
