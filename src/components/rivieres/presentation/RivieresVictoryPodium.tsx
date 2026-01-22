@@ -451,41 +451,51 @@ export function RivieresVictoryPodium({ ranking, levelHistory, allDecisions, pla
                 </div>
               </div>
 
-              {/* Betting awards - Hidden on small mobile to save space */}
+              {/* Betting awards - Now visible on mobile */}
               {(bettingStats.mostStingyPlayer || bettingStats.smallestBetOnSuccess || bettingStats.smallestBetOverall) && (
-                <div className="hidden md:block">
+                <div>
                   <div className="border-t border-[#D4AF37]/20 pt-3 md:pt-4">
-                    <div className="text-[#9CA3AF] text-xs uppercase tracking-wide mb-2 md:mb-3">Prix spéciaux</div>
+                    <div className="text-[#9CA3AF] text-[10px] md:text-xs uppercase tracking-wide mb-2 md:mb-3 flex items-center gap-1">
+                      <Award className="h-3 w-3 md:h-4 md:w-4 text-[#D4AF37]" />
+                      Prix spéciaux
+                    </div>
                   </div>
-                  <div className="space-y-2 md:space-y-3">
+                  {/* Grid layout on mobile, stacked on desktop */}
+                  <div className="grid grid-cols-3 md:grid-cols-1 gap-2 md:space-y-3 md:gap-0">
                     {bettingStats.mostStingyPlayer && (
                       <div className="bg-[#151B2D] border border-amber-500/30 rounded-lg px-2 md:px-3 py-1.5 md:py-2">
                         <div className="flex items-center gap-1 text-amber-400 text-[10px] md:text-xs mb-0.5 md:mb-1">
-                          <TrendingDown className="h-2.5 w-2.5 md:h-3 md:w-3" /> Le plus Radin
+                          <TrendingDown className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                          <span className="hidden md:inline">Le plus Radin</span>
+                          <span className="md:hidden">Radin</span>
                         </div>
-                        <div className="text-xs md:text-sm font-bold text-amber-400 break-words">{bettingStats.mostStingyPlayer.name}</div>
-                        <div className="text-[10px] md:text-xs text-[#9CA3AF]">Moy. {bettingStats.mostStingyPlayer.avgBet}💎/niveau</div>
+                        <div className="text-[10px] md:text-sm font-bold text-amber-400 break-words truncate">{bettingStats.mostStingyPlayer.name}</div>
+                        <div className="text-[8px] md:text-xs text-[#9CA3AF]">{bettingStats.mostStingyPlayer.avgBet}💎/niv</div>
                       </div>
                     )}
                     {bettingStats.smallestBetOnSuccess && (
                       <div className="bg-[#151B2D] border border-emerald-500/30 rounded-lg px-2 md:px-3 py-1.5 md:py-2">
                         <div className="flex items-center gap-1 text-emerald-400 text-[10px] md:text-xs mb-0.5 md:mb-1">
-                          <Award className="h-2.5 w-2.5 md:h-3 md:w-3" /> Plus petit pari gagnant
+                          <Award className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                          <span className="hidden md:inline">Plus petit pari gagnant</span>
+                          <span className="md:hidden">Pari min</span>
                         </div>
-                        <div className="text-xs md:text-sm font-bold text-emerald-400">{bettingStats.smallestBetOnSuccess.amount}💎</div>
-                        <div className="text-[10px] md:text-xs text-[#9CA3AF] break-words">
-                          {bettingStats.smallestBetOnSuccess.playerName} ({bettingStats.smallestBetOnSuccess.level})
+                        <div className="text-[10px] md:text-sm font-bold text-emerald-400">{bettingStats.smallestBetOnSuccess.amount}💎</div>
+                        <div className="text-[8px] md:text-xs text-[#9CA3AF] break-words truncate">
+                          {bettingStats.smallestBetOnSuccess.playerName}
                         </div>
                       </div>
                     )}
                     {bettingStats.smallestBetOverall && (
                       <div className="bg-[#151B2D] border border-purple-500/30 rounded-lg px-2 md:px-3 py-1.5 md:py-2">
                         <div className="flex items-center gap-1 text-purple-400 text-[10px] md:text-xs mb-0.5 md:mb-1">
-                          <Coins className="h-2.5 w-2.5 md:h-3 md:w-3" /> Plus petite mise
+                          <Coins className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                          <span className="hidden md:inline">Plus petite mise</span>
+                          <span className="md:hidden">Mise min</span>
                         </div>
-                        <div className="text-xs md:text-sm font-bold text-purple-400">{bettingStats.smallestBetOverall.amount}💎</div>
-                        <div className="text-[10px] md:text-xs text-[#9CA3AF] break-words">
-                          {bettingStats.smallestBetOverall.playerName} ({bettingStats.smallestBetOverall.level})
+                        <div className="text-[10px] md:text-sm font-bold text-purple-400">{bettingStats.smallestBetOverall.amount}💎</div>
+                        <div className="text-[8px] md:text-xs text-[#9CA3AF] break-words truncate">
+                          {bettingStats.smallestBetOverall.playerName}
                         </div>
                       </div>
                     )}
