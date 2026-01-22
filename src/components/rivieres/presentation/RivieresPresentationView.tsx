@@ -544,64 +544,79 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
             </h3>
 
             <ScrollArea className="flex-1">
-              <table className="w-full text-sm">
-                <thead className="bg-[#0B1020] sticky top-0">
-                  <tr>
-                    <th className="p-3 text-left text-[#D4AF37]">Rang</th>
-                    <th className="p-3 text-left text-[#9CA3AF]">Joueur</th>
-                    <th className="p-3 text-center text-[#9CA3AF]">Statut</th>
-                    <th className="p-3 text-center text-[#9CA3AF]">Niveaux</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ranking.map((p, idx) => (
-                    <tr 
+              {/* Top 3 - Full width */}
+              <div className="space-y-2 mb-4">
+                {ranking.slice(0, 3).map((p, idx) => (
+                  <div 
+                    key={p.id} 
+                    className={`flex items-center gap-3 p-3 rounded-lg ${idx === 0 ? 'bg-[#D4AF37]/20 border border-[#D4AF37]/40' : 'bg-[#0B1020]'} ${p.current_status === 'A_TERRE' ? 'opacity-60' : ''}`}
+                  >
+                    <span className={`text-2xl font-bold w-10 ${
+                      idx === 0 ? 'text-[#D4AF37]' : 
+                      idx === 1 ? 'text-gray-300' : 'text-amber-600'
+                    }`}>
+                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
+                    </span>
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={p.avatar_url || undefined} />
+                      <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-sm">
+                        {p.display_name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[#E8E8E8] font-medium truncate">{p.display_name}</div>
+                      {p.clan && <div className="text-xs text-[#9CA3AF]">{p.clan}</div>}
+                    </div>
+                    <Badge className={
+                      p.current_status === 'EN_BATEAU' ? 'bg-blue-600' :
+                      p.current_status === 'A_TERRE' ? 'bg-green-600' :
+                      'bg-red-600'
+                    }>
+                      {p.current_status === 'EN_BATEAU' ? '🚣' : 
+                       p.current_status === 'A_TERRE' ? '🏝️' : '💀'}
+                    </Badge>
+                    <span className={`text-sm ${p.validated_levels >= 9 ? 'text-[#4ADE80] font-bold' : 'text-amber-400'}`}>
+                      {p.validated_levels}/15
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Rest of players - 2 columns */}
+              {ranking.length > 3 && (
+                <div className="grid grid-cols-2 gap-2">
+                  {ranking.slice(3).map((p, idx) => (
+                    <div 
                       key={p.id} 
-                      className={`border-t border-[#D4AF37]/10 ${idx === 0 ? 'bg-[#D4AF37]/10' : ''} ${p.current_status === 'A_TERRE' ? 'opacity-60' : ''}`}
+                      className={`flex items-center gap-2 p-2 rounded-lg bg-[#0B1020] ${p.current_status === 'A_TERRE' ? 'opacity-60' : ''}`}
                     >
-                      <td className="p-3">
-                        <span className={`text-lg font-bold ${
-                          idx === 0 ? 'text-[#D4AF37]' : 
-                          idx === 1 ? 'text-gray-300' : 
-                          idx === 2 ? 'text-amber-600' : 'text-[#9CA3AF]'
-                        }`}>
-                          {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={p.avatar_url || undefined} />
-                            <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs">
-                              {p.display_name.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="text-[#E8E8E8] font-medium">{p.display_name}</div>
-                            {p.clan && <div className="text-xs text-[#9CA3AF]">{p.clan}</div>}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-3 text-center">
-                        <Badge className={
-                          p.current_status === 'EN_BATEAU' ? 'bg-blue-600' :
-                          p.current_status === 'A_TERRE' ? 'bg-green-600' :
-                          'bg-red-600'
-                        }>
-                          {p.current_status === 'EN_BATEAU' ? '🚣' : 
-                           p.current_status === 'A_TERRE' ? '🏝️' : '💀'}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-center">
-                        <span className={p.validated_levels >= 9 ? 'text-[#4ADE80] font-bold' : 'text-amber-400'}>
-                          {p.validated_levels}/15
-                        </span>
-                        {p.penalty_applied && <span className="text-xs text-red-400 ml-1">⚠️</span>}
-                      </td>
-                    </tr>
+                      <span className="text-sm font-bold text-[#9CA3AF] w-6">
+                        #{idx + 4}
+                      </span>
+                      <Avatar className="h-7 w-7">
+                        <AvatarImage src={p.avatar_url || undefined} />
+                        <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs">
+                          {p.display_name.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[#E8E8E8] text-sm truncate">{p.display_name}</div>
+                      </div>
+                      <Badge className={`text-xs ${
+                        p.current_status === 'EN_BATEAU' ? 'bg-blue-600' :
+                        p.current_status === 'A_TERRE' ? 'bg-green-600' :
+                        'bg-red-600'
+                      }`}>
+                        {p.current_status === 'EN_BATEAU' ? '🚣' : 
+                         p.current_status === 'A_TERRE' ? '🏝️' : '💀'}
+                      </Badge>
+                      <span className={`text-xs ${p.validated_levels >= 9 ? 'text-[#4ADE80]' : 'text-amber-400'}`}>
+                        {p.validated_levels}
+                      </span>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              )}
             </ScrollArea>
           </div>
         </div>
