@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ArrowLeft, Users, Syringe, Target, MessageSquare, 
   Activity, Play, Lock, CheckCircle, Settings, Skull,
-  RefreshCw, Copy, Check, UserX, Loader2, Pencil, Save, X
+  RefreshCw, Copy, Check, UserX, Loader2, Pencil, Save, X,
+  Bot, Trash2, Zap
 } from 'lucide-react';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { toast } from 'sonner';
@@ -18,6 +19,7 @@ import { MJChatsTab } from './MJChatsTab';
 import { MJRoundHistorySelector } from './MJRoundHistorySelector';
 import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { LandscapeModePrompt } from '@/components/mj/LandscapeModePrompt';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface Game {
   id: string;
@@ -52,6 +54,7 @@ interface Player {
   last_seen: string | null;
   is_host: boolean;
   player_token: string | null;
+  is_bot?: boolean;
 }
 
 interface RoundState {
@@ -76,6 +79,7 @@ interface MJInfectionDashboardProps {
 export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps) {
   const navigate = useNavigate();
   const theme = getInfectionThemeClasses();
+  const { isAdminOrSuper } = useUserRole();
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [roundState, setRoundState] = useState<RoundState | null>(null);
@@ -93,6 +97,12 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ display_name: '', player_number: null, jetons: 0 });
   const [saving, setSaving] = useState(false);
+  
+  // Bot management state
+  const [addingBots, setAddingBots] = useState(false);
+  const [deletingBots, setDeletingBots] = useState(false);
+  const [botCount, setBotCount] = useState(5);
+  const [triggeringBotDecisions, setTriggeringBotDecisions] = useState(false);
 
   // Reset selected manche when game.manche_active changes
   useEffect(() => {
@@ -381,8 +391,81 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
     }
   };
 
+  // Bot management functions
+  const handleAddBots = async () => {
+    if (botCount < 1 || botCount > 20) {
+      toast.error('Nombre de bots invalide (1-20)');
+      return;
+    }
+    setAddingBots(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('add-bots', {
+        body: { 
+          gameId: game.id, 
+          count: botCount,
+          withClans: true,
+        },
+      });
+      if (error || !data?.success) throw new Error(data?.error || 'Erreur');
+      toast.success(`${data.botsAdded} bots ajoutés !`);
+      fetchData();
+    } catch (err: any) {
+      console.error('Add bots error:', err);
+      toast.error(err.message || 'Erreur lors de l\'ajout des bots');
+    } finally {
+      setAddingBots(false);
+    }
+  };
+
+  const handleDeleteAllBots = async () => {
+    setDeletingBots(true);
+    try {
+      const { error } = await supabase
+        .from('game_players')
+        .delete()
+        .eq('game_id', game.id)
+        .eq('is_bot', true);
+      
+      if (error) throw error;
+      toast.success('Tous les bots supprimés');
+      fetchData();
+    } catch (err: any) {
+      console.error('Delete bots error:', err);
+      toast.error(err.message || 'Erreur lors de la suppression');
+    } finally {
+      setDeletingBots(false);
+    }
+  };
+
+  const handleTriggerBotDecisions = async () => {
+    if (!game.current_session_game_id || !game.manche_active) {
+      toast.error('Session ou manche non disponible');
+      return;
+    }
+    setTriggeringBotDecisions(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('infection-bot-decisions', {
+        body: {
+          gameId: game.id,
+          sessionGameId: game.current_session_game_id,
+          manche: game.manche_active,
+        },
+      });
+      if (error || !data?.success) throw new Error(data?.error || 'Erreur');
+      toast.success(`${data.decisions_made} décisions de bots générées !`);
+      fetchData();
+    } catch (err: any) {
+      console.error('Bot decisions error:', err);
+      toast.error(err.message || 'Erreur lors des décisions bots');
+    } finally {
+      setTriggeringBotDecisions(false);
+    }
+  };
+
   // Filter out the host (MJ) from players
   const activePlayers = players.filter(p => p.status === 'ACTIVE' && !p.is_host && p.player_number !== null);
+  const botPlayers = activePlayers.filter(p => (p as any).is_bot);
+  const humanPlayers = activePlayers.filter(p => !(p as any).is_bot);
   const alivePlayers = activePlayers.filter(p => p.is_alive !== false);
   const kickedPlayers = players.filter(p => p.status === 'REMOVED');
   const availablePlayerNumbers = Array.from({ length: 20 }, (_, i) => i + 1);
@@ -557,6 +640,66 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
               )}
             </div>
           </div>
+
+          {/* Bot Management (Admin only) */}
+          {isAdminOrSuper && (
+            <div className={theme.card}>
+              <div className="p-4 border-b border-[#2D3748]">
+                <h2 className="font-semibold flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-[#D4AF37]" />
+                  Gestion des bots
+                  {botPlayers.length > 0 && (
+                    <Badge variant="outline" className="ml-2">
+                      {botPlayers.length} bots
+                    </Badge>
+                  )}
+                </h2>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={botCount}
+                    onChange={(e) => setBotCount(Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))}
+                    className="w-20 h-9 bg-[#0F1729] border-[#2D3748]"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddBots}
+                    disabled={addingBots}
+                    className="flex-1"
+                  >
+                    {addingBots ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Bot className="h-4 w-4 mr-2" />
+                    )}
+                    Ajouter bots
+                  </Button>
+                  {botPlayers.length > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDeleteAllBots}
+                      disabled={deletingBots}
+                    >
+                      {deletingBots ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-[#6B7280]">
+                  Les bots joueront automatiquement selon leurs rôles avec des décisions réalistes.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Role configuration (placeholder) */}
           <div className={theme.card}>
@@ -733,6 +876,40 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
               )}
             </div>
           </div>
+
+          {/* Bot Decisions (Admin only, when round is OPEN) */}
+          {isAdminOrSuper && botPlayers.length > 0 && roundState?.status === 'OPEN' && (
+            <div className={theme.card}>
+              <div className="p-4 border-b border-[#2D3748]">
+                <h2 className="font-semibold flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-[#D4AF37]" />
+                  Actions des bots
+                  <Badge variant="outline" className="ml-2">
+                    {botPlayers.filter(p => p.is_alive !== false).length} bots vivants
+                  </Badge>
+                </h2>
+              </div>
+              <div className="p-4 space-y-3">
+                <Button
+                  variant="outline"
+                  className="w-full border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/10"
+                  onClick={handleTriggerBotDecisions}
+                  disabled={triggeringBotDecisions}
+                >
+                  {triggeringBotDecisions ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Zap className="h-4 w-4 mr-2" />
+                  )}
+                  Déclencher décisions bots
+                </Button>
+                <p className="text-xs text-[#6B7280]">
+                  Les bots joueront selon leurs rôles : BA tire (90%), PV évite les autres PV, 
+                  SY votent ensemble, AE sabote (40-90%), OC consulte...
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* SY Progress */}
           {roundState && (
