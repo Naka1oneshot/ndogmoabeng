@@ -681,7 +681,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       <div className="card-gradient rounded-lg border border-border p-4">
         <MJLobbyChatViewer gameId={game.id} />
       </div>
-      {/* RIVIERES Dashboard */}
+      {/* RIVIERES Dashboard - In-game mode */}
       {game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id && (
         <MJRivieresDashboard 
           gameId={game.id} 
@@ -690,6 +690,28 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           onNextGame={isAdventure ? handleNextSessionGame : undefined}
           gameStatus={game.status}
         />
+      )}
+
+      {/* RIVIERES Lobby - Show player management when no session exists yet */}
+      {game.selected_game_type_code === 'RIVIERES' && !game.current_session_game_id && (
+        <Tabs defaultValue="players" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="players" className="flex items-center gap-1">
+              <Users className="h-4 w-4" />
+              <span>Joueurs</span>
+            </TabsTrigger>
+            <TabsTrigger value="events" className="flex items-center gap-1">
+              <MessageSquare className="h-4 w-4" />
+              <span>Événements</span>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="players">
+            <MJPlayersTab game={game} onGameUpdate={fetchGame} />
+          </TabsContent>
+          <TabsContent value="events">
+            <MJEventsTab game={game} />
+          </TabsContent>
+        </Tabs>
       )}
 
       {/* INFECTION Dashboard */}
