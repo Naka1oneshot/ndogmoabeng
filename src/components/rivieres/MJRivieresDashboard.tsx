@@ -28,6 +28,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { MJRivieresPlayersTab } from './MJRivieresPlayersTab';
@@ -79,6 +80,7 @@ interface Player {
   jetons: number;
   is_host: boolean;
   player_token: string | null;
+  user_id: string | null;
 }
 
 interface StageScore {
@@ -135,6 +137,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   // Scores
   const [stageScores, setStageScores] = useState<StageScore[]>([]);
   const [showFinalRanking, setShowFinalRanking] = useState(false);
+  const [endingGame, setEndingGame] = useState(false);
 
   // Start animation
   const [showStartAnimation, setShowStartAnimation] = useState(false);
@@ -214,7 +217,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       // Fetch players (excluding host)
       const { data: playersData } = await supabase
         .from('game_players')
-        .select('id, display_name, player_number, clan, jetons, is_host, player_token')
+        .select('id, display_name, player_number, clan, jetons, is_host, player_token, user_id')
         .eq('game_id', gameId)
         .eq('status', 'ACTIVE')
         .order('player_number');
@@ -573,6 +576,68 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   const botPlayers = players.filter(p => p.display_name.includes('🤖'));
   const humanPlayers = players.filter(p => !p.display_name.includes('🤖'));
 
+  // End game handler - same actions as Forêt
+  const handleEndGame = async () => {
+    setEndingGame(true);
+    try {
+      // Find winner (player with highest score)
+      const sortedPlayers = [...stageScores].sort((a, b) => b.score_value - a.score_value);
+      const winnerPlayerId = sortedPlayers[0]?.game_player_id;
+      const winnerPlayer = players.find(p => p.id === winnerPlayerId);
+      const winnerUserId = winnerPlayer?.user_id || null;
+      
+      // Update game status
+      const { error } = await supabase
+        .from('games')
+        .update({ 
+          status: 'ENDED', 
+          phase: 'FINISHED',
+          phase_locked: true,
+          winner_declared: true
+        })
+        .eq('id', gameId);
+      
+      if (error) throw error;
+      
+      // Update player profile statistics
+      const { error: statsError } = await supabase.rpc('update_player_stats_on_game_end', {
+        p_game_id: gameId,
+        p_winner_user_id: winnerUserId
+      });
+      
+      if (statsError) {
+        console.error('Stats update error:', statsError);
+        // Don't throw - stats update failure shouldn't block game end
+      }
+      
+      // Log the game end
+      await supabase.from('logs_mj').insert({
+        game_id: gameId,
+        session_game_id: sessionGameId,
+        manche: state?.manche_active || 3,
+        action: 'PARTIE_TERMINEE',
+        details: 'La partie Rivières a été terminée manuellement par le MJ.',
+      });
+      
+      // Emit session event
+      await supabase.from('session_events').insert({
+        game_id: gameId,
+        audience: 'ALL',
+        type: 'GAME_END',
+        message: '🏆 La partie Rivières est terminée !',
+        payload: { type: 'GAME_ENDED', reason: 'MJ_DECISION', game_type: 'RIVIERES' },
+      });
+      
+      toast.success('Partie terminée ! Statistiques des joueurs mises à jour.');
+      fetchData();
+    } catch (error: any) {
+      console.error('End game error:', error);
+      toast.error(error.message || 'Erreur lors de la fin de partie');
+    } finally {
+      setEndingGame(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -848,13 +913,32 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                 Jeu suivant
               </ForestButton>
             ) : (
-              <ForestButton
-                onClick={() => toast.success('Partie terminée ! Scores enregistrés.')}
-                className="bg-[#1B4D3E] hover:bg-[#1B4D3E]/80 text-white text-lg px-8"
-              >
-                <Trophy className="h-5 w-5 mr-2" />
-                Fin de partie
-              </ForestButton>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <ForestButton
+                    disabled={endingGame}
+                    className="bg-[#1B4D3E] hover:bg-[#1B4D3E]/80 text-white text-lg px-8"
+                  >
+                    {endingGame ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Trophy className="h-5 w-5 mr-2" />}
+                    Fin de partie
+                  </ForestButton>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Terminer la partie ?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      La partie Rivières va être officiellement terminée.
+                      Les statistiques des joueurs seront mises à jour.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleEndGame}>
+                      Terminer la partie
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </div>
