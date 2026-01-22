@@ -36,7 +36,27 @@ Deno.serve(async (req) => {
       throw new Error(`Current round is not RESOLVED (status: ${currentRound.status})`);
     }
 
-    // 2. Calculate SY required success based on alive SY count
+    // 2. Check if new round already exists (idempotency)
+    const { data: existingRound } = await supabase
+      .from('infection_round_state')
+      .select('id, status')
+      .eq('session_game_id', sessionGameId)
+      .eq('manche', newManche)
+      .maybeSingle();
+
+    if (existingRound) {
+      console.log('[next-infection-round] Round already exists:', { newManche, status: existingRound.status });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Manche ${newManche} existe déjà`,
+          data: { newManche, alreadyExists: true },
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    // 3. Calculate SY required success based on alive SY count
     const { data: aliveSY } = await supabase
       .from('game_players')
       .select('id')
@@ -48,7 +68,7 @@ Deno.serve(async (req) => {
     const syCount = aliveSY?.length || 0;
     const syRequiredSuccess = syCount >= 2 ? 2 : 3;
 
-    // 3. Create new round state
+    // 4. Create new round state
     const { error: newRoundError } = await supabase
       .from('infection_round_state')
       .insert({
