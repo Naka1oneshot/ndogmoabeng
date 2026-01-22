@@ -31,6 +31,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { PresentationModeView } from '@/components/mj/presentation/PresentationModeView';
+import { RivieresPresentationView } from '@/components/rivieres/presentation/RivieresPresentationView';
 
 const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   LOBBY: { label: 'En attente', variant: 'secondary' },
@@ -206,6 +207,23 @@ export default function WatchGame() {
     return (
       <PresentationModeView 
         game={presentationGame} 
+        onClose={() => navigate('/watch')} 
+      />
+    );
+  }
+
+  // For Rivieres games, use Rivieres Presentation Mode as the spectator view
+  if (gameInfo.game_type_code === 'RIVIERES') {
+    const rivieresGame = {
+      id: gameInfo.game_id,
+      name: gameInfo.name,
+      status: gameInfo.status,
+      current_session_game_id: gameInfo.current_session_game_id,
+    };
+    
+    return (
+      <RivieresPresentationView 
+        game={rivieresGame}
         onClose={() => navigate('/watch')} 
       />
     );

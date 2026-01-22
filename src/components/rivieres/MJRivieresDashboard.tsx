@@ -891,7 +891,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       {/* Presentation mode button */}
       <div className="flex justify-center gap-3 flex-wrap">
         <ForestButton
-          onClick={() => navigate(`/presentation/${gameId}`)}
+          onClick={() => window.open(`/presentation/${gameId}`, '_blank')}
           className="bg-[#1B4D3E] hover:bg-[#1B4D3E]/80 text-white"
         >
           <Presentation className="h-4 w-4 mr-2" />
