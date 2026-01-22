@@ -14,8 +14,8 @@ const authSchema = z.object({
   password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
 });
 
-// Check if we're in development mode
-const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_ALLOW_TEST_ADMIN === 'true';
+// Check if we're in development mode - only check DEV flag, never expose based on env vars
+const isDevelopment = import.meta.env.DEV;
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -189,8 +189,7 @@ export default function Login() {
               </button>
 
               <p className="text-xs text-center text-muted-foreground">
-                Email: admin@test.ndogmoabeng<br />
-                Mot de passe: Admin123!
+                Compte de test pour le développement local
               </p>
             </>
           )}
