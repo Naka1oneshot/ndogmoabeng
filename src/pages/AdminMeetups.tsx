@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
+import { ForestButton } from '@/components/ui/ForestButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useAdminMeetups, useAdminRegistrations, MeetupEventAdmin } from '@/hooks/useAdminMeetups';
 import { toast } from 'sonner';
+import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 export default function AdminMeetups() {
   const navigate = useNavigate();
@@ -148,19 +151,30 @@ export default function AdminMeetups() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-surface/80 backdrop-blur-lg border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <ForestButton
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={() => navigate('/')}
             >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h1 className="text-xl font-bold text-foreground">Admin — Rencontres jeux</h1>
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Retour</span>
+            </ForestButton>
+            <Link to="/">
+              <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain" />
+            </Link>
+            <h1 className="font-display text-xl">Gestion Meetups</h1>
+            <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30">
+              <Crown className="h-3 w-3 mr-1" />
+              Admin
+            </Badge>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <UserAvatarButton size="sm" />
+          </div>
         </div>
       </header>
 
