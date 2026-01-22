@@ -722,6 +722,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       {/* FORET Tabs (original) - Only show for FORET games or when no game type is selected */}
       {(game.selected_game_type_code === 'FORET' || !game.selected_game_type_code) ? (
       <Tabs defaultValue="players" className="w-full">
+        {/* Primary tabs - 4 cols on mobile, 8 on desktop */}
         <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto">
           <TabsTrigger value="players" className="flex items-center gap-1 py-2 px-1 sm:px-3">
             <Users className="h-4 w-4" />
@@ -739,43 +740,23 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             <Store className="h-4 w-4" />
             <span className="hidden sm:inline">Phase 3</span>
           </TabsTrigger>
-          <TabsTrigger value="monsters" className="flex items-center gap-1 py-2 px-1 sm:px-3 hidden sm:flex">
+          <TabsTrigger value="monsters" className="flex items-center gap-1 py-2 px-1 sm:px-3">
             <Bug className="h-4 w-4" />
             <span className="hidden md:inline">Monstres</span>
           </TabsTrigger>
-          <TabsTrigger value="inventory" className="flex items-center gap-1 py-2 px-1 sm:px-3 hidden sm:flex">
+          <TabsTrigger value="inventory" className="flex items-center gap-1 py-2 px-1 sm:px-3">
             <Package className="h-4 w-4" />
             <span className="hidden md:inline">Inventaires</span>
           </TabsTrigger>
-          <TabsTrigger value="combat" className="flex items-center gap-1 py-2 px-1 sm:px-3 hidden sm:flex">
+          <TabsTrigger value="combat" className="flex items-center gap-1 py-2 px-1 sm:px-3">
             <Swords className="h-4 w-4" />
             <span className="hidden md:inline">Combat</span>
           </TabsTrigger>
-          <TabsTrigger value="events" className="flex items-center gap-1 py-2 px-1 sm:px-3 hidden sm:flex">
+          <TabsTrigger value="events" className="flex items-center gap-1 py-2 px-1 sm:px-3">
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">Events</span>
           </TabsTrigger>
         </TabsList>
-
-        {/* Mobile-only secondary tabs for hidden tabs */}
-        <div className="flex sm:hidden gap-1 mt-2 overflow-x-auto pb-2">
-          <TabsTrigger value="monsters" className="flex items-center gap-1 py-1.5 px-2 text-xs rounded-md border border-border">
-            <Bug className="h-3 w-3" />
-            Monstres
-          </TabsTrigger>
-          <TabsTrigger value="inventory" className="flex items-center gap-1 py-1.5 px-2 text-xs rounded-md border border-border">
-            <Package className="h-3 w-3" />
-            Inv.
-          </TabsTrigger>
-          <TabsTrigger value="combat" className="flex items-center gap-1 py-1.5 px-2 text-xs rounded-md border border-border">
-            <Swords className="h-3 w-3" />
-            Combat
-          </TabsTrigger>
-          <TabsTrigger value="events" className="flex items-center gap-1 py-1.5 px-2 text-xs rounded-md border border-border">
-            <MessageSquare className="h-3 w-3" />
-            Events
-          </TabsTrigger>
-        </div>
 
         <TabsContent value="players" className="mt-6">
           <MJPlayersTab game={game} onGameUpdate={fetchGame} />
