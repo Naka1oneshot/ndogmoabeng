@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
+import { useDebounce } from '@/hooks/useDebounce';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
@@ -65,8 +66,11 @@ const GAME_TYPE_LABELS: Record<string, { label: string; emoji: string; colorClas
   INFECTION: { label: 'Infection', emoji: '🧟', colorClass: 'text-purple-400' },
 };
 
-// GameListItem component for rendering a single game in the list
-function GameListItem({
+// Throttle constant for realtime updates
+const REALTIME_THROTTLE_MS = 2000;
+
+// Memoized GameListItem component for rendering a single game in the list
+const GameListItem = memo(function GameListItem({
   game,
   isAdmin,
   userId,
@@ -190,7 +194,7 @@ function GameListItem({
       </div>
     </div>
   );
-}
+});
 
 // Generate cryptographically secure join code
 function generateJoinCode(): string {
@@ -230,10 +234,16 @@ export default function MJ() {
   // Game actions
   const [deleting, setDeleting] = useState<string | null>(null);
   
-  // Search and filters
+  // Search and filters with debouncing
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [gameTypeFilter, setGameTypeFilter] = useState<string | null>(null);
   const [gameModeFilter, setGameModeFilter] = useState<'SINGLE_GAME' | 'ADVENTURE' | null>(null);
+  
+  // Refs for throttling realtime updates
+  const lastFetchRef = useRef<number>(0);
+  const pendingFetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
   
   // Pagination for finished games
   const ITEMS_PER_PAGE = 10;
@@ -276,8 +286,24 @@ export default function MJ() {
   }, [user, authLoading, isAdminOrSuper]);
 
 
-  const fetchGames = async () => {
+  const fetchGames = useCallback(async (force = false) => {
     if (!user) return;
+    
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchRef.current;
+
+    // Throttle fetches unless forced
+    if (!force && timeSinceLastFetch < REALTIME_THROTTLE_MS) {
+      if (!pendingFetchRef.current) {
+        pendingFetchRef.current = setTimeout(() => {
+          pendingFetchRef.current = null;
+          if (mountedRef.current) fetchGames(true);
+        }, REALTIME_THROTTLE_MS - timeSinceLastFetch);
+      }
+      return;
+    }
+
+    lastFetchRef.current = now;
     
     try {
       let query = supabase.from('games').select('*').order('created_at', { ascending: false });
@@ -290,42 +316,58 @@ export default function MJ() {
       const { data: gamesData, error } = await query;
 
       if (error) throw error;
+      if (!mountedRef.current) return;
 
-      // Count active players and get host email for each game
-      const gamesWithCounts = await Promise.all(
-        (gamesData || []).map(async (game) => {
-          const { count } = await supabase
-            .from('game_players')
-            .select('*', { count: 'exact', head: true })
-            .eq('game_id', game.id)
-            .eq('status', 'ACTIVE')
-            .eq('is_host', false);
+      // Batch player counts - more efficient than individual queries
+      const gameIds = (gamesData || []).map(g => g.id);
+      
+      // Get all player counts in one query
+      const { data: playerCounts } = await supabase
+        .from('game_players')
+        .select('game_id')
+        .in('game_id', gameIds)
+        .eq('status', 'ACTIVE')
+        .eq('is_host', false);
 
-          // For admins, get the host's email
-          let hostEmail: string | null = null;
-          if (isAdminOrSuper && game.host_user_id) {
-            const { data: emailData } = await supabase
-              .rpc('get_user_email', { user_id: game.host_user_id });
-            hostEmail = emailData || null;
-          }
+      // Count by game_id
+      const countMap = new window.Map<string, number>();
+      (playerCounts || []).forEach(p => {
+        countMap.set(p.game_id, (countMap.get(p.game_id) || 0) + 1);
+      });
 
-          return {
-            ...game,
-            active_players: count || 0,
-            host_email: hostEmail,
-          } as Game;
-        })
-      );
+      // For admins, batch get host emails
+      const emailMap = new window.Map<string, string>();
+      if (isAdminOrSuper) {
+        const hostIds = [...new Set((gamesData || []).map(g => g.host_user_id).filter(Boolean))];
+        const emailPromises = hostIds.map(async (hostId) => {
+          const { data } = await supabase.rpc('get_user_email', { user_id: hostId });
+          return { hostId, email: data || null };
+        });
+        const emails = await Promise.all(emailPromises);
+        emails.forEach(({ hostId, email }) => {
+          if (email) emailMap.set(hostId, email);
+        });
+      }
+
+      if (!mountedRef.current) return;
+
+      const gamesWithCounts = (gamesData || []).map((game) => ({
+        ...game,
+        active_players: countMap.get(game.id) || 0,
+        host_email: emailMap.get(game.host_user_id) || null,
+      } as Game));
 
       setGames(gamesWithCounts);
     } catch (error) {
       console.error('Error fetching games:', error);
     } finally {
-      setLoadingGames(false);
+      if (mountedRef.current) {
+        setLoadingGames(false);
+      }
     }
-  };
+  }, [user, isAdminOrSuper]);
 
-  const subscribeToGames = () => {
+  const subscribeToGames = useCallback(() => {
     const channel = supabase
       .channel('mj-games')
       .on(
@@ -343,7 +385,18 @@ export default function MJ() {
     return () => {
       supabase.removeChannel(channel);
     };
-  };
+  }, [fetchGames]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (pendingFetchRef.current) {
+        clearTimeout(pendingFetchRef.current);
+      }
+    };
+  }, []);
 
   // Get minimum players based on game type
   const getMinimumPlayers = (): number => {
@@ -789,8 +842,8 @@ export default function MJ() {
                   <p className="text-sm mt-2">Cliquez sur "Nouvelle partie" pour commencer</p>
                 </div>
               ) : (() => {
-                // Filter games by search query and game type
-                const query = searchQuery.toLowerCase().trim();
+                // Filter games by search query and game type (using debounced query for performance)
+                const query = debouncedSearchQuery.toLowerCase().trim();
                 let filteredGames = games;
                 
                 // Apply text search filter

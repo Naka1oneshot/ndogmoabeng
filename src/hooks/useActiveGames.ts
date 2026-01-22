@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ActiveGamesStats {
@@ -7,66 +7,70 @@ interface ActiveGamesStats {
   loading: boolean;
 }
 
-export function useActiveGames(refreshInterval = 10000): ActiveGamesStats {
+// Throttle updates to prevent excessive re-renders
+const THROTTLE_MS = 5000;
+
+export function useActiveGames(refreshInterval = 30000): ActiveGamesStats {
   const [stats, setStats] = useState<ActiveGamesStats>({
     gamesCount: 0,
     playersCount: 0,
     loading: true,
   });
+  
+  const lastFetchRef = useRef<number>(0);
+  const pendingFetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        // Count active games (LOBBY or IN_GAME status, not ended)
-        const { count: gamesCount, error: gamesError } = await supabase
-          .from('games')
-          .select('*', { count: 'exact', head: true })
-          .in('status', ['LOBBY', 'IN_GAME', 'RUNNING'])
-          .eq('winner_declared', false);
+  const fetchStats = useCallback(async (force = false) => {
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchRef.current;
 
-        if (gamesError) throw gamesError;
+    // Throttle fetches unless forced
+    if (!force && timeSinceLastFetch < THROTTLE_MS) {
+      if (!pendingFetchRef.current) {
+        pendingFetchRef.current = setTimeout(() => {
+          pendingFetchRef.current = null;
+          if (mountedRef.current) fetchStats(true);
+        }, THROTTLE_MS - timeSinceLastFetch);
+      }
+      return;
+    }
 
-        // Get active game IDs
-        const { data: activeGames, error: activeError } = await supabase
-          .from('games')
-          .select('id')
-          .in('status', ['LOBBY', 'IN_GAME', 'RUNNING'])
-          .eq('winner_declared', false);
+    lastFetchRef.current = now;
 
-        if (activeError) throw activeError;
+    try {
+      // Single optimized query using the RPC function
+      const { data, error } = await supabase
+        .rpc('public_list_live_games');
 
-        let playersCount = 0;
-        if (activeGames && activeGames.length > 0) {
-          const gameIds = activeGames.map(g => g.id);
-          const { count, error: playersError } = await supabase
-            .from('game_players')
-            .select('*', { count: 'exact', head: true })
-            .in('game_id', gameIds)
-            .eq('is_host', false)
-            .is('removed_at', null);
+      if (error) throw error;
+      if (!mountedRef.current) return;
 
-          if (!playersError) {
-            playersCount = count || 0;
-          }
-        }
+      const gamesCount = data?.length || 0;
+      const playersCount = data?.reduce((sum: number, game: { player_count: number }) => 
+        sum + (Number(game.player_count) || 0), 0) || 0;
 
-        setStats({
-          gamesCount: gamesCount || 0,
-          playersCount,
-          loading: false,
-        });
-      } catch (error) {
-        console.error('Error fetching active games stats:', error);
+      setStats({
+        gamesCount,
+        playersCount,
+        loading: false,
+      });
+    } catch (error) {
+      console.error('Error fetching active games stats:', error);
+      if (mountedRef.current) {
         setStats(prev => ({ ...prev, loading: false }));
       }
-    };
+    }
+  }, []);
 
-    fetchStats();
+  useEffect(() => {
+    mountedRef.current = true;
+    fetchStats(true);
 
-    // Set up interval for periodic refresh
-    const interval = setInterval(fetchStats, refreshInterval);
+    // Set up interval for periodic refresh (less frequent)
+    const interval = setInterval(() => fetchStats(true), refreshInterval);
 
-    // Set up realtime subscription for immediate updates
+    // Realtime subscription with throttled updates
     const channel = supabase
       .channel('active-games-stats')
       .on(
@@ -82,10 +86,14 @@ export function useActiveGames(refreshInterval = 10000): ActiveGamesStats {
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
       clearInterval(interval);
+      if (pendingFetchRef.current) {
+        clearTimeout(pendingFetchRef.current);
+      }
       supabase.removeChannel(channel);
     };
-  }, [refreshInterval]);
+  }, [refreshInterval, fetchStats]);
 
-  return stats;
+  return useMemo(() => stats, [stats]);
 }

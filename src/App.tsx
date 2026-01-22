@@ -8,24 +8,74 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ColorModeProvider } from "@/contexts/ColorModeContext";
 import { GlobalChatPanel } from "@/components/chat/GlobalChatPanel";
 import { SessionExpirationHandler } from "@/components/auth/SessionExpirationHandler";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Login from "./pages/Login";
-import MJ from "./pages/MJ";
-import MJGameManage from "./pages/MJGameManage";
-import Presentation from "./pages/Presentation";
-import JoinAnonymous from "./pages/JoinAnonymous";
-import PlayerDashboard from "./pages/PlayerDashboard";
-import AdminGames from "./pages/AdminGames";
-import AdminGameDetails from "./pages/AdminGameDetails";
-import AdminMeetups from "./pages/AdminMeetups";
-import AdminSubscriptions from "./pages/AdminSubscriptions";
-import WatchList from "./pages/WatchList";
-import WatchGame from "./pages/WatchGame";
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
+import { LoadingFallback } from "@/components/common/LoadingFallback";
+import { lazy, Suspense, memo } from "react";
 
-const queryClient = new QueryClient();
+// Lazy load all pages for better code splitting
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Login = lazy(() => import("./pages/Login"));
+const MJ = lazy(() => import("./pages/MJ"));
+const MJGameManage = lazy(() => import("./pages/MJGameManage"));
+const Presentation = lazy(() => import("./pages/Presentation"));
+const JoinAnonymous = lazy(() => import("./pages/JoinAnonymous"));
+const PlayerDashboard = lazy(() => import("./pages/PlayerDashboard"));
+const AdminGames = lazy(() => import("./pages/AdminGames"));
+const AdminGameDetails = lazy(() => import("./pages/AdminGameDetails"));
+const AdminMeetups = lazy(() => import("./pages/AdminMeetups"));
+const AdminSubscriptions = lazy(() => import("./pages/AdminSubscriptions"));
+const WatchList = lazy(() => import("./pages/WatchList"));
+const WatchGame = lazy(() => import("./pages/WatchGame"));
+const Profile = lazy(() => import("./pages/Profile"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Optimized QueryClient configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Don't refetch on window focus by default (reduces unnecessary requests)
+      refetchOnWindowFocus: false,
+      // Keep data fresh for 30 seconds
+      staleTime: 30 * 1000,
+      // Cache data for 5 minutes
+      gcTime: 5 * 60 * 1000,
+      // Retry failed requests 2 times
+      retry: 2,
+      // Exponential backoff for retries
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
+
+// Memoized route wrapper for performance
+const AppRoutes = memo(function AppRoutes() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/mj" element={<MJ />} />
+        <Route path="/mj/:gameId" element={<MJGameManage />} />
+        <Route path="/join/:code" element={<JoinAnonymous />} />
+        <Route path="/player/:gameId" element={<PlayerDashboard />} />
+        <Route path="/play/:gameId" element={<PlayerDashboard />} />
+        <Route path="/admin/games" element={<AdminGames />} />
+        <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
+        <Route path="/admin/meetups" element={<AdminMeetups />} />
+        <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
+        <Route path="/watch" element={<WatchList />} />
+        <Route path="/watch/:gameId" element={<WatchGame />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/presentation/:gameId" element={<Presentation />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
+  );
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -37,25 +87,7 @@ const App = () => (
           <BrowserRouter>
             <ThemeProvider>
               <SessionExpirationHandler />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/mj" element={<MJ />} />
-                <Route path="/mj/:gameId" element={<MJGameManage />} />
-                <Route path="/join/:code" element={<JoinAnonymous />} />
-                <Route path="/player/:gameId" element={<PlayerDashboard />} />
-                <Route path="/play/:gameId" element={<PlayerDashboard />} />
-                <Route path="/admin/games" element={<AdminGames />} />
-                <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
-                <Route path="/admin/meetups" element={<AdminMeetups />} />
-                <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
-                <Route path="/watch" element={<WatchList />} />
-                <Route path="/watch/:gameId" element={<WatchGame />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/presentation/:gameId" element={<Presentation />} />
-              <Route path="*" element={<NotFound />} />
-              </Routes>
+              <AppRoutes />
               <GlobalChatPanel />
             </ThemeProvider>
           </BrowserRouter>
