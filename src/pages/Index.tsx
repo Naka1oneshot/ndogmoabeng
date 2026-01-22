@@ -8,26 +8,30 @@ import { ActiveGamesSection } from '@/components/landing/ActiveGamesSection';
 import { MeetupSection } from '@/components/landing/MeetupSection';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 import { useMeetupPaymentCallback } from '@/hooks/useMeetupPayment';
+import { HomeSEO } from '@/components/seo/SEOHead';
 
 export default function Index() {
   // Check for payment callback from Stripe
   useMeetupPaymentCallback();
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <LandingNavbar />
-      
-      <main className="flex-1">
-        <HeroSection />
-        <ConceptSection />
-        <GamesSection />
-        <ClansSection />
-        <MeetupSection />
-        <ActiveGamesSection />
-      </main>
+    <>
+      <HomeSEO />
+      <div className="min-h-screen flex flex-col">
+        <LandingNavbar />
+        
+        <main className="flex-1">
+          <HeroSection />
+          <ConceptSection />
+          <GamesSection />
+          <ClansSection />
+          <MeetupSection />
+          <ActiveGamesSection />
+        </main>
 
-      <LandingFooter />
-      <MobileBottomBar />
-    </div>
+        <LandingFooter />
+        <MobileBottomBar />
+      </div>
+    </>
   );
 }
