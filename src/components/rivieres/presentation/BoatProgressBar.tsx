@@ -29,6 +29,27 @@ export function BoatProgressBar({ manche, currentNiveau, levelHistory }: BoatPro
     return levelHistory.find(h => h.manche === m && h.niveau === n);
   };
 
+  // Check if a level should be shown as failed (either directly failed or after a fail in same manche)
+  const isLevelFailed = (m: number, n: number): boolean => {
+    // Check if this level directly failed
+    const history = getHistoryForLevel(m, n);
+    if (history?.outcome === 'FAIL') return true;
+    
+    // Check if any previous level in the same manche failed
+    for (let prevN = 1; prevN < n; prevN++) {
+      const prevHistory = getHistoryForLevel(m, prevN);
+      if (prevHistory?.outcome === 'FAIL') return true;
+    }
+    
+    return false;
+  };
+
+  // Check if level succeeded
+  const isLevelSuccess = (m: number, n: number): boolean => {
+    const history = getHistoryForLevel(m, n);
+    return history?.outcome === 'SUCCESS';
+  };
+
   return (
     <div className="bg-[#151B2D] border border-[#D4AF37]/20 rounded-lg p-4">
       <div className="flex items-center gap-2 mb-4">
@@ -61,6 +82,10 @@ export function BoatProgressBar({ manche, currentNiveau, levelHistory }: BoatPro
               const isCurrent = idx === currentIndex;
               const isFuture = idx > currentIndex;
               const isMancheBorder = level.niveau === 5 && level.manche < 3;
+              
+              // Use the new functions to determine status
+              const levelFailed = isLevelFailed(level.manche, level.niveau);
+              const levelSuccess = isLevelSuccess(level.manche, level.niveau);
 
               return (
                 <div key={`${level.manche}-${level.niveau}`} className="flex items-center">
@@ -77,21 +102,21 @@ export function BoatProgressBar({ manche, currentNiveau, levelHistory }: BoatPro
                     <div className={`
                       w-8 h-8 rounded-full flex items-center justify-center transition-all
                       ${isCurrent ? 'ring-4 ring-[#D4AF37] ring-opacity-50 animate-pulse' : ''}
-                      ${history?.outcome === 'SUCCESS' ? 'bg-green-500' : ''}
-                      ${history?.outcome === 'FAIL' ? 'bg-red-500' : ''}
-                      ${isCurrent && !history ? 'bg-[#D4AF37]' : ''}
-                      ${isFuture ? 'bg-[#0B1020] border-2 border-[#9CA3AF]/30' : ''}
-                      ${isPast && !history ? 'bg-[#9CA3AF]/50' : ''}
+                      ${levelSuccess ? 'bg-green-500' : ''}
+                      ${levelFailed ? 'bg-red-500' : ''}
+                      ${isCurrent && !history && !levelFailed ? 'bg-[#D4AF37]' : ''}
+                      ${isFuture && !levelFailed ? 'bg-[#0B1020] border-2 border-[#9CA3AF]/30' : ''}
+                      ${isPast && !history && !levelFailed ? 'bg-[#9CA3AF]/50' : ''}
                     `}>
-                      {history?.outcome === 'SUCCESS' && <CheckCircle className="h-5 w-5 text-white" />}
-                      {history?.outcome === 'FAIL' && <XCircle className="h-5 w-5 text-white" />}
-                      {isCurrent && !history && <Ship className="h-4 w-4 text-black" />}
-                      {isFuture && <span className="text-xs text-[#9CA3AF]">{level.niveau}</span>}
+                      {levelSuccess && <CheckCircle className="h-5 w-5 text-white" />}
+                      {levelFailed && <XCircle className="h-5 w-5 text-white" />}
+                      {isCurrent && !history && !levelFailed && <Ship className="h-4 w-4 text-black" />}
+                      {isFuture && !levelFailed && <span className="text-xs text-[#9CA3AF]">{level.niveau}</span>}
                     </div>
 
-                    {/* Niveau number below for past/current */}
-                    {!isFuture && (
-                      <span className={`text-xs mt-1 ${isCurrent ? 'text-[#D4AF37] font-bold' : 'text-[#9CA3AF]'}`}>
+                    {/* Niveau number below for past/current/failed */}
+                    {(!isFuture || levelFailed) && (
+                      <span className={`text-xs mt-1 ${isCurrent && !levelFailed ? 'text-[#D4AF37] font-bold' : 'text-[#9CA3AF]'}`}>
                         N{level.niveau}
                       </span>
                     )}
@@ -102,7 +127,7 @@ export function BoatProgressBar({ manche, currentNiveau, levelHistory }: BoatPro
                     <div className={`
                       h-1 flex-1 min-w-3 mx-1 rounded
                       ${isMancheBorder ? 'bg-[#D4AF37]/30 border-l-2 border-r-2 border-[#D4AF37]/50' : ''}
-                      ${idx < currentIndex ? (history?.outcome === 'SUCCESS' ? 'bg-green-500/50' : history?.outcome === 'FAIL' ? 'bg-red-500/50' : 'bg-[#9CA3AF]/30') : 'bg-[#9CA3AF]/20'}
+                      ${idx < currentIndex || levelFailed ? (levelSuccess ? 'bg-green-500/50' : levelFailed ? 'bg-red-500/50' : 'bg-[#9CA3AF]/30') : 'bg-[#9CA3AF]/20'}
                     `} />
                   )}
                 </div>
