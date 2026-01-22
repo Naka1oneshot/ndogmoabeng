@@ -20,6 +20,9 @@ import { MJRoundHistorySelector } from './MJRoundHistorySelector';
 import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { LandscapeModePrompt } from '@/components/mj/LandscapeModePrompt';
 import { useUserRole } from '@/hooks/useUserRole';
+import { BotConfigPanel, BotConfig, DEFAULT_BOT_CONFIG } from './BotConfigPanel';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 
 interface Game {
   id: string;
@@ -63,6 +66,9 @@ interface RoundState {
   status: string;
   sy_success_count: number;
   sy_required_success: number;
+  config?: {
+    bot_config?: BotConfig;
+  } | null;
 }
 
 interface EditForm {
@@ -889,7 +895,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                   </Badge>
                 </h2>
               </div>
-              <div className="p-4 space-y-3">
+              <div className="p-4 space-y-4">
                 <Button
                   variant="outline"
                   className="w-full border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/10"
@@ -903,10 +909,25 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                   )}
                   Déclencher décisions bots
                 </Button>
-                <p className="text-xs text-[#6B7280]">
-                  Les bots joueront selon leurs rôles : BA tire (90%), PV évite les autres PV, 
-                  SY votent ensemble, AE sabote (40-90%), OC consulte...
-                </p>
+                
+                {/* Bot Config Collapsible */}
+                <Collapsible>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded bg-[#1A2235] hover:bg-[#1A2235]/80 text-sm">
+                    <span className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      Configuration des probabilités
+                    </span>
+                    <ChevronDown className="h-4 w-4" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-4">
+                    <BotConfigPanel
+                      sessionGameId={game.current_session_game_id!}
+                      manche={game.manche_active || 1}
+                      currentConfig={roundState?.config?.bot_config || null}
+                      onConfigUpdate={fetchData}
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
             </div>
           )}

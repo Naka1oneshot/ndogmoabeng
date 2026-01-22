@@ -40,7 +40,34 @@ interface RoundState {
   status: string;
   sy_success_count: number;
   sy_required_success: number;
+  config?: {
+    bot_config?: BotConfig;
+  };
 }
+
+interface BotConfig {
+  ba_shoot_chance?: number;
+  ae_sabotage_base?: number;
+  ae_sabotage_after_success?: number;
+  pv_antidote_chance?: number;
+  pv_shoot_chance?: number;
+  corruption_min?: number;
+  corruption_max?: number;
+  oc_pv_target_base?: number;
+  oc_pv_target_increment?: number;
+}
+
+const DEFAULT_BOT_CONFIG: Required<BotConfig> = {
+  ba_shoot_chance: 90,
+  ae_sabotage_base: 40,
+  ae_sabotage_after_success: 90,
+  pv_antidote_chance: 80,
+  pv_shoot_chance: 70,
+  corruption_min: 2,
+  corruption_max: 10,
+  oc_pv_target_base: 40,
+  oc_pv_target_increment: 10,
+};
 
 interface BotMemory {
   ae_sabotage_count: number;
@@ -107,6 +134,12 @@ Deno.serve(async (req) => {
     if (!roundState || roundState.status !== 'OPEN') {
       throw new Error(`Round not OPEN (status: ${roundState?.status || 'not found'})`);
     }
+
+    // Extract bot config from round state
+    const botConfig: Required<BotConfig> = {
+      ...DEFAULT_BOT_CONFIG,
+      ...((roundState.config as any)?.bot_config || {}),
+    };
 
     // Fetch all alive bots
     const { data: allPlayers } = await supabase
@@ -234,8 +267,8 @@ Deno.serve(async (req) => {
               break;
             }
 
-            if (Math.random() > 0.9) {
-              result.skipped_reason = 'Chose not to shoot (10% chance)';
+            if (Math.random() > (botConfig.ba_shoot_chance / 100)) {
+              result.skipped_reason = `Chose not to shoot (${100 - botConfig.ba_shoot_chance}% chance)`;
               break;
             }
 
@@ -246,8 +279,8 @@ Deno.serve(async (req) => {
             );
 
             if (knownPVs.length > 0) {
-              // Calculate chance based on how long PV has been known
-              const basePVChance = 0.4 + (manche - 1) * 0.1; // 40% + 10% per additional round
+              // Calculate chance based on how long PV has been known (configurable)
+              const basePVChance = (botConfig.oc_pv_target_base / 100) + (manche - 1) * (botConfig.oc_pv_target_increment / 100);
               if (Math.random() < Math.min(basePVChance, 0.9)) {
                 targetNum = knownPVs[Math.floor(Math.random() * knownPVs.length)];
               }
@@ -283,8 +316,8 @@ Deno.serve(async (req) => {
             const otherPVs = players.filter(p => p.role_code === 'PV' && p.player_number !== bot.player_number);
             const otherPVNums = otherPVs.map(p => p.player_number!);
 
-            // Check for antidote usage (80% when carrier)
-            if (bot.is_carrier && Math.random() < 0.8) {
+            // Check for antidote usage (configurable % when carrier)
+            if (bot.is_carrier && Math.random() < (botConfig.pv_antidote_chance / 100)) {
               const antidote = playerInventory.find(i => 
                 i.objet === 'Antidote PV' && i.quantite > 0
               );
@@ -308,8 +341,8 @@ Deno.serve(async (req) => {
             if (!shootersThisRound.has(bot.player_number)) {
               const bullets = playerInventory.find(i => i.objet === 'Balle PV');
               if (bullets && bullets.quantite > 0) {
-                // 70% chance to shoot (more conservative than BA)
-                if (Math.random() < 0.7) {
+                // Configurable % chance to shoot
+                if (Math.random() < (botConfig.pv_shoot_chance / 100)) {
                   // Cannot target other PVs
                   const targetNum = getRandomTarget([bot.player_number, ...otherPVNums]);
                   if (targetNum) {
@@ -394,7 +427,9 @@ Deno.serve(async (req) => {
               break;
             }
 
-            const sabotageChance = botMemory.ae_sabotage_count > 0 ? 0.9 : 0.4;
+            const sabotageChance = botMemory.ae_sabotage_count > 0 
+              ? (botConfig.ae_sabotage_after_success / 100) 
+              : (botConfig.ae_sabotage_base / 100);
             if (Math.random() < sabotageChance) {
               inputsToInsert.push({
                 game_id: gameId,
@@ -458,10 +493,11 @@ Deno.serve(async (req) => {
             // CV/KK/other: Attempt to corrupt AE if sabotage happened 2+ times
             if (botMemory.ae_sabotage_count >= 2 && !existingInputsSet.has(`${bot.player_number}-CORRUPTION`)) {
               const aePlayer = alivePlayers.find(p => p.role_code === 'AE');
-              if (aePlayer && bot.jetons >= 2) {
-                // Corruption amount: 2-10 tokens
-                const maxCorruption = Math.min(10, bot.jetons);
-                const corruptionAmount = Math.floor(Math.random() * (maxCorruption - 2 + 1)) + 2;
+              if (aePlayer && bot.jetons >= botConfig.corruption_min) {
+                // Corruption amount: configurable range
+                const maxCorruption = Math.min(botConfig.corruption_max, bot.jetons);
+                const minCorruption = botConfig.corruption_min;
+                const corruptionAmount = Math.floor(Math.random() * (maxCorruption - minCorruption + 1)) + minCorruption;
 
                 inputsToInsert.push({
                   game_id: gameId,
