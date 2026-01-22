@@ -421,12 +421,24 @@ export default function MJ() {
     }
   }, [selectedGameTypeCode, gameMode]);
 
+  // Random game name prefixes for auto-generation
+  const RANDOM_GAME_PREFIXES = [
+    'Expédition', 'Quête', 'Aventure', 'Mission', 'Chasse', 
+    'Traque', 'Safari', 'Odyssée', 'Voyage', 'Exploration',
+    'Conquête', 'Défi', 'Épreuve', 'Raid', 'Épopée'
+  ];
+
+  const generateRandomGameName = (userEmail: string): string => {
+    const prefix = RANDOM_GAME_PREFIXES[Math.floor(Math.random() * RANDOM_GAME_PREFIXES.length)];
+    const username = userEmail.split('@')[0];
+    return `${prefix}_${username}`;
+  };
+
   const handleCreateGame = async () => {
     if (!user) return;
-    if (!gameName.trim()) {
-      toast.error('Veuillez entrer un nom de partie');
-      return;
-    }
+
+    // Generate random name if empty
+    const finalGameName = gameName.trim() || generateRandomGameName(user.email || 'joueur');
 
     // Check if user can create a new game
     if (!canCreateNewGame()) {
@@ -475,7 +487,7 @@ export default function MJ() {
         .from('games')
         .insert({
           host_user_id: user.id,
-          name: gameName.trim(),
+          name: finalGameName,
           join_code: joinCode,
           status: 'LOBBY',
           manche_active: 1,
