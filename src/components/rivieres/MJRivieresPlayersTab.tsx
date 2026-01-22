@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -391,12 +392,12 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, onRefr
             <div className="flex items-center gap-2">
               <Bot className="h-4 w-4 text-[#D4AF37]" />
               <span className="text-sm text-[#9CA3AF]">Bots:</span>
-              <Input
-                type="number"
+              <NumberInput
                 min={1}
                 max={50}
                 value={botCount}
-                onChange={(e) => setBotCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+                onChange={setBotCount}
+                defaultValue={5}
                 className="h-8 w-16 text-sm text-center bg-[#0B1020] border-[#D4AF37]/30 text-[#E8E8E8]"
               />
             </div>
@@ -541,10 +542,11 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, onRefr
                             </div>
                             <div>
                               <label className="text-xs text-[#9CA3AF]">Jetons</label>
-                              <Input
-                                type="number"
+                              <NumberInput
                                 value={editForm.jetons || 0}
-                                onChange={(e) => setEditForm({ ...editForm, jetons: parseInt(e.target.value) || 0 })}
+                                onChange={(v) => setEditForm({ ...editForm, jetons: v })}
+                                defaultValue={0}
+                                min={0}
                                 className="h-8 text-sm bg-[#0B1020] border-[#D4AF37]/30 text-[#E8E8E8]"
                               />
                             </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
-import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Check, Lock, Coins, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -26,7 +26,7 @@ interface BettingPanelProps {
 
 export function BettingPanel({ game, player, className }: BettingPanelProps) {
   const [submitting, setSubmitting] = useState(false);
-  const [mise, setMise] = useState('0');
+  const [mise, setMise] = useState(0);
   const [currentBet, setCurrentBet] = useState<number | null>(null);
 
   const isActivePhase = game.phase === 'PHASE1_MISES';
@@ -62,16 +62,16 @@ export function BettingPanel({ game, player, className }: BettingPanelProps) {
 
     if (data) {
       setCurrentBet(data.mise);
-      setMise(data.mise.toString());
+      setMise(data.mise);
     } else {
       setCurrentBet(null);
-      setMise('0');
+      setMise(0);
     }
   };
 
   const handleSubmitBet = async () => {
-    const miseValue = parseInt(mise, 10);
-    if (isNaN(miseValue) || miseValue < 0) {
+    const miseValue = mise;
+    if (miseValue < 0) {
       toast.error('La mise doit être un nombre positif ou nul');
       return;
     }
@@ -161,18 +161,18 @@ export function BettingPanel({ game, player, className }: BettingPanelProps) {
 
         <div className="space-y-2">
           <Label htmlFor="mise">Votre mise (max recommandé: {player.jetons})</Label>
-          <Input
+          <NumberInput
             id="mise"
-            type="number"
-            min="0"
+            min={0}
             value={mise}
-            onChange={(e) => setMise(e.target.value)}
+            onChange={setMise}
+            defaultValue={0}
             disabled={isLocked || !isActivePhase}
             className={`bg-background/50 ${
-              parseInt(mise) > player.jetons ? 'border-amber-500 focus:border-amber-500' : ''
+              mise > player.jetons ? 'border-amber-500 focus:border-amber-500' : ''
             }`}
           />
-          {parseInt(mise) > player.jetons && (
+          {mise > player.jetons && (
             <p className="text-xs text-amber-500">
               Attention: cette mise dépasse votre solde et sera forcée à 0 à la clôture
             </p>
