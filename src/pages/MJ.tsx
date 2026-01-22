@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { AdventureSelector } from '@/components/mj/AdventureSelector';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdminBadge } from '@/components/game/AdminBadge';
-import { MJDashboard } from '@/components/mj/MJDashboard';
+
 import { 
   Plus, Loader2, 
   ChevronLeft, ChevronRight, Trash2, Eye, Users, Map, Gamepad2, Globe, Lock, Crown, Search, X
@@ -209,11 +209,8 @@ export default function MJ() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
-  const { gameId: urlGameId } = useParams<{ gameId?: string }>();
-  
-  // View mode: 'list' | 'create' | 'detail'
-  const [viewMode, setViewMode] = useState<'list' | 'create' | 'detail'>('list');
-  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  // View mode: 'list' | 'create'
+  const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
   
   // Games list
   const [games, setGames] = useState<Game[]>([]);
@@ -278,44 +275,6 @@ export default function MJ() {
     }
   }, [user, authLoading, isAdminOrSuper]);
 
-  // Handle URL gameId parameter - load the game directly
-  useEffect(() => {
-    if (urlGameId && games.length > 0 && !loadingGames) {
-      const game = games.find(g => g.id === urlGameId);
-      if (game) {
-        setSelectedGame(game);
-        setViewMode('detail');
-      } else {
-        // Game not found in user's games, check if it exists and user is the host
-        const checkGame = async () => {
-          const { data } = await supabase
-            .from('games')
-            .select('*')
-            .eq('id', urlGameId)
-            .eq('host_user_id', user?.id)
-            .maybeSingle();
-          
-          if (data) {
-            // Fetch player count
-            const { count } = await supabase
-              .from('game_players')
-              .select('*', { count: 'exact', head: true })
-              .eq('game_id', data.id)
-              .eq('status', 'ACTIVE')
-              .eq('is_host', false);
-            
-            const gameWithCount = { ...data, active_players: count || 0 } as Game;
-            setSelectedGame(gameWithCount);
-            setViewMode('detail');
-          } else {
-            toast.error('Partie non trouvée ou accès non autorisé');
-            navigate('/mj');
-          }
-        };
-        checkGame();
-      }
-    }
-  }, [urlGameId, games, loadingGames, user]);
 
   const fetchGames = async () => {
     if (!user) return;
@@ -359,14 +318,6 @@ export default function MJ() {
       );
 
       setGames(gamesWithCounts);
-      
-      // Update selected game if viewing detail
-      if (selectedGame) {
-        const updated = gamesWithCounts.find(g => g.id === selectedGame.id);
-        if (updated) {
-          setSelectedGame(updated);
-        }
-      }
     } catch (error) {
       console.error('Error fetching games:', error);
     } finally {
@@ -569,17 +520,8 @@ export default function MJ() {
       setSelectedAdventureId(null);
       setSelectedGameTypeCode('FORET');
       
-      // Go to detail view of the new game
-      setSelectedGame({ 
-        ...data, 
-        active_players: 0,
-        current_session_game_id: sessionGameId,
-        mode: gameMode,
-        adventure_id: gameMode === 'ADVENTURE' ? selectedAdventureId : null,
-        current_step_index: 1,
-        selected_game_type_code: actualGameTypeCode,
-      } as Game);
-      setViewMode('detail');
+      // Navigate to the new game's management page
+      navigate(`/mj/${data.id}`);
     } catch (error) {
       console.error('Error creating game:', error);
       toast.error('Erreur lors de la création de la partie');
@@ -623,12 +565,6 @@ export default function MJ() {
       if (error) throw error;
 
       toast.success('Partie supprimée');
-      
-      if (selectedGame?.id === gameId) {
-        setSelectedGame(null);
-        setViewMode('list');
-      }
-      
       setGames(prev => prev.filter(g => g.id !== gameId));
     } catch (error) {
       console.error('Error deleting game:', error);
@@ -644,13 +580,7 @@ export default function MJ() {
   };
 
   const openGameDetail = (game: Game) => {
-    setSelectedGame(game);
-    setViewMode('detail');
-  };
-
-  const goToList = () => {
-    setSelectedGame(null);
-    setViewMode('list');
+    navigate(`/mj/${game.id}`);
   };
 
   if (authLoading || roleLoading) {
@@ -667,9 +597,8 @@ export default function MJ() {
 
   return (
     <div className="min-h-screen px-4 py-6">
-      {/* Header - hidden when in detail view (MJDashboard has its own) */}
-      {viewMode !== 'detail' && (
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 max-w-5xl mx-auto">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 max-w-5xl mx-auto">
           <div className="flex items-center gap-3">
             <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain cursor-pointer" onClick={() => navigate('/')} />
             <h1 className="font-display text-xl">Tableau MJ</h1>
@@ -686,7 +615,6 @@ export default function MJ() {
             <UserAvatarButton size="sm" />
           </div>
         </header>
-      )}
 
       <main className="max-w-5xl mx-auto space-y-6">
         {viewMode === 'list' && (
@@ -1053,7 +981,7 @@ export default function MJ() {
         {viewMode === 'create' && (
           <div className="card-gradient rounded-lg border border-border p-6 space-y-4">
             <div className="flex items-center gap-3 mb-4">
-              <ForestButton variant="ghost" size="sm" onClick={goToList}>
+              <ForestButton variant="ghost" size="sm" onClick={() => setViewMode('list')}>
                 <ChevronLeft className="h-4 w-4" />
               </ForestButton>
               <h2 className="font-display text-xl">🌲 Créer une nouvelle partie</h2>
@@ -1161,12 +1089,6 @@ export default function MJ() {
           </div>
         )}
 
-        {viewMode === 'detail' && selectedGame && (
-          <MJDashboard 
-            game={selectedGame} 
-            onBack={goToList} 
-          />
-        )}
       </main>
     </div>
   );
