@@ -39,7 +39,7 @@ interface GameRow {
 
 export default function AdminGames() {
   const { user, loading: authLoading, signOut } = useAuth();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const [games, setGames] = useState<GameRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,17 +52,17 @@ export default function AdminGames() {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (!authLoading && !roleLoading && user && !isAdmin) {
+    if (!authLoading && !roleLoading && user && !isAdminOrSuper) {
       navigate('/login');
     }
-  }, [user, authLoading, roleLoading, isAdmin, navigate]);
+  }, [user, authLoading, roleLoading, isAdminOrSuper, navigate]);
 
   useEffect(() => {
-    if (user && isAdmin) {
+    if (user && isAdminOrSuper) {
       fetchGames();
       subscribeToGames();
     }
-  }, [user, isAdmin]);
+  }, [user, isAdminOrSuper]);
 
   const fetchGames = async () => {
     try {
@@ -190,7 +190,7 @@ export default function AdminGames() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdminOrSuper) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
         <ShieldAlert className="h-16 w-16 text-destructive" />

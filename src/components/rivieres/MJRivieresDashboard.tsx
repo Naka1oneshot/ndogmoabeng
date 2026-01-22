@@ -103,7 +103,7 @@ interface MJRivieresDashboardProps {
 
 export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false, onNextGame, gameStatus = 'IN_GAME' }: MJRivieresDashboardProps) {
   const navigate = useNavigate();
-  const { isAdmin } = useUserRole();
+  const { isAdminOrSuper } = useUserRole();
   const [state, setState] = useState<RiverSessionState | null>(null);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats[]>([]);
   const [decisions, setDecisions] = useState<RiverDecision[]>([]);
@@ -1163,7 +1163,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                   </h3>
                   <div className="flex gap-3 flex-wrap">
                     {/* Bot Decisions Button - only if there are bots */}
-                    {isAdmin && botPlayers.length > 0 && (
+                    {isAdminOrSuper && botPlayers.length > 0 && (
                       <ForestButton
                         onClick={handleBotDecisions}
                         disabled={actionLoading === 'botDecisions'}

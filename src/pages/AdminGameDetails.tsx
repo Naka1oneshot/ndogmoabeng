@@ -63,7 +63,7 @@ const PRESENCE_TTL_SECONDS = 25;
 export default function AdminGameDetails() {
   const { gameId } = useParams<{ gameId: string }>();
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
 
   const [game, setGame] = useState<Game | null>(null);
@@ -79,10 +79,10 @@ export default function AdminGameDetails() {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (!authLoading && !roleLoading && user && !isAdmin) {
+    if (!authLoading && !roleLoading && user && !isAdminOrSuper) {
       navigate('/login');
     }
-  }, [user, authLoading, roleLoading, isAdmin, navigate]);
+  }, [user, authLoading, roleLoading, isAdminOrSuper, navigate]);
 
   const fetchData = useCallback(async () => {
     if (!gameId) return;
@@ -116,7 +116,7 @@ export default function AdminGameDetails() {
   }, [gameId]);
 
   useEffect(() => {
-    if (user && isAdmin && gameId) {
+    if (user && isAdminOrSuper && gameId) {
       fetchData();
 
       // Subscribe to real-time updates
@@ -149,7 +149,7 @@ export default function AdminGameDetails() {
         clearInterval(interval);
       };
     }
-  }, [user, isAdmin, gameId, fetchData, navigate]);
+  }, [user, isAdminOrSuper, gameId, fetchData, navigate]);
 
   const isPlayerActive = (player: Player): boolean => {
     if (player.status !== 'ACTIVE') return false;
@@ -247,7 +247,7 @@ export default function AdminGameDetails() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdminOrSuper) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
         <ShieldAlert className="h-16 w-16 text-destructive" />
