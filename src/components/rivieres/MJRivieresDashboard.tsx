@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, Dice6, Lock, Play, Users, History, 
   AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship, Waves,
-  RefreshCw, Copy, Check, UserX, Calculator, Zap, Bot, Plus, Trash2
+  RefreshCw, Copy, Check, UserX, Calculator, Zap, Bot, Plus, Trash2, Presentation
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
@@ -99,6 +100,7 @@ interface MJRivieresDashboardProps {
 }
 
 export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false, onNextGame, gameStatus = 'IN_GAME' }: MJRivieresDashboardProps) {
+  const navigate = useNavigate();
   const { isAdmin } = useUserRole();
   const [state, setState] = useState<RiverSessionState | null>(null);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats[]>([]);
@@ -886,9 +888,18 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         </div>
       </div>
 
-      {/* Show ranking button when game is finished but modal closed */}
-      {isGameFinished && !showFinalRanking && (
-        <div className="flex justify-center">
+      {/* Presentation mode button */}
+      <div className="flex justify-center gap-3 flex-wrap">
+        <ForestButton
+          onClick={() => navigate(`/presentation/${gameId}`)}
+          className="bg-[#1B4D3E] hover:bg-[#1B4D3E]/80 text-white"
+        >
+          <Presentation className="h-4 w-4 mr-2" />
+          Mode Présentation
+        </ForestButton>
+
+        {/* Show ranking button when game is finished but modal closed */}
+        {isGameFinished && !showFinalRanking && (
           <ForestButton
             onClick={() => setShowFinalRanking(true)}
             className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
@@ -896,8 +907,8 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
             <Trophy className="h-4 w-4 mr-2" />
             Voir le classement final
           </ForestButton>
-        </div>
-      )}
+        )}
+      </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-[#20232A]">
