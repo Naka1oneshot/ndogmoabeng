@@ -201,13 +201,33 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
         
         if (allLocked && !wasLocked && !showLockAnimation) {
           // Prepare player sort animation data NOW before triggering lock animation
-          // Use current players state since playersData fetch happens later
+          // We need to fetch fresh player data including bots to ensure we have all display names
+          const { data: freshPlayersData } = await supabase
+            .from('game_players')
+            .select('id, display_name, player_number, user_id')
+            .eq('game_id', game.id)
+            .eq('status', 'ACTIVE')
+            .eq('is_host', false);
+          
+          // Get avatars for authenticated users
+          const userIds = (freshPlayersData || []).filter(p => p.user_id).map(p => p.user_id);
+          let avatarMap = new Map<string, string>();
+          if (userIds.length > 0) {
+            const { data: profilesData } = await supabase
+              .from('profiles')
+              .select('user_id, avatar_url')
+              .in('user_id', userIds);
+            if (profilesData) {
+              avatarMap = new Map(profilesData.map(p => [p.user_id, p.avatar_url]));
+            }
+          }
+          
           const sortData = decisionsData.map(d => {
-            const player = players.find(p => p.id === d.player_id);
+            const player = (freshPlayersData || []).find(p => p.id === d.player_id);
             return {
               id: d.player_id,
               display_name: player?.display_name ?? `Joueur ${d.player_num}`,
-              avatar_url: player?.avatar_url ?? null,
+              avatar_url: player?.user_id ? (avatarMap.get(player.user_id) || null) : null,
               decision: d.decision as 'RESTE' | 'DESCENDS',
             };
           });
