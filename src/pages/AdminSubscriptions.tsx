@@ -37,7 +37,8 @@ import {
   UserCheck,
   UserX,
   ShieldAlert,
-  ShieldCheck
+  ShieldCheck,
+  History
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -65,6 +66,15 @@ interface UserWithRole {
   display_name: string;
   email: string;
   role: 'super_admin' | 'admin' | null;
+  created_at: string;
+}
+
+interface AuditLogEntry {
+  id: string;
+  performed_by_email: string;
+  target_user_email: string;
+  action: string;
+  details: { display_name?: string } | null;
   created_at: string;
 }
 
@@ -98,6 +108,10 @@ export default function AdminSubscriptions() {
   const [promoteDisplayName, setPromoteDisplayName] = useState('');
   const [promotingUser, setPromotingUser] = useState(false);
   const [revokingUserId, setRevokingUserId] = useState<string | null>(null);
+  
+  // Audit log state
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+  const [loadingAuditLog, setLoadingAuditLog] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -123,8 +137,27 @@ export default function AdminSubscriptions() {
     }
     if (isSuperAdmin) {
       fetchUsersWithRoles();
+      fetchAuditLog();
     }
   }, [isAdminOrSuper, isSuperAdmin]);
+
+  const fetchAuditLog = async () => {
+    setLoadingAuditLog(true);
+    try {
+      const { data, error } = await supabase
+        .from('admin_audit_log')
+        .select('id, performed_by_email, target_user_email, action, details, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setAuditLog((data as AuditLogEntry[]) || []);
+    } catch (error) {
+      console.error('Error fetching audit log:', error);
+    } finally {
+      setLoadingAuditLog(false);
+    }
+  };
 
   const fetchRecentBonuses = async () => {
     setLoadingBonuses(true);
@@ -394,6 +427,7 @@ export default function AdminSubscriptions() {
 
       setPromoteDisplayName('');
       fetchUsersWithRoles();
+      fetchAuditLog();
     } catch (error) {
       console.error('Error promoting user:', error);
       toast({
@@ -426,6 +460,7 @@ export default function AdminSubscriptions() {
       });
 
       fetchUsersWithRoles();
+      fetchAuditLog();
     } catch (error) {
       console.error('Error revoking admin:', error);
       toast({
@@ -939,6 +974,71 @@ export default function AdminSubscriptions() {
                                   Protégé
                                 </Badge>
                               )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Audit Log */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="w-5 h-5 text-muted-foreground" />
+                    Historique des Actions
+                  </CardTitle>
+                  <CardDescription>
+                    Journal des promotions et révocations de rôles
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingAuditLog ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}
+                    </div>
+                  ) : auditLog.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      Aucune action enregistrée
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Action</TableHead>
+                          <TableHead>Effectuée par</TableHead>
+                          <TableHead>Utilisateur cible</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {auditLog.map((entry) => (
+                          <TableRow key={entry.id}>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {format(new Date(entry.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
+                            </TableCell>
+                            <TableCell>
+                              {entry.action === 'PROMOTE_ADMIN' ? (
+                                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                  <UserCheck className="w-3 h-3 mr-1" />
+                                  Promotion
+                                </Badge>
+                              ) : entry.action === 'REVOKE_ADMIN' ? (
+                                <Badge className="bg-destructive/20 text-destructive border-destructive/30">
+                                  <UserX className="w-3 h-3 mr-1" />
+                                  Révocation
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">{entry.action}</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {entry.performed_by_email}
+                            </TableCell>
+                            <TableCell>
+                              {entry.details?.display_name || entry.target_user_email}
                             </TableCell>
                           </TableRow>
                         ))}
