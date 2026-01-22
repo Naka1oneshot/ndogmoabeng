@@ -377,6 +377,14 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // PV cannot kill other PV (friendly fire protection)
+      if (shot.shooter_role === 'PV' && target.role_code === 'PV') {
+        await supabase.from('infection_shots').update({ status: 'IGNORED', ignore_reason: 'pv_friendly_fire' }).eq('id', shot.id);
+        processedShots.push({ shooter: shot.shooter_num, target: shot.target_num, result: 'pv_friendly_fire' });
+        privateMessages.push({ player_num: shooter.player_number, message: `⚠️ Ta balle a été neutralisée - tu ne peux pas tuer un autre Porte-Venin!` });
+        continue;
+      }
+
       // Check if target is already dead
       if (!target.is_alive || deaths.includes(target.player_number)) {
         await supabase.from('infection_shots').update({ status: 'IGNORED', ignore_reason: 'target_already_dead' }).eq('id', shot.id);
