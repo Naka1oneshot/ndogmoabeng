@@ -25,22 +25,22 @@ export function RivieresPlayerSortAnimation({
   const descendingPlayers = players.filter(p => p.decision === 'DESCENDS');
 
   useEffect(() => {
+    let intervalRef: NodeJS.Timeout | null = null;
+    
     // Phase 1: Intro (1s)
     const introTimer = setTimeout(() => setPhase('sorting'), 1000);
 
     // Phase 2: Animate players one by one
     const sortingTimer = setTimeout(() => {
       let index = 0;
-      const interval = setInterval(() => {
+      intervalRef = setInterval(() => {
         if (index < players.length) {
           setVisiblePlayers(prev => [...prev, players[index].id]);
           index++;
         } else {
-          clearInterval(interval);
+          if (intervalRef) clearInterval(intervalRef);
         }
       }, 150);
-      
-      return () => clearInterval(interval);
     }, 1000);
 
     // Phase 3: Done (after all players + 1.5s)
@@ -55,8 +55,9 @@ export function RivieresPlayerSortAnimation({
       clearTimeout(sortingTimer);
       clearTimeout(doneTimer);
       clearTimeout(completeTimer);
+      if (intervalRef) clearInterval(intervalRef);
     };
-  }, [players.length, onComplete]);
+  }, [players, onComplete]);
 
   // Play sound on intro
   useEffect(() => {
