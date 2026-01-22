@@ -285,7 +285,21 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
             });
           }
         })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` },
+        (payload) => {
+          // Handle new players (including bots)
+          if (payload.new) {
+            const newPlayer = payload.new as Player;
+            if (!newPlayer.is_host && newPlayer.player_number !== null) {
+              setPlayers(prev => {
+                // Check if already exists
+                if (prev.some(p => p.id === newPlayer.id)) return prev;
+                return [...prev, newPlayer].sort((a, b) => (a.player_number || 0) - (b.player_number || 0));
+              });
+            }
+          }
+        })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` },
         (payload) => {
           // Only update if it's not just a last_seen update
           if (payload.new && payload.old) {
@@ -308,11 +322,15 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                 updated[idx] = newPlayer;
                 return updated.filter(p => !p.is_host && p.player_number !== null);
               }
-              if (!newPlayer.is_host && newPlayer.player_number !== null) {
-                return [...prev, newPlayer];
-              }
               return prev;
             });
+          }
+        })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` },
+        (payload) => {
+          if (payload.old) {
+            const deletedPlayer = payload.old as Player;
+            setPlayers(prev => prev.filter(p => p.id !== deletedPlayer.id));
           }
         })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs_mj', filter: `session_game_id=eq.${sessionGameId}` },
