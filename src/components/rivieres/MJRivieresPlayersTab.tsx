@@ -10,7 +10,8 @@ import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { useUserRole } from '@/hooks/useUserRole';
 import { 
   Users, RefreshCw, Loader2, Copy, Check, Pencil, Save, X, 
-  UserX, Lock, Coins, ShieldCheck, Bot, Plus, Trash2
+  UserX, Lock, Coins, ShieldCheck, Bot, Plus, Trash2,
+  TrendingUp, BarChart3, Target
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -377,6 +378,22 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
   
   const getStatsByPlayerId = (id: string) => playerStats.find(s => s.player_id === id);
 
+  // Statistiques globales de la partie
+  const globalStats = {
+    totalJetons: activePlayers.reduce((sum, p) => sum + (p.jetons || 0), 0),
+    avgJetons: activePlayers.length > 0 
+      ? Math.round(activePlayers.reduce((sum, p) => sum + (p.jetons || 0), 0) / activePlayers.length)
+      : 0,
+    totalValidatedLevels: playerStats.reduce((sum, s) => sum + (s.validated_levels || 0), 0),
+    avgValidatedLevels: playerStats.length > 0 
+      ? (playerStats.reduce((sum, s) => sum + (s.validated_levels || 0), 0) / playerStats.length).toFixed(1)
+      : '0',
+    keryndesAvailable: playerStats.filter(s => s.keryndes_available).length,
+    playersInBoat: playerStats.filter(s => s.current_round_status === 'EN_BATEAU').length,
+    playersOnShore: playerStats.filter(s => s.current_round_status === 'DESCENDU').length,
+    survivorsCount: playerStats.filter(s => s.validated_levels >= 9).length,
+  };
+
   return (
     <TooltipProvider>
       <div className="space-y-4">
@@ -455,6 +472,69 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
                 Supprimer tous
               </ForestButton>
             )}
+          </div>
+        )}
+
+        {/* Résumé des statistiques de la partie */}
+        {!isLobby && playerStats.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Total jetons */}
+            <div className="p-3 rounded-lg bg-[#0B1020] border border-[#D4AF37]/20">
+              <div className="flex items-center gap-2 text-[#9CA3AF] text-xs mb-1">
+                <Coins className="h-3.5 w-3.5" />
+                Total Jetons
+              </div>
+              <div className="text-xl font-bold text-[#D4AF37]">{globalStats.totalJetons}</div>
+              <div className="text-xs text-[#9CA3AF]">Moy: {globalStats.avgJetons}/joueur</div>
+            </div>
+
+            {/* Niveaux validés */}
+            <div className="p-3 rounded-lg bg-[#0B1020] border border-[#D4AF37]/20">
+              <div className="flex items-center gap-2 text-[#9CA3AF] text-xs mb-1">
+                <TrendingUp className="h-3.5 w-3.5" />
+                Niveaux Validés
+              </div>
+              <div className="text-xl font-bold text-[#22C55E]">{globalStats.totalValidatedLevels}</div>
+              <div className="text-xs text-[#9CA3AF]">Moy: {globalStats.avgValidatedLevels}/joueur</div>
+            </div>
+
+            {/* Répartition bateau/terre */}
+            <div className="p-3 rounded-lg bg-[#0B1020] border border-[#D4AF37]/20">
+              <div className="flex items-center gap-2 text-[#9CA3AF] text-xs mb-1">
+                <BarChart3 className="h-3.5 w-3.5" />
+                Répartition
+              </div>
+              <div className="flex items-center gap-3">
+                <div>
+                  <div className="text-lg font-bold text-[#3B82F6]">{globalStats.playersInBoat}</div>
+                  <div className="text-xs text-[#9CA3AF]">En bateau</div>
+                </div>
+                <div className="text-[#9CA3AF]">/</div>
+                <div>
+                  <div className="text-lg font-bold text-[#F59E0B]">{globalStats.playersOnShore}</div>
+                  <div className="text-xs text-[#9CA3AF]">À terre</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Keryndes & Survivants */}
+            <div className="p-3 rounded-lg bg-[#0B1020] border border-[#D4AF37]/20">
+              <div className="flex items-center gap-2 text-[#9CA3AF] text-xs mb-1">
+                <Target className="h-3.5 w-3.5" />
+                Objectifs
+              </div>
+              <div className="flex items-center gap-3">
+                <div>
+                  <div className="text-lg font-bold text-[#8B5CF6]">{globalStats.keryndesAvailable}</div>
+                  <div className="text-xs text-[#9CA3AF]">🧭 dispo</div>
+                </div>
+                <div className="text-[#9CA3AF]">/</div>
+                <div>
+                  <div className="text-lg font-bold text-[#22C55E]">{globalStats.survivorsCount}</div>
+                  <div className="text-xs text-[#9CA3AF]">Survivants</div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
