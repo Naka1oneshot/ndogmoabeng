@@ -470,31 +470,58 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
         />
       )}
 
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 h-16 bg-[#0B1020]/80 backdrop-blur border-b border-[#D4AF37]/20 flex items-center justify-between px-6 z-10">
-        <div className="flex items-center gap-3">
-          <img src={logoNdogmoabeng} alt="Logo" className="h-10 w-10" />
-          <div>
-            <h1 className="text-lg font-bold text-[#D4AF37]">{game.name}</h1>
-            <p className="text-xs text-[#9CA3AF]">RIVIÈRES • Manche {sessionState.manche_active}/3</p>
+      {/* Header - Mobile optimized */}
+      <div className="absolute top-0 left-0 right-0 bg-[#0B1020]/80 backdrop-blur border-b border-[#D4AF37]/20 z-10">
+        {/* Main header row */}
+        <div className="flex items-center justify-between px-3 md:px-6 h-12 md:h-14">
+          <div className="flex items-center gap-2 md:gap-3">
+            <img src={logoNdogmoabeng} alt="Logo" className="h-8 w-8 md:h-10 md:w-10" />
+            <div>
+              <h1 className="text-sm md:text-lg font-bold text-[#D4AF37] truncate max-w-[120px] md:max-w-none">{game.name}</h1>
+              <p className="text-[10px] md:text-xs text-[#9CA3AF]">RIVIÈRES • M{sessionState.manche_active}/3 N{sessionState.niveau_active}</p>
+            </div>
+          </div>
+
+          {/* Right side controls */}
+          <div className="flex items-center gap-1 md:gap-3">
+            <span className="hidden md:block text-xs text-[#9CA3AF]">
+              {format(lastUpdate, 'HH:mm:ss', { locale: fr })}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="h-8 w-8 text-[#9CA3AF] hover:text-[#D4AF37]"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8 text-[#9CA3AF] hover:text-red-400"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
         </div>
 
-        {/* Danger Display - Center */}
-        <div className="flex items-center gap-6">
+        {/* Stats bar - compact on mobile */}
+        <div className="flex items-center justify-center gap-3 md:gap-6 px-3 pb-2 md:pb-3">
           {/* Danger Range */}
           <div className="text-center">
-            <div className="text-xs text-[#9CA3AF] mb-1">Plage Danger</div>
-            <div className="text-xl font-bold text-amber-400">
+            <div className="text-[10px] md:text-xs text-[#9CA3AF]">Plage</div>
+            <div className="text-sm md:text-xl font-bold text-amber-400">
               {dangerRange ? formatDangerRangeDisplay(dangerRange.range) : '—'}
             </div>
           </div>
 
           {/* Validated Danger */}
           {sessionState.danger_effectif !== null && (
-            <div className="text-center bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-2">
-              <div className="text-xs text-red-300 mb-1">Danger Validé</div>
-              <div className="text-2xl font-bold text-red-400">
+            <div className="text-center bg-red-900/30 border border-red-500/50 rounded-lg px-2 md:px-4 py-1 md:py-2">
+              <div className="text-[10px] md:text-xs text-red-300">Danger</div>
+              <div className="text-lg md:text-2xl font-bold text-red-400">
                 {sessionState.danger_effectif}
               </div>
             </div>
@@ -502,40 +529,22 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
 
           {/* Cagnotte */}
           <div className="text-center">
-            <div className="text-xs text-[#9CA3AF] mb-1">Cagnotte</div>
-            <div className="text-xl font-bold text-[#4ADE80]">
+            <div className="text-[10px] md:text-xs text-[#9CA3AF]">Cagnotte</div>
+            <div className="text-sm md:text-xl font-bold text-[#4ADE80]">
               {sessionState.cagnotte_manche}💎
             </div>
           </div>
-        </div>
 
-        {/* Right side controls */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-[#9CA3AF]">
-            {format(lastUpdate, 'HH:mm:ss', { locale: fr })}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            className="text-[#9CA3AF] hover:text-[#D4AF37]"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="text-[#9CA3AF] hover:text-red-400"
-          >
-            <X className="h-5 w-5" />
-          </Button>
+          {/* En bateau count - mobile only compact */}
+          <div className="text-center md:hidden">
+            <div className="text-[10px] text-[#9CA3AF]">Bateau</div>
+            <div className="text-sm font-bold text-blue-400">{enBateauPlayers.length}</div>
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="pt-20 pb-4 px-6 h-full flex flex-col gap-4">
+      {/* Main Content - Mobile optimized */}
+      <div className="pt-24 md:pt-28 pb-4 px-2 md:px-6 h-full flex flex-col gap-2 md:gap-4 overflow-hidden">
         {/* Boat Progress Bar */}
         <div className="flex-shrink-0">
           <BoatProgressBar
@@ -545,12 +554,12 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
           />
         </div>
 
-        {/* Main Grid: Status + Ranking */}
-        <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
-          {/* Left Panel: Status & Decisions */}
-          <div className="col-span-5 flex flex-col gap-4">
-            {/* Current Level Status */}
-            <div className="bg-[#151B2D] border border-[#D4AF37]/20 rounded-lg p-4">
+        {/* Main Grid: Status + Ranking - Stacked on mobile */}
+        <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 min-h-0 overflow-hidden">
+          {/* Status & Decisions - Full width on mobile, left panel on desktop */}
+          <div className="md:col-span-5 flex flex-col gap-2 md:gap-4 flex-shrink-0 md:flex-shrink md:overflow-auto">
+            {/* Current Level Status - Compact on mobile */}
+            <div className="bg-[#151B2D] border border-[#D4AF37]/20 rounded-lg p-2 md:p-4 hidden md:block">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-bold text-[#D4AF37] flex items-center gap-2">
                   <Anchor className="h-5 w-5" />
@@ -584,25 +593,25 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
             {!allDecisionsLocked ? (
               <>
                 {/* Choix effectué (avant clôture) */}
-                <div className="bg-[#151B2D] border border-green-500/30 rounded-lg p-4 flex-1 min-h-0">
-                  <h3 className="text-sm font-bold text-green-400 flex items-center gap-2 mb-3">
-                    <CheckCircle className="h-4 w-4" />
+                <div className="bg-[#151B2D] border border-green-500/30 rounded-lg p-2 md:p-4 flex-1 min-h-0 max-h-32 md:max-h-none overflow-hidden">
+                  <h3 className="text-xs md:text-sm font-bold text-green-400 flex items-center gap-2 mb-2 md:mb-3">
+                    <CheckCircle className="h-3 w-3 md:h-4 md:w-4" />
                     Choix effectué ({playersWithDecision.length})
                   </h3>
-                  <ScrollArea className="h-[calc(100%-2rem)]">
-                    <div className="grid grid-cols-2 gap-2">
+                  <ScrollArea className="h-[calc(100%-1.5rem)] md:h-[calc(100%-2rem)]">
+                    <div className="grid grid-cols-3 md:grid-cols-2 gap-1 md:gap-2">
                       {playersWithDecision.map(p => (
-                        <div key={p.id} className="flex items-center gap-2 bg-[#0B1020] rounded-lg p-2">
-                          <Avatar className="h-8 w-8">
+                        <div key={p.id} className="flex items-center gap-1 md:gap-2 bg-[#0B1020] rounded-lg p-1.5 md:p-2">
+                          <Avatar className="h-6 w-6 md:h-8 md:w-8">
                             <AvatarImage src={p.avatar_url || undefined} />
-                            <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs">
+                            <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-[10px] md:text-xs">
                               {p.display_name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 hidden md:block">
                             <div className="text-xs text-[#E8E8E8] truncate">{p.display_name}</div>
                           </div>
-                          <CheckCircle className="h-4 w-4 text-green-400" />
+                          <CheckCircle className="h-3 w-3 md:h-4 md:w-4 text-green-400" />
                         </div>
                       ))}
                     </div>
@@ -610,25 +619,25 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
                 </div>
 
                 {/* En attente de décision (avant clôture) */}
-                <div className="bg-[#151B2D] border border-amber-500/30 rounded-lg p-4">
-                  <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2 mb-3">
-                    <Clock className="h-4 w-4" />
-                    En attente de décision ({pendingPlayers.length})
+                <div className="bg-[#151B2D] border border-amber-500/30 rounded-lg p-2 md:p-4 max-h-24 md:max-h-none overflow-hidden">
+                  <h3 className="text-xs md:text-sm font-bold text-amber-400 flex items-center gap-2 mb-2 md:mb-3">
+                    <Clock className="h-3 w-3 md:h-4 md:w-4" />
+                    En attente ({pendingPlayers.length})
                   </h3>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1 md:gap-2 overflow-y-auto max-h-12 md:max-h-none">
                     {pendingPlayers.map(p => (
-                      <div key={p.id} className="flex items-center gap-2 bg-[#0B1020] rounded-full px-3 py-1">
-                        <Avatar className="h-6 w-6">
+                      <div key={p.id} className="flex items-center gap-1 md:gap-2 bg-[#0B1020] rounded-full px-2 md:px-3 py-0.5 md:py-1">
+                        <Avatar className="h-5 w-5 md:h-6 md:w-6">
                           <AvatarImage src={p.avatar_url || undefined} />
-                          <AvatarFallback className="bg-amber-500/20 text-amber-400 text-xs">
+                          <AvatarFallback className="bg-amber-500/20 text-amber-400 text-[10px] md:text-xs">
                             {p.display_name.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-xs text-[#E8E8E8]">{p.display_name}</span>
+                        <span className="text-[10px] md:text-xs text-[#E8E8E8] hidden md:inline">{p.display_name}</span>
                       </div>
                     ))}
                     {pendingPlayers.length === 0 && (
-                      <span className="text-xs text-[#9CA3AF]">Tous les joueurs ont fait leur choix</span>
+                      <span className="text-[10px] md:text-xs text-[#9CA3AF]">Tous ont choisi</span>
                     )}
                   </div>
                 </div>
@@ -636,28 +645,28 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
             ) : (
               <>
                 {/* Dans le bateau (après clôture) */}
-                <div className="bg-[#151B2D] border border-blue-500/30 rounded-lg p-4 flex-1 min-h-0">
-                  <h3 className="text-sm font-bold text-blue-400 flex items-center gap-2 mb-3">
-                    <Ship className="h-4 w-4" />
+                <div className="bg-[#151B2D] border border-blue-500/30 rounded-lg p-2 md:p-4 flex-1 min-h-0 max-h-32 md:max-h-none overflow-hidden">
+                  <h3 className="text-xs md:text-sm font-bold text-blue-400 flex items-center gap-2 mb-2 md:mb-3">
+                    <Ship className="h-3 w-3 md:h-4 md:w-4" />
                     Dans le bateau ({lockedDecisions.filter(d => d.decision === 'RESTE').length})
                   </h3>
-                  <ScrollArea className="h-[calc(100%-2rem)]">
-                    <div className="grid grid-cols-2 gap-2">
+                  <ScrollArea className="h-[calc(100%-1.5rem)] md:h-[calc(100%-2rem)]">
+                    <div className="grid grid-cols-3 md:grid-cols-2 gap-1 md:gap-2">
                       {lockedDecisions.filter(d => d.decision === 'RESTE').map(d => {
                         const player = players.find(p => p.id === d.player_id);
                         if (!player) return null;
                         return (
-                          <div key={d.id} className="flex items-center gap-2 bg-[#0B1020] rounded-lg p-2">
-                            <Avatar className="h-8 w-8">
+                          <div key={d.id} className="flex items-center gap-1 md:gap-2 bg-[#0B1020] rounded-lg p-1.5 md:p-2">
+                            <Avatar className="h-6 w-6 md:h-8 md:w-8">
                               <AvatarImage src={player.avatar_url || undefined} />
-                              <AvatarFallback className="bg-blue-500/20 text-blue-400 text-xs">
+                              <AvatarFallback className="bg-blue-500/20 text-blue-400 text-[10px] md:text-xs">
                                 {player.display_name.slice(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 hidden md:block">
                               <div className="text-xs text-[#E8E8E8] truncate">{player.display_name}</div>
                             </div>
-                            <Ship className="h-4 w-4 text-blue-400" />
+                            <Ship className="h-3 w-3 md:h-4 md:w-4 text-blue-400" />
                           </div>
                         );
                       })}
@@ -666,30 +675,30 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
                 </div>
 
                 {/* A terre (après clôture) */}
-                <div className="bg-[#151B2D] border border-green-500/30 rounded-lg p-4">
-                  <h3 className="text-sm font-bold text-green-400 flex items-center gap-2 mb-3">
-                    <Anchor className="h-4 w-4" />
+                <div className="bg-[#151B2D] border border-green-500/30 rounded-lg p-2 md:p-4 max-h-24 md:max-h-none overflow-hidden">
+                  <h3 className="text-xs md:text-sm font-bold text-green-400 flex items-center gap-2 mb-2 md:mb-3">
+                    <Anchor className="h-3 w-3 md:h-4 md:w-4" />
                     A terre ({lockedDecisions.filter(d => d.decision === 'DESCENDS').length})
                   </h3>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1 md:gap-2 overflow-y-auto max-h-12 md:max-h-none">
                     {lockedDecisions.filter(d => d.decision === 'DESCENDS').map(d => {
                       const player = players.find(p => p.id === d.player_id);
                       if (!player) return null;
                       return (
-                        <div key={d.id} className="flex items-center gap-2 bg-[#0B1020] rounded-full px-3 py-1">
-                          <Avatar className="h-6 w-6">
+                        <div key={d.id} className="flex items-center gap-1 md:gap-2 bg-[#0B1020] rounded-full px-2 md:px-3 py-0.5 md:py-1">
+                          <Avatar className="h-5 w-5 md:h-6 md:w-6">
                             <AvatarImage src={player.avatar_url || undefined} />
-                            <AvatarFallback className="bg-green-500/20 text-green-400 text-xs">
+                            <AvatarFallback className="bg-green-500/20 text-green-400 text-[10px] md:text-xs">
                               {player.display_name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-xs text-[#E8E8E8]">{player.display_name}</span>
-                          <Anchor className="h-3 w-3 text-green-400" />
+                          <span className="text-[10px] md:text-xs text-[#E8E8E8] hidden md:inline">{player.display_name}</span>
+                          <Anchor className="h-2.5 w-2.5 md:h-3 md:w-3 text-green-400" />
                         </div>
                       );
                     })}
                     {lockedDecisions.filter(d => d.decision === 'DESCENDS').length === 0 && (
-                      <span className="text-xs text-[#9CA3AF]">Personne ne descend</span>
+                      <span className="text-[10px] md:text-xs text-[#9CA3AF]">Personne ne descend</span>
                     )}
                   </div>
                 </div>
@@ -697,73 +706,73 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
             )}
           </div>
 
-          {/* Right Panel: Live Ranking */}
-          <div className="col-span-7 bg-[#151B2D] border border-[#D4AF37]/20 rounded-lg p-4 flex flex-col min-h-0">
-            <h3 className="text-lg font-bold text-[#D4AF37] flex items-center gap-2 mb-4">
-              <Trophy className="h-5 w-5" />
-              Classement en direct
+          {/* Right Panel: Live Ranking - Takes remaining space */}
+          <div className="md:col-span-7 bg-[#151B2D] border border-[#D4AF37]/20 rounded-lg p-2 md:p-4 flex flex-col min-h-0 flex-1 overflow-hidden">
+            <h3 className="text-sm md:text-lg font-bold text-[#D4AF37] flex items-center gap-2 mb-2 md:mb-4">
+              <Trophy className="h-4 w-4 md:h-5 md:w-5" />
+              Classement
             </h3>
 
             <ScrollArea className="flex-1">
-              {/* Top 3 - Full width */}
-              <div className="space-y-2 mb-4">
+              {/* Top 3 - Compact on mobile */}
+              <div className="space-y-1 md:space-y-2 mb-2 md:mb-4">
                 {ranking.slice(0, 3).map((p, idx) => (
                   <div 
                     key={p.id} 
-                    className={`flex items-center gap-3 p-3 rounded-lg ${idx === 0 ? 'bg-[#D4AF37]/20 border border-[#D4AF37]/40' : 'bg-[#0B1020]'} ${p.current_status === 'A_TERRE' ? 'opacity-60' : ''}`}
+                    className={`flex items-center gap-2 md:gap-3 p-1.5 md:p-3 rounded-lg ${idx === 0 ? 'bg-[#D4AF37]/20 border border-[#D4AF37]/40' : 'bg-[#0B1020]'} ${p.current_status === 'A_TERRE' ? 'opacity-60' : ''}`}
                   >
-                    <span className={`text-2xl font-bold w-10 ${
+                    <span className={`text-lg md:text-2xl font-bold w-7 md:w-10 ${
                       idx === 0 ? 'text-[#D4AF37]' : 
                       idx === 1 ? 'text-gray-300' : 'text-amber-600'
                     }`}>
                       {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
                     </span>
-                    <Avatar className="h-10 w-10">
+                    <Avatar className="h-7 w-7 md:h-10 md:w-10">
                       <AvatarImage src={p.avatar_url || undefined} />
-                      <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-sm">
+                      <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs md:text-sm">
                         {p.display_name.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[#E8E8E8] font-medium truncate">{p.display_name}</div>
-                      {p.clan && <div className="text-xs text-[#9CA3AF]">{p.clan}</div>}
+                      <div className="text-xs md:text-base text-[#E8E8E8] font-medium truncate">{p.display_name}</div>
+                      {p.clan && <div className="text-[10px] md:text-xs text-[#9CA3AF] hidden md:block">{p.clan}</div>}
                     </div>
-                    <Badge className={
+                    <Badge className={`text-[10px] md:text-xs px-1 md:px-2 ${
                       p.current_status === 'EN_BATEAU' ? 'bg-blue-600' :
                       p.current_status === 'A_TERRE' ? 'bg-green-600' :
                       'bg-red-600'
-                    }>
+                    }`}>
                       {p.current_status === 'EN_BATEAU' ? '🚣' : 
                        p.current_status === 'A_TERRE' ? '🏝️' : '💀'}
                     </Badge>
-                    <span className={`text-sm ${p.validated_levels >= 9 ? 'text-[#4ADE80] font-bold' : 'text-amber-400'}`}>
+                    <span className={`text-xs md:text-sm ${p.validated_levels >= 9 ? 'text-[#4ADE80] font-bold' : 'text-amber-400'}`}>
                       {p.validated_levels}/15
                     </span>
                   </div>
                 ))}
               </div>
 
-              {/* Rest of players - 2 columns */}
+              {/* Rest of players - Single column on mobile, 2 columns on desktop */}
               {ranking.length > 3 && (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-1 md:gap-2">
                   {ranking.slice(3).map((p, idx) => (
                     <div 
                       key={p.id} 
-                      className={`flex items-center gap-1.5 p-2 rounded-lg bg-[#0B1020] ${p.current_status === 'A_TERRE' ? 'opacity-60' : ''}`}
+                      className={`flex items-center gap-1 md:gap-1.5 p-1.5 md:p-2 rounded-lg bg-[#0B1020] ${p.current_status === 'A_TERRE' ? 'opacity-60' : ''}`}
                     >
-                      <span className="text-xs font-bold text-[#9CA3AF] w-5 flex-shrink-0">
+                      <span className="text-[10px] md:text-xs font-bold text-[#9CA3AF] w-4 md:w-5 flex-shrink-0">
                         #{idx + 4}
                       </span>
-                      <Avatar className="h-6 w-6 flex-shrink-0">
+                      <Avatar className="h-5 w-5 md:h-6 md:w-6 flex-shrink-0">
                         <AvatarImage src={p.avatar_url || undefined} />
-                        <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-[10px]">
+                        <AvatarFallback className="bg-[#D4AF37]/20 text-[#D4AF37] text-[8px] md:text-[10px]">
                           {p.display_name.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0 overflow-hidden">
-                        <div className="text-[#E8E8E8] text-xs truncate">{p.display_name}</div>
+                        <div className="text-[#E8E8E8] text-[10px] md:text-xs truncate">{p.display_name}</div>
                       </div>
-                      <Badge className={`text-[10px] px-1.5 flex-shrink-0 ${
+                      <Badge className={`text-[8px] md:text-[10px] px-1 md:px-1.5 flex-shrink-0 ${
                         p.current_status === 'EN_BATEAU' ? 'bg-blue-600' :
                         p.current_status === 'A_TERRE' ? 'bg-green-600' :
                         'bg-red-600'
@@ -771,7 +780,7 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
                         {p.current_status === 'EN_BATEAU' ? '🚣' : 
                          p.current_status === 'A_TERRE' ? '🏝️' : '💀'}
                       </Badge>
-                      <span className={`text-xs flex-shrink-0 min-w-[28px] text-right ${p.validated_levels >= 9 ? 'text-[#4ADE80]' : 'text-amber-400'}`}>
+                      <span className={`text-[10px] md:text-xs flex-shrink-0 min-w-[24px] md:min-w-[28px] text-right ${p.validated_levels >= 9 ? 'text-[#4ADE80]' : 'text-amber-400'}`}>
                         {p.validated_levels}/15
                       </span>
                     </div>
