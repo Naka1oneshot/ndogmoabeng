@@ -74,6 +74,39 @@ export type Database = {
           },
         ]
       }
+      admin_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          performed_by: string
+          performed_by_email: string
+          target_user_email: string
+          target_user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          performed_by: string
+          performed_by_email: string
+          target_user_email: string
+          target_user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          performed_by?: string
+          performed_by_email?: string
+          target_user_email?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       adventure_scores: {
         Row: {
           breakdown: Json | null

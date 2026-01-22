@@ -110,6 +110,14 @@ Deno.serve(async (req) => {
 
     const targetDisplayName = targetProfile?.display_name || 'Utilisateur'
 
+    // Get current user's email for audit log
+    const { data: currentUserData } = await supabaseAdmin.auth.admin.getUserById(currentUser.id)
+    const currentUserEmail = currentUserData?.user?.email || 'unknown'
+
+    // Get target user's email for audit log
+    const { data: targetUserData } = await supabaseAdmin.auth.admin.getUserById(targetUserId)
+    const targetUserEmail = targetUserData?.user?.email || 'unknown'
+
     if (action === 'promote') {
       // Check if user already has a role
       const { data: existingRole } = await supabaseAdmin
@@ -137,6 +145,16 @@ Deno.serve(async (req) => {
         throw insertError
       }
 
+      // Log the action
+      await supabaseAdmin.from('admin_audit_log').insert({
+        performed_by: currentUser.id,
+        performed_by_email: currentUserEmail,
+        target_user_id: targetUserId,
+        target_user_email: targetUserEmail,
+        action: 'PROMOTE_ADMIN',
+        details: { display_name: targetDisplayName }
+      })
+
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -157,6 +175,16 @@ Deno.serve(async (req) => {
       if (deleteError) {
         throw deleteError
       }
+
+      // Log the action
+      await supabaseAdmin.from('admin_audit_log').insert({
+        performed_by: currentUser.id,
+        performed_by_email: currentUserEmail,
+        target_user_id: targetUserId,
+        target_user_email: targetUserEmail,
+        action: 'REVOKE_ADMIN',
+        details: { display_name: targetDisplayName }
+      })
 
       return new Response(
         JSON.stringify({ 
