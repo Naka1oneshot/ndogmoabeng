@@ -90,6 +90,16 @@ export function LandingNavbar() {
             {/* Desktop CTA */}
             <div className="hidden md:flex items-center gap-3">
               <ThemeToggle />
+              {(isAdmin || isSuperAdmin) && (
+                <ForestButton 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate('/admin/subscriptions')}
+                >
+                  <Shield className="h-4 w-4" />
+                  Administration
+                </ForestButton>
+              )}
               <ForestButton 
                 variant="secondary" 
                 size="sm"
@@ -126,7 +136,8 @@ export function LandingNavbar() {
           </div>
 
           {/* Mobile Navigation */}
-          <div className="md:hidden py-4 border-t border-border">
+          {mobileMenuOpen && (
+            <div className="md:hidden py-4 border-t border-border">
               <div className="flex flex-col gap-2">
                 {/* Profile section at the top of mobile menu */}
                 <div className="flex items-center gap-3 pb-3 border-b border-border">
@@ -197,6 +208,7 @@ export function LandingNavbar() {
                 )}
               </div>
             </div>
+          )}
         </div>
       </nav>
 
