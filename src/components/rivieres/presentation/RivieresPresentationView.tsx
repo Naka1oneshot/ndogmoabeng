@@ -551,8 +551,6 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
                     <th className="p-3 text-left text-[#9CA3AF]">Joueur</th>
                     <th className="p-3 text-center text-[#9CA3AF]">Statut</th>
                     <th className="p-3 text-center text-[#9CA3AF]">Niveaux</th>
-                    <th className="p-3 text-center text-[#9CA3AF]">Jetons</th>
-                    <th className="p-3 text-right text-[#D4AF37]">Score</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -599,13 +597,6 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
                           {p.validated_levels}/15
                         </span>
                         {p.penalty_applied && <span className="text-xs text-red-400 ml-1">⚠️</span>}
-                      </td>
-                      <td className="p-3 text-center text-[#4ADE80] font-medium">
-                        {p.jetons}💎
-                      </td>
-                      <td className="p-3 text-right">
-                        <span className="text-xl font-bold text-[#D4AF37]">{p.score_value}</span>
-                        <span className="text-[#9CA3AF] text-xs ml-1">pts</span>
                       </td>
                     </tr>
                   ))}
