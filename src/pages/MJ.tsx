@@ -57,6 +57,139 @@ interface Game {
   host_email?: string;
 }
 
+// Game type display names
+const GAME_TYPE_LABELS: Record<string, { label: string; emoji: string; colorClass: string }> = {
+  FORET: { label: 'Forêt', emoji: '🌲', colorClass: 'text-emerald-400' },
+  RIVIERES: { label: 'Rivières', emoji: '🌊', colorClass: 'text-blue-400' },
+  INFECTION: { label: 'Infection', emoji: '🧟', colorClass: 'text-purple-400' },
+};
+
+// GameListItem component for rendering a single game in the list
+function GameListItem({
+  game,
+  isAdmin,
+  userId,
+  deleting,
+  onOpenDetail,
+  onDelete,
+}: {
+  game: Game;
+  isAdmin: boolean;
+  userId?: string;
+  deleting: string | null;
+  onOpenDetail: (game: Game) => void;
+  onDelete: (gameId: string) => void;
+}) {
+  const gameTypeInfo = game.selected_game_type_code 
+    ? GAME_TYPE_LABELS[game.selected_game_type_code] 
+    : null;
+
+  return (
+    <div
+      className="card-gradient rounded-lg border border-border p-4 hover:border-primary/50 transition-colors"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <h3 className="font-medium truncate">{game.name}</h3>
+            {/* Game Type Badge */}
+            {gameTypeInfo && (
+              <Badge className={`${gameTypeInfo.colorClass} bg-muted/50 border-current/30`}>
+                <span className="mr-1">{gameTypeInfo.emoji}</span>
+                {gameTypeInfo.label}
+              </Badge>
+            )}
+            {game.mode === 'ADVENTURE' ? (
+              <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30 hover:bg-amber-600/30">
+                <Map className="h-3 w-3 mr-1" />
+                Aventure
+              </Badge>
+            ) : (
+              <Badge className="bg-emerald-600/20 text-emerald-400 border-emerald-600/30 hover:bg-emerald-600/30">
+                <Gamepad2 className="h-3 w-3 mr-1" />
+                Partie unique
+              </Badge>
+            )}
+            <GameStatusBadge status={game.status} />
+            {game.is_public ? (
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20">
+                <Globe className="h-3 w-3 mr-1" />
+                Publique
+              </Badge>
+            ) : (
+              <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 hover:bg-slate-500/20">
+                <Lock className="h-3 w-3 mr-1" />
+                Privée
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+            <span className="font-mono text-primary">{game.join_code}</span>
+            <span className="flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {game.active_players}
+            </span>
+            <span>
+              {new Date(game.created_at).toLocaleDateString('fr-FR')}
+            </span>
+            {/* Show host email for admins */}
+            {isAdmin && game.host_email && game.host_user_id !== userId && (
+              <span className="flex items-center gap-1 text-amber-400">
+                <Crown className="h-3 w-3" />
+                {game.host_email}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <ForestButton
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenDetail(game)}
+          >
+            <Eye className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">Gérer</span>
+          </ForestButton>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <ForestButton
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                disabled={deleting === game.id}
+              >
+                {deleting === game.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </ForestButton>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Supprimer la partie ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette action est irréversible. Toutes les données de la partie
+                  "{game.name}" seront définitivement supprimées.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => onDelete(game.id)}
+                >
+                  Supprimer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Generate cryptographically secure join code
 function generateJoinCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excludes confusing characters like 0, O, 1, I
@@ -565,8 +698,8 @@ export default function MJ() {
               </div>
             )}
 
-            {/* Liste des parties */}
-            <div className="space-y-3">
+            {/* Liste des parties par catégories */}
+            <div className="space-y-6">
               {loadingGames ? (
                 <div className="card-gradient rounded-lg border border-border p-8 flex items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -577,104 +710,79 @@ export default function MJ() {
                   <p className="text-sm mt-2">Cliquez sur "Nouvelle partie" pour commencer</p>
                 </div>
               ) : (
-                games.map((game) => (
-                  <div
-                    key={game.id}
-                    className="card-gradient rounded-lg border border-border p-4 hover:border-primary/50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <h3 className="font-medium truncate">{game.name}</h3>
-                          {game.mode === 'ADVENTURE' ? (
-                            <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30 hover:bg-amber-600/30">
-                              <Map className="h-3 w-3 mr-1" />
-                              Aventure
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-emerald-600/20 text-emerald-400 border-emerald-600/30 hover:bg-emerald-600/30">
-                              <Gamepad2 className="h-3 w-3 mr-1" />
-                              Partie unique
-                            </Badge>
-                          )}
-                          <GameStatusBadge status={game.status} />
-                          {(game as any).is_public ? (
-                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20">
-                              <Globe className="h-3 w-3 mr-1" />
-                              Publique
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30 hover:bg-slate-500/20">
-                              <Lock className="h-3 w-3 mr-1" />
-                              Privée
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                          <span className="font-mono text-primary">{game.join_code}</span>
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {game.active_players}
-                          </span>
-                          <span>
-                            {new Date(game.created_at).toLocaleDateString('fr-FR')}
-                          </span>
-                          {/* Show host email for admins */}
-                          {isAdmin && game.host_email && game.host_user_id !== user?.id && (
-                            <span className="flex items-center gap-1 text-amber-400">
-                              <Crown className="h-3 w-3" />
-                              {game.host_email}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <ForestButton
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openGameDetail(game)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span className="hidden sm:inline ml-1">Gérer</span>
-                        </ForestButton>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <ForestButton
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              disabled={deleting === game.id}
-                            >
-                              {deleting === game.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </ForestButton>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Supprimer la partie ?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Cette action est irréversible. Toutes les données de la partie
-                                "{game.name}" seront définitivement supprimées.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={() => handleDeleteGame(game.id)}
-                              >
-                                Supprimer
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                <>
+                  {/* Parties en cours */}
+                  {games.filter(g => g.status === 'IN_GAME' || g.status === 'RUNNING').length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="font-display text-base flex items-center gap-2 text-emerald-400">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        En cours
+                        <Badge variant="outline" className="ml-2 text-emerald-400 border-emerald-500/30">
+                          {games.filter(g => g.status === 'IN_GAME' || g.status === 'RUNNING').length}
+                        </Badge>
+                      </h3>
+                      {games.filter(g => g.status === 'IN_GAME' || g.status === 'RUNNING').map((game) => (
+                        <GameListItem
+                          key={game.id}
+                          game={game}
+                          isAdmin={isAdmin}
+                          userId={user?.id}
+                          deleting={deleting}
+                          onOpenDetail={openGameDetail}
+                          onDelete={handleDeleteGame}
+                        />
+                      ))}
                     </div>
-                  </div>
-                ))
+                  )}
+
+                  {/* Parties en attente (LOBBY) */}
+                  {games.filter(g => g.status === 'LOBBY').length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="font-display text-base flex items-center gap-2 text-amber-400">
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        En attente
+                        <Badge variant="outline" className="ml-2 text-amber-400 border-amber-500/30">
+                          {games.filter(g => g.status === 'LOBBY').length}
+                        </Badge>
+                      </h3>
+                      {games.filter(g => g.status === 'LOBBY').map((game) => (
+                        <GameListItem
+                          key={game.id}
+                          game={game}
+                          isAdmin={isAdmin}
+                          userId={user?.id}
+                          deleting={deleting}
+                          onOpenDetail={openGameDetail}
+                          onDelete={handleDeleteGame}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Parties terminées */}
+                  {games.filter(g => g.status === 'FINISHED' || g.status === 'ENDED').length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="font-display text-base flex items-center gap-2 text-muted-foreground">
+                        <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                        Terminées
+                        <Badge variant="outline" className="ml-2 text-muted-foreground border-muted-foreground/30">
+                          {games.filter(g => g.status === 'FINISHED' || g.status === 'ENDED').length}
+                        </Badge>
+                      </h3>
+                      {games.filter(g => g.status === 'FINISHED' || g.status === 'ENDED').map((game) => (
+                        <GameListItem
+                          key={game.id}
+                          game={game}
+                          isAdmin={isAdmin}
+                          userId={user?.id}
+                          deleting={deleting}
+                          onOpenDetail={openGameDetail}
+                          onDelete={handleDeleteGame}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </>
