@@ -207,7 +207,7 @@ function generateJoinCode(): string {
 
 export default function MJ() {
   const { user, loading: authLoading, signOut } = useAuth();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const { gameId: urlGameId } = useParams<{ gameId?: string }>();
   
@@ -246,7 +246,7 @@ export default function MJ() {
   const { canCreateGame, limits, max_limits } = useSubscription();
   
   const canCreateNewGame = (): boolean => {
-    if (isAdmin) return true;
+    if (isAdminOrSuper) return true;
     // Check subscription limits for games creatable
     return canCreateGame();
   };
@@ -276,7 +276,7 @@ export default function MJ() {
       const cleanup = subscribeToGames();
       return cleanup;
     }
-  }, [user, authLoading, isAdmin]);
+  }, [user, authLoading, isAdminOrSuper]);
 
   // Handle URL gameId parameter - load the game directly
   useEffect(() => {
@@ -324,7 +324,7 @@ export default function MJ() {
       let query = supabase.from('games').select('*').order('created_at', { ascending: false });
       
       // Non-admins only see their own games
-      if (!isAdmin) {
+      if (!isAdminOrSuper) {
         query = query.eq('host_user_id', user.id);
       }
 
@@ -344,7 +344,7 @@ export default function MJ() {
 
           // For admins, get the host's email
           let hostEmail: string | null = null;
-          if (isAdmin && game.host_user_id) {
+          if (isAdminOrSuper && game.host_user_id) {
             const { data: emailData } = await supabase
               .rpc('get_user_email', { user_id: game.host_user_id });
             hostEmail = emailData || null;
@@ -673,7 +673,7 @@ export default function MJ() {
           <div className="flex items-center gap-3">
             <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="h-8 w-8 object-contain cursor-pointer" onClick={() => navigate('/')} />
             <h1 className="font-display text-xl">Tableau MJ</h1>
-            {isAdmin && (
+            {isAdminOrSuper && (
               <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30">
                 <Crown className="h-3 w-3 mr-1" />
                 Admin
@@ -681,7 +681,7 @@ export default function MJ() {
             )}
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-            {isAdmin && <AdminBadge email={user?.email} />}
+            {isAdminOrSuper && <AdminBadge email={user?.email} />}
             <ThemeToggle />
             <UserAvatarButton size="sm" />
           </div>
@@ -695,9 +695,9 @@ export default function MJ() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h2 className="font-display text-lg">
-                  {isAdmin ? 'Toutes les Parties' : 'Mes Parties'}
+                  {isAdminOrSuper ? 'Toutes les Parties' : 'Mes Parties'}
                 </h2>
-                {!isAdmin && (
+                {!isAdminOrSuper && (
                   <p className="text-sm text-muted-foreground">
                     {getRemainingCreatable() > 0 
                       ? `${getRemainingCreatable()}/${getMaxCreatable()} initialisations restantes`
@@ -843,7 +843,7 @@ export default function MJ() {
             )}
 
             {/* Info message for non-admins who can't create */}
-            {!isAdmin && !canCreateNewGame() && (
+            {!isAdminOrSuper && !canCreateNewGame() && (
               <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-destructive text-sm">
                 <p>Vous avez atteint votre limite d'initialisations de parties ce mois-ci. Passez à un abonnement supérieur ou achetez des tokens.</p>
               </div>
@@ -928,7 +928,7 @@ export default function MJ() {
                           <GameListItem
                             key={game.id}
                             game={game}
-                            isAdmin={isAdmin}
+                            isAdmin={isAdminOrSuper}
                             userId={user?.id}
                             deleting={deleting}
                             onOpenDetail={openGameDetail}
@@ -952,7 +952,7 @@ export default function MJ() {
                           <GameListItem
                             key={game.id}
                             game={game}
-                            isAdmin={isAdmin}
+                            isAdmin={isAdminOrSuper}
                             userId={user?.id}
                             deleting={deleting}
                             onOpenDetail={openGameDetail}
@@ -982,7 +982,7 @@ export default function MJ() {
                             <GameListItem
                               key={game.id}
                               game={game}
-                              isAdmin={isAdmin}
+                              isAdmin={isAdminOrSuper}
                               userId={user?.id}
                               deleting={deleting}
                               onOpenDetail={openGameDetail}
