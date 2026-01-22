@@ -129,6 +129,13 @@ serve(async (req) => {
       const playerNumber = startNum + i;
       const botName = generateBotName(botStartIndex + i);
       const botToken = crypto.randomUUID();
+      const assignedClan = withClans ? getRandomClan() : null;
+      
+      // Apply Royaux clan bonus: 1.5x starting tokens
+      const baseTokens = game.starting_tokens || 50;
+      const finalTokens = assignedClan === 'Royaux' 
+        ? Math.floor(baseTokens * 1.5) 
+        : baseTokens;
 
       bots.push({
         game_id: gameId,
@@ -138,9 +145,9 @@ serve(async (req) => {
         is_host: false,
         is_bot: true,
         status: 'ACTIVE',
-        jetons: game.starting_tokens || 50,
+        jetons: finalTokens,
         joined_at: new Date().toISOString(),
-        clan: withClans ? getRandomClan() : null,
+        clan: assignedClan,
         clan_locked: withClans ? true : false,
         mate_num: null, // Will be assigned after all bots are created
       });
