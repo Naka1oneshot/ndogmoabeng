@@ -2797,6 +2797,27 @@ export type Database = {
           my_wins_together: number
         }[]
       }
+      get_friend_limited_profile: {
+        Args: { p_friend_user_id: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          user_id: string
+        }[]
+      }
+      get_game_players_for_participant: {
+        Args: { p_game_id: string }
+        Returns: {
+          clan: string
+          display_name: string
+          is_alive: boolean
+          is_bot: boolean
+          jetons: number
+          mate_num: number
+          player_number: number
+          recompenses: number
+        }[]
+      }
       get_games_together: {
         Args: { p_friend_user_id: string; p_limit?: number }
         Returns: {
@@ -2808,6 +2829,16 @@ export type Database = {
           my_display_name: string
           my_result: string
           played_at: string
+        }[]
+      }
+      get_public_game_players: {
+        Args: { p_game_id: string }
+        Returns: {
+          clan: string
+          display_name: string
+          is_alive: boolean
+          is_bot: boolean
+          player_number: number
         }[]
       }
       get_user_email: { Args: { user_id: string }; Returns: string }
