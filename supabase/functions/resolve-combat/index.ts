@@ -223,21 +223,18 @@ serve(async (req) => {
       );
     }
 
-    // Load data - filter by session_game_id for Adventure mode
+    // Load data - DO NOT filter by session_game_id for tables that may have null values
+    // This ensures backward compatibility with player-submitted data (bets, actions, etc.)
     const monstersQuery = supabase.from('game_state_monsters').select('*').eq('game_id', gameId);
     if (sessionGameId) {
       monstersQuery.eq('session_game_id', sessionGameId);
     }
     
+    // Inventory: Don't filter by session_game_id - items may have null session_game_id
     const inventoryQuery = supabase.from('inventory').select('*').eq('game_id', gameId);
-    if (sessionGameId) {
-      inventoryQuery.eq('session_game_id', sessionGameId);
-    }
     
+    // Positions finales: Don't filter by session_game_id - may have null from player submissions
     const positionsQuery = supabase.from('positions_finales').select('*').eq('game_id', gameId).eq('manche', manche);
-    if (sessionGameId) {
-      positionsQuery.eq('session_game_id', sessionGameId);
-    }
     positionsQuery.order('position_finale', { ascending: true });
     
     const [

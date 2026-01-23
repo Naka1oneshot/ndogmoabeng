@@ -58,18 +58,13 @@ Deno.serve(async (req) => {
     const manche = game.manche_active;
     const sessionGameId = game.current_session_game_id;
 
-    // Get shop offer for this round
-    let offerQuery = supabase
+    // Get shop offer for this round - don't filter by session_game_id for backward compatibility
+    const { data: shopOffer, error: offerError } = await supabase
       .from('game_shop_offers')
       .select('item_ids')
       .eq('game_id', gameId)
-      .eq('manche', manche);
-    
-    if (sessionGameId) {
-      offerQuery = offerQuery.eq('session_game_id', sessionGameId);
-    }
-    
-    const { data: shopOffer, error: offerError } = await offerQuery.single();
+      .eq('manche', manche)
+      .maybeSingle();
 
     if (offerError || !shopOffer) {
       return new Response(
