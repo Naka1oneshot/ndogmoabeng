@@ -389,6 +389,231 @@ export type Database = {
           },
         ]
       }
+      event_expense_items: {
+        Row: {
+          created_at: string
+          expense_type: string
+          id: string
+          label: string
+          meetup_event_id: string
+          notes: string | null
+          order_date: string | null
+          qty_optimiste: number | null
+          qty_pessimiste: number | null
+          qty_probable: number | null
+          qty_real: number | null
+          real_unit_cost: number | null
+          state: string | null
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expense_type: string
+          id?: string
+          label: string
+          meetup_event_id: string
+          notes?: string | null
+          order_date?: string | null
+          qty_optimiste?: number | null
+          qty_pessimiste?: number | null
+          qty_probable?: number | null
+          qty_real?: number | null
+          real_unit_cost?: number | null
+          state?: string | null
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expense_type?: string
+          id?: string
+          label?: string
+          meetup_event_id?: string
+          notes?: string | null
+          order_date?: string | null
+          qty_optimiste?: number | null
+          qty_pessimiste?: number | null
+          qty_probable?: number | null
+          qty_real?: number | null
+          real_unit_cost?: number | null
+          state?: string | null
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_expense_items_meetup_event_id_fkey"
+            columns: ["meetup_event_id"]
+            isOneToOne: false
+            referencedRelation: "meetup_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_financial_settings: {
+        Row: {
+          created_at: string
+          investment_budget: number | null
+          meetup_event_id: string
+          opening_balance: number | null
+          scenario_active: Database["public"]["Enums"]["budget_scenario"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          investment_budget?: number | null
+          meetup_event_id: string
+          opening_balance?: number | null
+          scenario_active?: Database["public"]["Enums"]["budget_scenario"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          investment_budget?: number | null
+          meetup_event_id?: string
+          opening_balance?: number | null
+          scenario_active?: Database["public"]["Enums"]["budget_scenario"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_financial_settings_meetup_event_id_fkey"
+            columns: ["meetup_event_id"]
+            isOneToOne: true
+            referencedRelation: "meetup_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_invites: {
+        Row: {
+          address: string | null
+          cash_box: string | null
+          contributed_amount: number | null
+          created_at: string
+          followup_date: string | null
+          full_name: string
+          id: string
+          invite_status: Database["public"]["Enums"]["invite_status"]
+          invited_by: string | null
+          meetup_event_id: string
+          notes: string | null
+          pack_label: string | null
+          parking_amount: number | null
+          phone: string | null
+          profiles: string | null
+          registration_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          cash_box?: string | null
+          contributed_amount?: number | null
+          created_at?: string
+          followup_date?: string | null
+          full_name: string
+          id?: string
+          invite_status?: Database["public"]["Enums"]["invite_status"]
+          invited_by?: string | null
+          meetup_event_id: string
+          notes?: string | null
+          pack_label?: string | null
+          parking_amount?: number | null
+          phone?: string | null
+          profiles?: string | null
+          registration_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          cash_box?: string | null
+          contributed_amount?: number | null
+          created_at?: string
+          followup_date?: string | null
+          full_name?: string
+          id?: string
+          invite_status?: Database["public"]["Enums"]["invite_status"]
+          invited_by?: string | null
+          meetup_event_id?: string
+          notes?: string | null
+          pack_label?: string | null
+          parking_amount?: number | null
+          phone?: string | null
+          profiles?: string | null
+          registration_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_invites_meetup_event_id_fkey"
+            columns: ["meetup_event_id"]
+            isOneToOne: false
+            referencedRelation: "meetup_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_invites_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "meetup_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_tasks: {
+        Row: {
+          created_at: string
+          due_date: string | null
+          id: string
+          meetup_event_id: string
+          notes: string | null
+          owner_label: string | null
+          owner_user_id: string | null
+          stage: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          meetup_event_id: string
+          notes?: string | null
+          owner_label?: string | null
+          owner_user_id?: string | null
+          stage?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          meetup_event_id?: string
+          notes?: string | null
+          owner_label?: string | null
+          owner_user_id?: string | null
+          stage?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_tasks_meetup_event_id_fkey"
+            columns: ["meetup_event_id"]
+            isOneToOne: false
+            referencedRelation: "meetup_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       friend_chat_messages: {
         Row: {
           created_at: string
@@ -2973,10 +3198,20 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "admin" | "user"
+      budget_scenario: "pessimiste" | "probable" | "optimiste"
       game_type_status: "PROJECT" | "COMING_SOON" | "AVAILABLE"
+      invite_status:
+        | "paid"
+        | "confirmed_unpaid"
+        | "pending"
+        | "free"
+        | "declined"
+        | "not_invited_yet"
+        | "not_invited"
       item_category: "ATTAQUE" | "PROTECTION" | "UTILITAIRE"
       monster_initial_status: "EN_BATAILLE" | "EN_FILE"
       monster_runtime_status: "EN_BATAILLE" | "EN_FILE" | "MORT"
+      task_status: "not_started" | "in_progress" | "completed" | "blocked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3105,10 +3340,21 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "admin", "user"],
+      budget_scenario: ["pessimiste", "probable", "optimiste"],
       game_type_status: ["PROJECT", "COMING_SOON", "AVAILABLE"],
+      invite_status: [
+        "paid",
+        "confirmed_unpaid",
+        "pending",
+        "free",
+        "declined",
+        "not_invited_yet",
+        "not_invited",
+      ],
       item_category: ["ATTAQUE", "PROTECTION", "UTILITAIRE"],
       monster_initial_status: ["EN_BATAILLE", "EN_FILE"],
       monster_runtime_status: ["EN_BATAILLE", "EN_FILE", "MORT"],
+      task_status: ["not_started", "in_progress", "completed", "blocked"],
     },
   },
 } as const

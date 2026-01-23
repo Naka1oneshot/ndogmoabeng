@@ -25,6 +25,7 @@ const AdminGames = lazy(() => import("./pages/AdminGames"));
 const AdminGameDetails = lazy(() => import("./pages/AdminGameDetails"));
 const AdminMeetups = lazy(() => import("./pages/AdminMeetups"));
 const AdminSubscriptions = lazy(() => import("./pages/AdminSubscriptions"));
+const AdminEventManagement = lazy(() => import("./pages/AdminEventManagement"));
 const WatchList = lazy(() => import("./pages/WatchList"));
 const WatchGame = lazy(() => import("./pages/WatchGame"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -68,6 +69,7 @@ const AppRoutes = memo(function AppRoutes() {
         <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
         <Route path="/admin/meetups" element={<AdminMeetups />} />
         <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
+        <Route path="/admin/event-management" element={<AdminEventManagement />} />
         <Route path="/watch" element={<WatchList />} />
         <Route path="/watch/:gameId" element={<WatchGame />} />
         <Route path="/profile" element={<Profile />} />
