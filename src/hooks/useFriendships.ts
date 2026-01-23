@@ -77,15 +77,25 @@ export function useFriendships() {
       });
       userIds.delete(user.id);
 
-      // Fetch profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, display_name, avatar_url')
-        .in('user_id', Array.from(userIds));
+      // Fetch friend profiles using secure RPC function
+      const profilePromises = Array.from(userIds).map(async (friendId) => {
+        const { data: profileData, error: profileError } = await supabase.rpc(
+          'get_friend_limited_profile',
+          { p_friend_user_id: friendId }
+        );
+        if (profileError) {
+          console.error('Error fetching friend profile:', profileError);
+          return null;
+        }
+        return profileData?.[0] || null;
+      });
 
-      if (profilesError) throw profilesError;
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      const profileResults = await Promise.all(profilePromises);
+      const profileMap = new Map(
+        profileResults
+          .filter((p): p is { user_id: string; display_name: string; avatar_url: string | null } => p !== null)
+          .map(p => [p.user_id, p])
+      );
 
       // Process friendships
       const accepted: Friend[] = [];
