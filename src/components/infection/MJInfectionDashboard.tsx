@@ -1227,6 +1227,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                 players={players}
                 sySuccessCount={roundState?.sy_success_count ?? 0}
                 syRequiredSuccess={roundState?.sy_required_success ?? 5}
+                roundStatus={roundState?.status}
               />
             </div>
           )}
