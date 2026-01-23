@@ -111,12 +111,29 @@ export function EventBudgetTab({ eventId }: Props) {
   const summary = getBudgetSummary();
   const scenarioActive = settings?.scenario_active || 'probable';
 
-  // Get the active scenario total
+  // Calculate filtered totals
+  const filteredTotals = filteredExpenses.reduce(
+    (acc, exp) => ({
+      pessimiste: acc.pessimiste + (exp.total_pessimiste || 0),
+      probable: acc.probable + (exp.total_probable || 0),
+      optimiste: acc.optimiste + (exp.total_optimiste || 0),
+      real: acc.real + (exp.total_real || 0),
+    }),
+    { pessimiste: 0, probable: 0, optimiste: 0, real: 0 }
+  );
+
+  // Get the active scenario total (full and filtered)
   const activeScenarioTotal = scenarioActive === 'pessimiste' 
     ? summary.totals.pessimiste 
     : scenarioActive === 'probable' 
       ? summary.totals.probable 
       : summary.totals.optimiste;
+
+  const activeScenarioFiltered = scenarioActive === 'pessimiste' 
+    ? filteredTotals.pessimiste 
+    : scenarioActive === 'probable' 
+      ? filteredTotals.probable 
+      : filteredTotals.optimiste;
 
   const handleSubmit = async () => {
     try {
@@ -234,15 +251,27 @@ export function EventBudgetTab({ eventId }: Props) {
                   <div className="text-xs text-muted-foreground">
                     Scénario actif: <span className="capitalize font-medium text-primary">{scenarioActive}</span>
                   </div>
-                  <div className="text-2xl font-bold">
-                    {activeScenarioTotal.toFixed(0)}€
-                  </div>
+                  {hasActiveFilters ? (
+                    <div className="text-2xl font-bold">
+                      {activeScenarioFiltered.toFixed(0)}€ <span className="text-base text-muted-foreground font-normal">/ {activeScenarioTotal.toFixed(0)}€</span>
+                    </div>
+                  ) : (
+                    <div className="text-2xl font-bold">
+                      {activeScenarioTotal.toFixed(0)}€
+                    </div>
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="text-xs text-muted-foreground">Réel</div>
-                  <div className="text-xl font-bold text-primary">
-                    {summary.totals.real.toFixed(0)}€
-                  </div>
+                  {hasActiveFilters ? (
+                    <div className="text-xl font-bold text-primary">
+                      {filteredTotals.real.toFixed(0)}€ <span className="text-sm text-muted-foreground font-normal">/ {summary.totals.real.toFixed(0)}€</span>
+                    </div>
+                  ) : (
+                    <div className="text-xl font-bold text-primary">
+                      {summary.totals.real.toFixed(0)}€
+                    </div>
+                  )}
                 </div>
               </div>
               <div className={cn(
@@ -258,25 +287,43 @@ export function EventBudgetTab({ eventId }: Props) {
             <Card className={cn(scenarioActive === 'pessimiste' && "opacity-50")}>
               <CardContent className="p-2 text-center">
                 <div className="text-xs text-muted-foreground">Pess.</div>
-                <div className="text-sm font-bold text-orange-600">
-                  {summary.totals.pessimiste.toFixed(0)}€
-                </div>
+                {hasActiveFilters ? (
+                  <div className="text-sm font-bold text-orange-600">
+                    {filteredTotals.pessimiste.toFixed(0)}€ <span className="text-xs text-muted-foreground font-normal">/ {summary.totals.pessimiste.toFixed(0)}€</span>
+                  </div>
+                ) : (
+                  <div className="text-sm font-bold text-orange-600">
+                    {summary.totals.pessimiste.toFixed(0)}€
+                  </div>
+                )}
               </CardContent>
             </Card>
             <Card className={cn(scenarioActive === 'probable' && "opacity-50")}>
               <CardContent className="p-2 text-center">
                 <div className="text-xs text-muted-foreground">Prob.</div>
-                <div className="text-sm font-bold text-blue-600">
-                  {summary.totals.probable.toFixed(0)}€
-                </div>
+                {hasActiveFilters ? (
+                  <div className="text-sm font-bold text-blue-600">
+                    {filteredTotals.probable.toFixed(0)}€ <span className="text-xs text-muted-foreground font-normal">/ {summary.totals.probable.toFixed(0)}€</span>
+                  </div>
+                ) : (
+                  <div className="text-sm font-bold text-blue-600">
+                    {summary.totals.probable.toFixed(0)}€
+                  </div>
+                )}
               </CardContent>
             </Card>
             <Card className={cn(scenarioActive === 'optimiste' && "opacity-50")}>
               <CardContent className="p-2 text-center">
                 <div className="text-xs text-muted-foreground">Opt.</div>
-                <div className="text-sm font-bold text-green-600">
-                  {summary.totals.optimiste.toFixed(0)}€
-                </div>
+                {hasActiveFilters ? (
+                  <div className="text-sm font-bold text-green-600">
+                    {filteredTotals.optimiste.toFixed(0)}€ <span className="text-xs text-muted-foreground font-normal">/ {summary.totals.optimiste.toFixed(0)}€</span>
+                  </div>
+                ) : (
+                  <div className="text-sm font-bold text-green-600">
+                    {summary.totals.optimiste.toFixed(0)}€
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -286,33 +333,53 @@ export function EventBudgetTab({ eventId }: Props) {
           <Card className={cn(scenarioActive === 'pessimiste' && "ring-2 ring-primary")}>
             <CardContent className="p-4 text-center">
               <div className="text-sm text-muted-foreground">Pessimiste</div>
-              <div className="text-2xl font-bold text-orange-600">
-                {summary.totals.pessimiste.toFixed(0)}€
-              </div>
+              {hasActiveFilters ? (
+                <div>
+                  <div className="text-2xl font-bold text-orange-600">{filteredTotals.pessimiste.toFixed(0)}€</div>
+                  <div className="text-xs text-muted-foreground">sur {summary.totals.pessimiste.toFixed(0)}€</div>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-orange-600">{summary.totals.pessimiste.toFixed(0)}€</div>
+              )}
             </CardContent>
           </Card>
           <Card className={cn(scenarioActive === 'probable' && "ring-2 ring-primary")}>
             <CardContent className="p-4 text-center">
               <div className="text-sm text-muted-foreground">Probable</div>
-              <div className="text-2xl font-bold text-blue-600">
-                {summary.totals.probable.toFixed(0)}€
-              </div>
+              {hasActiveFilters ? (
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">{filteredTotals.probable.toFixed(0)}€</div>
+                  <div className="text-xs text-muted-foreground">sur {summary.totals.probable.toFixed(0)}€</div>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-blue-600">{summary.totals.probable.toFixed(0)}€</div>
+              )}
             </CardContent>
           </Card>
           <Card className={cn(scenarioActive === 'optimiste' && "ring-2 ring-primary")}>
             <CardContent className="p-4 text-center">
               <div className="text-sm text-muted-foreground">Optimiste</div>
-              <div className="text-2xl font-bold text-green-600">
-                {summary.totals.optimiste.toFixed(0)}€
-              </div>
+              {hasActiveFilters ? (
+                <div>
+                  <div className="text-2xl font-bold text-green-600">{filteredTotals.optimiste.toFixed(0)}€</div>
+                  <div className="text-xs text-muted-foreground">sur {summary.totals.optimiste.toFixed(0)}€</div>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-green-600">{summary.totals.optimiste.toFixed(0)}€</div>
+              )}
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-sm text-muted-foreground">Réel</div>
-              <div className="text-2xl font-bold text-primary">
-                {summary.totals.real.toFixed(0)}€
-              </div>
+              {hasActiveFilters ? (
+                <div>
+                  <div className="text-2xl font-bold text-primary">{filteredTotals.real.toFixed(0)}€</div>
+                  <div className="text-xs text-muted-foreground">sur {summary.totals.real.toFixed(0)}€</div>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-primary">{summary.totals.real.toFixed(0)}€</div>
+              )}
             </CardContent>
           </Card>
         </div>
