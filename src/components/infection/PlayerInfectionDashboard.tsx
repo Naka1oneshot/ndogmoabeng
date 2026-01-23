@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,6 +11,26 @@ import { InfectionInventoryPanel } from './InfectionInventoryPanel';
 import { InfectionEventsPanel } from './InfectionEventsPanel';
 import { InfectionPrivateMessagesPanel } from './InfectionPrivateMessagesPanel';
 import { InfectionGameEndScreen } from './InfectionGameEndScreen';
+import { InfectionRoleRevealAnimation } from './InfectionRoleRevealAnimation';
+
+// Role display info for the reveal animation
+const ROLE_INFO: Record<string, { name: string; team: string }> = {
+  'PS': { name: 'Porteur Sain', team: 'Porte-Venin' },
+  'PV': { name: 'Porte-Venin', team: 'Porte-Venin' },
+  'BA': { name: 'Bras Armé', team: 'Synthétistes' },
+  'OC': { name: 'Œil du Crépuscule', team: 'Synthétistes' },
+  'SY': { name: 'Synthétiste', team: 'Synthétistes' },
+  'AE': { name: 'Agent Ezkar', team: 'Neutre' },
+  'SC': { name: 'Sans Cercle', team: 'Citoyen' },
+  'CV': { name: 'Citoyen Vacciné', team: 'Citoyen' },
+};
+
+const VICTORY_CONDITIONS: Record<string, string> = {
+  'Porte-Venin': 'Propager le virus et éliminer assez de joueurs sains pour prendre le contrôle du village.',
+  'Synthétistes': 'Trouver l\'antidote avant que le virus ne tue tout le monde.',
+  'Neutre': 'Identifier correctement le Bras Armé pour gagner.',
+  'Citoyen': 'Survivre jusqu\'à ce que les Synthétistes trouvent l\'antidote.',
+};
 
 interface Game {
   id: string;
@@ -52,6 +72,26 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
   const [roundState, setRoundState] = useState<RoundState | null>(null);
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [activeTab, setActiveTab] = useState('actions');
+  
+  // Role reveal animation state
+  const [showRoleReveal, setShowRoleReveal] = useState(false);
+  const hasShownRevealRef = useRef(false);
+  
+  // Check if we should show the role reveal animation (first time entering with role assigned)
+  useEffect(() => {
+    if (player.role_code && !hasShownRevealRef.current) {
+      const revealKey = `infection_role_revealed_${game.id}_${player.player_number}`;
+      const hasSeenReveal = localStorage.getItem(revealKey);
+      
+      if (!hasSeenReveal) {
+        setShowRoleReveal(true);
+        hasShownRevealRef.current = true;
+        localStorage.setItem(revealKey, 'true');
+      } else {
+        hasShownRevealRef.current = true;
+      }
+    }
+  }, [player.role_code, game.id, player.player_number]);
 
   useEffect(() => {
     fetchData();
@@ -106,6 +146,24 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
 
   const roleInfo = player.role_code ? INFECTION_ROLE_LABELS[player.role_code] : null;
   const isLocked = roundState?.status !== 'OPEN';
+  
+  // Get role details for reveal animation
+  const roleDetails = player.role_code ? ROLE_INFO[player.role_code] : null;
+  const victoryCondition = roleDetails ? VICTORY_CONDITIONS[roleDetails.team] : '';
+
+  // Role reveal animation overlay
+  if (showRoleReveal && player.role_code && roleDetails) {
+    return (
+      <InfectionRoleRevealAnimation
+        roleCode={player.role_code}
+        roleName={roleDetails.name}
+        teamName={roleDetails.team}
+        victoryCondition={victoryCondition}
+        playerName={player.display_name}
+        onComplete={() => setShowRoleReveal(false)}
+      />
+    );
+  }
 
   // Lobby
   if (game.status === 'LOBBY') {
