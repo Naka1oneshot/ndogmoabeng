@@ -109,12 +109,20 @@ function CapacityBadge({ available, total, icon, label, color }: {
 
 // Infection state badges component
 function InfectionStateBadges({ player }: { player: Player }) {
-  if (!player.is_carrier && !player.is_contagious && !player.will_die_at_manche && !player.immune_permanent) {
+  // Check if player is Patient 0 (infected at manche 1)
+  const isPatient0 = player.infected_at_manche === 1;
+  
+  if (!player.is_carrier && !player.is_contagious && !player.will_die_at_manche && !player.immune_permanent && !isPatient0) {
     return null;
   }
   
   return (
     <div className="flex flex-wrap gap-1 mt-1">
+      {isPatient0 && (
+        <Badge className="bg-[#9333EA]/20 text-[#9333EA] text-xs px-1 py-0 border border-[#9333EA]/40">
+          🎯 Patient 0
+        </Badge>
+      )}
       {player.is_carrier && (
         <Badge className="bg-[#B00020]/20 text-[#B00020] text-xs px-1 py-0">
           🦠 Porteur
