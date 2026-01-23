@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ interface SearchResult {
 }
 
 export function FriendSearchModal({ open, onOpenChange }: FriendSearchModalProps) {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -160,7 +162,15 @@ export function FriendSearchModal({ open, onOpenChange }: FriendSearchModalProps
                       {getInitials(result.display_name)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="font-medium">{result.display_name}</span>
+                  <button
+                    onClick={() => {
+                      onOpenChange(false);
+                      navigate(`/profile/${result.user_id}`);
+                    }}
+                    className="font-medium hover:underline hover:text-primary transition-colors"
+                  >
+                    {result.display_name}
+                  </button>
                 </div>
                 {renderStatus(result)}
               </div>

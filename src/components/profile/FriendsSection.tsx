@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +26,8 @@ import {
   Loader2,
   BarChart3,
   Search,
-  Gamepad2
+  Gamepad2,
+  ExternalLink
 } from 'lucide-react';
 import { useFriendships } from '@/hooks/useFriendships';
 import { FriendSearchModal } from './FriendSearchModal';
@@ -44,6 +46,7 @@ interface Friend {
 }
 
 export function FriendsSection() {
+  const navigate = useNavigate();
   const {
     friends,
     pendingRequests,
@@ -186,7 +189,12 @@ export function FriendsSection() {
                             {getInitials(friend.display_name)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-medium">{friend.display_name}</span>
+                        <button 
+                          onClick={() => navigate(`/profile/${friend.user_id}`)}
+                          className="font-medium hover:underline hover:text-primary transition-colors"
+                        >
+                          {friend.display_name}
+                        </button>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -266,7 +274,12 @@ export function FriendsSection() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <span className="font-medium">{request.display_name}</span>
+                        <button 
+                          onClick={() => navigate(`/profile/${request.user_id}`)}
+                          className="font-medium hover:underline hover:text-primary transition-colors"
+                        >
+                          {request.display_name}
+                        </button>
                         <p className="text-xs text-muted-foreground">
                           Souhaite devenir votre ami
                         </p>
@@ -321,7 +334,12 @@ export function FriendsSection() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <span className="font-medium">{request.display_name}</span>
+                        <button 
+                          onClick={() => navigate(`/profile/${request.user_id}`)}
+                          className="font-medium hover:underline hover:text-primary transition-colors"
+                        >
+                          {request.display_name}
+                        </button>
                         <p className="text-xs text-muted-foreground">
                           En attente de réponse
                         </p>

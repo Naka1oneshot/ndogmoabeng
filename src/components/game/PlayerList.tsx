@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Users, Crown, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PlayerProfileLink } from '@/components/common/PlayerProfileLink';
 
 interface Player {
   id: string;
@@ -11,6 +12,7 @@ interface Player {
   last_seen: string | null;
   status: string | null;
   player_number: number | null;
+  user_id: string | null;
 }
 
 interface PlayerListProps {
@@ -40,7 +42,7 @@ export function PlayerList({ gameId, className, showInactive = false }: PlayerLi
     // Always fetch ACTIVE players only (unless showInactive for MJ)
     let query = supabase
       .from('game_players')
-      .select('id, display_name, is_host, joined_at, last_seen, status, player_number')
+      .select('id, display_name, is_host, joined_at, last_seen, status, player_number, user_id')
       .eq('game_id', gameId);
     
     if (!showInactive) {
@@ -119,7 +121,9 @@ export function PlayerList({ gameId, className, showInactive = false }: PlayerLi
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold">
                   {player.player_number || player.display_name.charAt(0).toUpperCase()}
                 </div>
-                <span className="flex-1 font-medium">{player.display_name}</span>
+                <PlayerProfileLink userId={player.user_id} displayName={player.display_name} className="flex-1 font-medium">
+                  {player.display_name}
+                </PlayerProfileLink>
                 
                 {/* Online/Offline badge (informative only) */}
                 <span title={isOnline ? "En ligne" : "Hors ligne"}>

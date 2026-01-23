@@ -19,6 +19,7 @@ import {
   Gamepad2,
   Loader2,
   ExternalLink,
+  User,
 } from 'lucide-react';
 import { FloatingChatBubble } from './FloatingChatBubble';
 
@@ -192,7 +193,31 @@ export function GlobalChatPanel() {
                   {getInitials(selectedFriend?.display_name || 'U')}
                 </AvatarFallback>
               </Avatar>
-              <span className="font-medium">{selectedFriend?.display_name || 'Utilisateur'}</span>
+              <button
+                onClick={() => {
+                  if (selectedFriendId) {
+                    setIsOpen(false);
+                    navigate(`/profile/${selectedFriendId}`);
+                  }
+                }}
+                className="font-medium hover:underline hover:text-primary transition-colors"
+              >
+                {selectedFriend?.display_name || 'Utilisateur'}
+              </button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-auto"
+                onClick={() => {
+                  if (selectedFriendId) {
+                    setIsOpen(false);
+                    navigate(`/profile/${selectedFriendId}`);
+                  }
+                }}
+                title="Voir le profil"
+              >
+                <User className="h-4 w-4" />
+              </Button>
             </div>
 
             <ScrollArea className="flex-1 p-4">

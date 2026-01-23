@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Users, Wifi, WifiOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { PlayerProfileLink } from '@/components/common/PlayerProfileLink';
 
 interface LobbyPlayerListProps {
   gameId: string;
@@ -15,6 +16,7 @@ interface Player {
   clan: string | null;
   last_seen: string | null;
   is_host: boolean;
+  user_id: string | null;
 }
 
 const LobbyPlayerList: React.FC<LobbyPlayerListProps> = ({ gameId, currentPlayerNum }) => {
@@ -34,7 +36,7 @@ const LobbyPlayerList: React.FC<LobbyPlayerListProps> = ({ gameId, currentPlayer
     const fetchPlayers = async () => {
       const { data, error } = await supabase
         .from('game_players')
-        .select('id, display_name, player_number, clan, last_seen, is_host')
+        .select('id, display_name, player_number, clan, last_seen, is_host, user_id')
         .eq('game_id', gameId)
         .eq('status', 'ACTIVE')
         .order('player_number');
@@ -120,7 +122,9 @@ const LobbyPlayerList: React.FC<LobbyPlayerListProps> = ({ gameId, currentPlayer
               {/* Name and clan */}
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-medium truncate ${isCurrentPlayer ? 'text-primary' : ''}`}>
-                  {player.display_name}
+                  <PlayerProfileLink userId={player.user_id} displayName={player.display_name}>
+                    {player.display_name}
+                  </PlayerProfileLink>
                   {isCurrentPlayer && <span className="text-xs ml-1">(vous)</span>}
                 </p>
                 {player.clan && (

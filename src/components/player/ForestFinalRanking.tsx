@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Trophy, Users } from 'lucide-react';
 
@@ -9,12 +10,14 @@ interface GamePlayer {
   jetons: number;
   recompenses: number;
   mate_num: number | null;
+  user_id: string | null;
 }
 
 interface Team {
   members: GamePlayer[];
   teamScore: number;
   teamName: string;
+  userIds: (string | null)[];
 }
 
 interface ForestFinalRankingProps {
@@ -24,6 +27,7 @@ interface ForestFinalRankingProps {
 }
 
 export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber }: ForestFinalRankingProps) {
+  const navigate = useNavigate();
   const [allMonstersDead, setAllMonstersDead] = useState(false);
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +77,7 @@ export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber 
         // Fetch players for ranking
         const { data: playersData } = await supabase
           .from('game_players')
-          .select('id, display_name, player_number, jetons, recompenses, mate_num')
+          .select('id, display_name, player_number, jetons, recompenses, mate_num, user_id')
           .eq('game_id', gameId)
           .is('removed_at', null)
           .order('player_number', { ascending: true });
@@ -143,6 +147,7 @@ export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber 
         members: teammates,
         teamScore,
         teamName,
+        userIds: teammates.map(t => t.user_id),
       });
     }
 
@@ -200,12 +205,36 @@ export function ForestFinalRanking({ gameId, sessionGameId, currentPlayerNumber 
                       {!isSoloPlayer && <Users className="h-4 w-4 text-primary" />}
                       <div>
                         <div className="font-medium">
-                          {team.teamName}
+                          {isSoloPlayer && team.userIds[0] ? (
+                            <button
+                              onClick={() => navigate(`/profile/${team.userIds[0]}`)}
+                              className="hover:underline hover:text-primary transition-colors"
+                            >
+                              {team.teamName}
+                            </button>
+                          ) : (
+                            team.teamName
+                          )}
                           {isCurrentTeam && <span className="ml-2 text-primary">(vous)</span>}
                         </div>
                         {!isSoloPlayer && (
                           <div className="text-xs text-muted-foreground">
-                            {team.members.map(m => `${m.display_name}: ${m.jetons + m.recompenses}`).join(' | ')}
+                            {team.members.map((m, i) => (
+                              <span key={m.id}>
+                                {i > 0 && ' | '}
+                                {m.user_id ? (
+                                  <button
+                                    onClick={() => navigate(`/profile/${m.user_id}`)}
+                                    className="hover:underline hover:text-primary transition-colors"
+                                  >
+                                    {m.display_name}
+                                  </button>
+                                ) : (
+                                  m.display_name
+                                )}
+                                : {m.jetons + m.recompenses}
+                              </span>
+                            ))}
                           </div>
                         )}
                       </div>

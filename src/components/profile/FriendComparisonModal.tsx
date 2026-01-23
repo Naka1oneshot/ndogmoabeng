@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, Swords, Gamepad2, TrendingUp, Crown, Calendar } from 'lucide-react';
+import { Trophy, Swords, Gamepad2, TrendingUp, Crown, Calendar, ExternalLink } from 'lucide-react';
 import { useFriendships } from '@/hooks/useFriendships';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -45,6 +46,7 @@ interface GameTogether {
 }
 
 export function FriendComparisonModal({ open, onOpenChange, friend }: FriendComparisonModalProps) {
+  const navigate = useNavigate();
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [games, setGames] = useState<GameTogether[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,13 +95,32 @@ export function FriendComparisonModal({ open, onOpenChange, friend }: FriendComp
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <Avatar className="w-10 h-10">
-              <AvatarImage src={friend.avatar_url || undefined} />
-              <AvatarFallback className="bg-primary/20 text-primary">
-                {getInitials(friend.display_name)}
-              </AvatarFallback>
-            </Avatar>
-            Comparaison avec {friend.display_name}
+            <button
+              onClick={() => {
+                onOpenChange(false);
+                navigate(`/profile/${friend.user_id}`);
+              }}
+              className="hover:opacity-80 transition-opacity"
+            >
+              <Avatar className="w-10 h-10">
+                <AvatarImage src={friend.avatar_url || undefined} />
+                <AvatarFallback className="bg-primary/20 text-primary">
+                  {getInitials(friend.display_name)}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+            <span>
+              Comparaison avec{' '}
+              <button
+                onClick={() => {
+                  onOpenChange(false);
+                  navigate(`/profile/${friend.user_id}`);
+                }}
+                className="hover:underline hover:text-primary transition-colors"
+              >
+                {friend.display_name}
+              </button>
+            </span>
           </DialogTitle>
         </DialogHeader>
 

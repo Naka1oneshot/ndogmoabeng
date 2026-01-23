@@ -55,8 +55,16 @@ export function GameInvitationsSection() {
           >
             <div className="flex-1">
               <div className="font-medium">{invitation.game_name}</div>
-              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                <span>Invité par {invitation.invited_by_name}</span>
+              <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+                <span>
+                  Invité par{' '}
+                  <button
+                    onClick={() => navigate(`/profile/${invitation.invited_by_user_id}`)}
+                    className="font-medium hover:underline hover:text-primary transition-colors"
+                  >
+                    {invitation.invited_by_name}
+                  </button>
+                </span>
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {format(new Date(invitation.created_at), 'dd MMM à HH:mm', { locale: fr })}
