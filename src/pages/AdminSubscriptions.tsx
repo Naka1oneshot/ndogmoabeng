@@ -5,6 +5,7 @@ import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { TokenRowCompact, LoyaltyRowCompact, RoleRowCompact, AuditRowCompact } from '@/components/admin/SubscriptionRowCompact';
 
 interface UserBonus {
   user_id: string;
@@ -94,6 +96,7 @@ export default function AdminSubscriptions() {
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const { isAdminOrSuper, isSuperAdmin, loading: roleLoading } = useUserRole();
+  const isMobile = useIsMobile();
   
   // Tokens state
   const [searchTerm, setSearchTerm] = useState('');
@@ -692,6 +695,12 @@ export default function AdminSubscriptions() {
                   <p className="text-center text-muted-foreground py-8">
                     Aucun utilisateur avec des tokens bonus
                   </p>
+                ) : isMobile ? (
+                  <div className="space-y-2">
+                    {filteredBonuses.map((bonus) => (
+                      <TokenRowCompact key={bonus.user_id} bonus={bonus} />
+                    ))}
+                  </div>
                 ) : (
                   <Table>
                     <TableHeader>
@@ -822,6 +831,12 @@ export default function AdminSubscriptions() {
                   <p className="text-center text-muted-foreground py-8">
                     Aucun utilisateur avec des points de fidélité
                   </p>
+                ) : isMobile ? (
+                  <div className="space-y-2">
+                    {filteredLoyaltyUsers.map((loyaltyUser) => (
+                      <LoyaltyRowCompact key={loyaltyUser.user_id} loyaltyUser={loyaltyUser} />
+                    ))}
+                  </div>
                 ) : (
                   <Table>
                     <TableHeader>
@@ -936,6 +951,17 @@ export default function AdminSubscriptions() {
                     <p className="text-center text-muted-foreground py-8">
                       Aucun utilisateur avec un rôle spécial
                     </p>
+                  ) : isMobile ? (
+                    <div className="space-y-2">
+                      {filteredUsersWithRoles.map((userRole) => (
+                        <RoleRowCompact
+                          key={userRole.user_id}
+                          userRole={userRole}
+                          revokingUserId={revokingUserId}
+                          onRevoke={handleRevokeAdmin}
+                        />
+                      ))}
+                    </div>
                   ) : (
                     <Table>
                       <TableHeader>
@@ -1027,6 +1053,12 @@ export default function AdminSubscriptions() {
                     <p className="text-center text-muted-foreground py-8">
                       Aucune action enregistrée
                     </p>
+                  ) : isMobile ? (
+                    <div className="space-y-2">
+                      {auditLog.map((entry) => (
+                        <AuditRowCompact key={entry.id} entry={entry} />
+                      ))}
+                    </div>
                   ) : (
                     <Table>
                       <TableHeader>
