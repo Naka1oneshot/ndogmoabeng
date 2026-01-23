@@ -32,6 +32,10 @@ interface BotDecisionResult {
   target?: number;
   amount?: number;
   skipped_reason?: string;
+  // Additional context for MJ visibility
+  has_gilet?: boolean;
+  has_antidote?: boolean;
+  corruption_paid?: number;
 }
 
 interface RoundState {
@@ -265,14 +269,22 @@ Deno.serve(async (req) => {
 
     // Process each bot based on role
     for (const bot of bots) {
+      const playerInventory = inventory.filter(i => i.owner_num === bot.player_number);
+      const existingInput = existingInputsMap.get(bot.player_number);
+      
+      // Check for protection items
+      const hasGilet = playerInventory.some(i => i.objet === 'Gilet' && i.quantite > 0);
+      const hasAntidote = playerInventory.some(i => 
+        (i.objet === 'Antidote PV' || i.objet === 'Antidote Ezkar') && i.quantite > 0
+      );
+      
       const result: BotDecisionResult = {
         player_number: bot.player_number,
         display_name: bot.display_name,
         role_code: bot.role_code,
+        has_gilet: hasGilet,
+        has_antidote: hasAntidote,
       };
-
-      const playerInventory = inventory.filter(i => i.owner_num === bot.player_number);
-      const existingInput = existingInputsMap.get(bot.player_number);
 
       try {
         switch (bot.role_code) {
@@ -567,6 +579,7 @@ Deno.serve(async (req) => {
                   result.action = 'CORRUPTION';
                   result.target = aePlayer.player_number!;
                   result.amount = corruptionAmount;
+                  result.corruption_paid = corruptionAmount;
                 } else {
                   result.skipped_reason = 'Already submitted corruption';
                 }
