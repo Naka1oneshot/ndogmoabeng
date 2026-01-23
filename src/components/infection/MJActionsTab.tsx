@@ -13,6 +13,7 @@ interface Player {
   role_code: string | null;
   is_alive: boolean | null;
   is_bot?: boolean;
+  has_antibodies?: boolean | null;
 }
 
 interface InfectionInput {
@@ -187,6 +188,11 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
   const syPlayers = players.filter(p => p.role_code === 'SY');
   const ocPlayer = players.find(p => p.role_code === 'OC');
   const aePlayers = players.filter(p => p.role_code === 'AE');
+  const cvPlayers = players.filter(p => p.role_code === 'CV');
+  const kkPlayers = players.filter(p => p.role_code === 'KK');
+  
+  // Find the CV with antibodies
+  const antibodyCarrier = cvPlayers.find(p => p.has_antibodies === true);
   
   // Get all players with Ezkar protections
   const ezkarProtectedPlayers = players.filter(p => {
@@ -480,6 +486,64 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
               )}
             </div>
           </div>
+
+          {/* CV Actions - Citoyens Vaccinés */}
+          {cvPlayers.length > 0 && (
+            <div className={theme.card}>
+              <div className="p-3 border-b border-[#2D3748] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-[#9CA3AF]" />
+                  <span className="font-semibold">Citoyens Vaccinés ({cvPlayers.length})</span>
+                </div>
+                {antibodyCarrier && (
+                  <Badge className="bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/50">
+                    🧬 Anticorps: #{antibodyCarrier.player_number} {antibodyCarrier.display_name}
+                  </Badge>
+                )}
+              </div>
+              <div className="divide-y divide-[#2D3748]">
+                {cvPlayers.map(p => (
+                  <div key={p.id} className="p-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className={p.is_alive === false ? 'line-through text-[#6B7280]' : ''}>
+                          #{p.player_number} {p.display_name}
+                        </span>
+                        {p.is_bot && <Badge variant="outline" className="text-xs px-1 py-0">BOT</Badge>}
+                      </div>
+                      {p.has_antibodies && (
+                        <Badge className="bg-[#D4AF37]/20 text-[#D4AF37] text-xs animate-pulse">
+                          🧬 Porteur Anticorps
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* KK Actions - Kamikazes */}
+          {kkPlayers.length > 0 && (
+            <div className={theme.card}>
+              <div className="p-3 border-b border-[#2D3748] flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#6B7280]" />
+                <span className="font-semibold">Kamikazes ({kkPlayers.length})</span>
+              </div>
+              <div className="divide-y divide-[#2D3748]">
+                {kkPlayers.map(p => (
+                  <div key={p.id} className="p-3">
+                    <div className="flex items-center gap-2">
+                      <span className={p.is_alive === false ? 'line-through text-[#6B7280]' : ''}>
+                        #{p.player_number} {p.display_name}
+                      </span>
+                      {p.is_bot && <Badge variant="outline" className="text-xs px-1 py-0">BOT</Badge>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="shots" className="mt-4">
