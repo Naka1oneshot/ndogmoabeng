@@ -30,6 +30,7 @@ const AdminEventManagement = lazy(() => import("./pages/AdminEventManagement"));
 const WatchList = lazy(() => import("./pages/WatchList"));
 const WatchGame = lazy(() => import("./pages/WatchGame"));
 const Profile = lazy(() => import("./pages/Profile"));
+const PublicProfile = lazy(() => import("./pages/PublicProfile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Optimized QueryClient configuration
@@ -74,6 +75,7 @@ const AppRoutes = memo(function AppRoutes() {
         <Route path="/watch" element={<WatchList />} />
         <Route path="/watch/:gameId" element={<WatchGame />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:userId" element={<PublicProfile />} />
         <Route path="/presentation/:gameId" element={<Presentation />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -3101,6 +3101,30 @@ export type Database = {
           played_at: string
         }[]
       }
+      get_public_comparison: {
+        Args: { p_target_user_id: string }
+        Returns: {
+          games_together: number
+          my_games_played: number
+          my_games_won: number
+          my_wins_together: number
+          target_games_played: number
+          target_games_won: number
+          target_wins_together: number
+        }[]
+      }
+      get_public_game_history: {
+        Args: { p_limit?: number; p_user_id: string }
+        Returns: {
+          game_id: string
+          game_name: string
+          game_type_code: string
+          game_type_name: string
+          played_at: string
+          player_display_name: string
+          result: string
+        }[]
+      }
       get_public_game_players: {
         Args: { p_game_id: string }
         Returns: {
@@ -3109,6 +3133,18 @@ export type Database = {
           is_alive: boolean
           is_bot: boolean
           player_number: number
+        }[]
+      }
+      get_public_profile: {
+        Args: { p_user_id: string }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          display_name: string
+          games_played: number
+          games_won: number
+          total_rewards: number
+          user_id: string
         }[]
       }
       get_user_email: { Args: { user_id: string }; Returns: string }
