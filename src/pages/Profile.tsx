@@ -55,6 +55,7 @@ import { GameInvitationsSection } from '@/components/profile/GameInvitationsSect
 import { SubscriptionSection } from '@/components/profile/SubscriptionSection';
 import { LoyaltyPointsSection } from '@/components/profile/LoyaltyPointsSection';
 import { GameHistorySection } from '@/components/profile/GameHistorySection';
+import { MyRegistrationsSection } from '@/components/profile/MyRegistrationsSection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -449,6 +450,9 @@ export default function Profile() {
 
         {/* Friends Section */}
         <FriendsSection />
+
+        {/* My Registrations Section */}
+        <MyRegistrationsSection />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
