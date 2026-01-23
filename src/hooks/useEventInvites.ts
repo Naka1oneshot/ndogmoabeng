@@ -7,6 +7,7 @@ export interface EventInvite {
   id: string;
   meetup_event_id: string;
   full_name: string;
+  email: string | null;
   address: string | null;
   phone: string | null;
   profiles: string | null;
@@ -194,20 +195,31 @@ export function useEventInvites(eventId: string | null) {
     return data || [];
   }, []);
 
-  async function findUserByEmail(email: string): Promise<{ user_id: string; display_name: string } | null> {
-    if (!email) return null;
+  const searchUserByEmail = useCallback(async (email: string): Promise<{ user_id: string; display_name: string; avatar_url: string | null } | null> => {
+    if (!email || !email.includes('@')) return null;
     
-    // We can't directly query auth.users, but we can use a stored function if available
-    // For now, we search in profiles by checking if any profile matches
-    // This would need a profiles.email field or an RPC function
-    return null;
-  }
-
-  async function autoLinkByEmail(inviteId: string, email: string): Promise<boolean> {
-    // This would require email to be stored in profiles or an admin RPC
-    // For now, return false - implement if profiles has email
-    return false;
-  }
+    try {
+      const { data, error } = await supabase
+        .rpc('admin_search_user_by_email', { search_email: email });
+      
+      if (error) {
+        console.error('Error searching user by email:', error);
+        return null;
+      }
+      
+      if (data && data.length > 0) {
+        return {
+          user_id: data[0].user_id,
+          display_name: data[0].display_name,
+          avatar_url: data[0].avatar_url,
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error('Error in searchUserByEmail:', err);
+      return null;
+    }
+  }, []);
 
   function getStats(): InviteStats {
     const paid = invites.filter(i => i.invite_status === 'paid');
@@ -266,6 +278,7 @@ export function useEventInvites(eventId: string | null) {
     unlinkUser,
     linkToRegistration,
     searchProfiles,
+    searchUserByEmail,
     getStats,
     exportToCSV,
     refetch: () => eventId && fetchInvites(eventId),

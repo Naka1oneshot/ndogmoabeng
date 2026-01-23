@@ -522,6 +522,7 @@ export type Database = {
           cash_box: string | null
           contributed_amount: number | null
           created_at: string
+          email: string | null
           followup_date: string | null
           full_name: string
           id: string
@@ -542,6 +543,7 @@ export type Database = {
           cash_box?: string | null
           contributed_amount?: number | null
           created_at?: string
+          email?: string | null
           followup_date?: string | null
           full_name: string
           id?: string
@@ -562,6 +564,7 @@ export type Database = {
           cash_box?: string | null
           contributed_amount?: number | null
           created_at?: string
+          email?: string | null
           followup_date?: string | null
           full_name?: string
           id?: string
@@ -3022,6 +3025,14 @@ export type Database = {
           p_user_id: string
         }
         Returns: number
+      }
+      admin_search_user_by_email: {
+        Args: { search_email: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          user_id: string
+        }[]
       }
       assign_admin_role: {
         Args: { target_user_id: string }
