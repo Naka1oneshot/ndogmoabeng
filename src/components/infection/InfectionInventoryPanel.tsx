@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Package, Shield, Trophy, Play } from 'lucide-react';
+import { Package, Shield, Play } from 'lucide-react';
 import { InfectionRoleRevealAnimation } from './InfectionRoleRevealAnimation';
 
 interface Player {
@@ -26,25 +26,18 @@ interface InfectionInventoryPanelProps {
   player: Player;
 }
 
-// Role display info
-const ROLE_INFO: Record<string, { name: string; team: string; emoji: string; color: string; abilities: string[] }> = {
-  'PS': { name: 'Porteur Sain', team: 'Porte-Venin', emoji: '🦠', color: '#B00020', abilities: ['Peut désigner le Patient Zéro initial', 'Connaît l\'identité du Porte-Venin'] },
-  'PV': { name: 'Porte-Venin', team: 'Porte-Venin', emoji: '💀', color: '#B00020', abilities: ['Peut tirer pour éliminer un joueur', 'Peut injecter l\'antidote (faux) à un joueur', 'Connaît l\'identité du Porteur Sain'] },
-  'BA': { name: 'Bras Armé', team: 'Synthétistes', emoji: '🔫', color: '#2AB3A6', abilities: ['Peut tirer pour éliminer un joueur suspect', 'Immunisé contre le virus', 'Connu de l\'Œil du Crépuscule'] },
-  'OC': { name: 'Œil du Crépuscule', team: 'Synthétistes', emoji: '👁️', color: '#2AB3A6', abilities: ['Peut scanner un joueur pour connaître son équipe', 'Connaît l\'identité du Bras Armé', 'Immunisé contre le virus'] },
-  'SY': { name: 'Synthétiste', team: 'Synthétistes', emoji: '🧪', color: '#2AB3A6', abilities: ['Peut rechercher l\'antidote chaque manche', 'Les recherches réussies comptent vers la victoire', 'Immunisé contre le virus'] },
-  'AE': { name: 'Agent Ezkar', team: 'Neutre', emoji: '🕵️', color: '#D4AF37', abilities: ['Peut saboter les actions d\'un joueur', 'Doit identifier le Bras Armé pour gagner', 'Joue seul, sans équipe'] },
-  'SC': { name: 'Sans Cercle', team: 'Citoyen', emoji: '👤', color: '#6B7280', abilities: ['Pas de pouvoir spécial', 'Peut être infecté par le virus', 'Vote pour identifier les suspects'] },
-  'CV': { name: 'Citoyen Vacciné', team: 'Citoyen', emoji: '💉', color: '#6B7280', abilities: ['Immunisé contre le virus', 'Peut être ciblé mais ne sera pas infecté', 'Vote pour identifier les suspects'] },
+// Role display info (minimal - no secret abilities)
+const ROLE_INFO: Record<string, { name: string; team: string; emoji: string; color: string }> = {
+  'PS': { name: 'Porteur Sain', team: 'Porte-Venin', emoji: '🦠', color: '#B00020' },
+  'PV': { name: 'Porte-Venin', team: 'Porte-Venin', emoji: '💀', color: '#B00020' },
+  'BA': { name: 'Bras Armé', team: 'Synthétistes', emoji: '🔫', color: '#2AB3A6' },
+  'OC': { name: 'Œil du Crépuscule', team: 'Synthétistes', emoji: '👁️', color: '#2AB3A6' },
+  'SY': { name: 'Synthétiste', team: 'Synthétistes', emoji: '🧪', color: '#2AB3A6' },
+  'AE': { name: 'Agent Ezkar', team: 'Neutre', emoji: '🕵️', color: '#D4AF37' },
+  'SC': { name: 'Sans Cercle', team: 'Citoyen', emoji: '👤', color: '#6B7280' },
+  'CV': { name: 'Citoyen Vacciné', team: 'Citoyen', emoji: '💉', color: '#6B7280' },
 };
 
-// Victory conditions by team
-const VICTORY_CONDITIONS: Record<string, string> = {
-  'Porte-Venin': 'Propager le virus et éliminer assez de joueurs sains pour prendre le contrôle du village.',
-  'Synthétistes': 'Trouver l\'antidote avant que le virus ne tue tout le monde.',
-  'Neutre': 'Identifier correctement le Bras Armé pour gagner.',
-  'Citoyen': 'Survivre jusqu\'à ce que les Synthétistes trouvent l\'antidote.',
-};
 
 const ITEM_ICONS: Record<string, string> = {
   'Balle BA': '🔫',
@@ -112,7 +105,6 @@ export function InfectionInventoryPanel({
   const activeItems = inventory.filter(i => i.quantite > 0);
   
   const roleInfo = player.role_code ? ROLE_INFO[player.role_code] : null;
-  const victoryCondition = roleInfo ? VICTORY_CONDITIONS[roleInfo.team] : null;
 
   // Role reveal animation overlay
   if (showRoleReveal && player.role_code && roleInfo) {
@@ -121,7 +113,7 @@ export function InfectionInventoryPanel({
         roleCode={player.role_code}
         roleName={roleInfo.name}
         teamName={roleInfo.team}
-        victoryCondition={victoryCondition || ''}
+        victoryCondition=""
         playerName={`Joueur ${player.player_number}`}
         onComplete={() => setShowRoleReveal(false)}
       />
@@ -171,35 +163,6 @@ export function InfectionInventoryPanel({
               Revoir
             </Button>
           </div>
-          
-          {victoryCondition && (
-            <div className="mt-3 pt-3 border-t" style={{ borderColor: `${roleInfo.color}30` }}>
-              <div className="flex items-start gap-2">
-                <Trophy className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: roleInfo.color }} />
-                <p className="text-sm text-[#EAEAF2]/80">
-                  <span className="font-medium" style={{ color: roleInfo.color }}>Victoire : </span>
-                  {victoryCondition}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Abilities Section */}
-          {roleInfo.abilities && roleInfo.abilities.length > 0 && (
-            <div className="mt-3 pt-3 border-t" style={{ borderColor: `${roleInfo.color}30` }}>
-              <p className="text-xs font-semibold mb-2" style={{ color: roleInfo.color }}>
-                ⚡ Capacités spéciales
-              </p>
-              <ul className="space-y-1">
-                {roleInfo.abilities.map((ability, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm text-[#EAEAF2]/80">
-                    <span className="text-xs mt-1" style={{ color: roleInfo.color }}>•</span>
-                    {ability}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       )}
 
