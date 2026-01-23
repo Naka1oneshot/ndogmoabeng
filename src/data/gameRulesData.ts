@@ -15,11 +15,11 @@ export const GAME_RULES: Record<string, GameRules> = {
   RIVIERES: {
     id: 'rivieres',
     title: 'Les Rivières de Ndogmoabeng',
-    objective: 'Survivez à la traversée des rivières dangereuses en gérant vos jetons et en prenant les bonnes décisions à chaque écluse.',
+    objective: 'Survivez à la traversée des 9 niveaux de rivières dangereuses. Plus vous restez longtemps sur le bateau, plus votre score final sera élevé !',
     setup: [
-      'Chaque joueur commence avec un nombre de jetons défini par le MJ.',
-      'Le bateau traverse plusieurs niveaux de rivières de plus en plus dangereuses.',
-      'À chaque niveau, un indice de danger est annoncé.',
+      'Chaque joueur commence avec 100 jetons (bonus x1.5 pour les Royaux).',
+      'Le bateau traverse 9 niveaux de rivières de plus en plus dangereuses.',
+      'À chaque niveau, un indice de danger est annoncé par le MJ.',
     ],
     phases: [
       {
@@ -36,13 +36,16 @@ export const GAME_RULES: Record<string, GameRules> = {
       }
     ],
     winConditions: [
-      { team: 'Individuel', condition: 'Terminer la partie avec le maximum de jetons validés.' },
-      { team: 'Survivants', condition: 'Les joueurs encore sur le bateau à la fin de la traversée complète se partagent la cagnotte.' }
+      { team: '🏆 Score Final', condition: 'Formule : (Niveaux validés × Jetons) ÷ 9. Réussir les 9 niveaux = Score égal à vos jetons !' },
+      { team: 'Survivants N9', condition: 'Les joueurs encore sur le bateau au niveau 9 se partagent la cagnotte + bonus de 50 jetons chacun.' },
+      { team: 'Échec du bateau', condition: 'En cas d\'échec, les joueurs à terre ou protégés reçoivent un bonus de (niveau × 10) jetons.' }
     ],
     tips: [
-      'Observez le comportement des autres joueurs pour anticiper le danger.',
-      'Ne misez pas tout vos jetons trop tôt.',
-      'Le danger augmente à chaque niveau - sachez quand vous retirer.',
+      '⭐ OBJECTIF CLÉ : Survivre jusqu\'au niveau 9 maximise votre score final !',
+      'Quitter tôt = sécuriser vos jetons mais diviser votre score par 9.',
+      'Exemple : 80 jetons au niveau 5 = score de 44. Mais 80 jetons au niveau 9 = score de 80 !',
+      'Le danger augmente à chaque niveau - évaluez le risque vs la récompense.',
+      'Les protections (Keryndes) peuvent vous sauver en cas d\'échec du bateau.',
     ]
   },
 
