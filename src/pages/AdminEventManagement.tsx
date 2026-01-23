@@ -17,7 +17,7 @@ export default function AdminEventManagement() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   const { events, loading: eventsLoading } = useAdminMeetups();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('invites');
@@ -30,10 +30,10 @@ export default function AdminEventManagement() {
       navigate('/auth');
       return;
     }
-    if (!authLoading && !roleLoading && user && !isAdmin) {
+    if (!authLoading && !roleLoading && user && !isAdminOrSuper) {
       navigate('/');
     }
-  }, [user, authLoading, isAdmin, roleLoading, navigate]);
+  }, [user, authLoading, isAdminOrSuper, roleLoading, navigate]);
 
   useEffect(() => {
     // Priority: state eventId > first event
@@ -52,7 +52,7 @@ export default function AdminEventManagement() {
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!user || !isAdminOrSuper) {
     return null;
   }
 
