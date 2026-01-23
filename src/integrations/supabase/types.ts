@@ -2852,6 +2852,54 @@ export type Database = {
           },
         ]
       }
+      shop_products: {
+        Row: {
+          category: string | null
+          colors: string[] | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          name: string
+          price_eur: number
+          sizes: string[] | null
+          sort_order: number | null
+          stock: number | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          colors?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name: string
+          price_eur?: number
+          sizes?: string[] | null
+          sort_order?: number | null
+          stock?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          colors?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string
+          price_eur?: number
+          sizes?: string[] | null
+          sort_order?: number | null
+          stock?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shop_requests: {
         Row: {
           created_at: string

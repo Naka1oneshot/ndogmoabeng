@@ -7,7 +7,7 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
-import { Menu, X, Gamepad2, LogIn, User, LogOut, Shield } from 'lucide-react';
+import { Menu, X, Gamepad2, LogIn, User, LogOut, Shield, Store } from 'lucide-react';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 export function LandingNavbar() {
@@ -77,6 +77,13 @@ export function LandingNavbar() {
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 Participer
+              </button>
+              <button 
+                onClick={() => navigate('/boutique')}
+                className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                <Store className="h-4 w-4" />
+                Boutique
               </button>
               
               {gamesCount > 0 && (
@@ -199,6 +206,13 @@ export function LandingNavbar() {
                   className="text-left text-muted-foreground hover:text-foreground transition-colors py-2"
                 >
                   Participer
+                </button>
+                <button 
+                  onClick={() => { navigate('/boutique'); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-2 text-left text-muted-foreground hover:text-foreground transition-colors py-2"
+                >
+                  <Store className="h-4 w-4" />
+                  Boutique
                 </button>
                 {gamesCount > 0 && (
                   <div className="flex items-center gap-2 text-primary text-sm py-2">
