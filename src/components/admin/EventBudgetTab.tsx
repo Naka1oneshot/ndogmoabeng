@@ -62,6 +62,8 @@ export function EventBudgetTab({ eventId }: Props) {
   const [showSettings, setShowSettings] = useState(false);
   const [showNewTypeInput, setShowNewTypeInput] = useState(false);
   const [newTypeValue, setNewTypeValue] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterState, setFilterState] = useState<string>('all');
   const [formData, setFormData] = useState<Partial<EventExpenseItem>>({
     label: '',
     expense_type: '',
@@ -78,6 +80,16 @@ export function EventBudgetTab({ eventId }: Props) {
   // Merge predefined types with custom types from expenses
   const existingCustomTypes = [...new Set(expenses.map(e => e.expense_type))];
   const allExpenseTypes = [...new Set([...PREDEFINED_EXPENSE_TYPES, ...existingCustomTypes])].sort();
+
+  // Get unique states for filter
+  const allStates = [...new Set(expenses.map(e => e.state).filter(Boolean))].sort() as string[];
+
+  // Filter expenses
+  const filteredExpenses = expenses.filter(exp => {
+    const matchType = filterType === 'all' || exp.expense_type === filterType;
+    const matchState = filterState === 'all' || exp.state === filterState || (filterState === '__none__' && !exp.state);
+    return matchType && matchState;
+  });
 
   const summary = getBudgetSummary();
   const scenarioActive = settings?.scenario_active || 'probable';
@@ -185,8 +197,8 @@ export function EventBudgetTab({ eventId }: Props) {
     }
   };
 
-  // Group expenses by type
-  const expensesByType = expenses.reduce((acc, exp) => {
+  // Group filtered expenses by type
+  const expensesByType = filteredExpenses.reduce((acc, exp) => {
     if (!acc[exp.expense_type]) acc[exp.expense_type] = [];
     acc[exp.expense_type].push(exp);
     return acc;
@@ -289,20 +301,54 @@ export function EventBudgetTab({ eventId }: Props) {
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setShowSettings(true)} variant="outline" size={isMobile ? "sm" : "default"}>
-          <Settings className="h-4 w-4 mr-2" />
-          {isMobile ? '' : 'Paramètres'}
-        </Button>
-        <Button onClick={exportToCSV} variant="outline" size={isMobile ? "sm" : "default"}>
-          <Download className="h-4 w-4 mr-2" />
-          {isMobile ? '' : 'Export CSV'}
-        </Button>
-        <Button onClick={() => { resetForm(); setEditingExpense(null); setShowForm(true); }} size={isMobile ? "sm" : "default"}>
-          <Plus className="h-4 w-4 mr-2" />
-          Ajouter
-        </Button>
+      {/* Filters & Actions */}
+      <div className="flex flex-col gap-3">
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2">
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-[160px] bg-background">
+              <SelectValue placeholder="Filtrer par type" />
+            </SelectTrigger>
+            <SelectContent className="bg-background z-50">
+              <SelectItem value="all">Tous les types</SelectItem>
+              {allExpenseTypes.map(t => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterState} onValueChange={setFilterState}>
+            <SelectTrigger className="w-[160px] bg-background">
+              <SelectValue placeholder="Filtrer par état" />
+            </SelectTrigger>
+            <SelectContent className="bg-background z-50">
+              <SelectItem value="all">Tous les états</SelectItem>
+              <SelectItem value="__none__">Sans état</SelectItem>
+              {allStates.map(s => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(filterType !== 'all' || filterState !== 'all') && (
+            <Button variant="ghost" size="sm" onClick={() => { setFilterType('all'); setFilterState('all'); }}>
+              Réinitialiser
+            </Button>
+          )}
+        </div>
+        {/* Actions */}
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setShowSettings(true)} variant="outline" size={isMobile ? "sm" : "default"}>
+            <Settings className="h-4 w-4 mr-2" />
+            {isMobile ? '' : 'Paramètres'}
+          </Button>
+          <Button onClick={exportToCSV} variant="outline" size={isMobile ? "sm" : "default"}>
+            <Download className="h-4 w-4 mr-2" />
+            {isMobile ? '' : 'Export CSV'}
+          </Button>
+          <Button onClick={() => { resetForm(); setEditingExpense(null); setShowForm(true); }} size={isMobile ? "sm" : "default"}>
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter
+          </Button>
+        </div>
       </div>
 
       {/* Expenses by Type */}
