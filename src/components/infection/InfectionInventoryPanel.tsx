@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Package, Target, Shield, Sparkles } from 'lucide-react';
+import { Package, Shield, Trophy, User } from 'lucide-react';
 
 interface Player {
   id: string;
@@ -23,6 +23,26 @@ interface InfectionInventoryPanelProps {
   sessionGameId: string;
   player: Player;
 }
+
+// Role display info
+const ROLE_INFO: Record<string, { name: string; team: string; emoji: string; color: string }> = {
+  'PS': { name: 'Porteur Sain', team: 'Porte-Venin', emoji: '🦠', color: '#B00020' },
+  'PV': { name: 'Porte-Venin', team: 'Porte-Venin', emoji: '💀', color: '#B00020' },
+  'BA': { name: 'Bras Armé', team: 'Synthétistes', emoji: '🔫', color: '#2AB3A6' },
+  'OC': { name: 'Œil du Crépuscule', team: 'Synthétistes', emoji: '👁️', color: '#2AB3A6' },
+  'SY': { name: 'Synthétiste', team: 'Synthétistes', emoji: '🧪', color: '#2AB3A6' },
+  'AE': { name: 'Agent Ezkar', team: 'Neutre', emoji: '🕵️', color: '#D4AF37' },
+  'SC': { name: 'Sans Cercle', team: 'Citoyen', emoji: '👤', color: '#6B7280' },
+  'CV': { name: 'Citoyen Vacciné', team: 'Citoyen', emoji: '💉', color: '#6B7280' },
+};
+
+// Victory conditions by team
+const VICTORY_CONDITIONS: Record<string, string> = {
+  'Porte-Venin': 'Propager le virus et éliminer assez de joueurs sains pour prendre le contrôle du village.',
+  'Synthétistes': 'Trouver l\'antidote avant que le virus ne tue tout le monde.',
+  'Neutre': 'Identifier correctement le Bras Armé pour gagner.',
+  'Citoyen': 'Survivre jusqu\'à ce que les Synthétistes trouvent l\'antidote.',
+};
 
 const ITEM_ICONS: Record<string, string> = {
   'Balle BA': '🔫',
@@ -87,9 +107,57 @@ export function InfectionInventoryPanel({
   };
 
   const activeItems = inventory.filter(i => i.quantite > 0);
+  
+  const roleInfo = player.role_code ? ROLE_INFO[player.role_code] : null;
+  const victoryCondition = roleInfo ? VICTORY_CONDITIONS[roleInfo.team] : null;
 
   return (
     <div className="space-y-4">
+      {/* Role Section */}
+      {roleInfo && (
+        <div 
+          className="p-4 rounded-lg border"
+          style={{ 
+            backgroundColor: `${roleInfo.color}15`,
+            borderColor: `${roleInfo.color}50`
+          }}
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-2xl">{roleInfo.emoji}</span>
+            <div>
+              <h3 
+                className="font-bold text-lg"
+                style={{ color: roleInfo.color }}
+              >
+                {roleInfo.name}
+              </h3>
+              <Badge 
+                variant="outline"
+                className="text-xs"
+                style={{ 
+                  borderColor: roleInfo.color,
+                  color: roleInfo.color
+                }}
+              >
+                Équipe: {roleInfo.team}
+              </Badge>
+            </div>
+          </div>
+          
+          {victoryCondition && (
+            <div className="mt-3 pt-3 border-t" style={{ borderColor: `${roleInfo.color}30` }}>
+              <div className="flex items-start gap-2">
+                <Trophy className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: roleInfo.color }} />
+                <p className="text-sm text-[#EAEAF2]/80">
+                  <span className="font-medium" style={{ color: roleInfo.color }}>Victoire : </span>
+                  {victoryCondition}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4">
         <div className="p-4 bg-[#1A2235] rounded-lg text-center">
