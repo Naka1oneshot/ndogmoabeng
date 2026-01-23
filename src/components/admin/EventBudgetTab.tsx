@@ -22,6 +22,24 @@ const SCENARIO_LABELS: Record<BudgetScenario, string> = {
   optimiste: 'Optimiste',
 };
 
+const PREDEFINED_EXPENSE_TYPES = [
+  'Lieu',
+  'Nourriture',
+  'Boissons',
+  'Boissons Alcoolisé',
+  'Décorations',
+  'Couverts et autres utilitaires',
+  'Locations',
+  'Accessoire',
+  'Apéro',
+  'Autres',
+  'Abonnements',
+  'Prestataires',
+  'Jeux',
+  'Développeur',
+  'Frais de déplacement / Livraison',
+];
+
 export function EventBudgetTab({ eventId }: Props) {
   const {
     expenses,
@@ -38,6 +56,8 @@ export function EventBudgetTab({ eventId }: Props) {
   const [editingExpense, setEditingExpense] = useState<EventExpenseItem | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showNewTypeInput, setShowNewTypeInput] = useState(false);
+  const [newTypeValue, setNewTypeValue] = useState('');
   const [formData, setFormData] = useState<Partial<EventExpenseItem>>({
     label: '',
     expense_type: '',
@@ -50,6 +70,10 @@ export function EventBudgetTab({ eventId }: Props) {
     real_unit_cost: null,
     notes: '',
   });
+
+  // Merge predefined types with custom types from expenses
+  const existingCustomTypes = [...new Set(expenses.map(e => e.expense_type))];
+  const allExpenseTypes = [...new Set([...PREDEFINED_EXPENSE_TYPES, ...existingCustomTypes])].sort();
 
   const summary = getBudgetSummary();
 
@@ -110,6 +134,26 @@ export function EventBudgetTab({ eventId }: Props) {
       real_unit_cost: null,
       notes: '',
     });
+    setShowNewTypeInput(false);
+    setNewTypeValue('');
+  };
+
+  const handleTypeChange = (value: string) => {
+    if (value === '__NEW__') {
+      setShowNewTypeInput(true);
+      setFormData({ ...formData, expense_type: '' });
+    } else {
+      setShowNewTypeInput(false);
+      setNewTypeValue('');
+      setFormData({ ...formData, expense_type: value });
+    }
+  };
+
+  const handleNewTypeConfirm = () => {
+    if (newTypeValue.trim()) {
+      setFormData({ ...formData, expense_type: newTypeValue.trim() });
+      setShowNewTypeInput(false);
+    }
   };
 
   // Group expenses by type
@@ -270,11 +314,49 @@ export function EventBudgetTab({ eventId }: Props) {
             </div>
             <div>
               <Label>Type *</Label>
-              <Input
-                value={formData.expense_type}
-                onChange={e => setFormData({ ...formData, expense_type: e.target.value })}
-                placeholder="ex: Restauration, Logistique, Marketing..."
-              />
+              {showNewTypeInput ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={newTypeValue}
+                    onChange={e => setNewTypeValue(e.target.value)}
+                    placeholder="Nouveau type..."
+                    autoFocus
+                  />
+                  <Button type="button" size="sm" onClick={handleNewTypeConfirm}>
+                    OK
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => {
+                    setShowNewTypeInput(false);
+                    setNewTypeValue('');
+                  }}>
+                    ✕
+                  </Button>
+                </div>
+              ) : formData.expense_type && !allExpenseTypes.includes(formData.expense_type) ? (
+                <div className="flex gap-2 items-center">
+                  <Badge variant="secondary">{formData.expense_type}</Badge>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setFormData({ ...formData, expense_type: '' })}>
+                    Changer
+                  </Button>
+                </div>
+              ) : (
+                <Select 
+                  value={formData.expense_type || ''} 
+                  onValueChange={handleTypeChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allExpenseTypes.map(type => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                    <SelectItem value="__NEW__" className="text-primary font-medium">
+                      + Nouveau type...
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div>
               <Label>État</Label>
