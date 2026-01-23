@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target, Vote, Crosshair, Clock, Bot, CheckCircle, XCircle, Shield, Syringe, Zap } from 'lucide-react';
+import { Target, Vote, Crosshair, Clock, Bot, CheckCircle, XCircle, Shield, Syringe, Zap, FileText } from 'lucide-react';
 import { INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { RoundResolutionSummary } from './RoundResolutionSummary';
 
 interface Player {
   id: string;
@@ -85,6 +86,7 @@ interface MJActionsTabProps {
   players: Player[];
   sySuccessCount?: number;
   syRequiredSuccess?: number;
+  roundStatus?: string;
 }
 
 // Capacity indicator component
@@ -298,7 +300,7 @@ function InfectionSummaryPanel({ players, manche }: { players: Player[]; manche:
   );
 }
 
-export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccessCount = 0, syRequiredSuccess = 5 }: MJActionsTabProps) {
+export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccessCount = 0, syRequiredSuccess = 5, roundStatus }: MJActionsTabProps) {
   const theme = getInfectionThemeClasses();
   const [inputs, setInputs] = useState<InfectionInput[]>([]);
   const [shots, setShots] = useState<InfectionShot[]>([]);
@@ -404,7 +406,11 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccess
   return (
     <div className="space-y-4">
       <Tabs value={subTab} onValueChange={setSubTab}>
-        <TabsList className="w-full bg-[#121A2B] border-b border-[#2D3748] rounded-none">
+        <TabsList className="w-full bg-[#121A2B] border-b border-[#2D3748] rounded-none flex-wrap">
+          <TabsTrigger value="summary" className="flex-1 data-[state=active]:bg-[#1A2235] text-xs sm:text-sm">
+            <FileText className="h-3 w-3 sm:mr-1" />
+            <span className="hidden sm:inline">Résumé</span>
+          </TabsTrigger>
           <TabsTrigger value="roles" className="flex-1 data-[state=active]:bg-[#1A2235] text-xs sm:text-sm">
             Par rôle
           </TabsTrigger>
@@ -421,6 +427,16 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccess
             <span className="hidden sm:inline">Bots</span> ({botLogs.length})
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="summary" className="mt-4">
+          <RoundResolutionSummary
+            manche={manche}
+            players={players}
+            inputs={inputs}
+            shots={shots}
+            isResolved={roundStatus === 'RESOLVED'}
+          />
+        </TabsContent>
 
         <TabsContent value="roles" className="mt-4 space-y-4">
           {/* Global Infection Summary */}
