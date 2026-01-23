@@ -389,6 +389,7 @@ export function EventBudgetTab({ eventId }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="À commander">À commander</SelectItem>
+                  <SelectItem value="Ne pas commander">Ne pas commander</SelectItem>
                   <SelectItem value="Commandé">Commandé</SelectItem>
                   <SelectItem value="Reçu">Reçu</SelectItem>
                   <SelectItem value="Payé">Payé</SelectItem>
