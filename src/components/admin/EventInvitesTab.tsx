@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { Plus, Download, Search, Edit2, Trash2, CreditCard, UserCheck, Link2, User, X, Loader2 } from 'lucide-react';
 import { MeetupEventAdmin } from '@/hooks/useAdminMeetups';
@@ -403,28 +404,58 @@ export function EventInvitesTab({ eventId, event }: Props) {
                       {invite.contributed_amount > 0 ? `${invite.contributed_amount}€` : '-'}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => handleEdit(invite)}>
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        {invite.invite_status !== 'paid' && (
-                          <Button size="icon" variant="ghost" onClick={() => handleMarkPaid(invite)}>
-                            <CreditCard className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {invite.invite_status === 'pending' && (
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            onClick={() => updateInvite(invite.id, { invite_status: 'confirmed_unpaid' })}
-                          >
-                            <UserCheck className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button size="icon" variant="ghost" onClick={() => handleDelete(invite.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <TooltipProvider delayDuration={300}>
+                        <div className="flex gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon" variant="ghost" onClick={() => handleEdit(invite)}>
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Modifier les informations de l'invité</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          {invite.invite_status !== 'paid' && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="ghost" onClick={() => handleMarkPaid(invite)}>
+                                  <CreditCard className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Marquer comme payé (espèces)</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {invite.invite_status === 'pending' && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  onClick={() => updateInvite(invite.id, { invite_status: 'confirmed_unpaid' })}
+                                >
+                                  <UserCheck className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Confirmer la présence (paiement sur place)</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon" variant="ghost" onClick={() => handleDelete(invite.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Supprimer l'invité</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TooltipProvider>
                     </TableCell>
                   </TableRow>
                 ))
