@@ -1071,6 +1071,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                       {roleInfo && (
                         <div className="flex flex-wrap gap-1 px-2 py-1 text-xs">
                           <Badge style={{ backgroundColor: `${roleInfo.color}20`, color: roleInfo.color }}>{roleInfo.short}</Badge>
+                          {player.has_antibodies && <Badge className="bg-[#D4AF37]/20 text-[#D4AF37]">🧬 Anticorps</Badge>}
                           {player.is_carrier && <Badge className="bg-[#B00020]/20 text-[#B00020]">Porteur</Badge>}
                           {player.is_contagious && <Badge className="bg-[#E6A23C]/20 text-[#E6A23C]">Contagieux</Badge>}
                           {player.immune_permanent && <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6]">Immunisé</Badge>}
@@ -1148,7 +1149,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                               {player.is_carrier && <Badge className="bg-[#B00020]/20 text-[#B00020]">Porteur</Badge>}
                               {player.is_contagious && <Badge className="bg-[#E6A23C]/20 text-[#E6A23C]">Contagieux</Badge>}
                               {player.immune_permanent && <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6]">Immunisé</Badge>}
-                              {player.has_antibodies && <Badge className="bg-[#D4AF37]/20 text-[#D4AF37]">Anticorps</Badge>}
+                              {player.has_antibodies && <Badge className="bg-[#D4AF37]/20 text-[#D4AF37]">🧬 Anticorps</Badge>}
                             </div>
                           </div>
                           <div className="mt-2 flex items-center justify-between">
