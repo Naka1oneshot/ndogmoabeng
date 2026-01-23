@@ -41,7 +41,8 @@ import {
   UserX,
   ShieldAlert,
   ShieldCheck,
-  History
+  History,
+  Calendar
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -563,6 +564,15 @@ export default function AdminSubscriptions() {
               )}
             </div>
             <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/admin/meetups')}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="w-4 h-4" />
+                <span className="hidden sm:inline">Meetups</span>
+              </Button>
               <ThemeToggle />
               <UserAvatarButton size="sm" />
             </div>
