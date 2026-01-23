@@ -128,10 +128,15 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
     decision: 'RESTE' | 'DESCENDS';
   }[]>([]);
 
+  // Animation lock refs - prevent re-triggering during animation playback
+  const lockAnimationTriggeredRef = useRef(false);
+  const resolveAnimationTriggeredRef = useRef(false);
+  
   // Previous state refs for detecting changes
   const previousDecisionsLockedRef = useRef<boolean>(false);
   const previousLevelHistoryCountRef = useRef<number>(0);
   const previousDangerEffectifRef = useRef<number | null>(null);
+  const previousLevelKeyRef = useRef<string>('');
 
   const fetchData = useCallback(async () => {
     if (!game.current_session_game_id) {
@@ -167,12 +172,17 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
 
     if (historyData) {
       // Check for new level resolution to trigger animation
-      // Update ref FIRST to prevent multiple triggers from rapid fetchData calls
-      const previousCount = previousLevelHistoryCountRef.current;
-      previousLevelHistoryCountRef.current = historyData.length;
+      const latestLevel = historyData[historyData.length - 1];
+      const currentLevelKey = latestLevel ? `${latestLevel.manche}-${latestLevel.niveau}` : '';
       
-      if (historyData.length > previousCount && historyData.length > 0 && !showResolveAnimation) {
-        const latestLevel = historyData[historyData.length - 1];
+      // Only trigger if this is a NEW level we haven't animated yet
+      if (historyData.length > 0 && 
+          currentLevelKey !== previousLevelKeyRef.current && 
+          !resolveAnimationTriggeredRef.current) {
+        
+        resolveAnimationTriggeredRef.current = true;
+        previousLevelKeyRef.current = currentLevelKey;
+        
         setResolveAnimationData({
           danger: latestLevel.danger_effectif,
           totalMises: latestLevel.total_mises,
@@ -182,6 +192,7 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
         });
         setShowResolveAnimation(true);
       }
+      
       setLevelHistory(historyData as RiverLevelHistory[]);
     }
 
@@ -205,14 +216,18 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
 
       if (decisionsData) {
         // Check if all just got locked to trigger animation
-        // Update ref FIRST to prevent multiple triggers
-        const wasLocked = previousDecisionsLockedRef.current;
         const allLocked = decisionsData.length > 0 && decisionsData.every(d => d.status === 'LOCKED');
-        previousDecisionsLockedRef.current = allLocked;
+        const wasLocked = previousDecisionsLockedRef.current;
         
-        if (allLocked && !wasLocked && !showLockAnimation) {
+        // Only trigger lock animation if:
+        // 1. All decisions are now locked
+        // 2. They weren't locked before
+        // 3. We haven't already triggered this animation
+        if (allLocked && !wasLocked && !lockAnimationTriggeredRef.current) {
+          lockAnimationTriggeredRef.current = true;
+          previousDecisionsLockedRef.current = true;
+          
           // Prepare player sort animation data NOW before triggering lock animation
-          // We need to fetch fresh player data including bots to ensure we have all display names
           const { data: freshPlayersData } = await supabase
             .from('game_players')
             .select('id, display_name, player_number, user_id')
@@ -244,7 +259,11 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
           });
           setPlayerSortData(sortData);
           setShowLockAnimation(true);
+        } else if (!allLocked) {
+          // Reset locked state when decisions are no longer locked (new level)
+          previousDecisionsLockedRef.current = false;
         }
+        
         setDecisions(decisionsData);
       }
     }
@@ -392,6 +411,34 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
     calculateDangerRange(enBateauPlayers.length, sessionState.manche_active, sessionState.niveau_active) : null;
 
   const isGameEnded = sessionState?.status === 'ENDED' || game.status === 'ENDED';
+  
+  // Check if all decisions are locked (for showing different UI)
+  const allDecisionsLocked = lockedDecisions.length > 0 && lockedDecisions.length === enBateauPlayers.length;
+
+  // Handle lock animation complete - chain to player sort
+  const handleLockAnimationComplete = useCallback(() => {
+    setShowLockAnimation(false);
+    
+    // Player sort data is already prepared when lock was triggered
+    // Just show the animation if we have data
+    if (playerSortData.length > 0) {
+      setShowPlayerSortAnimation(true);
+    }
+  }, [playerSortData.length]);
+
+  // Handle player sort animation complete - reset lock trigger for next level
+  const handlePlayerSortComplete = useCallback(() => {
+    setShowPlayerSortAnimation(false);
+    // Reset lock animation trigger so it can fire again for the next level
+    lockAnimationTriggeredRef.current = false;
+  }, []);
+
+  // Handle resolve animation complete - reset trigger for next resolution
+  const handleResolveComplete = useCallback(() => {
+    setShowResolveAnimation(false);
+    // Reset resolve animation trigger so it can fire again
+    resolveAnimationTriggeredRef.current = false;
+  }, []);
 
   // Loading state
   if (loading) {
@@ -429,19 +476,6 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
     );
   }
 
-  // Check if all decisions are locked (for showing different UI)
-  const allDecisionsLocked = lockedDecisions.length > 0 && lockedDecisions.length === enBateauPlayers.length;
-
-  // Build player sort data when lock animation completes
-  const handleLockAnimationComplete = () => {
-    setShowLockAnimation(false);
-    
-    // Player sort data is already prepared when lock was triggered
-    // Just show the animation if we have data
-    if (playerSortData.length > 0) {
-      setShowPlayerSortAnimation(true);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 bg-gradient-to-br from-[#0B1020] via-[#151B2D] to-[#0B1020] overflow-hidden">
@@ -454,7 +488,7 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
       {showPlayerSortAnimation && playerSortData.length > 0 && (
         <RivieresPlayerSortAnimation
           players={playerSortData}
-          onComplete={() => setShowPlayerSortAnimation(false)}
+          onComplete={handlePlayerSortComplete}
         />
       )}
 
@@ -466,7 +500,7 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
           outcome={resolveAnimationData.outcome}
           niveau={resolveAnimationData.niveau}
           manche={resolveAnimationData.manche}
-          onComplete={() => setShowResolveAnimation(false)}
+          onComplete={handleResolveComplete}
         />
       )}
 
