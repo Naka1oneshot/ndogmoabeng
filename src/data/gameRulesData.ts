@@ -15,37 +15,38 @@ export const GAME_RULES: Record<string, GameRules> = {
   RIVIERES: {
     id: 'rivieres',
     title: 'Les Rivières de Ndogmoabeng',
-    objective: 'Survivez à la traversée des 9 niveaux de rivières dangereuses. Plus vous restez longtemps sur le bateau, plus votre score final sera élevé !',
+    objective: 'Traversez les 15 niveaux des rivières dangereuses. Plus vous restez longtemps sur le bateau, plus votre score final sera élevé ! Complétez 9 traversées pour valider l\'intégralité de vos jetons.',
     setup: [
       'Chaque joueur commence avec 100 jetons (bonus x1.5 pour les Royaux).',
-      'Le bateau traverse 9 niveaux de rivières de plus en plus dangereuses.',
+      'Le bateau traverse 15 niveaux de rivières de plus en plus dangereuses.',
       'À chaque niveau, un indice de danger est annoncé par le MJ.',
+      'Objectif : réussir 9 traversées pour valider 100% de vos jetons.',
     ],
     phases: [
       {
         name: 'Phase de décision',
-        description: 'Chaque joueur décide secrètement s\'il veut continuer (STAY) ou quitter le bateau (LEAVE). Les joueurs peuvent miser des jetons pour influencer la cagnotte.'
+        description: 'Chaque joueur décide secrètement s\'il veut continuer (RESTE) ou quitter le bateau (DESCENDS). Les joueurs peuvent miser des jetons pour alimenter la cagnotte.'
       },
       {
         name: 'Résolution',
-        description: 'Le MJ verrouille les décisions et révèle le résultat. Si le danger se réalise, les joueurs encore sur le bateau perdent tout. Sinon, ils progressent au niveau suivant.'
+        description: 'Le MJ verrouille les décisions et révèle le résultat du niveau. Si le danger se réalise, les joueurs encore sur le bateau perdent tout. Sinon, ils progressent au niveau suivant.'
       },
       {
         name: 'Validation',
-        description: 'Les joueurs ayant quitté valident leurs jetons accumulés. Ils ne peuvent plus revenir sur le bateau.'
+        description: 'Les joueurs ayant quitté valident leurs jetons accumulés au niveau où ils sont descendus. Ils ne peuvent plus remonter sur le bateau.'
       }
     ],
     winConditions: [
-      { team: '🏆 Score Final', condition: 'Formule : (Niveaux validés × Jetons) ÷ 9. Réussir les 9 niveaux = Score égal à vos jetons !' },
-      { team: 'Survivants N9', condition: 'Les joueurs encore sur le bateau au niveau 9 se partagent la cagnotte + bonus de 50 jetons chacun.' },
-      { team: 'Échec du bateau', condition: 'En cas d\'échec, les joueurs à terre ou protégés reçoivent un bonus de (niveau × 10) jetons.' }
+      { team: '🏆 Score Final', condition: 'Formule : (Traversées validées × Jetons) ÷ 9. Réussir 9 traversées = Score égal à 100% de vos jetons !' },
+      { team: 'Survivants complets', condition: 'Les joueurs ayant réussi 9+ traversées se partagent la cagnotte + bonus de 50 jetons chacun.' },
+      { team: 'Échec du bateau', condition: 'En cas d\'échec, les joueurs à terre ou protégés (Keryndes) reçoivent un bonus de (niveau × 10) jetons.' }
     ],
     tips: [
-      '⭐ OBJECTIF CLÉ : Survivre jusqu\'au niveau 9 maximise votre score final !',
-      'Quitter tôt = sécuriser vos jetons mais diviser votre score par 9.',
-      'Exemple : 80 jetons au niveau 5 = score de 44. Mais 80 jetons au niveau 9 = score de 80 !',
-      'Le danger augmente à chaque niveau - évaluez le risque vs la récompense.',
-      'Les protections (Keryndes) peuvent vous sauver en cas d\'échec du bateau.',
+      '⭐ OBJECTIF CLÉ : Réussir 9 traversées pour valider 100% de vos jetons !',
+      'Descendre tôt = sécuriser vos jetons mais avec un score réduit proportionnellement.',
+      'Exemple : 80 jetons après 5 traversées = score de 44. Après 9 traversées = score de 80 !',
+      'Le danger augmente à chaque niveau sur les 15 - évaluez le risque vs la récompense.',
+      'Les protections Keryndes peuvent vous sauver en cas d\'échec du bateau.',
     ]
   },
 
@@ -61,15 +62,15 @@ export const GAME_RULES: Record<string, GameRules> = {
     phases: [
       {
         name: 'Phase 1 - Enchères',
-        description: 'Les joueurs misent des jetons pour déterminer leur ordre de priorité pour la phase de combat. Plus vous misez, plus vous agissez tôt.'
+        description: 'Les joueurs misent des jetons pour déterminer leur ordre de priorité pour la phase de combat. Plus vous misez, plus vous agissez tôt et choisissez votre position en premier.'
       },
       {
-        name: 'Phase 2 - Boutique',
-        description: 'Achetez des armes, protections et objets spéciaux pour vous préparer au combat.'
+        name: 'Phase 2 - Combat',
+        description: 'Choisissez votre position sur le champ de bataille, vos attaques et protections. Éliminez les monstres pour gagner des récompenses. L\'ordre de passage dépend des enchères.'
       },
       {
-        name: 'Phase 3 - Combat',
-        description: 'Choisissez votre position sur le champ de bataille, vos attaques et protections. Éliminez les monstres pour gagner des récompenses.'
+        name: 'Phase 3 - Boutique',
+        description: 'Achetez des armes, protections et objets spéciaux pour la prochaine manche. Utilisez vos jetons et récompenses gagnées au combat.'
       }
     ],
     winConditions: [
