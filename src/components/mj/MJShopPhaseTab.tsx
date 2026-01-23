@@ -155,18 +155,18 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
     }
   };
 
-  const handleGenerateShop = async () => {
+  const handleGenerateShop = async (forceRegenerate = false) => {
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-shop', {
-        body: { gameId: game.id },
+        body: { gameId: game.id, forceRegenerate },
       });
 
       if (error || !data?.success) {
         throw new Error(data?.error || 'Erreur lors de la génération');
       }
 
-      toast.success('Shop généré avec succès !');
+      toast.success(forceRegenerate ? 'Shop régénéré avec de nouveaux items !' : 'Shop généré avec succès !');
       if (data.warnings?.length > 0) {
         data.warnings.forEach((w: string) => toast.warning(w));
       }
@@ -308,7 +308,7 @@ export function MJShopPhaseTab({ game }: MJShopPhaseTabProps) {
               </p>
             </div>
             <ForestButton
-              onClick={handleGenerateShop}
+              onClick={() => handleGenerateShop(!!shopOffer)}
               disabled={generating || isResolved}
               className="bg-green-600 hover:bg-green-700"
             >
