@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PresentationModeView } from "@/components/mj/presentation/PresentationModeView";
 import { RivieresPresentationView } from "@/components/rivieres/presentation/RivieresPresentationView";
+import { InfectionPresentationView } from "@/components/infection/presentation/InfectionPresentationView";
 
 interface Game {
   id: string;
@@ -74,6 +75,10 @@ const Presentation = () => {
   // Route to appropriate presentation based on game type
   if (game.selected_game_type_code === 'RIVIERES') {
     return <RivieresPresentationView game={game} onClose={() => window.close()} />;
+  }
+
+  if (game.selected_game_type_code === 'INFECTION') {
+    return <InfectionPresentationView game={game} onClose={() => window.close()} />;
   }
 
   // Default to Forest presentation
