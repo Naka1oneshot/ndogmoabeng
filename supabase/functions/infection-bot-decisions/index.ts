@@ -177,13 +177,13 @@ Deno.serve(async (req) => {
     // Fetch existing inputs this round (to check for duplicates)
     const { data: existingInputsData } = await supabase
       .from('infection_inputs')
-      .select('player_num, ae_sabotage_target_num, sy_research_target_num, oc_lookup_target_num, corruption_amount')
+      .select('player_num, ae_sabotage_target_num, sy_research_target_num, oc_lookup_target_num, corruption_amount, pv_patient0_target_num')
       .eq('session_game_id', sessionGameId)
       .eq('manche', manche);
     
     const existingInputs = existingInputsData || [];
 
-    type ExistingInput = { player_num: number; ae_sabotage_target_num: number | null; sy_research_target_num: number | null; oc_lookup_target_num: number | null; corruption_amount: number | null };
+    type ExistingInput = { player_num: number; ae_sabotage_target_num: number | null; sy_research_target_num: number | null; oc_lookup_target_num: number | null; corruption_amount: number | null; pv_patient0_target_num: number | null };
     const existingInputsMap = new Map<number, ExistingInput>();
     for (const input of existingInputs || []) {
       existingInputsMap.set(input.player_num, input);
@@ -348,10 +348,49 @@ Deno.serve(async (req) => {
 
           case 'PV': {
             // PV: Cannot shoot other PVs, 80% chance to use antidote when carrier
+            // MANCHE 1: MUST designate Patient 0 (virus usage is mandatory)
             const otherPVs = players.filter(p => p.role_code === 'PV' && p.player_number !== bot.player_number);
             const otherPVNums = otherPVs.map(p => p.player_number!);
 
-            // Check for antidote usage (configurable % when carrier)
+            // Manche 1: PV bots ALWAYS designate a patient 0 (mandatory per game rules)
+            if (manche === 1) {
+              // Check if already submitted patient 0
+              if (existingInput?.pv_patient0_target_num) {
+                result.skipped_reason = 'Already designated patient 0';
+              } else {
+                // Target a random non-PV player for patient 0
+                const validTargets = alivePlayers.filter(
+                  p => p.role_code !== 'PV' && p.player_number !== bot.player_number
+                );
+                if (validTargets.length > 0) {
+                  const targetNum = validTargets[Math.floor(Math.random() * validTargets.length)].player_number!;
+                  
+                  if (existingInput) {
+                    inputsToUpdate.push({
+                      player_num: bot.player_number,
+                      updates: { pv_patient0_target_num: targetNum }
+                    });
+                  } else {
+                    inputsToInsert.push({
+                      game_id: gameId,
+                      session_game_id: sessionGameId,
+                      manche,
+                      player_id: bot.id,
+                      player_num: bot.player_number,
+                      pv_patient0_target_num: targetNum,
+                    });
+                  }
+                  result.action = 'PATIENT_0';
+                  result.target = targetNum;
+                  console.log(`[infection-bot-decisions] PV bot ${bot.player_number} designated patient 0: ${targetNum}`);
+                } else {
+                  result.skipped_reason = 'No valid target for patient 0';
+                }
+              }
+              break;
+            }
+
+            // After manche 1: Check for antidote usage (configurable % when carrier)
             if (bot.is_carrier && Math.random() < (botConfig.pv_antidote_chance / 100)) {
               const antidote = playerInventory.find(i => 
                 i.objet === 'Antidote PV' && i.quantite > 0

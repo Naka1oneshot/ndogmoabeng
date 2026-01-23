@@ -890,7 +890,7 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccess
             <div className="p-3 border-b border-[#2D3748]">
               <span className="font-semibold">Historique des décisions bots</span>
             </div>
-            <ScrollArea className="max-h-[500px]">
+            <ScrollArea className="h-[calc(100vh-380px)] min-h-[200px] max-h-[500px]">
               <div className="divide-y divide-[#2D3748]">
                 {botLogs.length === 0 ? (
                   <div className="p-4 text-center text-[#6B7280]">
