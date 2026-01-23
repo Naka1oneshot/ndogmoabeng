@@ -59,7 +59,7 @@ interface MJRivieresPlayersTabProps {
 }
 
 export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobby: isLobbyProp, onRefresh }: MJRivieresPlayersTabProps) {
-  const { isAdmin } = useUserRole();
+  const { isAdminOrSuper } = useUserRole();
   const [players, setPlayers] = useState<Player[]>([]);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,7 +132,7 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
 
   // Add bots handler
   const handleAddBots = async () => {
-    if (!isAdmin) {
+    if (!isAdminOrSuper) {
       toast.error('Seuls les administrateurs peuvent ajouter des bots');
       return;
     }
@@ -159,7 +159,7 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
 
   // Delete all bots handler
   const handleDeleteAllBots = async () => {
-    if (!isAdmin) {
+    if (!isAdminOrSuper) {
       toast.error('Seuls les administrateurs peuvent supprimer les bots');
       return;
     }
@@ -257,7 +257,7 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
   };
 
   const canEditClan = (player: Player): boolean => {
-    if (isAdmin) return true;
+    if (isAdminOrSuper) return true;
     if (!player.clan && !player.clan_token_used) return true;
     if (player.clan_locked) return false;
     if (player.clan_token_used) return false;
@@ -265,7 +265,7 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
   };
 
   const getClanEditTooltip = (player: Player): string | null => {
-    if (isAdmin) return null;
+    if (isAdminOrSuper) return null;
     if (player.clan_locked) return 'Clan verrouillé par le joueur';
     if (player.clan_token_used) return 'Token utilisé pour les avantages de clan';
     return null;
@@ -415,7 +415,7 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
         </div>
 
         {/* Bot management - Admin only, Lobby only */}
-        {isAdmin && isLobby && (
+        {isAdminOrSuper && isLobby && (
           <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-dashed border-[#D4AF37]/30 bg-[#D4AF37]/5">
             <div className="flex items-center gap-2">
               <Bot className="h-4 w-4 text-[#D4AF37]" />
