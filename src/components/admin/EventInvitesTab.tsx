@@ -342,6 +342,7 @@ export function EventInvitesTab({ eventId, event }: Props) {
             <TableHeader>
               <TableRow>
                 <TableHead>Nom</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Téléphone</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Pack</TableHead>
@@ -352,13 +353,13 @@ export function EventInvitesTab({ eventId, event }: Props) {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     Chargement...
                   </TableCell>
                 </TableRow>
               ) : filteredInvites.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Aucun invité trouvé
                   </TableCell>
                 </TableRow>
@@ -390,6 +391,7 @@ export function EventInvitesTab({ eventId, event }: Props) {
                         </Badge>
                       )}
                     </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{invite.email || '-'}</TableCell>
                     <TableCell>{invite.phone || '-'}</TableCell>
                     <TableCell>
                       <Badge className={STATUS_COLORS[invite.invite_status]}>
