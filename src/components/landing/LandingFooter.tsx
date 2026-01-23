@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
-import { Gamepad2, LogIn } from 'lucide-react';
+import { Gamepad2, LogIn, ShoppingBag } from 'lucide-react';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 export function LandingFooter() {
@@ -39,7 +39,7 @@ export function LandingFooter() {
             </div>
 
             {/* Navigation */}
-            <div className="flex justify-center gap-6">
+            <div className="flex flex-wrap justify-center gap-4 md:gap-6">
               <button 
                 onClick={() => scrollToSection('concept')}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -57,6 +57,13 @@ export function LandingFooter() {
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Clans
+              </button>
+              <button 
+                onClick={() => navigate('/boutique')}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                <ShoppingBag className="h-3 w-3" />
+                Boutique
               </button>
             </div>
 
