@@ -243,9 +243,10 @@ export function useEventInvites(eventId: string | null) {
   function exportToCSV() {
     if (invites.length === 0) return;
     
-    const headers = ['Nom', 'Téléphone', 'Adresse', 'Statut', 'Pack', 'Montant', 'Parking', 'Notes', 'Invité par'];
+    const headers = ['Nom', 'Email', 'Téléphone', 'Adresse', 'Statut', 'Pack', 'Montant', 'Parking', 'Notes', 'Invité par', 'Compte lié'];
     const rows = invites.map(i => [
       i.full_name,
+      i.email || '',
       i.phone || '',
       (i.address || '').replace(/,/g, ';'),
       i.invite_status,
@@ -254,6 +255,7 @@ export function useEventInvites(eventId: string | null) {
       i.parking_amount.toString(),
       (i.notes || '').replace(/,/g, ';'),
       i.invited_by || '',
+      i.user_id ? 'Oui' : 'Non',
     ]);
     
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
