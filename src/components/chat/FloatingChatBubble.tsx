@@ -3,6 +3,7 @@ import { MessageCircle, X, GripVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useChatVisibility } from '@/contexts/ChatContext';
 
 interface FloatingChatBubbleProps {
   unreadCount: number;
@@ -20,7 +21,7 @@ export function FloatingChatBubble({
   onClick,
   previousUnreadCount = 0 
 }: FloatingChatBubbleProps) {
-  const [isDismissed, setIsDismissed] = useState(false);
+  const { isChatHidden, hideChat, showChat } = useChatVisibility();
   const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
@@ -45,11 +46,11 @@ export function FloatingChatBubble({
 
   // Reappear when new message is received
   useEffect(() => {
-    if (unreadCount > previousUnreadRef.current && isDismissed) {
-      setIsDismissed(false);
+    if (unreadCount > previousUnreadRef.current && isChatHidden) {
+      showChat();
     }
     previousUnreadRef.current = unreadCount;
-  }, [unreadCount, isDismissed]);
+  }, [unreadCount, isChatHidden, showChat]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!bubbleRef.current) return;
@@ -152,10 +153,10 @@ export function FloatingChatBubble({
 
   const handleDismiss = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
-    setIsDismissed(true);
+    hideChat();
   };
 
-  if (isDismissed) {
+  if (isChatHidden) {
     return null;
   }
 

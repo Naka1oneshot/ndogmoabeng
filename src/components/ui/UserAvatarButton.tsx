@@ -1,8 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useChatVisibility } from '@/contexts/ChatContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, LogOut, DoorOpen } from 'lucide-react';
+import { User, LogOut, DoorOpen, MessageCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +23,7 @@ export function UserAvatarButton({ size = 'md', className = '', onLeaveGame }: U
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
+  const { isChatHidden, showChat } = useChatVisibility();
 
   if (!user) {
     return (
@@ -77,6 +79,12 @@ export function UserAvatarButton({ size = 'md', className = '', onLeaveGame }: U
           <User className="mr-2 h-4 w-4" />
           Profil
         </DropdownMenuItem>
+        {isChatHidden && (
+          <DropdownMenuItem onClick={showChat} className="cursor-pointer">
+            <MessageCircle className="mr-2 h-4 w-4" />
+            Afficher le chat
+          </DropdownMenuItem>
+        )}
         {onLeaveGame && (
           <>
             <DropdownMenuSeparator />

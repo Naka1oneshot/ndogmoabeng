@@ -7,6 +7,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ColorModeProvider } from "@/contexts/ColorModeContext";
+import { ChatProvider } from "@/contexts/ChatContext";
 import { GlobalChatPanel } from "@/components/chat/GlobalChatPanel";
 import { SessionExpirationHandler } from "@/components/auth/SessionExpirationHandler";
 import { LoadingFallback } from "@/components/common/LoadingFallback";
@@ -86,15 +87,17 @@ const App = () => (
       <AuthProvider>
         <TooltipProvider>
           <ColorModeProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <ThemeProvider>
-                <SessionExpirationHandler />
-                <AppRoutes />
-                <GlobalChatPanel />
-              </ThemeProvider>
-            </BrowserRouter>
+            <ChatProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <ThemeProvider>
+                  <SessionExpirationHandler />
+                  <AppRoutes />
+                  <GlobalChatPanel />
+                </ThemeProvider>
+              </BrowserRouter>
+            </ChatProvider>
           </ColorModeProvider>
         </TooltipProvider>
       </AuthProvider>
