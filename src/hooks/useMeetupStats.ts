@@ -1,5 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { format, startOfMonth, subMonths } from 'date-fns';
+import { fr } from 'date-fns/locale';
+
+export interface MonthlyRevenue {
+  month: string;
+  revenue: number;
+  registrations: number;
+}
 
 export interface MeetupStats {
   totalRevenue: number;
@@ -10,12 +18,14 @@ export interface MeetupStats {
   upcomingEvents: number;
   archivedEvents: number;
   pendingCallbacks: number;
+  monthlyRevenue: MonthlyRevenue[];
 }
 
 interface RawRegistration {
   payment_status: string;
   paid_amount_cents: number | null;
   companions_count: number;
+  paid_at: string | null;
 }
 
 interface RawEvent {
@@ -35,7 +45,7 @@ export function useMeetupStats() {
       const [regResult, eventsResult] = await Promise.all([
         supabase
           .from('meetup_registrations')
-          .select('payment_status, paid_amount_cents, companions_count'),
+          .select('payment_status, paid_amount_cents, companions_count, paid_at'),
         supabase
           .from('meetup_events')
           .select('city, status')
@@ -113,6 +123,35 @@ export function useMeetupStats() {
     const upcomingEvents = events.filter(e => e.status === 'UPCOMING').length;
     const archivedEvents = events.filter(e => e.status === 'ARCHIVED').length;
 
+    // Monthly revenue calculation (last 12 months)
+    const monthlyRevenueMap = new Map<string, { revenue: number; registrations: number }>();
+    
+    // Initialize last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const monthDate = startOfMonth(subMonths(new Date(), i));
+      const monthKey = format(monthDate, 'yyyy-MM');
+      monthlyRevenueMap.set(monthKey, { revenue: 0, registrations: 0 });
+    }
+
+    // Fill with actual data
+    registrations
+      .filter(r => r.payment_status === 'paid' && r.paid_at)
+      .forEach(r => {
+        const monthKey = format(new Date(r.paid_at!), 'yyyy-MM');
+        const existing = monthlyRevenueMap.get(monthKey);
+        if (existing) {
+          existing.revenue += (r.paid_amount_cents || 0) / 100;
+          existing.registrations += 1 + (r.companions_count || 0);
+        }
+      });
+
+    const monthlyRevenue: MonthlyRevenue[] = Array.from(monthlyRevenueMap.entries())
+      .map(([monthKey, data]) => ({
+        month: format(new Date(monthKey + '-01'), 'MMM yy', { locale: fr }),
+        revenue: data.revenue,
+        registrations: data.registrations,
+      }));
+
     return {
       totalRevenue,
       totalRegistrations,
@@ -122,6 +161,7 @@ export function useMeetupStats() {
       upcomingEvents,
       archivedEvents,
       pendingCallbacks,
+      monthlyRevenue,
     };
   }, [registrations, events]);
 
