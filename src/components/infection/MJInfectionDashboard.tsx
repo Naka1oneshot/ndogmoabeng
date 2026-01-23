@@ -1220,6 +1220,8 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                 sessionGameId={game.current_session_game_id}
                 manche={selectedManche}
                 players={players}
+                sySuccessCount={roundState?.sy_success_count ?? 0}
+                syRequiredSuccess={roundState?.sy_required_success ?? 5}
               />
             </div>
           )}

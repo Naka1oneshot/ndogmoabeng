@@ -83,6 +83,8 @@ interface MJActionsTabProps {
   sessionGameId: string;
   manche: number;
   players: Player[];
+  sySuccessCount?: number;
+  syRequiredSuccess?: number;
 }
 
 // Capacity indicator component
@@ -137,7 +139,7 @@ function InfectionStateBadges({ player }: { player: Player }) {
   );
 }
 
-export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActionsTabProps) {
+export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccessCount = 0, syRequiredSuccess = 5 }: MJActionsTabProps) {
   const theme = getInfectionThemeClasses();
   const [inputs, setInputs] = useState<InfectionInput[]>([]);
   const [shots, setShots] = useState<InfectionShot[]>([]);
@@ -403,9 +405,37 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
 
           {/* SY Actions */}
           <div className={theme.card}>
-            <div className="p-3 border-b border-[#2D3748] flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-[#2AB3A6]" />
-              <span className="font-semibold">Syndicat ({syPlayers.length})</span>
+            <div className="p-3 border-b border-[#2D3748]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-[#2AB3A6]" />
+                  <span className="font-semibold">Syndicat ({syPlayers.length})</span>
+                </div>
+                {/* SY Research Progress Counter */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#9CA3AF]">🔬 Recherches:</span>
+                  <div className="flex items-center gap-1">
+                    <span className={`font-bold text-sm ${sySuccessCount >= syRequiredSuccess ? 'text-[#10B981]' : 'text-[#2AB3A6]'}`}>
+                      {sySuccessCount}
+                    </span>
+                    <span className="text-[#6B7280] text-sm">/</span>
+                    <span className="text-[#9CA3AF] text-sm">{syRequiredSuccess}</span>
+                  </div>
+                  {sySuccessCount >= syRequiredSuccess && (
+                    <Badge className="bg-[#10B981]/20 text-[#10B981] text-xs animate-pulse">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Victoire SY
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              {/* Progress bar */}
+              <div className="mt-2 w-full h-1.5 bg-[#1A202C] rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-500 ${sySuccessCount >= syRequiredSuccess ? 'bg-[#10B981]' : 'bg-[#2AB3A6]'}`}
+                  style={{ width: `${Math.min((sySuccessCount / syRequiredSuccess) * 100, 100)}%` }}
+                />
+              </div>
             </div>
             <div className="divide-y divide-[#2D3748]">
               {syPlayers.map(p => {
