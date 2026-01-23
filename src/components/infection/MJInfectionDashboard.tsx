@@ -865,6 +865,15 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(`/presentation/${game.id}`, '_blank')}
+              className="h-8 px-2 sm:px-3 border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/20"
+            >
+              <Activity className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Présentation</span>
+            </Button>
             <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6] text-xs">
               {alivePlayers.length} <span className="hidden sm:inline">vivants</span>
             </Badge>
