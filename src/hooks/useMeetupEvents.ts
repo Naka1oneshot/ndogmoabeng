@@ -44,11 +44,11 @@ export function useMeetupEvents() {
 
       if (eventsError) throw eventsError;
 
-      // For each event, get registration count using secure RPC function
+      // For each event, get confirmed count from event_invites (paid + confirmed_unpaid)
       const eventsWithCounts = await Promise.all(
         (eventsData || []).map(async (event) => {
           const { data: countData } = await supabase
-            .rpc('get_event_registration_count', { p_event_id: event.id });
+            .rpc('get_event_confirmed_count', { p_event_id: event.id });
           
           return {
             ...event,

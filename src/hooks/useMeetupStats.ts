@@ -37,6 +37,8 @@ interface RawEvent {
 
 interface RawInvite {
   user_id: string | null;
+  invite_status: string;
+  contributed_amount: number | null;
 }
 
 export function useMeetupStats() {
@@ -58,7 +60,7 @@ export function useMeetupStats() {
           .select('city, status'),
         supabase
           .from('event_invites')
-          .select('user_id')
+          .select('user_id, invite_status, contributed_amount')
       ]);
 
       if (regResult.data) {
@@ -97,28 +99,25 @@ export function useMeetupStats() {
   }, []);
 
   const stats = useMemo<MeetupStats>(() => {
-    // Total revenue (in euros)
-    const totalRevenue = registrations
-      .filter(r => r.payment_status === 'paid' && r.paid_amount_cents)
-      .reduce((sum, r) => sum + (r.paid_amount_cents || 0), 0) / 100;
+    // Total revenue from paid invites (in euros)
+    const totalRevenue = invites
+      .filter(i => i.invite_status === 'paid' && i.contributed_amount)
+      .reduce((sum, i) => sum + (i.contributed_amount || 0), 0);
 
-    // Total registrations (including companions)
-    const totalRegistrations = registrations.reduce(
-      (sum, r) => sum + 1 + (r.companions_count || 0),
-      0
-    );
+    // Total confirmed participants (paid + confirmed_unpaid from invites)
+    const totalRegistrations = invites.filter(
+      i => ['paid', 'confirmed_unpaid'].includes(i.invite_status)
+    ).length;
 
-    // Total paid (including companions)
-    const totalPaid = registrations
-      .filter(r => r.payment_status === 'paid')
-      .reduce((sum, r) => sum + 1 + (r.companions_count || 0), 0);
+    // Total paid
+    const totalPaid = invites.filter(i => i.invite_status === 'paid').length;
 
     // Conversion rate
     const conversionRate = totalRegistrations > 0 
       ? (totalPaid / totalRegistrations) * 100 
       : 0;
 
-    // Pending callbacks
+    // Pending callbacks (from registrations for backward compatibility)
     const pendingCallbacks = registrations.filter(
       r => r.payment_status === 'callback_requested'
     ).length;

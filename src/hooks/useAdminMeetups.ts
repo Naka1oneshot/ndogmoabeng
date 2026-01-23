@@ -77,18 +77,15 @@ export function useAdminMeetups() {
 
       if (eventsError) throw eventsError;
 
-      // Get registration counts
+      // Get confirmed counts from event_invites (paid + confirmed_unpaid)
       const eventsWithCounts = await Promise.all(
         (eventsData || []).map(async (event) => {
-          const { count } = await supabase
-            .from('meetup_registrations')
-            .select('*', { count: 'exact', head: true })
-            .eq('meetup_event_id', event.id)
-            .neq('status', 'CANCELLED');
+          const { data: countData } = await supabase
+            .rpc('get_event_confirmed_count', { p_event_id: event.id });
           
           return {
             ...event,
-            registration_count: count || 0,
+            registration_count: countData || 0,
           } as MeetupEventAdmin;
         })
       );
