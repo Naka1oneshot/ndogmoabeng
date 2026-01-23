@@ -209,6 +209,10 @@ Deno.serve(async (req) => {
       });
 
       if (aeCorrectlyIdentifiedBA) {
+        // NEW RULE: AE correctly identifies BA => Sabotage is ACTIVE by default
+        // - CV (citoyens) can pay ≥10 to CANCEL sabotage
+        // - PV can pay ≥15 to REACTIVATE sabotage (overrides CV cancellation)
+        
         // Calculate sums
         let sumCitoyens = 0;
         let sumPV = 0;
@@ -244,24 +248,22 @@ Deno.serve(async (req) => {
 
         let debitList: Array<{ num: number; amount: number }> = [];
         
+        // Default: Sabotage ACTIVE when AE correctly identifies BA
+        sabotageActive = true;
+        
         if (citoyensMet && !pvMet) {
-          // Case A: Sabotage MAINTAINED
-          sabotageActive = true;
+          // Case A: CV paid ≥10, PV didn't pay ≥15 -> Sabotage CANCELLED
+          sabotageActive = false;
           debitList = citoyenContributors;
-          addLog('STEP_5_CORRUPTION_RESULT', { case: 'A', sabotage: true });
-        } else if (pvMet && !citoyensMet) {
-          // Case B: Sabotage CANCELLED
-          sabotageActive = false;
+          addLog('STEP_5_CORRUPTION_RESULT', { case: 'A_CV_CANCEL', sabotage: false });
+        } else if (pvMet) {
+          // Case B: PV paid ≥15 -> Sabotage REACTIVATED (overrides CV)
+          sabotageActive = true;
           debitList = pvContributors;
-          addLog('STEP_5_CORRUPTION_RESULT', { case: 'B', sabotage: false });
-        } else if (citoyensMet && pvMet) {
-          // Case C: Both thresholds met -> Sabotage CANCELLED, only PV debited
-          sabotageActive = false;
-          debitList = pvContributors;
-          addLog('STEP_5_CORRUPTION_RESULT', { case: 'C', sabotage: false });
+          addLog('STEP_5_CORRUPTION_RESULT', { case: 'B_PV_OVERRIDE', sabotage: true });
         } else {
-          // Neither threshold met -> no effect
-          addLog('STEP_5_CORRUPTION_RESULT', { case: 'NONE', sabotage: false });
+          // Case C: Neither threshold met -> Sabotage remains ACTIVE (default)
+          addLog('STEP_5_CORRUPTION_RESULT', { case: 'C_DEFAULT_ACTIVE', sabotage: true });
         }
 
         // Apply debits and calculate AE gain
