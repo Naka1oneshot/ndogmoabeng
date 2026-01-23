@@ -174,9 +174,10 @@ export default function Join() {
       }
 
       navigate(`/lobby?game=${game.id}`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error joining game:', error);
-      toast.error('Erreur lors de la connexion');
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      toast.error(`Erreur lors de la connexion: ${errorMessage}`);
     } finally {
       setJoining(false);
     }
