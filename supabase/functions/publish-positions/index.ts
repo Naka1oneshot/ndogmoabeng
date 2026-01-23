@@ -403,6 +403,12 @@ serve(async (req) => {
 
       occupiedPositions.add(positionFinale);
 
+      // Default weapon for all players who don't select an attack
+      const DEFAULT_WEAPON = "Par défaut (+2 si compagnon Akandé)";
+      
+      // If player has no attack selected, use default weapon
+      const finalAttaque1 = action?.attaque1 || DEFAULT_WEAPON;
+      
       positionsFinales.push({
         game_id: gameId,
         session_game_id: sessionGameId,
@@ -414,8 +420,8 @@ serve(async (req) => {
         mise: ranking.mise_effective || 0,
         position_souhaitee: positionSouhaitee,
         position_finale: positionFinale,
-        slot_attaque: action?.slot_attaque || null,
-        attaque1: action?.attaque1 || null,
+        slot_attaque: action?.slot_attaque || 1, // Default to slot 1 if not specified
+        attaque1: finalAttaque1,
         attaque2: action?.attaque2 || null,
         protection: action?.protection_objet || null,
         slot_protection: action?.slot_protection || null,

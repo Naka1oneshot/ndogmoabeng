@@ -785,11 +785,22 @@ serve(async (req) => {
           const numPlayers = parseInt(item.special_value || '1', 10);
           const isLastPlayer = (i === totalPlayers - 1);
           
+          // IMPORTANT: targetSlot comes from the position, not the attack
+          // We need to capture the slot at this point in the loop
+          const attackTargetSlot = targetSlot;
+          
+          if (!attackTargetSlot) {
+            console.log(`[resolve-combat] ${attackName} by ${pos.nom}: no target slot specified, skipping delayed effect`);
+            return { damage: 0, isAoe: false, aoeDamage: 0 };
+          }
+          
           if (isLastPlayer) {
             // Player is last, trigger damage immediately
-            console.log(`[resolve-combat] ${attackName} by ${pos.nom}: last position, triggering ${baseDamage} damage immediately`);
+            console.log(`[resolve-combat] ${attackName} by ${pos.nom}: last position, triggering ${baseDamage} damage immediately on slot ${attackTargetSlot}`);
             return { damage: baseDamage, isAoe: false, aoeDamage: 0 };
           }
+          
+          console.log(`[resolve-combat] ${attackName} by ${pos.nom}: delayed effect, ${baseDamage} damage on slot ${attackTargetSlot} after ${numPlayers} player(s)`);
           
           pendingEffects.push({
             sourcePlayerNum: pos.num_joueur,
@@ -797,7 +808,7 @@ serve(async (req) => {
             weaponName: attackName,
             type: 'DELAYED',
             damage: baseDamage,
-            targetSlots: targetSlot ? [targetSlot] : [],
+            targetSlots: [attackTargetSlot],
             triggersAfterPlayers: numPlayers,
             remainingTriggers: numPlayers,
           });
