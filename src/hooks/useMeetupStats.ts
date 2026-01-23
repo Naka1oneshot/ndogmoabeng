@@ -104,9 +104,9 @@ export function useMeetupStats() {
       .filter(i => i.invite_status === 'paid' && i.contributed_amount)
       .reduce((sum, i) => sum + (i.contributed_amount || 0), 0);
 
-    // Total confirmed participants (paid + confirmed_unpaid from invites)
+    // Total confirmed participants (paid + confirmed_unpaid + free from invites)
     const totalRegistrations = invites.filter(
-      i => ['paid', 'confirmed_unpaid'].includes(i.invite_status)
+      i => ['paid', 'confirmed_unpaid', 'free'].includes(i.invite_status)
     ).length;
 
     // Total paid
