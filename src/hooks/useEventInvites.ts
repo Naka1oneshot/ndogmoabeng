@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export type InviteStatus = 'paid' | 'confirmed_unpaid' | 'pending' | 'free' | 'declined' | 'not_invited_yet' | 'not_invited';
@@ -97,7 +97,27 @@ export function useEventInvites(eventId: string | null) {
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;
-      setInvites((data || []) as EventInvite[]);
+      
+      // Fetch user profiles for linked users
+      const invitesWithProfiles = await Promise.all(
+        (data || []).map(async (invite) => {
+          if (invite.user_id) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('display_name, avatar_url')
+              .eq('user_id', invite.user_id)
+              .single();
+            
+            return {
+              ...invite,
+              user_profile: profileData,
+            };
+          }
+          return invite;
+        })
+      );
+      
+      setInvites(invitesWithProfiles as EventInvite[]);
     } catch (err) {
       console.error('Error fetching invites:', err);
       setError('Erreur lors du chargement des invités');
@@ -149,8 +169,44 @@ export function useEventInvites(eventId: string | null) {
     await updateInvite(inviteId, { user_id: userId });
   }
 
+  async function unlinkUser(inviteId: string) {
+    await updateInvite(inviteId, { user_id: null } as any);
+  }
+
   async function linkToRegistration(inviteId: string, registrationId: string) {
     await updateInvite(inviteId, { registration_id: registrationId });
+  }
+
+  const searchProfiles = useCallback(async (query: string): Promise<{ id: string; user_id: string; display_name: string; avatar_url: string | null; email?: string }[]> => {
+    if (!query || query.length < 2) return [];
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, user_id, display_name, avatar_url')
+      .or(`display_name.ilike.%${query}%`)
+      .limit(10);
+    
+    if (error) {
+      console.error('Error searching profiles:', error);
+      return [];
+    }
+    
+    return data || [];
+  }, []);
+
+  async function findUserByEmail(email: string): Promise<{ user_id: string; display_name: string } | null> {
+    if (!email) return null;
+    
+    // We can't directly query auth.users, but we can use a stored function if available
+    // For now, we search in profiles by checking if any profile matches
+    // This would need a profiles.email field or an RPC function
+    return null;
+  }
+
+  async function autoLinkByEmail(inviteId: string, email: string): Promise<boolean> {
+    // This would require email to be stored in profiles or an admin RPC
+    // For now, return false - implement if profiles has email
+    return false;
   }
 
   function getStats(): InviteStats {
@@ -207,7 +263,9 @@ export function useEventInvites(eventId: string | null) {
     deleteInvite,
     markAsPaidCash,
     linkToUser,
+    unlinkUser,
     linkToRegistration,
+    searchProfiles,
     getStats,
     exportToCSV,
     refetch: () => eventId && fetchInvites(eventId),
