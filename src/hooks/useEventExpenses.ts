@@ -159,15 +159,26 @@ export function useEventExpenses(eventId: string | null) {
   async function updateSettings(updates: Partial<EventFinancialSettings>) {
     if (!eventId) return;
 
+    // Build the full object with defaults when settings is null
+    const currentSettings: EventFinancialSettings = settings || {
+      meetup_event_id: eventId,
+      scenario_active: 'probable',
+      opening_balance: 0,
+      investment_budget: 0,
+    };
+
     const { error } = await supabase
       .from('event_financial_settings')
       .upsert({
+        ...currentSettings,
         meetup_event_id: eventId,
-        ...settings,
         ...updates,
       });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating settings:', error);
+      throw error;
+    }
     await fetchData(eventId);
   }
 
