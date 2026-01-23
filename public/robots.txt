@@ -1,5 +1,5 @@
 # Ndogmoabeng - Jeux de société interactifs
-# https://ndogmoabeng.lovable.app
+# https://ndogmoabeng.com
 
 User-agent: *
 Allow: /
@@ -14,10 +14,19 @@ Disallow: /presentation/
 Crawl-delay: 1
 
 # Sitemap location
-Sitemap: https://ndogmoabeng.lovable.app/sitemap.xml
+Sitemap: https://ndogmoabeng.com/sitemap.xml
 
 # Social media bots - full access to public pages
 User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
+User-agent: AdsBot-Google-Mobile
 Allow: /
 
 User-agent: Bingbot

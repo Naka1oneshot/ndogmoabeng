@@ -14,8 +14,8 @@ interface SEOHeadProps {
 const SITE_NAME = 'Ndogmoabeng';
 const DEFAULT_DESCRIPTION = 'Le village de Ndogmoabeng - Jeux de société interactifs en ligne. Stratégie, mystère et bluff dans un univers africain unique avec 7 clans.';
 const DEFAULT_KEYWORDS = 'jeux de société, jeux en ligne, stratégie, bluff, Ndogmoabeng, jeux africains, jeux interactifs, forêt, rivières, infection';
-const DEFAULT_IMAGE = 'https://ndogmoabeng.lovable.app/favicon.png';
-const SITE_URL = 'https://ndogmoabeng.lovable.app';
+const DEFAULT_IMAGE = 'https://ndogmoabeng.com/favicon.png';
+const SITE_URL = 'https://ndogmoabeng.com';
 
 export function SEOHead({
   title,
@@ -96,18 +96,18 @@ export function HomeSEO() {
     '@type': 'WebSite',
     name: 'Ndogmoabeng',
     description: 'Le village de Ndogmoabeng - Jeux de société interactifs en ligne',
-    url: 'https://ndogmoabeng.lovable.app',
+    url: 'https://ndogmoabeng.com',
     publisher: {
       '@type': 'Organization',
       name: 'Ndogmoabeng',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://ndogmoabeng.lovable.app/favicon.png',
+        url: 'https://ndogmoabeng.com/favicon.png',
       },
     },
     potentialAction: {
       '@type': 'SearchAction',
-      target: 'https://ndogmoabeng.lovable.app/watch?q={search_term_string}',
+      target: 'https://ndogmoabeng.com/watch?q={search_term_string}',
       'query-input': 'required name=search_term_string',
     },
   };
@@ -136,7 +136,7 @@ export function GamesSEO({ gameName, gameDescription }: { gameName: string; game
     },
     gameLocation: {
       '@type': 'VirtualLocation',
-      url: 'https://ndogmoabeng.lovable.app',
+      url: 'https://ndogmoabeng.com',
     },
   };
 
