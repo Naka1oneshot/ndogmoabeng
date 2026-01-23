@@ -58,6 +58,7 @@ export function EventInvitesTab({ eventId, event }: Props) {
     linkToUser,
     unlinkUser,
     searchProfiles,
+    searchUserByEmail,
     getStats,
     exportToCSV,
   } = useEventInvites(eventId);
@@ -68,6 +69,7 @@ export function EventInvitesTab({ eventId, event }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<Partial<EventInvite> & { linked_user_id?: string | null }>({
     full_name: '',
+    email: '',
     phone: '',
     address: '',
     invite_status: 'pending',
@@ -84,7 +86,10 @@ export function EventInvitesTab({ eventId, event }: Props) {
   const [profileResults, setProfileResults] = useState<ProfileSearchResult[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<ProfileSearchResult | null>(null);
   const [isSearchingProfiles, setIsSearchingProfiles] = useState(false);
+  const [isSearchingByEmail, setIsSearchingByEmail] = useState(false);
+  const [emailMatchFound, setEmailMatchFound] = useState(false);
   const debouncedProfileSearch = useDebounce(profileSearch, 300);
+  const debouncedEmail = useDebounce(formData.email || '', 500);
 
   // Search profiles when query changes
   useEffect(() => {
@@ -98,6 +103,29 @@ export function EventInvitesTab({ eventId, event }: Props) {
       setProfileResults([]);
     }
   }, [debouncedProfileSearch, searchProfiles]);
+
+  // Auto-search by email
+  useEffect(() => {
+    if (debouncedEmail && debouncedEmail.includes('@') && !selectedProfile) {
+      setIsSearchingByEmail(true);
+      searchUserByEmail(debouncedEmail).then(result => {
+        if (result) {
+          setSelectedProfile({
+            id: '',
+            user_id: result.user_id,
+            display_name: result.display_name,
+            avatar_url: result.avatar_url,
+          });
+          setEmailMatchFound(true);
+        } else {
+          setEmailMatchFound(false);
+        }
+        setIsSearchingByEmail(false);
+      });
+    } else {
+      setEmailMatchFound(false);
+    }
+  }, [debouncedEmail, selectedProfile, searchUserByEmail]);
 
   const stats = getStats();
 
@@ -150,6 +178,7 @@ export function EventInvitesTab({ eventId, event }: Props) {
     setEditingInvite(invite);
     setFormData({
       full_name: invite.full_name,
+      email: invite.email || '',
       phone: invite.phone || '',
       address: invite.address || '',
       invite_status: invite.invite_status,
@@ -174,6 +203,7 @@ export function EventInvitesTab({ eventId, event }: Props) {
     }
     setProfileSearch('');
     setProfileResults([]);
+    setEmailMatchFound(false);
     setShowForm(true);
   };
 
@@ -185,6 +215,7 @@ export function EventInvitesTab({ eventId, event }: Props) {
 
   const handleClearProfile = () => {
     setSelectedProfile(null);
+    setEmailMatchFound(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -211,6 +242,7 @@ export function EventInvitesTab({ eventId, event }: Props) {
   const resetForm = () => {
     setFormData({
       full_name: '',
+      email: '',
       phone: '',
       address: '',
       invite_status: 'pending',
@@ -224,6 +256,7 @@ export function EventInvitesTab({ eventId, event }: Props) {
     setSelectedProfile(null);
     setProfileSearch('');
     setProfileResults([]);
+    setEmailMatchFound(false);
   };
 
   return (
@@ -471,6 +504,26 @@ export function EventInvitesTab({ eventId, event }: Props) {
                 value={formData.full_name}
                 onChange={e => setFormData({ ...formData, full_name: e.target.value })}
               />
+            </div>
+            <div>
+              <Label className="flex items-center gap-2">
+                Email
+                {isSearchingByEmail && <Loader2 className="h-3 w-3 animate-spin" />}
+                {emailMatchFound && selectedProfile && (
+                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                    ✓ Utilisateur trouvé
+                  </Badge>
+                )}
+              </Label>
+              <Input
+                type="email"
+                value={formData.email || ''}
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                placeholder="email@exemple.com"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Si l'email correspond à un compte existant, l'invité sera automatiquement lié
+              </p>
             </div>
             <div>
               <Label>Téléphone</Label>
