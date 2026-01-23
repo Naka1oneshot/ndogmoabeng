@@ -57,6 +57,7 @@ import { LoyaltyPointsSection } from '@/components/profile/LoyaltyPointsSection'
 import { GameHistorySection } from '@/components/profile/GameHistorySection';
 import { MyRegistrationsSection } from '@/components/profile/MyRegistrationsSection';
 import { ChangePasswordSection } from '@/components/profile/ChangePasswordSection';
+import { LoginHistorySection } from '@/components/profile/LoginHistorySection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -454,6 +455,10 @@ export default function Profile() {
 
         {/* My Registrations Section */}
         <MyRegistrationsSection />
+
+        {/* Login History Section */}
+        <LoginHistorySection />
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>

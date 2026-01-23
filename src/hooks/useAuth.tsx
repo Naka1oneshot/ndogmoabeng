@@ -56,6 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error) {
       setSessionExpired(false);
+      // Log the login event
+      try {
+        await supabase.functions.invoke('log-login', {
+          body: { userAgent: navigator.userAgent }
+        });
+      } catch (logError) {
+        console.warn('Failed to log login:', logError);
+        // Don't fail the login if logging fails
+      }
     }
     return { error };
   };
