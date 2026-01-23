@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useMemo } from 'react';
 import { useEventExpenses, BudgetScenario } from './useEventExpenses';
 import { useEventInvites } from './useEventInvites';
 
@@ -31,61 +30,45 @@ export interface PNLData {
 export function useEventPNL(eventId: string | null) {
   const { expenses, settings, getBudgetSummary } = useEventExpenses(eventId);
   const { invites, getStats } = useEventInvites(eventId);
-  const [event, setEvent] = useState<{
-    expected_players: number;
-    price_eur: number;
-    pot_potential_eur: number;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!eventId) {
-      setEvent(null);
-      return;
-    }
-
-    async function fetchEvent() {
-      const { data } = await supabase
-        .from('meetup_events')
-        .select('expected_players, price_eur, pot_potential_eur')
-        .eq('id', eventId)
-        .single();
-      
-      setEvent(data);
-    }
-
-    fetchEvent();
-  }, [eventId]);
 
   const pnlData = useMemo((): PNLData => {
-    if (!event) {
-      return {
-        rows: [],
-        scenarioActive: 'probable',
-        summary: {
-          revenueReal: 0,
-          costReal: 0,
-          profitReal: 0,
-          revenueProjected: 0,
-          costProjected: 0,
-          profitProjected: 0,
-        },
-      };
-    }
-
     const scenarioActive = settings?.scenario_active || 'probable';
     const inviteStats = getStats();
     const budgetSummary = getBudgetSummary();
 
-    // Revenue calculations
-    const revenueProjected = {
-      pessimiste: event.expected_players * event.price_eur * 0.6,
-      probable: event.expected_players * event.price_eur * 0.8,
-      optimiste: event.expected_players * event.price_eur,
+    // Revenue calculations from settings
+    const inscriptionPrice = settings?.inscription_price || 0;
+    const parkingPrice = settings?.parking_price || 0;
+
+    const inscriptionsProjected = {
+      pessimiste: settings?.inscriptions_pessimiste || 0,
+      probable: settings?.inscriptions_probable || 0,
+      optimiste: settings?.inscriptions_optimiste || 0,
     };
 
-    // Real revenue from invites (avoid double counting)
-    const revenueReal = inviteStats.totalRevenue;
-    const parkingReal = inviteStats.totalParking;
+    const parkingProjected = {
+      pessimiste: settings?.parking_pessimiste || 0,
+      probable: settings?.parking_probable || 0,
+      optimiste: settings?.parking_optimiste || 0,
+    };
+
+    const revenueProjected = {
+      pessimiste: inscriptionsProjected.pessimiste * inscriptionPrice,
+      probable: inscriptionsProjected.probable * inscriptionPrice,
+      optimiste: inscriptionsProjected.optimiste * inscriptionPrice,
+    };
+
+    const parkingRevenueProjected = {
+      pessimiste: parkingProjected.pessimiste * parkingPrice,
+      probable: parkingProjected.probable * parkingPrice,
+      optimiste: parkingProjected.optimiste * parkingPrice,
+    };
+
+    // Real revenue from settings or invites
+    const inscriptionsReal = settings?.inscriptions_real ?? inviteStats.paid;
+    const parkingRealQty = settings?.parking_real ?? 0;
+    const revenueReal = inscriptionsReal * inscriptionPrice;
+    const parkingReal = parkingRealQty * parkingPrice + inviteStats.totalParking;
 
     // Cost calculations from expenses
     const costs = budgetSummary.totals;
@@ -116,17 +99,17 @@ export function useEventPNL(eventId: string | null) {
 
     rows.push({
       label: 'Parking',
-      pessimiste: 0,
-      probable: 0,
-      optimiste: 0,
+      pessimiste: parkingRevenueProjected.pessimiste,
+      probable: parkingRevenueProjected.probable,
+      optimiste: parkingRevenueProjected.optimiste,
       real: parkingReal,
-      ecart: -parkingReal,
+      ecart: parkingRevenueProjected[scenarioActive] - parkingReal,
       indent: 1,
     });
 
-    const totalRevenuePess = revenueProjected.pessimiste;
-    const totalRevenueProb = revenueProjected.probable;
-    const totalRevenueOpt = revenueProjected.optimiste;
+    const totalRevenuePess = revenueProjected.pessimiste + parkingRevenueProjected.pessimiste;
+    const totalRevenueProb = revenueProjected.probable + parkingRevenueProjected.probable;
+    const totalRevenueOpt = revenueProjected.optimiste + parkingRevenueProjected.optimiste;
     const totalRevenueReal = revenueReal + parkingReal;
 
     rows.push({

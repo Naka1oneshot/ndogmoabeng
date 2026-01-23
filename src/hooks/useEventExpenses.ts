@@ -31,6 +31,17 @@ export interface EventFinancialSettings {
   scenario_active: BudgetScenario;
   opening_balance: number;
   investment_budget: number;
+  // Revenue projections
+  inscriptions_pessimiste: number;
+  inscriptions_probable: number;
+  inscriptions_optimiste: number;
+  inscriptions_real: number | null;
+  parking_pessimiste: number;
+  parking_probable: number;
+  parking_optimiste: number;
+  parking_real: number | null;
+  parking_price: number;
+  inscription_price: number;
 }
 
 export interface BudgetSummary {
@@ -165,6 +176,16 @@ export function useEventExpenses(eventId: string | null) {
       scenario_active: 'probable',
       opening_balance: 0,
       investment_budget: 0,
+      inscriptions_pessimiste: 0,
+      inscriptions_probable: 0,
+      inscriptions_optimiste: 0,
+      inscriptions_real: null,
+      parking_pessimiste: 0,
+      parking_probable: 0,
+      parking_optimiste: 0,
+      parking_real: null,
+      parking_price: 0,
+      inscription_price: 0,
     };
 
     const { error } = await supabase
