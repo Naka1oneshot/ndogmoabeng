@@ -6,7 +6,7 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Gamepad2, QrCode, Users, Sparkles, Eye } from 'lucide-react';
+import { Gamepad2, QrCode, Users, Sparkles, Eye, ShoppingBag } from 'lucide-react';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 export function HeroSection() {
@@ -127,7 +127,7 @@ export function HeroSection() {
                     Créer une partie (MJ)
                   </ForestButton>
 
-                  {/* New: Watch a game */}
+                  {/* Watch a game */}
                   <ForestButton 
                     variant="ghost" 
                     className="w-full"
@@ -135,6 +135,16 @@ export function HeroSection() {
                   >
                     <Eye className="h-4 w-4" />
                     Regarder une partie
+                  </ForestButton>
+
+                  {/* Shop */}
+                  <ForestButton 
+                    variant="ghost" 
+                    className="w-full"
+                    onClick={() => navigate('/boutique')}
+                  >
+                    <ShoppingBag className="h-4 w-4" />
+                    Boutique
                   </ForestButton>
                 </div>
 
