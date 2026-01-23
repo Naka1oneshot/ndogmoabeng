@@ -116,7 +116,34 @@ export function useAdminMeetups() {
     await updateEvent(eventId, { status: 'ARCHIVED' });
   }
 
-  return { events, loading, error, refetch: fetchEvents, updateEvent, archiveEvent };
+  async function createEvent(eventData: {
+    slug: string;
+    title: string;
+    description: string;
+    city: string;
+    venue?: string;
+    start_at: string;
+    end_at: string;
+    expected_players: number;
+    price_eur: number;
+    pot_contribution_eur: number;
+    pot_potential_eur: number;
+    audio_url: string;
+    video_url?: string;
+    cover_image_url?: string;
+  }) {
+    const { error } = await supabase
+      .from('meetup_events')
+      .insert({
+        ...eventData,
+        status: 'UPCOMING',
+      });
+    
+    if (error) throw error;
+    await fetchEvents();
+  }
+
+  return { events, loading, error, refetch: fetchEvents, updateEvent, archiveEvent, createEvent };
 }
 
 export function useAdminRegistrations(eventId: string | null) {
@@ -182,6 +209,21 @@ export function useAdminRegistrations(eventId: string | null) {
     if (eventId) await fetchRegistrations(eventId);
   }
 
+  async function confirmCashPayment(regId: string, amountEur: number) {
+    const { error } = await supabase
+      .from('meetup_registrations')
+      .update({
+        payment_status: 'paid',
+        paid_at: new Date().toISOString(),
+        paid_amount_cents: amountEur * 100,
+        status: 'CONFIRMED',
+      })
+      .eq('id', regId);
+    
+    if (error) throw error;
+    if (eventId) await fetchRegistrations(eventId);
+  }
+
   async function deleteRegistration(regId: string) {
     const { error } = await supabase
       .from('meetup_registrations')
@@ -230,6 +272,7 @@ export function useAdminRegistrations(eventId: string | null) {
     loading, 
     error, 
     updateRegistration, 
+    confirmCashPayment,
     deleteRegistration,
     exportToCSV,
     copyPhones

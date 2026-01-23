@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro, Plus } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { ForestButton } from '@/components/ui/ForestButton';
@@ -19,22 +19,60 @@ import { useAdminMeetups, useAdminRegistrations, MeetupEventAdmin } from '@/hook
 import { toast } from 'sonner';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
+interface NewEventForm {
+  slug: string;
+  title: string;
+  description: string;
+  city: string;
+  venue: string;
+  start_at: string;
+  end_at: string;
+  expected_players: number;
+  price_eur: number;
+  pot_contribution_eur: number;
+  pot_potential_eur: number;
+  audio_url: string;
+  video_url: string;
+  cover_image_url: string;
+}
+
+const initialNewEvent: NewEventForm = {
+  slug: '',
+  title: '',
+  description: '',
+  city: '',
+  venue: '',
+  start_at: '',
+  end_at: '',
+  expected_players: 20,
+  price_eur: 10,
+  pot_contribution_eur: 5,
+  pot_potential_eur: 100,
+  audio_url: '',
+  video_url: '',
+  cover_image_url: '',
+};
+
 export default function AdminMeetups() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const { isAdminOrSuper, loading: roleLoading } = useUserRole();
-  const { events, loading: eventsLoading, archiveEvent, updateEvent } = useAdminMeetups();
+  const { events, loading: eventsLoading, archiveEvent, updateEvent, createEvent } = useAdminMeetups();
   
   const [selectedEvent, setSelectedEvent] = useState<MeetupEventAdmin | null>(null);
   const [editingEvent, setEditingEvent] = useState<MeetupEventAdmin | null>(null);
   const [showRegistrations, setShowRegistrations] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newEvent, setNewEvent] = useState<NewEventForm>(initialNewEvent);
+  const [creatingEvent, setCreatingEvent] = useState(false);
 
   const { 
     registrations, 
     loading: regLoading, 
     updateRegistration,
+    confirmCashPayment,
     exportToCSV,
     copyPhones
   } = useAdminRegistrations(selectedEvent?.id || null);
@@ -112,12 +150,65 @@ export default function AdminMeetups() {
     }
   };
 
+  const handleConfirmCashPayment = async (regId: string, priceEur: number) => {
+    try {
+      await confirmCashPayment(regId, priceEur);
+      toast.success('Paiement espèces confirmé');
+    } catch {
+      toast.error('Erreur lors de la confirmation');
+    }
+  };
+
   const handleNoteChange = async (regId: string, note: string) => {
     try {
       await updateRegistration(regId, { admin_note: note });
       toast.success('Note enregistrée');
     } catch {
       toast.error('Erreur lors de l\'enregistrement');
+    }
+  };
+
+  const generateSlug = (title: string) => {
+    return title
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  };
+
+  const handleCreateEvent = async () => {
+    // Validation
+    if (!newEvent.title || !newEvent.description || !newEvent.city || !newEvent.start_at || !newEvent.end_at || !newEvent.audio_url) {
+      toast.error('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    try {
+      setCreatingEvent(true);
+      await createEvent({
+        slug: newEvent.slug || generateSlug(newEvent.title),
+        title: newEvent.title,
+        description: newEvent.description,
+        city: newEvent.city,
+        venue: newEvent.venue || undefined,
+        start_at: newEvent.start_at,
+        end_at: newEvent.end_at,
+        expected_players: newEvent.expected_players,
+        price_eur: newEvent.price_eur,
+        pot_contribution_eur: newEvent.pot_contribution_eur,
+        pot_potential_eur: newEvent.pot_potential_eur,
+        audio_url: newEvent.audio_url,
+        video_url: newEvent.video_url || undefined,
+        cover_image_url: newEvent.cover_image_url || undefined,
+      });
+      toast.success('Événement créé avec succès');
+      setShowCreate(false);
+      setNewEvent(initialNewEvent);
+    } catch {
+      toast.error('Erreur lors de la création');
+    } finally {
+      setCreatingEvent(false);
     }
   };
 
@@ -214,8 +305,15 @@ export default function AdminMeetups() {
           </div>
         ) : (
           <Card className="bg-surface border-border">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-foreground">Événements</CardTitle>
+              <Button
+                onClick={() => setShowCreate(true)}
+                className="bg-primary hover:bg-primary-hover"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nouvel événement
+              </Button>
             </CardHeader>
             <CardContent>
               <Table>
@@ -377,6 +475,18 @@ export default function AdminMeetups() {
                           {getPaymentBadge(reg.payment_status, reg.paid_amount_cents)}
                         </div>
                         <div className="flex items-center gap-2">
+                          {/* Bouton confirmer espèces */}
+                          {reg.payment_status !== 'paid' && selectedEvent && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs border-accent/50 text-accent hover:bg-accent/20"
+                              onClick={() => handleConfirmCashPayment(reg.id, selectedEvent.price_eur * (1 + reg.companions_count))}
+                            >
+                              <Banknote className="w-3 h-3 mr-1" />
+                              Espèces ({selectedEvent.price_eur * (1 + reg.companions_count)}€)
+                            </Button>
+                          )}
                           <Select
                             value={reg.status}
                             onValueChange={(value) => handleStatusChange(reg.id, value)}
@@ -603,6 +713,188 @@ export default function AdminMeetups() {
               </div>
             </div>
           )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Create Event Sheet */}
+      <Sheet open={showCreate} onOpenChange={setShowCreate}>
+        <SheetContent className="w-full sm:max-w-xl bg-surface border-border overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="text-foreground">Nouvel événement</SheetTitle>
+          </SheetHeader>
+
+          <div className="mt-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-foreground">Titre *</Label>
+              <Input
+                value={newEvent.title}
+                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value, slug: generateSlug(e.target.value) })}
+                placeholder="Meetup Ndogmoabeng Paris"
+                className="bg-surface-2 border-border"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs">Slug (URL)</Label>
+              <Input
+                value={newEvent.slug}
+                onChange={(e) => setNewEvent({ ...newEvent, slug: e.target.value })}
+                placeholder="meetup-ndogmoabeng-paris"
+                className="bg-surface-2 border-border text-xs"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-foreground">Description *</Label>
+              <Textarea
+                value={newEvent.description}
+                onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                placeholder="Venez découvrir les jeux de société..."
+                className="bg-surface-2 border-border min-h-[100px]"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-foreground">Ville *</Label>
+                <Input
+                  value={newEvent.city}
+                  onChange={(e) => setNewEvent({ ...newEvent, city: e.target.value })}
+                  placeholder="Paris"
+                  className="bg-surface-2 border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground">Lieu</Label>
+                <Input
+                  value={newEvent.venue}
+                  onChange={(e) => setNewEvent({ ...newEvent, venue: e.target.value })}
+                  placeholder="Bar XYZ"
+                  className="bg-surface-2 border-border"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-foreground">Date de début *</Label>
+                <Input
+                  type="datetime-local"
+                  value={newEvent.start_at}
+                  onChange={(e) => setNewEvent({ ...newEvent, start_at: e.target.value })}
+                  className="bg-surface-2 border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground">Date de fin *</Label>
+                <Input
+                  type="datetime-local"
+                  value={newEvent.end_at}
+                  onChange={(e) => setNewEvent({ ...newEvent, end_at: e.target.value })}
+                  className="bg-surface-2 border-border"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-foreground">Joueurs attendus</Label>
+                <Input
+                  type="number"
+                  value={newEvent.expected_players}
+                  onChange={(e) => setNewEvent({ ...newEvent, expected_players: parseInt(e.target.value) || 20 })}
+                  className="bg-surface-2 border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground">Prix (€)</Label>
+                <Input
+                  type="number"
+                  value={newEvent.price_eur}
+                  onChange={(e) => setNewEvent({ ...newEvent, price_eur: parseFloat(e.target.value) || 0 })}
+                  className="bg-surface-2 border-border"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-foreground">Contribution cagnotte (€)</Label>
+                <Input
+                  type="number"
+                  value={newEvent.pot_contribution_eur}
+                  onChange={(e) => setNewEvent({ ...newEvent, pot_contribution_eur: parseFloat(e.target.value) || 0 })}
+                  className="bg-surface-2 border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground">Cagnotte potentielle (€)</Label>
+                <Input
+                  type="number"
+                  value={newEvent.pot_potential_eur}
+                  onChange={(e) => setNewEvent({ ...newEvent, pot_potential_eur: parseFloat(e.target.value) || 0 })}
+                  className="bg-surface-2 border-border"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-foreground">URL Audio *</Label>
+              <Input
+                value={newEvent.audio_url}
+                onChange={(e) => setNewEvent({ ...newEvent, audio_url: e.target.value })}
+                placeholder="/media/meetup-audio.mp3"
+                className="bg-surface-2 border-border"
+              />
+              <p className="text-xs text-muted-foreground">Obligatoire - ex: /media/meetup-audio.mp3</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-foreground">URL Vidéo (optionnel)</Label>
+              <Input
+                value={newEvent.video_url}
+                onChange={(e) => setNewEvent({ ...newEvent, video_url: e.target.value })}
+                placeholder="/media/meetup-video.mp4"
+                className="bg-surface-2 border-border"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-foreground">URL Image couverture (optionnel)</Label>
+              <Input
+                value={newEvent.cover_image_url}
+                onChange={(e) => setNewEvent({ ...newEvent, cover_image_url: e.target.value })}
+                placeholder="https://..."
+                className="bg-surface-2 border-border"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={handleCreateEvent}
+                disabled={creatingEvent}
+                className="flex-1 bg-primary hover:bg-primary-hover"
+              >
+                {creatingEvent ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4 mr-2" />
+                )}
+                Créer l'événement
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCreate(false);
+                  setNewEvent(initialNewEvent);
+                }}
+                className="border-border"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Annuler
+              </Button>
+            </div>
+          </div>
         </SheetContent>
       </Sheet>
     </div>
