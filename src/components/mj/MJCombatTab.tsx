@@ -1,18 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Swords, Heart, Skull, Target, Trophy, FileText, Clock, Copy, Check, Flag, FastForward } from 'lucide-react';
+import { Loader2, Swords, Heart, Skull, Target, Trophy, Flag, FastForward } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { toast } from 'sonner';
 import {
@@ -26,6 +16,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { CombatLogsDetailedPanel } from './CombatLogsDetailedPanel';
 
 interface GamePlayer {
   id: string;
@@ -88,9 +79,7 @@ export function MJCombatTab({ game, isAdventure, onNextGame }: MJCombatTabProps)
   const [combatLogs, setCombatLogs] = useState<CombatLog[]>([]);
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedManche, setSelectedManche] = useState<string>('current');
   const [availableManches, setAvailableManches] = useState<number[]>([]);
-  const [copied, setCopied] = useState(false);
   const [showFinalRanking, setShowFinalRanking] = useState(false);
   const [endingGame, setEndingGame] = useState(false);
 
@@ -264,48 +253,6 @@ export function MJCombatTab({ game, isAdventure, onNextGame }: MJCombatTabProps)
         return <Badge variant="outline" className="text-muted-foreground">Mort</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const getActionBadge = (action: string) => {
-    const upperAction = action.toUpperCase();
-    if (upperAction.includes('DEGATS') || upperAction.includes('ATTAQUE')) {
-      return <Badge variant="destructive" className="text-xs">{action}</Badge>;
-    }
-    if (upperAction.includes('SOIN')) {
-      return <Badge className="bg-green-500 text-xs">{action}</Badge>;
-    }
-    if (upperAction.includes('KILL')) {
-      return <Badge variant="destructive" className="text-xs font-bold">{action}</Badge>;
-    }
-    if (upperAction.includes('PROTECTION') || upperAction.includes('BOUCLIER') || upperAction.includes('GAZ') || upperAction.includes('VOILE')) {
-      return <Badge className="bg-blue-500 text-xs">{action}</Badge>;
-    }
-    if (upperAction.includes('CONSO') || upperAction.includes('INVENTAIRE')) {
-      return <Badge className="bg-amber-500 text-xs">{action}</Badge>;
-    }
-    return <Badge variant="outline" className="text-xs">{action}</Badge>;
-  };
-
-  // Filter logs by selected manche
-  const displayManche = selectedManche === 'current' 
-    ? game.manche_active 
-    : parseInt(selectedManche);
-  
-  const filteredLogs = combatLogs.filter(log => log.manche === displayManche);
-
-  const handleCopyLogs = async () => {
-    const logsText = filteredLogs.map(log => 
-      `[${log.timestamp ? format(new Date(log.timestamp), 'HH:mm:ss') : '??:??:??'}] ${log.num_joueur ? `P${log.num_joueur}` : ''} ${log.action}: ${log.details || ''}`
-    ).join('\n');
-    
-    try {
-      await navigator.clipboard.writeText(logsText);
-      setCopied(true);
-      toast.success('Logs copiés !');
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('Erreur lors de la copie');
     }
   };
 
@@ -548,75 +495,11 @@ export function MJCombatTab({ game, isAdventure, onNextGame }: MJCombatTabProps)
       )}
 
       {/* Logs combat détaillés (MJ) */}
-      <div className="card-gradient rounded-lg border border-border p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <h3 className="font-display text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            Logs combat détaillés (MJ)
-          </h3>
-          
-          <div className="flex items-center gap-3">
-            <Select value={selectedManche} onValueChange={setSelectedManche}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="current">
-                  Manche {game.manche_active} (actuelle)
-                </SelectItem>
-                {availableManches
-                  .filter(m => m !== game.manche_active)
-                  .map((m) => (
-                    <SelectItem key={m} value={String(m)}>
-                      Manche {m}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            
-            <ForestButton variant="outline" size="sm" onClick={handleCopyLogs} disabled={filteredLogs.length === 0}>
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            </ForestButton>
-          </div>
-        </div>
-
-        {filteredLogs.length === 0 ? (
-          <p className="text-muted-foreground text-sm text-center py-8">
-            Aucun log de combat pour cette manche
-          </p>
-        ) : (
-          <ScrollArea className="h-[300px] pr-4">
-            <div className="space-y-2">
-              {filteredLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="p-3 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {getActionBadge(log.action)}
-                      {log.num_joueur && (
-                        <Badge variant="outline" className="text-xs">
-                          P{log.num_joueur}
-                        </Badge>
-                      )}
-                      <span className="text-sm">{log.details || '-'}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
-                      <Clock className="h-3 w-3" />
-                      {log.timestamp ? format(new Date(log.timestamp), 'HH:mm:ss', { locale: fr }) : '??:??:??'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
-
-        <div className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground">
-          {filteredLogs.length} log(s) de combat trouvé(s) pour la manche {displayManche}
-        </div>
-      </div>
+      <CombatLogsDetailedPanel
+        logs={combatLogs}
+        currentManche={game.manche_active}
+        availableManches={availableManches}
+      />
     </div>
   );
 }
