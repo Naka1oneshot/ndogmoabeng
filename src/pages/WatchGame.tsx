@@ -32,6 +32,7 @@ import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { PresentationModeView } from '@/components/mj/presentation/PresentationModeView';
 import { RivieresPresentationView } from '@/components/rivieres/presentation/RivieresPresentationView';
+import { InfectionPresentationView } from '@/components/infection/presentation/InfectionPresentationView';
 
 const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   LOBBY: { label: 'En attente', variant: 'secondary' },
@@ -224,6 +225,27 @@ export default function WatchGame() {
     return (
       <RivieresPresentationView 
         game={rivieresGame}
+        onClose={() => navigate('/watch')} 
+      />
+    );
+  }
+
+  // For Infection games, use Infection Presentation Mode as the spectator view
+  if (gameInfo.game_type_code === 'INFECTION') {
+    const infectionGame = {
+      id: gameInfo.game_id,
+      name: gameInfo.name,
+      status: gameInfo.status,
+      phase: gameInfo.phase || 'PLAYING',
+      phase_locked: false,
+      manche_active: gameInfo.manche_active || 1,
+      selected_game_type_code: 'INFECTION',
+      current_session_game_id: gameInfo.current_session_game_id,
+    };
+    
+    return (
+      <InfectionPresentationView 
+        game={infectionGame}
         onClose={() => navigate('/watch')} 
       />
     );
