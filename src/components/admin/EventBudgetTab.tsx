@@ -11,6 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Plus, Download, Edit2, Trash2, Settings, Copy } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { BudgetRowCompact } from './BudgetRowCompact';
+import { cn } from '@/lib/utils';
 
 interface Props {
   eventId: string;
@@ -41,6 +44,7 @@ const PREDEFINED_EXPENSE_TYPES = [
 ];
 
 export function EventBudgetTab({ eventId }: Props) {
+  const isMobile = useIsMobile();
   const {
     expenses,
     settings,
@@ -76,6 +80,14 @@ export function EventBudgetTab({ eventId }: Props) {
   const allExpenseTypes = [...new Set([...PREDEFINED_EXPENSE_TYPES, ...existingCustomTypes])].sort();
 
   const summary = getBudgetSummary();
+  const scenarioActive = settings?.scenario_active || 'probable';
+
+  // Get the active scenario total
+  const activeScenarioTotal = scenarioActive === 'pessimiste' 
+    ? summary.totals.pessimiste 
+    : scenarioActive === 'probable' 
+      ? summary.totals.probable 
+      : summary.totals.optimiste;
 
   const handleSubmit = async () => {
     try {
@@ -182,133 +194,217 @@ export function EventBudgetTab({ eventId }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-sm text-muted-foreground">Pessimiste</div>
-            <div className="text-2xl font-bold text-orange-600">
-              {summary.totals.pessimiste.toFixed(0)}€
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-sm text-muted-foreground">Probable</div>
-            <div className="text-2xl font-bold text-blue-600">
-              {summary.totals.probable.toFixed(0)}€
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-sm text-muted-foreground">Optimiste</div>
-            <div className="text-2xl font-bold text-green-600">
-              {summary.totals.optimiste.toFixed(0)}€
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-sm text-muted-foreground">Réel</div>
-            <div className="text-2xl font-bold text-primary">
-              {summary.totals.real.toFixed(0)}€
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Summary Cards - Mobile: prioritize active scenario */}
+      {isMobile ? (
+        <div className="space-y-3">
+          {/* Active Scenario - Primary */}
+          <Card className="border-primary">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Scénario actif: <span className="capitalize font-medium text-primary">{scenarioActive}</span>
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {activeScenarioTotal.toFixed(0)}€
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground">Réel</div>
+                  <div className="text-xl font-bold text-primary">
+                    {summary.totals.real.toFixed(0)}€
+                  </div>
+                </div>
+              </div>
+              <div className={cn(
+                "mt-2 text-sm font-medium",
+                activeScenarioTotal - summary.totals.real >= 0 ? "text-green-600" : "text-destructive"
+              )}>
+                Écart: {activeScenarioTotal - summary.totals.real >= 0 ? '+' : ''}{(activeScenarioTotal - summary.totals.real).toFixed(0)}€
+              </div>
+            </CardContent>
+          </Card>
+          {/* Other scenarios - Secondary */}
+          <div className="grid grid-cols-3 gap-2">
+            <Card className={cn(scenarioActive === 'pessimiste' && "opacity-50")}>
+              <CardContent className="p-2 text-center">
+                <div className="text-xs text-muted-foreground">Pess.</div>
+                <div className="text-sm font-bold text-orange-600">
+                  {summary.totals.pessimiste.toFixed(0)}€
+                </div>
+              </CardContent>
+            </Card>
+            <Card className={cn(scenarioActive === 'probable' && "opacity-50")}>
+              <CardContent className="p-2 text-center">
+                <div className="text-xs text-muted-foreground">Prob.</div>
+                <div className="text-sm font-bold text-blue-600">
+                  {summary.totals.probable.toFixed(0)}€
+                </div>
+              </CardContent>
+            </Card>
+            <Card className={cn(scenarioActive === 'optimiste' && "opacity-50")}>
+              <CardContent className="p-2 text-center">
+                <div className="text-xs text-muted-foreground">Opt.</div>
+                <div className="text-sm font-bold text-green-600">
+                  {summary.totals.optimiste.toFixed(0)}€
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className={cn(scenarioActive === 'pessimiste' && "ring-2 ring-primary")}>
+            <CardContent className="p-4 text-center">
+              <div className="text-sm text-muted-foreground">Pessimiste</div>
+              <div className="text-2xl font-bold text-orange-600">
+                {summary.totals.pessimiste.toFixed(0)}€
+              </div>
+            </CardContent>
+          </Card>
+          <Card className={cn(scenarioActive === 'probable' && "ring-2 ring-primary")}>
+            <CardContent className="p-4 text-center">
+              <div className="text-sm text-muted-foreground">Probable</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {summary.totals.probable.toFixed(0)}€
+              </div>
+            </CardContent>
+          </Card>
+          <Card className={cn(scenarioActive === 'optimiste' && "ring-2 ring-primary")}>
+            <CardContent className="p-4 text-center">
+              <div className="text-sm text-muted-foreground">Optimiste</div>
+              <div className="text-2xl font-bold text-green-600">
+                {summary.totals.optimiste.toFixed(0)}€
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-sm text-muted-foreground">Réel</div>
+              <div className="text-2xl font-bold text-primary">
+                {summary.totals.real.toFixed(0)}€
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Actions */}
-      <div className="flex gap-2">
-        <Button onClick={() => setShowSettings(true)} variant="outline">
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setShowSettings(true)} variant="outline" size={isMobile ? "sm" : "default"}>
           <Settings className="h-4 w-4 mr-2" />
-          Paramètres
+          {isMobile ? '' : 'Paramètres'}
         </Button>
-        <Button onClick={exportToCSV} variant="outline">
+        <Button onClick={exportToCSV} variant="outline" size={isMobile ? "sm" : "default"}>
           <Download className="h-4 w-4 mr-2" />
-          Export CSV
+          {isMobile ? '' : 'Export CSV'}
         </Button>
-        <Button onClick={() => { resetForm(); setEditingExpense(null); setShowForm(true); }}>
+        <Button onClick={() => { resetForm(); setEditingExpense(null); setShowForm(true); }} size={isMobile ? "sm" : "default"}>
           <Plus className="h-4 w-4 mr-2" />
           Ajouter
         </Button>
       </div>
 
       {/* Expenses by Type */}
-      {Object.entries(expensesByType).map(([type, typeExpenses]) => (
-        <Card key={type}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex justify-between items-center">
-              <span>{type}</span>
-              <div className="flex gap-4 text-sm font-normal">
-                <span className="text-orange-600">{summary.byType[type]?.pessimiste.toFixed(0)}€</span>
-                <span className="text-blue-600">{summary.byType[type]?.probable.toFixed(0)}€</span>
-                <span className="text-green-600">{summary.byType[type]?.optimiste.toFixed(0)}€</span>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Label</TableHead>
-                  <TableHead>État</TableHead>
-                  <TableHead className="text-right">PU</TableHead>
-                  <TableHead className="text-right">Pess</TableHead>
-                  <TableHead className="text-right">Prob</TableHead>
-                  <TableHead className="text-right">Opt</TableHead>
-                  <TableHead className="text-right">Réel</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {typeExpenses.map(expense => (
-                  <TableRow key={expense.id}>
-                    <TableCell className="font-medium">{expense.label}</TableCell>
-                    <TableCell>
-                      {expense.state && <Badge variant="outline">{expense.state}</Badge>}
-                    </TableCell>
-                    <TableCell className="text-right">{expense.unit_cost}€</TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-muted-foreground">{expense.qty_pessimiste}</span>
-                      <span className="ml-2">{expense.total_pessimiste?.toFixed(0)}€</span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-muted-foreground">{expense.qty_probable}</span>
-                      <span className="ml-2">{expense.total_probable?.toFixed(0)}€</span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-muted-foreground">{expense.qty_optimiste}</span>
-                      <span className="ml-2">{expense.total_optimiste?.toFixed(0)}€</span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {expense.qty_real != null && (
-                        <>
-                          <span className="text-muted-foreground">{expense.qty_real}</span>
-                          <span className="ml-2 font-medium">{expense.total_real?.toFixed(0)}€</span>
-                        </>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => handleEdit(expense)} title="Modifier">
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDuplicate(expense)} title="Dupliquer">
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDelete(expense.id)} title="Supprimer">
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
+      {isMobile ? (
+        // Mobile: Compact view grouped by type
+        Object.entries(expensesByType).map(([type, typeExpenses]) => (
+          <div key={type}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-medium">{type}</h3>
+              <Badge variant="outline">
+                {SCENARIO_LABELS[scenarioActive]}: {summary.byType[type]?.[scenarioActive].toFixed(0)}€
+              </Badge>
+            </div>
+            {typeExpenses.map(expense => (
+              <BudgetRowCompact
+                key={expense.id}
+                expense={expense}
+                scenarioActive={scenarioActive}
+                onEdit={handleEdit}
+                onDuplicate={handleDuplicate}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        ))
+      ) : (
+        // Desktop: Table view
+        Object.entries(expensesByType).map(([type, typeExpenses]) => (
+          <Card key={type}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex justify-between items-center">
+                <span>{type}</span>
+                <div className="flex gap-4 text-sm font-normal">
+                  <span className={cn("text-orange-600", scenarioActive === 'pessimiste' && "font-bold underline")}>{summary.byType[type]?.pessimiste.toFixed(0)}€</span>
+                  <span className={cn("text-blue-600", scenarioActive === 'probable' && "font-bold underline")}>{summary.byType[type]?.probable.toFixed(0)}€</span>
+                  <span className={cn("text-green-600", scenarioActive === 'optimiste' && "font-bold underline")}>{summary.byType[type]?.optimiste.toFixed(0)}€</span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Label</TableHead>
+                    <TableHead>État</TableHead>
+                    <TableHead className="text-right">PU</TableHead>
+                    <TableHead className={cn("text-right", scenarioActive === 'pessimiste' && "bg-orange-50 dark:bg-orange-950/20")}>Pess</TableHead>
+                    <TableHead className={cn("text-right", scenarioActive === 'probable' && "bg-blue-50 dark:bg-blue-950/20")}>Prob</TableHead>
+                    <TableHead className={cn("text-right", scenarioActive === 'optimiste' && "bg-green-50 dark:bg-green-950/20")}>Opt</TableHead>
+                    <TableHead className="text-right">Réel</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      ))}
+                </TableHeader>
+                <TableBody>
+                  {typeExpenses.map(expense => (
+                    <TableRow key={expense.id}>
+                      <TableCell className="font-medium">{expense.label}</TableCell>
+                      <TableCell>
+                        {expense.state && <Badge variant="outline">{expense.state}</Badge>}
+                      </TableCell>
+                      <TableCell className="text-right">{expense.unit_cost}€</TableCell>
+                      <TableCell className={cn("text-right", scenarioActive === 'pessimiste' && "bg-orange-50 dark:bg-orange-950/20")}>
+                        <span className="text-muted-foreground">{expense.qty_pessimiste}</span>
+                        <span className="ml-2">{expense.total_pessimiste?.toFixed(0)}€</span>
+                      </TableCell>
+                      <TableCell className={cn("text-right", scenarioActive === 'probable' && "bg-blue-50 dark:bg-blue-950/20")}>
+                        <span className="text-muted-foreground">{expense.qty_probable}</span>
+                        <span className="ml-2">{expense.total_probable?.toFixed(0)}€</span>
+                      </TableCell>
+                      <TableCell className={cn("text-right", scenarioActive === 'optimiste' && "bg-green-50 dark:bg-green-950/20")}>
+                        <span className="text-muted-foreground">{expense.qty_optimiste}</span>
+                        <span className="ml-2">{expense.total_optimiste?.toFixed(0)}€</span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {expense.qty_real != null && (
+                          <>
+                            <span className="text-muted-foreground">{expense.qty_real}</span>
+                            <span className="ml-2 font-medium">{expense.total_real?.toFixed(0)}€</span>
+                          </>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => handleEdit(expense)} title="Modifier">
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleDuplicate(expense)} title="Dupliquer">
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleDelete(expense.id)} title="Supprimer">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ))
+      )}
 
       {expenses.length === 0 && !loading && (
         <Card>
