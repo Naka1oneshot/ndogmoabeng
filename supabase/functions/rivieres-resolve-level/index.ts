@@ -185,8 +185,8 @@ serve(async (req) => {
       }
     }
 
-    // Determine outcome
-    const outcome = totalMises > dangerEffectif ? "SUCCESS" : "FAIL";
+    // Determine outcome - SUCCESS if total mises >= danger (equal counts as success)
+    const outcome = totalMises >= dangerEffectif ? "SUCCESS" : "FAIL";
     const cagnotteBefore = state.cagnotte_manche;
     let cagnotteAfter = cagnotteBefore;
 
