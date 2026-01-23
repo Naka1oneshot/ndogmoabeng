@@ -216,14 +216,21 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       if (statsData) setPlayerStats(statsData);
 
       // Fetch players (excluding host)
-      const { data: playersData } = await supabase
+      const { data: playersData, error: playersError } = await supabase
         .from('game_players')
         .select('id, display_name, player_number, clan, jetons, is_host, player_token, user_id')
         .eq('game_id', gameId)
         .eq('status', 'ACTIVE')
         .order('player_number');
 
-      if (playersData) setPlayers(playersData.filter(p => !p.is_host && p.player_number !== null));
+      if (playersError) {
+        console.error('[MJRivieresDashboard] Error fetching players:', playersError);
+      }
+      
+      if (playersData) {
+        const activePlayers = playersData.filter(p => !p.is_host && p.player_number !== null);
+        setPlayers(activePlayers);
+      }
 
       // Fetch current level decisions
       if (stateData) {
@@ -639,10 +646,12 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
     }
   };
 
+  // Show loading while data is being fetched
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+        <span className="ml-3 text-[#9CA3AF]">Chargement des joueurs...</span>
       </div>
     );
   }
