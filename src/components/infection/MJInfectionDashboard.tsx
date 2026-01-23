@@ -274,7 +274,10 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   };
 
   const handleNextRound = async () => {
-    if (!game.current_session_game_id || !roundState) return;
+    if (!game.current_session_game_id) return;
+    
+    // Use game.manche_active as fallback if roundState is not available
+    const currentManche = roundState?.manche ?? game.manche_active ?? 1;
     
     toast.info('Ouverture de la manche suivante...');
 
@@ -283,7 +286,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
         body: {
           gameId: game.id,
           sessionGameId: game.current_session_game_id,
-          currentManche: roundState.manche,
+          currentManche: currentManche,
         },
       });
 
@@ -298,7 +301,9 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
         return;
       }
 
-      toast.success(`Manche ${data.data.manche} ouverte !`);
+      // Use newManche from response (that's what the edge function returns)
+      const newManche = data.data?.newManche ?? data.data?.manche ?? currentManche + 1;
+      toast.success(`Manche ${newManche} ouverte !`);
       fetchData();
     } catch (err) {
       console.error('[MJ] next-infection-round exception:', err);
