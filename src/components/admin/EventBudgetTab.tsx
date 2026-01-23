@@ -384,6 +384,24 @@ export function EventBudgetTab({ eventId }: Props) {
                 onChange={e => setFormData({ ...formData, unit_cost: parseFloat(e.target.value) || 0 })}
               />
             </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Quantités</Label>
+              <Button 
+                type="button" 
+                size="sm" 
+                variant="outline"
+                className="text-xs h-7"
+                onClick={() => setFormData({ 
+                  ...formData, 
+                  qty_pessimiste: 0, 
+                  qty_probable: 0, 
+                  qty_optimiste: 0, 
+                  qty_real: 0 
+                })}
+              >
+                Tout à 0
+              </Button>
+            </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label>Qté Pessimiste</Label>
