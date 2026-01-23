@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro, Plus, TrendingUp, Percent, Building2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { ForestButton } from '@/components/ui/ForestButton';
@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useAdminMeetups, useAdminRegistrations, MeetupEventAdmin } from '@/hooks/useAdminMeetups';
+import { useMeetupStats } from '@/hooks/useMeetupStats';
 import { toast } from 'sonner';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
@@ -59,6 +60,7 @@ export default function AdminMeetups() {
   const { user, loading: authLoading } = useAuth();
   const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   const { events, loading: eventsLoading, archiveEvent, updateEvent, createEvent } = useAdminMeetups();
+  const { stats, loading: statsLoading } = useMeetupStats();
   
   const [selectedEvent, setSelectedEvent] = useState<MeetupEventAdmin | null>(null);
   const [editingEvent, setEditingEvent] = useState<MeetupEventAdmin | null>(null);
@@ -298,7 +300,91 @@ export default function AdminMeetups() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 space-y-6">
+        {/* Stats Dashboard */}
+        {statsLoading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Main Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card className="bg-surface border-border">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                    <Euro className="w-4 h-4" />
+                    Revenus totaux
+                  </div>
+                  <p className="text-2xl font-bold text-accent">{stats.totalRevenue.toFixed(0)}€</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-surface border-border">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                    <Percent className="w-4 h-4" />
+                    Taux de conversion
+                  </div>
+                  <p className="text-2xl font-bold text-primary">{stats.conversionRate.toFixed(1)}%</p>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.totalPaid} / {stats.totalRegistrations} inscrits
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-surface border-border">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                    <Phone className="w-4 h-4" />
+                    À rappeler
+                  </div>
+                  <p className="text-2xl font-bold text-amber-400">{stats.pendingCallbacks}</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-surface border-border">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                    <TrendingUp className="w-4 h-4" />
+                    Événements
+                  </div>
+                  <p className="text-2xl font-bold text-foreground">{stats.upcomingEvents}</p>
+                  <p className="text-xs text-muted-foreground">
+                    +{stats.archivedEvents} archivés
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Events by City */}
+            {stats.eventsByCity.length > 0 && (
+              <Card className="bg-surface border-border">
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    Événements par ville
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex flex-wrap gap-2">
+                    {stats.eventsByCity.map(({ city, count }) => (
+                      <Badge 
+                        key={city} 
+                        variant="outline" 
+                        className="bg-primary/10 text-primary border-primary/30"
+                      >
+                        {city}: {count}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Events Table */}
         {eventsLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
