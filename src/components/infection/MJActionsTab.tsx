@@ -14,6 +14,12 @@ interface Player {
   is_alive: boolean | null;
   is_bot?: boolean;
   has_antibodies?: boolean | null;
+  is_carrier?: boolean | null;
+  is_contagious?: boolean | null;
+  infected_at_manche?: number | null;
+  will_die_at_manche?: number | null;
+  will_contaminate_at_manche?: number | null;
+  immune_permanent?: boolean | null;
 }
 
 interface InfectionInput {
@@ -95,6 +101,38 @@ function CapacityBadge({ available, total, icon, label, color }: {
       <span>{available}/{total}</span>
       <span className="hidden sm:inline ml-1">{label}</span>
       {isExhausted && <XCircle className="h-3 w-3 ml-1" />}
+    </div>
+  );
+}
+
+// Infection state badges component
+function InfectionStateBadges({ player }: { player: Player }) {
+  if (!player.is_carrier && !player.is_contagious && !player.will_die_at_manche && !player.immune_permanent) {
+    return null;
+  }
+  
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {player.is_carrier && (
+        <Badge className="bg-[#B00020]/20 text-[#B00020] text-xs px-1 py-0">
+          🦠 Porteur
+        </Badge>
+      )}
+      {player.is_contagious && (
+        <Badge className="bg-[#E6A23C]/20 text-[#E6A23C] text-xs px-1 py-0">
+          ⚠️ Contagieux
+        </Badge>
+      )}
+      {player.will_die_at_manche && player.is_alive !== false && (
+        <Badge className="bg-[#B00020]/20 text-[#B00020] text-xs px-1 py-0 animate-pulse">
+          💀 Mort M{player.will_die_at_manche}
+        </Badge>
+      )}
+      {player.immune_permanent && (
+        <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6] text-xs px-1 py-0">
+          🛡️ Immunisé
+        </Badge>
+      )}
     </div>
   );
 }
@@ -307,6 +345,7 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
                         </div>
                       )}
                     </div>
+                    <InfectionStateBadges player={p} />
                   </div>
                 );
               })}
@@ -354,6 +393,7 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
                           <Badge className="bg-[#E6A23C]/20 text-[#E6A23C] text-xs px-1 py-0">Utilisé</Badge>
                         )}
                       </div>
+                      <InfectionStateBadges player={baPlayer} />
                     </>
                   );
                 })()}
@@ -387,6 +427,7 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
                         <Badge className="bg-[#2AB3A6]/20 text-[#2AB3A6] text-xs px-1 py-0">Soumis</Badge>
                       )}
                     </div>
+                    <InfectionStateBadges player={p} />
                   </div>
                 );
               })}
@@ -413,15 +454,18 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
                 {(() => {
                   const input = getInputForPlayer(ocPlayer.player_number!);
                   return (
-                    <div className="mt-2 text-xs text-[#9CA3AF] flex items-center gap-1">
-                      <span>🔮 Consultation:</span>
-                      <span className={input?.oc_lookup_target_num ? 'text-[#E6A23C]' : 'text-[#6B7280]'}>
-                        {getPlayerName(input?.oc_lookup_target_num ?? null)}
-                      </span>
-                      {input?.oc_lookup_target_num && (
-                        <Badge className="bg-[#E6A23C]/20 text-[#E6A23C] text-xs px-1 py-0">Consulté</Badge>
-                      )}
-                    </div>
+                    <>
+                      <div className="mt-2 text-xs text-[#9CA3AF] flex items-center gap-1">
+                        <span>🔮 Consultation:</span>
+                        <span className={input?.oc_lookup_target_num ? 'text-[#E6A23C]' : 'text-[#6B7280]'}>
+                          {getPlayerName(input?.oc_lookup_target_num ?? null)}
+                        </span>
+                        {input?.oc_lookup_target_num && (
+                          <Badge className="bg-[#E6A23C]/20 text-[#E6A23C] text-xs px-1 py-0">Consulté</Badge>
+                        )}
+                      </div>
+                      <InfectionStateBadges player={ocPlayer} />
+                    </>
                   );
                 })()}
               </div>
@@ -478,6 +522,7 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
                         </span>
                       </div>
                     </div>
+                    <InfectionStateBadges player={p} />
                   </div>
                 );
               })}
@@ -517,6 +562,7 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
                         </Badge>
                       )}
                     </div>
+                    <InfectionStateBadges player={p} />
                   </div>
                 ))}
               </div>
@@ -539,6 +585,7 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players }: MJActio
                       </span>
                       {p.is_bot && <Badge variant="outline" className="text-xs px-1 py-0">BOT</Badge>}
                     </div>
+                    <InfectionStateBadges player={p} />
                   </div>
                 ))}
               </div>
