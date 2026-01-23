@@ -275,39 +275,37 @@ serve(async (req) => {
       // FAIL - boat capsizes
       const cagnotteFail = cagnotteBefore + totalMises;
 
-      // Identify beneficiaries
+      // Identify beneficiaries - ONLY players who were ALREADY A_TERRE before this level
       const beneficiaries: { player_id: string; descended_level: number }[] = [];
 
-      // A_TERRE players (descended before this level)
+      // A_TERRE players (descended BEFORE this level) - these are the ONLY beneficiaries
       const aTerreStats = allPlayerStats?.filter(s => s.current_round_status === "A_TERRE") || [];
       for (const s of aTerreStats) {
         beneficiaries.push({ player_id: s.player_id, descended_level: s.descended_level || 0 });
       }
 
-      // DESCENDS at this level
+      // DESCENDS at this level - they DON'T get tokens, they sink with the boat!
+      // We still mark them as CHAVIRE since they didn't get off in time
       const descendsDecisions = decisions.filter(d => d.decision === "DESCENDS");
       for (const d of descendsDecisions) {
         await supabase
           .from("river_player_stats")
           .update({ 
-            current_round_status: "A_TERRE",
-            descended_level: state.niveau_active,
+            current_round_status: "CHAVIRE", // They sink, not A_TERRE!
             updated_at: new Date().toISOString()
           })
           .eq("session_game_id", session_game_id)
           .eq("player_id", d.player_id);
-        
-        beneficiaries.push({ player_id: d.player_id, descended_level: state.niveau_active });
       }
 
-      // Check AV1_CANOT
+      // Check AV1_CANOT - they CAN escape even when capsizing (special ability)
       const av1Candidates = resteDecisions.filter(d => 
         d.keryndes_choice === "AV1_CANOT" &&
         statsMap.get(d.player_id)?.keryndes_available
       );
 
       for (const d of av1Candidates) {
-        // Mark as A_TERRE (saved by canot)
+        // Mark as A_TERRE (saved by canot) - they DO get tokens
         await supabase
           .from("river_player_stats")
           .update({ 
@@ -359,8 +357,9 @@ serve(async (req) => {
           }
         }
 
+        const totalChavires = chavirePlayers.length + descendsDecisions.length;
         publicSummaryParts.push(`⛵ Le bateau chavire ! ${beneficiaries.length} joueur(s) à terre se partagent ${cagnotteFail}💎 + bonus de descente`);
-        mjSummaryParts.push(`FAIL: Cagnotte ${cagnotteFail} / ${beneficiaries.length} = ${Math.floor(cagnotteFail / beneficiaries.length)}. Chavirés: ${chavirePlayers.length}`);
+        mjSummaryParts.push(`FAIL: Cagnotte ${cagnotteFail} / ${beneficiaries.length} = ${Math.floor(cagnotteFail / beneficiaries.length)}. Chavirés: ${totalChavires}`);
       } else {
         publicSummaryParts.push(`💀 Le bateau chavire ! Aucun survivant à terre... La cagnotte est perdue !`);
         mjSummaryParts.push(`FAIL: Aucun bénéficiaire, cagnotte ${cagnotteFail} perdue`);
