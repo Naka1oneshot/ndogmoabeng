@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Package, Shield, Trophy, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Package, Shield, Trophy, Play } from 'lucide-react';
+import { InfectionRoleRevealAnimation } from './InfectionRoleRevealAnimation';
 
 interface Player {
   id: string;
@@ -70,6 +72,7 @@ export function InfectionInventoryPanel({
 }: InfectionInventoryPanelProps) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showRoleReveal, setShowRoleReveal] = useState(false);
 
   useEffect(() => {
     fetchInventory();
@@ -111,6 +114,20 @@ export function InfectionInventoryPanel({
   const roleInfo = player.role_code ? ROLE_INFO[player.role_code] : null;
   const victoryCondition = roleInfo ? VICTORY_CONDITIONS[roleInfo.team] : null;
 
+  // Role reveal animation overlay
+  if (showRoleReveal && player.role_code && roleInfo) {
+    return (
+      <InfectionRoleRevealAnimation
+        roleCode={player.role_code}
+        roleName={roleInfo.name}
+        teamName={roleInfo.team}
+        victoryCondition={victoryCondition || ''}
+        playerName={`Joueur ${player.player_number}`}
+        onComplete={() => setShowRoleReveal(false)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Role Section */}
@@ -122,26 +139,37 @@ export function InfectionInventoryPanel({
             borderColor: `${roleInfo.color}50`
           }}
         >
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-2xl">{roleInfo.emoji}</span>
-            <div>
-              <h3 
-                className="font-bold text-lg"
-                style={{ color: roleInfo.color }}
-              >
-                {roleInfo.name}
-              </h3>
-              <Badge 
-                variant="outline"
-                className="text-xs"
-                style={{ 
-                  borderColor: roleInfo.color,
-                  color: roleInfo.color
-                }}
-              >
-                Équipe: {roleInfo.team}
-              </Badge>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{roleInfo.emoji}</span>
+              <div>
+                <h3 
+                  className="font-bold text-lg"
+                  style={{ color: roleInfo.color }}
+                >
+                  {roleInfo.name}
+                </h3>
+                <Badge 
+                  variant="outline"
+                  className="text-xs"
+                  style={{ 
+                    borderColor: roleInfo.color,
+                    color: roleInfo.color
+                  }}
+                >
+                  Équipe: {roleInfo.team}
+                </Badge>
+              </div>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowRoleReveal(true)}
+              className="text-[#D4AF37] hover:text-[#D4AF37] hover:bg-[#D4AF37]/10"
+            >
+              <Play className="h-4 w-4 mr-1" />
+              Revoir
+            </Button>
           </div>
           
           {victoryCondition && (
