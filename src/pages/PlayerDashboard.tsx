@@ -59,6 +59,11 @@ interface Player {
   clan: string | null;
   mateNum: number | null;
   playerToken?: string;
+  roleCode: string | null;
+  teamCode: string | null;
+  immunePermanent: boolean | null;
+  pvic: number | null;
+  isAlive: boolean | null;
 }
 
 const PLAYER_TOKEN_PREFIX = 'ndogmoabeng_player_';
@@ -263,6 +268,11 @@ export default function PlayerDashboard() {
         clan: data.player.clan,
         mateNum: data.player.mateNum,
         playerToken,
+        roleCode: data.player.roleCode ?? null,
+        teamCode: data.player.teamCode ?? null,
+        immunePermanent: data.player.immunePermanent ?? null,
+        pvic: data.player.pvic ?? null,
+        isAlive: data.player.isAlive ?? null,
       });
 
       setGame(data.game as Game);
@@ -525,11 +535,11 @@ export default function PlayerDashboard() {
           player_number: player.playerNumber,
           clan: player.clan,
           jetons: player.jetons,
-          pvic: 0,
-          is_alive: true,
-          role_code: null,
-          team_code: null,
-          immune_permanent: false,
+          pvic: player.pvic ?? 0,
+          is_alive: player.isAlive ?? true,
+          role_code: player.roleCode,
+          team_code: player.teamCode,
+          immune_permanent: player.immunePermanent ?? false,
         }}
         onLeave={handleLeave}
       />
