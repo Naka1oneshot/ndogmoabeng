@@ -2,9 +2,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ForestButton } from '@/components/ui/ForestButton';
+import { GameRulesSheet } from './GameRulesSheet';
 import { GAMES_DATA } from '@/data/ndogmoabengData';
-import { MapPin, Users, Gamepad2, UsersRound } from 'lucide-react';
+import { MapPin, Users, Gamepad2, UsersRound, BookOpen } from 'lucide-react';
 
 import rivieresImage from '@/assets/games/rivieres-ndogmoabeng.png';
 import foretImage from '@/assets/games/foret-ndogmoabeng.png';
@@ -14,6 +16,13 @@ const GAME_IMAGES: Record<string, string> = {
   RIVIERES: rivieresImage,
   FORET: foretImage,
   INFECTION: infectionImage,
+};
+
+// Position de l'image personnalisée par jeu pour s'assurer que les éléments importants sont visibles
+const GAME_IMAGE_POSITIONS: Record<string, string> = {
+  RIVIERES: 'object-top', // Le titre est en haut de l'image
+  FORET: 'object-center',
+  INFECTION: 'object-center',
 };
 
 export function GamesSection() {
@@ -53,7 +62,7 @@ export function GamesSection() {
                 <img 
                   src={GAME_IMAGES[game.code]} 
                   alt={game.name} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${GAME_IMAGE_POSITIONS[game.code] || 'object-center'}`}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
               </div>
@@ -101,7 +110,13 @@ export function GamesSection() {
                 )}
               </CardContent>
 
-              <CardFooter>
+              <CardFooter className="flex flex-col gap-2">
+                <GameRulesSheet gameCode={game.code}>
+                  <Button variant="outline" size="sm" className="w-full gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Voir règles
+                  </Button>
+                </GameRulesSheet>
                 <ForestButton 
                   className="w-full"
                   onClick={() => handleCreateGame(game.code)}
