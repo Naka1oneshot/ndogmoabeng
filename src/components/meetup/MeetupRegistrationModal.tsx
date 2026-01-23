@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Plus, Minus, Users, CreditCard, Euro } from 'lucide-react';
+import { Loader2, Plus, Minus, Users, CreditCard, Euro, Phone, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import { MeetupEvent } from '@/hooks/useMeetupEvents';
 import { useMeetupPayment } from '@/hooks/useMeetupPayment';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MeetupRegistrationModalProps {
   open: boolean;
@@ -29,6 +30,7 @@ export function MeetupRegistrationModal({
   const [companionsNames, setCompanionsNames] = useState<string[]>([]);
   const [userNote, setUserNote] = useState('');
   const [consent, setConsent] = useState(false);
+  const [interestLoading, setInterestLoading] = useState(false);
   const { createCheckout, loading, error, clearError } = useMeetupPayment();
 
   const totalPlayers = 1 + companionsCount;
@@ -96,6 +98,53 @@ export function MeetupRegistrationModal({
         resetForm();
         onOpenChange(false);
       }
+    }
+  };
+
+  const handleInterestRegistration = async () => {
+    if (!displayName.trim()) {
+      toast.error('Veuillez entrer votre nom');
+      return;
+    }
+    
+    if (!phone.trim() || phone.length < 8) {
+      toast.error('Veuillez entrer un numéro de téléphone valide');
+      return;
+    }
+    
+    if (!consent) {
+      toast.error('Veuillez accepter d\'être contacté(e)');
+      return;
+    }
+
+    setInterestLoading(true);
+    try {
+      const { error: insertError } = await supabase
+        .from('meetup_registrations')
+        .insert({
+          meetup_event_id: event.id,
+          display_name: displayName.trim(),
+          phone: phone.trim(),
+          companions_count: companionsCount,
+          companions_names: companionsNames.filter(n => n.trim()),
+          user_note: userNote || null,
+          status: 'INTERESTED',
+          payment_status: 'callback_requested',
+        });
+
+      if (insertError) throw insertError;
+
+      toast.success('Inscription enregistrée !', {
+        description: 'Nous vous contacterons bientôt pour finaliser votre inscription.',
+      });
+      resetForm();
+      onOpenChange(false);
+      onSuccess();
+    } catch (err) {
+      console.error('Interest registration error:', err);
+      toast.error('Erreur lors de l\'inscription');
+    } finally {
+      setInterestLoading(false);
     }
   };
 
@@ -284,31 +333,71 @@ export function MeetupRegistrationModal({
             </p>
           )}
 
-          <Button
-            type="submit"
-            disabled={loading || !consent}
-            className="w-full h-12 bg-primary hover:bg-primary-hover text-primary-foreground font-semibold shadow-lg shadow-primary/30"
-          >
-            {loading ? (
+          <div className="space-y-3">
+            <Button
+              type="submit"
+              disabled={loading || interestLoading || !consent}
+              className="w-full h-12 bg-primary hover:bg-primary-hover text-primary-foreground font-semibold shadow-lg shadow-primary/30"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Préparation...
+                </>
+              ) : isFreeEvent ? (
+                `S'inscrire (${totalPlayers} joueur${totalPlayers > 1 ? 's' : ''})`
+              ) : (
+                <>
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Payer {totalPrice} € ({totalPlayers} place{totalPlayers > 1 ? 's' : ''})
+                </>
+              )}
+            </Button>
+
+            {!isFreeEvent && (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Préparation...
-              </>
-            ) : isFreeEvent ? (
-              `S'inscrire (${totalPlayers} joueur${totalPlayers > 1 ? 's' : ''})`
-            ) : (
-              <>
-                <CreditCard className="w-4 h-4 mr-2" />
-                Payer {totalPrice} € ({totalPlayers} place{totalPlayers > 1 ? 's' : ''})
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-card px-2 text-muted-foreground">ou</span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={loading || interestLoading || !consent}
+                  onClick={handleInterestRegistration}
+                  className="w-full h-11 border-accent/50 hover:bg-accent/10 hover:border-accent text-foreground"
+                >
+                  {interestLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Enregistrement...
+                    </>
+                  ) : (
+                    <>
+                      <Phone className="w-4 h-4 mr-2" />
+                      Me rappeler / Payer en espèces
+                    </>
+                  )}
+                </Button>
+                
+                <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                  <Banknote className="w-3 h-3" />
+                  Nous vous contacterons pour finaliser l'inscription
+                </p>
               </>
             )}
-          </Button>
 
-          {!isFreeEvent && (
-            <p className="text-center text-xs text-muted-foreground">
-              🔒 Paiement sécurisé par Stripe
-            </p>
-          )}
+            {!isFreeEvent && (
+              <p className="text-center text-xs text-muted-foreground">
+                🔒 Paiement en ligne sécurisé par Stripe
+              </p>
+            )}
+          </div>
         </form>
       </DialogContent>
     </Dialog>

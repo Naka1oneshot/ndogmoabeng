@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { ForestButton } from '@/components/ui/ForestButton';
@@ -140,12 +140,41 @@ export default function AdminMeetups() {
       CONTACTED: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
       CONFIRMED: 'bg-green-500/20 text-green-400 border-green-500/30',
       CANCELLED: 'bg-destructive/20 text-destructive border-destructive/30',
+      INTERESTED: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
     };
     return (
       <Badge variant="outline" className={colors[status] || ''}>
         {status}
       </Badge>
     );
+  };
+
+  const getPaymentBadge = (paymentStatus: string, paidAmountCents: number | null) => {
+    if (paymentStatus === 'paid') {
+      return (
+        <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30 gap-1">
+          <CreditCard className="w-3 h-3" />
+          {paidAmountCents ? `${(paidAmountCents / 100).toFixed(0)}€` : 'Payé'}
+        </Badge>
+      );
+    }
+    if (paymentStatus === 'callback_requested') {
+      return (
+        <Badge variant="outline" className="bg-amber-500/20 text-amber-400 border-amber-500/30 gap-1">
+          <Phone className="w-3 h-3" />
+          À rappeler
+        </Badge>
+      );
+    }
+    if (paymentStatus === 'pending') {
+      return (
+        <Badge variant="outline" className="bg-muted text-muted-foreground border-border gap-1">
+          <Euro className="w-3 h-3" />
+          En attente
+        </Badge>
+      );
+    }
+    return null;
   };
 
   return (
@@ -312,7 +341,17 @@ export default function AdminMeetups() {
                 </span>
               </span>
               <span className="text-muted-foreground">
-                Confirmés: <span className="text-green-400 font-medium">
+                Payés: <span className="text-accent font-medium">
+                  {registrations.filter(r => r.payment_status === 'paid').reduce((acc, r) => acc + 1 + (r.companions_count || 0), 0)}
+                </span>
+              </span>
+              <span className="text-muted-foreground">
+                À rappeler: <span className="text-amber-400 font-medium">
+                  {registrations.filter(r => r.payment_status === 'callback_requested').length}
+                </span>
+              </span>
+              <span className="text-muted-foreground">
+                Confirmés: <span className="text-accent font-medium">
                   {registrations.filter(r => r.status === 'CONFIRMED').reduce((acc, r) => acc + 1 + (r.companions_count || 0), 0)}
                 </span>
               </span>
@@ -330,20 +369,24 @@ export default function AdminMeetups() {
                     <CardContent className="p-4 space-y-3">
                       {/* Header row */}
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-foreground">{reg.display_name}</p>
-                          <p className="text-sm text-muted-foreground">{reg.phone}</p>
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <p className="font-semibold text-foreground">{reg.display_name}</p>
+                            <p className="text-sm text-muted-foreground">{reg.phone}</p>
+                          </div>
+                          {getPaymentBadge(reg.payment_status, reg.paid_amount_cents)}
                         </div>
                         <div className="flex items-center gap-2">
                           <Select
                             value={reg.status}
                             onValueChange={(value) => handleStatusChange(reg.id, value)}
                           >
-                            <SelectTrigger className="w-28 h-8 bg-surface border-border text-xs">
+                            <SelectTrigger className="w-32 h-8 bg-surface border-border text-xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-surface border-border">
                               <SelectItem value="NEW">NEW</SelectItem>
+                              <SelectItem value="INTERESTED">INTERESTED</SelectItem>
                               <SelectItem value="CONTACTED">CONTACTED</SelectItem>
                               <SelectItem value="CONFIRMED">CONFIRMED</SelectItem>
                               <SelectItem value="CANCELLED">CANCELLED</SelectItem>

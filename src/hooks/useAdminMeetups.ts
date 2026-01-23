@@ -33,6 +33,9 @@ export interface MeetupRegistration {
   companions_names: string[];
   user_note: string | null;
   created_at: string;
+  payment_status: string;
+  paid_at: string | null;
+  paid_amount_cents: number | null;
 }
 
 export function useAdminMeetups() {
