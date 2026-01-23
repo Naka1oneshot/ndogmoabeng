@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Download, Edit2, Trash2, Settings, Copy } from 'lucide-react';
+import { Plus, Download, Edit2, Trash2, Settings, Copy, Filter, X } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { BudgetRowCompact } from './BudgetRowCompact';
 import { cn } from '@/lib/utils';
@@ -62,8 +64,8 @@ export function EventBudgetTab({ eventId }: Props) {
   const [showSettings, setShowSettings] = useState(false);
   const [showNewTypeInput, setShowNewTypeInput] = useState(false);
   const [newTypeValue, setNewTypeValue] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterState, setFilterState] = useState<string>('all');
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  const [filterStates, setFilterStates] = useState<string[]>([]);
   const [formData, setFormData] = useState<Partial<EventExpenseItem>>({
     label: '',
     expense_type: '',
@@ -84,12 +86,27 @@ export function EventBudgetTab({ eventId }: Props) {
   // Get unique states for filter
   const allStates = [...new Set(expenses.map(e => e.state).filter(Boolean))].sort() as string[];
 
+  // Toggle filter helpers
+  const toggleFilterType = (type: string) => {
+    setFilterTypes(prev => 
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+
+  const toggleFilterState = (state: string) => {
+    setFilterStates(prev => 
+      prev.includes(state) ? prev.filter(s => s !== state) : [...prev, state]
+    );
+  };
+
   // Filter expenses
   const filteredExpenses = expenses.filter(exp => {
-    const matchType = filterType === 'all' || exp.expense_type === filterType;
-    const matchState = filterState === 'all' || exp.state === filterState || (filterState === '__none__' && !exp.state);
+    const matchType = filterTypes.length === 0 || filterTypes.includes(exp.expense_type);
+    const matchState = filterStates.length === 0 || filterStates.includes(exp.state || '__none__');
     return matchType && matchState;
   });
+
+  const hasActiveFilters = filterTypes.length > 0 || filterStates.length > 0;
 
   const summary = getBudgetSummary();
   const scenarioActive = settings?.scenario_active || 'probable';
@@ -304,34 +321,76 @@ export function EventBudgetTab({ eventId }: Props) {
       {/* Filters & Actions */}
       <div className="flex flex-col gap-3">
         {/* Filters */}
-        <div className="flex flex-wrap gap-2">
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-[160px] bg-background">
-              <SelectValue placeholder="Filtrer par type" />
-            </SelectTrigger>
-            <SelectContent className="bg-background z-50">
-              <SelectItem value="all">Tous les types</SelectItem>
-              {allExpenseTypes.map(t => (
-                <SelectItem key={t} value={t}>{t}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterState} onValueChange={setFilterState}>
-            <SelectTrigger className="w-[160px] bg-background">
-              <SelectValue placeholder="Filtrer par état" />
-            </SelectTrigger>
-            <SelectContent className="bg-background z-50">
-              <SelectItem value="all">Tous les états</SelectItem>
-              <SelectItem value="__none__">Sans état</SelectItem>
-              {allStates.map(s => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {(filterType !== 'all' || filterState !== 'all') && (
-            <Button variant="ghost" size="sm" onClick={() => { setFilterType('all'); setFilterState('all'); }}>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Type Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn(filterTypes.length > 0 && "border-primary")}>
+                <Filter className="h-4 w-4 mr-2" />
+                Types {filterTypes.length > 0 && <Badge variant="secondary" className="ml-1">{filterTypes.length}</Badge>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 bg-background z-50 max-h-80 overflow-y-auto" align="start">
+              <div className="space-y-2">
+                <div className="font-medium text-sm">Filtrer par type</div>
+                {allExpenseTypes.map(type => (
+                  <div key={type} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`type-${type}`}
+                      checked={filterTypes.includes(type)}
+                      onCheckedChange={() => toggleFilterType(type)}
+                    />
+                    <label htmlFor={`type-${type}`} className="text-sm cursor-pointer flex-1">{type}</label>
+                  </div>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* State Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn(filterStates.length > 0 && "border-primary")}>
+                <Filter className="h-4 w-4 mr-2" />
+                États {filterStates.length > 0 && <Badge variant="secondary" className="ml-1">{filterStates.length}</Badge>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 bg-background z-50" align="start">
+              <div className="space-y-2">
+                <div className="font-medium text-sm">Filtrer par état</div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="state-none"
+                    checked={filterStates.includes('__none__')}
+                    onCheckedChange={() => toggleFilterState('__none__')}
+                  />
+                  <label htmlFor="state-none" className="text-sm cursor-pointer flex-1 italic text-muted-foreground">Sans état</label>
+                </div>
+                {allStates.map(state => (
+                  <div key={state} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`state-${state}`}
+                      checked={filterStates.includes(state)}
+                      onCheckedChange={() => toggleFilterState(state)}
+                    />
+                    <label htmlFor={`state-${state}`} className="text-sm cursor-pointer flex-1">{state}</label>
+                  </div>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={() => { setFilterTypes([]); setFilterStates([]); }}>
+              <X className="h-4 w-4 mr-1" />
               Réinitialiser
             </Button>
+          )}
+
+          {hasActiveFilters && (
+            <span className="text-sm text-muted-foreground">
+              {filteredExpenses.length} / {expenses.length} dépenses
+            </span>
           )}
         </div>
         {/* Actions */}
