@@ -695,8 +695,12 @@ serve(async (req) => {
         
         const item = itemMap.get(attackName);
         if (!item) {
+          console.log(`[resolve-combat] WARNING: Item "${attackName}" not found in catalog for ${pos.nom}`);
           return { damage: 0, isAoe: false, aoeDamage: 0 };
         }
+        
+        // Log attack processing for debugging
+        console.log(`[resolve-combat] Processing attack "${attackName}" by ${pos.nom} (pos ${pos.position_finale}), slot_attaque=${targetSlot}, special_effect=${item.special_effect}, timing=${item.timing}`);
         
         // Akande clan bonus
         let bonus = 0;
