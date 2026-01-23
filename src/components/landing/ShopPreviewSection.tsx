@@ -13,6 +13,35 @@ import {
   CarouselPrevious,
 } from '@/components/ui/carousel';
 
+// Import local product images
+import tshirtVillageNoir from '@/assets/shop/tshirt-village-noir.png';
+import tshirtVillageBlanc from '@/assets/shop/tshirt-village-blanc.png';
+import tshirtVillageRouge from '@/assets/shop/tshirt-village-rouge.png';
+import tshirtInfectionNoir from '@/assets/shop/tshirt-infection-noir.png';
+
+// Map image keys to imported assets
+const imageMap: Record<string, string> = {
+  'tshirt-village-noir': tshirtVillageNoir,
+  'tshirt-village-blanc': tshirtVillageBlanc,
+  'tshirt-village-rouge': tshirtVillageRouge,
+  'tshirt-infection-noir': tshirtInfectionNoir,
+};
+
+// Helper function to resolve image URL
+const getProductImage = (imageUrl: string | null): string | null => {
+  if (!imageUrl) return null;
+  // Check if it's a key in our local map
+  const localImage = imageMap[imageUrl];
+  if (localImage) return localImage;
+  // Check if it contains a path to assets folder (legacy)
+  if (imageUrl.includes('/assets/shop/')) {
+    const filename = imageUrl.split('/').pop()?.replace('.png', '');
+    if (filename && imageMap[filename]) return imageMap[filename];
+  }
+  // Otherwise return as-is (could be an external URL)
+  return imageUrl;
+};
+
 export function ShopPreviewSection() {
   const navigate = useNavigate();
 
@@ -68,9 +97,9 @@ export function ShopPreviewSection() {
                     onClick={() => navigate('/boutique')}
                   >
                     <div className="aspect-square overflow-hidden bg-muted/30">
-                      {product.image_url ? (
+                      {getProductImage(product.image_url) ? (
                         <img
-                          src={product.image_url}
+                          src={getProductImage(product.image_url)!}
                           alt={product.name}
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />

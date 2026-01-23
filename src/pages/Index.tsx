@@ -25,8 +25,8 @@ export default function Index() {
           <HeroSection />
           <ConceptSection />
           <GamesSection />
-          <ShopPreviewSection />
           <MeetupSection />
+          <ShopPreviewSection />
           <ClansSection />
           <ActiveGamesSection />
         </main>
