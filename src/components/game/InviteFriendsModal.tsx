@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,8 @@ import {
   Loader2, 
   Check,
   UserPlus,
-  Copy
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 
 interface InviteFriendsModalProps {
@@ -38,6 +40,7 @@ export function InviteFriendsModal({
   gameName,
   joinCode,
 }: InviteFriendsModalProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { friends, loading: friendsLoading } = useFriendships();
   const { sendGameInvite } = useFriendChat();
@@ -152,7 +155,15 @@ export function InviteFriendsModal({
                               {getInitials(friend.display_name)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium text-sm">{friend.display_name}</span>
+                          <button
+                            onClick={() => {
+                              onOpenChange(false);
+                              navigate(`/profile/${friend.user_id}`);
+                            }}
+                            className="font-medium text-sm hover:underline hover:text-primary transition-colors"
+                          >
+                            {friend.display_name}
+                          </button>
                         </div>
                         
                         {isInvited ? (

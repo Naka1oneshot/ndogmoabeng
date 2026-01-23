@@ -4,11 +4,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge';
 import { 
   MoreHorizontal, Bot, Lock, Coins, ShieldCheck, 
-  Pencil, Copy, Check, RefreshCw, UserX, Loader2
+  Pencil, Copy, Check, RefreshCw, UserX, Loader2, ExternalLink
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 
 interface Player {
   id: string;
@@ -25,6 +26,7 @@ interface Player {
   clan_token_used?: boolean;
   is_bot?: boolean;
   player_token?: string | null;
+  user_id?: string | null;
 }
 
 interface PlayerRowCompactProps {
@@ -86,7 +88,15 @@ export function PlayerRowCompact({
   variant = 'forest',
 }: PlayerRowCompactProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const navigate = useNavigate();
   const theme = THEME_STYLES[variant];
+
+  const handleViewProfile = () => {
+    if (player.user_id) {
+      setPopoverOpen(false);
+      navigate(`/profile/${player.user_id}`);
+    }
+  };
 
   const truncateName = (name: string, maxLen = 8) => {
     if (name.length <= maxLen) return name;
@@ -194,6 +204,17 @@ export function PlayerRowCompact({
 
             {/* Actions */}
             <div className="flex flex-wrap gap-1 pt-2 border-t border-border/30">
+              {player.user_id && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleViewProfile}
+                  className="h-7 text-xs"
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Voir profil
+                </Button>
+              )}
               {onEdit && (
                 <Button
                   variant="ghost"
