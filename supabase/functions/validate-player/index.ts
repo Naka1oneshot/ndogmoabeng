@@ -33,7 +33,7 @@ serve(async (req) => {
     // Find the player by game ID and token
     const { data: player, error } = await supabase
       .from("game_players")
-      .select("id, display_name, player_number, game_id, status, removed_reason, jetons, recompenses, clan, mate_num")
+      .select("id, display_name, player_number, game_id, status, removed_reason, jetons, recompenses, clan, mate_num, role_code, team_code, immune_permanent, pvic, is_alive")
       .eq("game_id", gameId)
       .eq("player_token", playerToken)
       .single();
@@ -75,6 +75,11 @@ serve(async (req) => {
           recompenses: player.recompenses,
           clan: player.clan,
           mateNum: player.mate_num,
+          roleCode: player.role_code,
+          teamCode: player.team_code,
+          immunePermanent: player.immune_permanent,
+          pvic: player.pvic,
+          isAlive: player.is_alive,
         },
         game: game,
       }),
