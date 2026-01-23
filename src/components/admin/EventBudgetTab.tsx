@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Download, Edit2, Trash2, Settings } from 'lucide-react';
+import { Plus, Download, Edit2, Trash2, Settings, Copy } from 'lucide-react';
 
 interface Props {
   eventId: string;
@@ -119,6 +119,23 @@ export function EventBudgetTab({ eventId }: Props) {
     } catch {
       toast.error('Erreur lors de la suppression');
     }
+  };
+
+  const handleDuplicate = (expense: EventExpenseItem) => {
+    setEditingExpense(null);
+    setFormData({
+      label: expense.label + ' (copie)',
+      expense_type: expense.expense_type,
+      state: expense.state || '',
+      unit_cost: expense.unit_cost,
+      qty_pessimiste: expense.qty_pessimiste,
+      qty_probable: expense.qty_probable,
+      qty_optimiste: expense.qty_optimiste,
+      qty_real: expense.qty_real,
+      real_unit_cost: expense.real_unit_cost,
+      notes: expense.notes || '',
+    });
+    setShowForm(true);
   };
 
   const resetForm = () => {
@@ -274,10 +291,13 @@ export function EventBudgetTab({ eventId }: Props) {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => handleEdit(expense)}>
+                        <Button size="icon" variant="ghost" onClick={() => handleEdit(expense)} title="Modifier">
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDelete(expense.id)}>
+                        <Button size="icon" variant="ghost" onClick={() => handleDuplicate(expense)} title="Dupliquer">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => handleDelete(expense.id)} title="Supprimer">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
