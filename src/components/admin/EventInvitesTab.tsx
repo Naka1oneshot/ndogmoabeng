@@ -15,6 +15,8 @@ import { Plus, Download, Search, Edit2, Trash2, CreditCard, UserCheck, Link2, Us
 import { MeetupEventAdmin } from '@/hooks/useAdminMeetups';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { InviteRowCompact } from './InviteRowCompact';
 
 interface Props {
   eventId: string;
@@ -49,6 +51,7 @@ const STATUS_COLORS: Record<InviteStatus, string> = {
 };
 
 export function EventInvitesTab({ eventId, event }: Props) {
+  const isMobile = useIsMobile();
   const {
     invites,
     loading,
@@ -336,134 +339,160 @@ export function EventInvitesTab({ eventId, event }: Props) {
         </CardContent>
       </Card>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Téléphone</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Pack</TableHead>
-                <TableHead className="text-right">Montant</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+      {/* Mobile List View */}
+      {isMobile ? (
+        <Card>
+          <CardContent className="p-3">
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Chargement...</div>
+            ) : filteredInvites.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">Aucun invité trouvé</div>
+            ) : (
+              <div className="space-y-2">
+                {filteredInvites.map(invite => (
+                  <InviteRowCompact
+                    key={invite.id}
+                    invite={invite}
+                    onEdit={handleEdit}
+                    onMarkPaid={handleMarkPaid}
+                    onConfirm={(inv) => updateInvite(inv.id, { invite_status: 'confirmed_unpaid' })}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        /* Desktop Table View */
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    Chargement...
-                  </TableCell>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Téléphone</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Pack</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ) : filteredInvites.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Aucun invité trouvé
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredInvites.map(invite => (
-                  <TableRow key={invite.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {invite.user_profile && (
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={invite.user_profile.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs">{invite.user_profile.display_name[0]}</AvatarFallback>
-                          </Avatar>
-                        )}
-                        <div>
-                          <div>{invite.full_name}</div>
-                          {invite.user_profile && (
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              {invite.user_profile.display_name}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {invite.registration && (
-                        <Badge variant="outline" className="ml-2 text-xs">
-                          <Link2 className="h-3 w-3 mr-1" />
-                          Inscrit
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{invite.email || '-'}</TableCell>
-                    <TableCell>{invite.phone || '-'}</TableCell>
-                    <TableCell>
-                      <Badge className={STATUS_COLORS[invite.invite_status]}>
-                        {STATUS_LABELS[invite.invite_status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{invite.pack_label || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      {invite.contributed_amount > 0 ? `${invite.contributed_amount}€` : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <TooltipProvider delayDuration={300}>
-                        <div className="flex gap-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button size="icon" variant="ghost" onClick={() => handleEdit(invite)}>
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Modifier les informations de l'invité</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          {invite.invite_status !== 'paid' && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button size="icon" variant="ghost" onClick={() => handleMarkPaid(invite)}>
-                                  <CreditCard className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Marquer comme payé (espèces)</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                          {invite.invite_status === 'pending' && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  size="icon" 
-                                  variant="ghost" 
-                                  onClick={() => updateInvite(invite.id, { invite_status: 'confirmed_unpaid' })}
-                                >
-                                  <UserCheck className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Confirmer la présence (paiement sur place)</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button size="icon" variant="ghost" onClick={() => handleDelete(invite.id)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Supprimer l'invité</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TooltipProvider>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      Chargement...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ) : filteredInvites.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Aucun invité trouvé
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredInvites.map(invite => (
+                    <TableRow key={invite.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {invite.user_profile && (
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={invite.user_profile.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs">{invite.user_profile.display_name[0]}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div>
+                            <div>{invite.full_name}</div>
+                            {invite.user_profile && (
+                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                {invite.user_profile.display_name}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {invite.registration && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            <Link2 className="h-3 w-3 mr-1" />
+                            Inscrit
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{invite.email || '-'}</TableCell>
+                      <TableCell>{invite.phone || '-'}</TableCell>
+                      <TableCell>
+                        <Badge className={STATUS_COLORS[invite.invite_status]}>
+                          {STATUS_LABELS[invite.invite_status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{invite.pack_label || '-'}</TableCell>
+                      <TableCell className="text-right">
+                        {invite.contributed_amount > 0 ? `${invite.contributed_amount}€` : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <TooltipProvider delayDuration={300}>
+                          <div className="flex gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="ghost" onClick={() => handleEdit(invite)}>
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Modifier les informations de l'invité</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            {invite.invite_status !== 'paid' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button size="icon" variant="ghost" onClick={() => handleMarkPaid(invite)}>
+                                    <CreditCard className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Marquer comme payé (espèces)</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            {invite.invite_status === 'pending' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    onClick={() => updateInvite(invite.id, { invite_status: 'confirmed_unpaid' })}
+                                  >
+                                    <UserCheck className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Confirmer la présence (paiement sur place)</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="ghost" onClick={() => handleDelete(invite.id)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Supprimer l'invité</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit/Create Sheet */}
       <Sheet open={showForm} onOpenChange={setShowForm}>
