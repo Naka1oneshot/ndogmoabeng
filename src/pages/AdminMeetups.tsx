@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro, Plus, TrendingUp, Percent, Building2, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro, Plus, TrendingUp, Percent, Building2, BarChart3, Copy as CopyIcon } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { ForestButton } from '@/components/ui/ForestButton';
@@ -214,6 +214,28 @@ export default function AdminMeetups() {
     } finally {
       setCreatingEvent(false);
     }
+  };
+
+  const handleDuplicateEvent = (event: MeetupEventAdmin) => {
+    // Pre-fill the create form with duplicated data
+    setNewEvent({
+      slug: '',
+      title: `${event.title} (copie)`,
+      description: event.description,
+      city: event.city,
+      venue: event.venue || '',
+      start_at: '',
+      end_at: '',
+      expected_players: event.expected_players,
+      price_eur: event.price_eur,
+      pot_contribution_eur: event.pot_contribution_eur,
+      pot_potential_eur: event.pot_potential_eur,
+      audio_url: event.audio_url || '',
+      video_url: event.video_url || '',
+      cover_image_url: event.cover_image_url || '',
+    });
+    setShowCreate(true);
+    toast.info('Événement dupliqué - modifiez les dates et le titre');
   };
 
   const formatDate = (date: string) => {
@@ -517,6 +539,14 @@ export default function AdminMeetups() {
                             }}
                           >
                             <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDuplicateEvent(event)}
+                            title="Dupliquer"
+                          >
+                            <CopyIcon className="w-4 h-4" />
                           </Button>
                           {event.status !== 'ARCHIVED' && (
                             <Button
