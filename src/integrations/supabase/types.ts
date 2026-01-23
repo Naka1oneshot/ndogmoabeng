@@ -454,25 +454,55 @@ export type Database = {
       event_financial_settings: {
         Row: {
           created_at: string
+          inscription_price: number | null
+          inscriptions_optimiste: number | null
+          inscriptions_pessimiste: number | null
+          inscriptions_probable: number | null
+          inscriptions_real: number | null
           investment_budget: number | null
           meetup_event_id: string
           opening_balance: number | null
+          parking_optimiste: number | null
+          parking_pessimiste: number | null
+          parking_price: number | null
+          parking_probable: number | null
+          parking_real: number | null
           scenario_active: Database["public"]["Enums"]["budget_scenario"]
           updated_at: string
         }
         Insert: {
           created_at?: string
+          inscription_price?: number | null
+          inscriptions_optimiste?: number | null
+          inscriptions_pessimiste?: number | null
+          inscriptions_probable?: number | null
+          inscriptions_real?: number | null
           investment_budget?: number | null
           meetup_event_id: string
           opening_balance?: number | null
+          parking_optimiste?: number | null
+          parking_pessimiste?: number | null
+          parking_price?: number | null
+          parking_probable?: number | null
+          parking_real?: number | null
           scenario_active?: Database["public"]["Enums"]["budget_scenario"]
           updated_at?: string
         }
         Update: {
           created_at?: string
+          inscription_price?: number | null
+          inscriptions_optimiste?: number | null
+          inscriptions_pessimiste?: number | null
+          inscriptions_probable?: number | null
+          inscriptions_real?: number | null
           investment_budget?: number | null
           meetup_event_id?: string
           opening_balance?: number | null
+          parking_optimiste?: number | null
+          parking_pessimiste?: number | null
+          parking_price?: number | null
+          parking_probable?: number | null
+          parking_real?: number | null
           scenario_active?: Database["public"]["Enums"]["budget_scenario"]
           updated_at?: string
         }

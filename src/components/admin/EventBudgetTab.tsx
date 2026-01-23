@@ -489,11 +489,12 @@ export function EventBudgetTab({ eventId }: Props) {
 
       {/* Settings Sheet */}
       <Sheet open={showSettings} onOpenChange={setShowSettings}>
-        <SheetContent>
+        <SheetContent className="overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Paramètres financiers</SheetTitle>
           </SheetHeader>
-          <div className="space-y-4 mt-6">
+          <div className="space-y-6 mt-6">
+            {/* Scénario actif */}
             <div>
               <Label>Scénario actif</Label>
               <Select 
@@ -510,21 +511,123 @@ export function EventBudgetTab({ eventId }: Props) {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Solde initial (€)</Label>
-              <Input
-                type="number"
-                value={settings?.opening_balance || 0}
-                onChange={e => updateSettings({ opening_balance: parseFloat(e.target.value) || 0 })}
-              />
+
+            {/* Prix unitaires */}
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Prix unitaires</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Prix inscription (€)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={settings?.inscription_price || 0}
+                    onChange={e => updateSettings({ inscription_price: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label>Prix parking (€)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={settings?.parking_price || 0}
+                    onChange={e => updateSettings({ parking_price: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <Label>Budget investissement (€)</Label>
-              <Input
-                type="number"
-                value={settings?.investment_budget || 0}
-                onChange={e => updateSettings({ investment_budget: parseFloat(e.target.value) || 0 })}
-              />
+
+            {/* Inscriptions par scénario */}
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Nb inscriptions prévues</h4>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label className="text-xs text-orange-600">Pessimiste</Label>
+                  <Input
+                    type="number"
+                    value={settings?.inscriptions_pessimiste || 0}
+                    onChange={e => updateSettings({ inscriptions_pessimiste: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-blue-600">Probable</Label>
+                  <Input
+                    type="number"
+                    value={settings?.inscriptions_probable || 0}
+                    onChange={e => updateSettings({ inscriptions_probable: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-green-600">Optimiste</Label>
+                  <Input
+                    type="number"
+                    value={settings?.inscriptions_optimiste || 0}
+                    onChange={e => updateSettings({ inscriptions_optimiste: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              <div className="mt-2">
+                <Label className="text-xs">Réel (laisser vide = auto)</Label>
+                <Input
+                  type="number"
+                  value={settings?.inscriptions_real ?? ''}
+                  onChange={e => updateSettings({ inscriptions_real: e.target.value ? parseInt(e.target.value) : null })}
+                  placeholder="Automatique depuis invités payés"
+                />
+              </div>
+            </div>
+
+            {/* Parkings par scénario */}
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Nb parkings prévus</h4>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label className="text-xs text-orange-600">Pessimiste</Label>
+                  <Input
+                    type="number"
+                    value={settings?.parking_pessimiste || 0}
+                    onChange={e => updateSettings({ parking_pessimiste: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-blue-600">Probable</Label>
+                  <Input
+                    type="number"
+                    value={settings?.parking_probable || 0}
+                    onChange={e => updateSettings({ parking_probable: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-green-600">Optimiste</Label>
+                  <Input
+                    type="number"
+                    value={settings?.parking_optimiste || 0}
+                    onChange={e => updateSettings({ parking_optimiste: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              <div className="mt-2">
+                <Label className="text-xs">Réel (laisser vide = auto)</Label>
+                <Input
+                  type="number"
+                  value={settings?.parking_real ?? ''}
+                  onChange={e => updateSettings({ parking_real: e.target.value ? parseInt(e.target.value) : null })}
+                  placeholder="Automatique"
+                />
+              </div>
+            </div>
+
+            {/* Autres paramètres */}
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Autres</h4>
+              <div>
+                <Label>Solde initial (€)</Label>
+                <Input
+                  type="number"
+                  value={settings?.opening_balance || 0}
+                  onChange={e => updateSettings({ opening_balance: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
             </div>
           </div>
         </SheetContent>
