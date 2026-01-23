@@ -14,7 +14,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Bar, BarChart } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Bar, BarChart } from 'recharts';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useAdminMeetups, useAdminRegistrations, MeetupEventAdmin } from '@/hooks/useAdminMeetups';
@@ -415,7 +416,7 @@ export default function AdminMeetups() {
                         tickLine={{ stroke: 'hsl(var(--border))' }}
                         tickFormatter={(value) => `${value}€`}
                       />
-                      <Tooltip 
+                      <RechartsTooltip 
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--surface))',
                           border: '1px solid hsl(var(--border))',
@@ -548,14 +549,20 @@ export default function AdminMeetups() {
                           >
                             <CopyIcon className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate('/admin/event-management', { state: { eventId: event.id } })}
-                            title="Gestion avancée"
-                          >
-                            <Settings2 className="w-4 h-4" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => navigate('/admin/event-management', { state: { eventId: event.id } })}
+                              >
+                                <Settings2 className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Gestion avancée : Invités, Budget, PNL, Tâches</p>
+                            </TooltipContent>
+                          </Tooltip>
                           {event.status !== 'ARCHIVED' && (
                             <Button
                               variant="ghost"
