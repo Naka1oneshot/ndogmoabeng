@@ -93,7 +93,7 @@ export function useEventPNL(eventId: string | null) {
       probable: revenueProjected.probable,
       optimiste: revenueProjected.optimiste,
       real: revenueReal,
-      ecart: revenueProjected[scenarioActive] - revenueReal,
+      ecart: revenueReal - revenueProjected[scenarioActive],
       indent: 1,
     });
 
@@ -103,7 +103,7 @@ export function useEventPNL(eventId: string | null) {
       probable: parkingRevenueProjected.probable,
       optimiste: parkingRevenueProjected.optimiste,
       real: parkingReal,
-      ecart: parkingRevenueProjected[scenarioActive] - parkingReal,
+      ecart: parkingReal - parkingRevenueProjected[scenarioActive],
       indent: 1,
     });
 
@@ -118,7 +118,7 @@ export function useEventPNL(eventId: string | null) {
       probable: totalRevenueProb,
       optimiste: totalRevenueOpt,
       real: totalRevenueReal,
-      ecart: (scenarioActive === 'pessimiste' ? totalRevenuePess : scenarioActive === 'probable' ? totalRevenueProb : totalRevenueOpt) - totalRevenueReal,
+      ecart: totalRevenueReal - (scenarioActive === 'pessimiste' ? totalRevenuePess : scenarioActive === 'probable' ? totalRevenueProb : totalRevenueOpt),
       isTotal: true,
     });
 
@@ -179,7 +179,7 @@ export function useEventPNL(eventId: string | null) {
       probable: profitProb,
       optimiste: profitOpt,
       real: profitReal,
-      ecart: profitProjected - profitReal,
+      ecart: profitReal - profitProjected,
       isTotal: true,
     });
 
@@ -201,7 +201,7 @@ export function useEventPNL(eventId: string | null) {
         probable: profitProb + settings.opening_balance,
         optimiste: profitOpt + settings.opening_balance,
         real: profitReal + settings.opening_balance,
-        ecart: (profitProjected + settings.opening_balance) - (profitReal + settings.opening_balance),
+        ecart: (profitReal + settings.opening_balance) - (profitProjected + settings.opening_balance),
         isTotal: true,
       });
     }
