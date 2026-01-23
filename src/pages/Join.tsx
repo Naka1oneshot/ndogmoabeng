@@ -34,14 +34,15 @@ interface Game {
   selected_game_type_code: string | null;
 }
 
+// Must match ALLOWED_CLANS in supabase/functions/_shared/validation.ts
 const CLANS = [
-  { value: 'maison-royale', label: 'Maison Royale', image: maisonRoyaleImg },
-  { value: 'fraternite-zoulous', label: 'Fraternité Zoulous', image: fraterniteZoulouImg },
-  { value: 'maison-keryndes', label: 'Maison des Keryndes', image: maisonKeryndesImg },
-  { value: 'akande', label: 'Akandé', image: akandeImg },
-  { value: 'cercle-aseyra', label: "Cercle d'Aséyra", image: cercleAseyraImg },
-  { value: 'sources-akila', label: "Les Sources d'Akila", image: sourcesAkilaImg },
-  { value: 'ezkar', label: 'Ezkar', image: ezkarImg },
+  { value: 'Royaux', label: 'Maison Royale', image: maisonRoyaleImg },
+  { value: 'Zoulous', label: 'Fraternité Zoulous', image: fraterniteZoulouImg },
+  { value: 'Keryndes', label: 'Maison des Keryndes', image: maisonKeryndesImg },
+  { value: 'Akande', label: 'Akandé', image: akandeImg },
+  { value: 'Aseyra', label: "Cercle d'Aséyra", image: cercleAseyraImg },
+  { value: 'Akila', label: "Les Sources d'Akila", image: sourcesAkilaImg },
+  { value: 'Ezkar', label: 'Ezkar', image: ezkarImg },
 ];
 
 export default function Join() {
