@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useEventInvites, InviteStatus, EventInvite } from '@/hooks/useEventInvites';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,21 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Download, Search, Edit2, Trash2, CreditCard, UserCheck, Link2 } from 'lucide-react';
+import { Plus, Download, Search, Edit2, Trash2, CreditCard, UserCheck, Link2, User, X, Loader2 } from 'lucide-react';
 import { MeetupEventAdmin } from '@/hooks/useAdminMeetups';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface Props {
   eventId: string;
   event?: MeetupEventAdmin;
+}
+
+interface ProfileSearchResult {
+  id: string;
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
 }
 
 const STATUS_LABELS: Record<InviteStatus, string> = {
@@ -46,6 +55,9 @@ export function EventInvitesTab({ eventId, event }: Props) {
     updateInvite,
     deleteInvite,
     markAsPaidCash,
+    linkToUser,
+    unlinkUser,
+    searchProfiles,
     getStats,
     exportToCSV,
   } = useEventInvites(eventId);
@@ -54,7 +66,7 @@ export function EventInvitesTab({ eventId, event }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [editingInvite, setEditingInvite] = useState<EventInvite | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<Partial<EventInvite>>({
+  const [formData, setFormData] = useState<Partial<EventInvite> & { linked_user_id?: string | null }>({
     full_name: '',
     phone: '',
     address: '',
@@ -64,7 +76,28 @@ export function EventInvitesTab({ eventId, event }: Props) {
     parking_amount: 0,
     notes: '',
     invited_by: '',
+    linked_user_id: null,
   });
+
+  // Profile search state
+  const [profileSearch, setProfileSearch] = useState('');
+  const [profileResults, setProfileResults] = useState<ProfileSearchResult[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<ProfileSearchResult | null>(null);
+  const [isSearchingProfiles, setIsSearchingProfiles] = useState(false);
+  const debouncedProfileSearch = useDebounce(profileSearch, 300);
+
+  // Search profiles when query changes
+  useEffect(() => {
+    if (debouncedProfileSearch.length >= 2) {
+      setIsSearchingProfiles(true);
+      searchProfiles(debouncedProfileSearch).then(results => {
+        setProfileResults(results);
+        setIsSearchingProfiles(false);
+      });
+    } else {
+      setProfileResults([]);
+    }
+  }, [debouncedProfileSearch, searchProfiles]);
 
   const stats = getStats();
 
@@ -84,11 +117,25 @@ export function EventInvitesTab({ eventId, event }: Props) {
 
   const handleSubmit = async () => {
     try {
+      const dataToSave = { ...formData };
+      delete (dataToSave as any).linked_user_id; // Remove from main save
+
       if (editingInvite) {
-        await updateInvite(editingInvite.id, formData);
+        await updateInvite(editingInvite.id, dataToSave);
+        
+        // Handle user linking
+        if (selectedProfile && selectedProfile.user_id !== editingInvite.user_id) {
+          await linkToUser(editingInvite.id, selectedProfile.user_id);
+        } else if (!selectedProfile && editingInvite.user_id) {
+          await unlinkUser(editingInvite.id);
+        }
+        
         toast.success('Invité mis à jour');
       } else {
-        await createInvite(formData);
+        await createInvite({
+          ...dataToSave,
+          user_id: selectedProfile?.user_id || null,
+        });
         toast.success('Invité ajouté');
       }
       setShowForm(false);
@@ -111,8 +158,33 @@ export function EventInvitesTab({ eventId, event }: Props) {
       parking_amount: invite.parking_amount,
       notes: invite.notes || '',
       invited_by: invite.invited_by || '',
+      linked_user_id: invite.user_id,
     });
+    
+    // If there's a linked user, set selectedProfile
+    if (invite.user_profile) {
+      setSelectedProfile({
+        id: '',
+        user_id: invite.user_id!,
+        display_name: invite.user_profile.display_name,
+        avatar_url: invite.user_profile.avatar_url,
+      });
+    } else {
+      setSelectedProfile(null);
+    }
+    setProfileSearch('');
+    setProfileResults([]);
     setShowForm(true);
+  };
+
+  const handleSelectProfile = (profile: ProfileSearchResult) => {
+    setSelectedProfile(profile);
+    setProfileSearch('');
+    setProfileResults([]);
+  };
+
+  const handleClearProfile = () => {
+    setSelectedProfile(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -147,7 +219,11 @@ export function EventInvitesTab({ eventId, event }: Props) {
       parking_amount: 0,
       notes: '',
       invited_by: '',
+      linked_user_id: null,
     });
+    setSelectedProfile(null);
+    setProfileSearch('');
+    setProfileResults([]);
   };
 
   return (
@@ -257,7 +333,23 @@ export function EventInvitesTab({ eventId, event }: Props) {
                 filteredInvites.map(invite => (
                   <TableRow key={invite.id}>
                     <TableCell className="font-medium">
-                      {invite.full_name}
+                      <div className="flex items-center gap-2">
+                        {invite.user_profile && (
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={invite.user_profile.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">{invite.user_profile.display_name[0]}</AvatarFallback>
+                          </Avatar>
+                        )}
+                        <div>
+                          <div>{invite.full_name}</div>
+                          {invite.user_profile && (
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {invite.user_profile.display_name}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       {invite.registration && (
                         <Badge variant="outline" className="ml-2 text-xs">
                           <Link2 className="h-3 w-3 mr-1" />
@@ -314,6 +406,65 @@ export function EventInvitesTab({ eventId, event }: Props) {
             <SheetTitle>{editingInvite ? 'Modifier invité' : 'Nouvel invité'}</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 mt-6">
+            {/* Profile linking section */}
+            <div className="p-3 bg-muted/50 rounded-lg border">
+              <Label className="flex items-center gap-2 mb-2">
+                <User className="h-4 w-4" />
+                Lier à un profil utilisateur
+              </Label>
+              {selectedProfile ? (
+                <div className="flex items-center gap-3 p-2 bg-background rounded-md border">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={selectedProfile.avatar_url || undefined} />
+                    <AvatarFallback>{selectedProfile.display_name[0]}</AvatarFallback>
+                  </Avatar>
+                  <span className="flex-1 font-medium">{selectedProfile.display_name}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6" 
+                    onClick={handleClearProfile}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher un pseudo..."
+                    value={profileSearch}
+                    onChange={e => setProfileSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                  {isSearchingProfiles && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  {profileResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      {profileResults.map(profile => (
+                        <button
+                          key={profile.id}
+                          type="button"
+                          className="w-full flex items-center gap-3 p-2 hover:bg-muted text-left"
+                          onClick={() => handleSelectProfile(profile)}
+                        >
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={profile.avatar_url || undefined} />
+                            <AvatarFallback>{profile.display_name[0]}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{profile.display_name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">
+                Recherchez par pseudo pour lier cet invité à un compte utilisateur existant
+              </p>
+            </div>
+
             <div>
               <Label>Nom complet *</Label>
               <Input
