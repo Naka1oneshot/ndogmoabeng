@@ -28,8 +28,9 @@ export default function AdminEventManagement() {
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
+      return;
     }
-    if (!roleLoading && !isAdmin) {
+    if (!authLoading && !roleLoading && user && !isAdmin) {
       navigate('/');
     }
   }, [user, authLoading, isAdmin, roleLoading, navigate]);
