@@ -139,6 +139,157 @@ function InfectionStateBadges({ player }: { player: Player }) {
   );
 }
 
+// Global infection summary panel with timeline
+function InfectionSummaryPanel({ players, manche }: { players: Player[]; manche: number }) {
+  const alivePlayers = players.filter(p => p.is_alive !== false);
+  const deadPlayers = players.filter(p => p.is_alive === false);
+  const carriers = players.filter(p => p.is_carrier === true);
+  const contagious = players.filter(p => p.is_contagious === true);
+  const willDie = players.filter(p => p.will_die_at_manche && p.is_alive !== false);
+  const immune = players.filter(p => p.immune_permanent === true);
+  
+  // Build timeline data - group players by infection manche
+  const infectionByManche: Record<number, Player[]> = {};
+  const deathByManche: Record<number, Player[]> = {};
+  
+  players.forEach(p => {
+    if (p.infected_at_manche) {
+      if (!infectionByManche[p.infected_at_manche]) {
+        infectionByManche[p.infected_at_manche] = [];
+      }
+      infectionByManche[p.infected_at_manche].push(p);
+    }
+    if (p.will_die_at_manche && p.is_alive !== false) {
+      if (!deathByManche[p.will_die_at_manche]) {
+        deathByManche[p.will_die_at_manche] = [];
+      }
+      deathByManche[p.will_die_at_manche].push(p);
+    }
+  });
+
+  // Get all relevant manches for timeline
+  const allManches = new Set([
+    ...Object.keys(infectionByManche).map(Number),
+    ...Object.keys(deathByManche).map(Number),
+  ]);
+  const sortedManches = Array.from(allManches).sort((a, b) => a - b);
+  // Extend to show future predictions
+  const maxManche = Math.max(manche + 2, ...sortedManches);
+  const timelineManches = Array.from({ length: maxManche }, (_, i) => i + 1);
+
+  return (
+    <div className="space-y-3">
+      {/* Stats Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="p-2 bg-[#1A202C] rounded-lg border border-[#2D3748]">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#10B981]" />
+            <span className="text-xs text-[#9CA3AF]">En vie</span>
+          </div>
+          <div className="text-lg font-bold text-[#10B981]">{alivePlayers.length}</div>
+        </div>
+        <div className="p-2 bg-[#1A202C] rounded-lg border border-[#2D3748]">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">🦠</span>
+            <span className="text-xs text-[#9CA3AF]">Porteurs</span>
+          </div>
+          <div className="text-lg font-bold text-[#B00020]">{carriers.length}</div>
+        </div>
+        <div className="p-2 bg-[#1A202C] rounded-lg border border-[#2D3748]">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">⚠️</span>
+            <span className="text-xs text-[#9CA3AF]">Contagieux</span>
+          </div>
+          <div className="text-lg font-bold text-[#E6A23C]">{contagious.length}</div>
+        </div>
+        <div className="p-2 bg-[#1A202C] rounded-lg border border-[#2D3748]">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">💀</span>
+            <span className="text-xs text-[#9CA3AF]">En danger</span>
+          </div>
+          <div className="text-lg font-bold text-[#B00020] animate-pulse">{willDie.length}</div>
+        </div>
+      </div>
+
+      {/* Detailed breakdown */}
+      <div className="flex flex-wrap gap-2 text-xs">
+        {deadPlayers.length > 0 && (
+          <Badge variant="outline" className="text-[#6B7280] border-[#6B7280]/50">
+            💀 Morts: {deadPlayers.length}
+          </Badge>
+        )}
+        {immune.length > 0 && (
+          <Badge variant="outline" className="text-[#2AB3A6] border-[#2AB3A6]/50">
+            🛡️ Immunisés: {immune.length}
+          </Badge>
+        )}
+      </div>
+
+      {/* Infection Timeline */}
+      {(Object.keys(infectionByManche).length > 0 || Object.keys(deathByManche).length > 0) && (
+        <div className="p-3 bg-[#1A202C] rounded-lg border border-[#2D3748]">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="h-4 w-4 text-[#E6A23C]" />
+            <span className="text-sm font-medium text-[#E5E7EB]">Timeline de propagation</span>
+          </div>
+          
+          <div className="relative">
+            {/* Timeline line */}
+            <div className="absolute top-4 left-0 right-0 h-0.5 bg-[#2D3748]" />
+            
+            {/* Timeline nodes */}
+            <div className="flex justify-between relative">
+              {timelineManches.map(m => {
+                const infected = infectionByManche[m] || [];
+                const dying = deathByManche[m] || [];
+                const isCurrent = m === manche;
+                const isPast = m < manche;
+                const isFuture = m > manche;
+                
+                return (
+                  <div key={m} className="flex flex-col items-center min-w-[50px]">
+                    {/* Manche marker */}
+                    <div className={`
+                      w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold z-10
+                      ${isCurrent ? 'bg-[#E6A23C] text-black ring-2 ring-[#E6A23C]/50' : ''}
+                      ${isPast ? 'bg-[#2D3748] text-[#9CA3AF]' : ''}
+                      ${isFuture ? 'bg-[#1A202C] border border-dashed border-[#4B5563] text-[#6B7280]' : ''}
+                    `}>
+                      M{m}
+                    </div>
+                    
+                    {/* Events for this manche */}
+                    <div className="mt-2 space-y-1 text-center">
+                      {infected.length > 0 && (
+                        <div className="text-xs">
+                          <span className="text-[#B00020]">🦠 {infected.length}</span>
+                          <div className="text-[10px] text-[#6B7280] max-w-[60px] truncate">
+                            {infected.map(p => `#${p.player_number}`).join(', ')}
+                          </div>
+                        </div>
+                      )}
+                      {dying.length > 0 && (
+                        <div className="text-xs">
+                          <span className={`text-[#B00020] ${isFuture ? 'animate-pulse' : ''}`}>
+                            💀 {dying.length}
+                          </span>
+                          <div className="text-[10px] text-[#6B7280] max-w-[60px] truncate">
+                            {dying.map(p => `#${p.player_number}`).join(', ')}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccessCount = 0, syRequiredSuccess = 5 }: MJActionsTabProps) {
   const theme = getInfectionThemeClasses();
   const [inputs, setInputs] = useState<InfectionInput[]>([]);
@@ -264,6 +415,9 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccess
         </TabsList>
 
         <TabsContent value="roles" className="mt-4 space-y-4">
+          {/* Global Infection Summary */}
+          <InfectionSummaryPanel players={players} manche={manche} />
+          
           {/* Ezkar Protections Summary */}
           {ezkarProtectedPlayers.length > 0 && (
             <div className="p-3 bg-[#3B82F6]/10 border border-[#3B82F6]/30 rounded-lg">
