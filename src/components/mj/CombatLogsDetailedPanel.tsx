@@ -19,13 +19,18 @@ import {
   Skull,
   Zap,
   Package,
-  AlertTriangle,
   ArrowRight,
   Bomb,
   Wind,
   Eye,
   ChevronDown,
   ChevronUp,
+  Trophy,
+  Target,
+  Users,
+  Activity,
+  TreePine,
+  Ban,
 } from 'lucide-react';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { toast } from 'sonner';
@@ -49,7 +54,7 @@ interface CombatLogsDetailedPanelProps {
   className?: string;
 }
 
-type LogCategory = 'damage' | 'protection' | 'heal' | 'kill' | 'effect' | 'inventory' | 'system';
+type LogCategory = 'damage' | 'protection' | 'heal' | 'kill' | 'effect' | 'inventory' | 'resolution' | 'system';
 
 interface ParsedLog extends CombatLog {
   category: LogCategory;
@@ -57,6 +62,57 @@ interface ParsedLog extends CombatLog {
   colorClass: string;
   bgClass: string;
   borderClass: string;
+  parsedResolution?: ParsedResolution | null;
+}
+
+interface ParsedResolution {
+  kills: Array<{ killerName: string; monsterName: string; slot: number; reward: number }>;
+  actions: Array<{
+    position: number;
+    nom: string;
+    weapons: string[];
+    totalDamage: number;
+    cancelled: boolean;
+    cancelReason?: string;
+  }>;
+  forestState?: { totalPvRemaining: number; monstersKilled: number };
+  totalDamage: number;
+  totalRewards: number;
+}
+
+// Try to parse COMBAT_RESOLU or COMBAT_DATA details
+function parseResolutionDetails(details: string | null): ParsedResolution | null {
+  if (!details) return null;
+  
+  try {
+    // Try to extract JSON from the details string
+    const jsonMatch = details.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    
+    const data = JSON.parse(jsonMatch[0]);
+    
+    const kills = Array.isArray(data.kills) ? data.kills : [];
+    const actions = Array.isArray(data.public_summary) 
+      ? data.public_summary 
+      : Array.isArray(data.actions) 
+        ? data.actions 
+        : [];
+    const forestState = data.forest_state || data.forestState;
+    
+    const totalDamage = actions.reduce((sum: number, a: { totalDamage?: number; cancelled?: boolean }) => 
+      sum + (a.cancelled ? 0 : (a.totalDamage || 0)), 0);
+    const totalRewards = kills.reduce((sum: number, k: { reward?: number }) => sum + (k.reward || 0), 0);
+    
+    return {
+      kills,
+      actions,
+      forestState,
+      totalDamage,
+      totalRewards,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function CombatLogsDetailedPanel({
@@ -68,9 +124,10 @@ export function CombatLogsDetailedPanel({
   const [selectedManche, setSelectedManche] = useState<string>('current');
   const [copied, setCopied] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    resolution: true,
+    kill: true,
     damage: true,
     protection: true,
-    kill: true,
     effect: true,
     heal: false,
     inventory: false,
@@ -85,6 +142,20 @@ export function CombatLogsDetailedPanel({
 
   const categorizeLog = (log: CombatLog): ParsedLog => {
     const action = log.action.toUpperCase();
+
+    // Resolution logs get special treatment
+    if (action.includes('COMBAT_RESOLU') || action.includes('COMBAT_DATA') || action.includes('RESOLUTION')) {
+      const parsed = parseResolutionDetails(log.details);
+      return {
+        ...log,
+        category: 'resolution',
+        icon: <Activity className="h-4 w-4" />,
+        colorClass: 'text-primary',
+        bgClass: 'bg-primary/10',
+        borderClass: 'border-primary/30',
+        parsedResolution: parsed,
+      };
+    }
 
     if (action.includes('KILL')) {
       return {
@@ -199,7 +270,7 @@ export function CombatLogsDetailedPanel({
     return {
       ...log,
       category: 'system',
-      icon: <AlertTriangle className="h-4 w-4" />,
+      icon: <Target className="h-4 w-4" />,
       colorClass: 'text-muted-foreground',
       bgClass: 'bg-muted/30',
       borderClass: 'border-border/50',
@@ -212,6 +283,7 @@ export function CombatLogsDetailedPanel({
 
   const groupedLogs = useMemo(() => {
     const groups: Record<LogCategory, ParsedLog[]> = {
+      resolution: [],
       kill: [],
       damage: [],
       protection: [],
@@ -229,13 +301,14 @@ export function CombatLogsDetailedPanel({
   }, [parsedLogs]);
 
   const categoryLabels: Record<LogCategory, { label: string; icon: React.ReactNode }> = {
+    resolution: { label: 'Résolution du combat', icon: <Activity className="h-4 w-4 text-primary" /> },
     kill: { label: 'Éliminations', icon: <Skull className="h-4 w-4 text-amber-400" /> },
     damage: { label: 'Dégâts infligés', icon: <Swords className="h-4 w-4 text-red-400" /> },
     protection: { label: 'Protections & Annulations', icon: <Shield className="h-4 w-4 text-blue-400" /> },
     effect: { label: 'Effets spéciaux', icon: <Zap className="h-4 w-4 text-yellow-400" /> },
     heal: { label: 'Soins', icon: <Heart className="h-4 w-4 text-green-400" /> },
     inventory: { label: 'Consommation inventaire', icon: <Package className="h-4 w-4 text-amber-400" /> },
-    system: { label: 'Système', icon: <AlertTriangle className="h-4 w-4 text-muted-foreground" /> },
+    system: { label: 'Autres événements', icon: <Target className="h-4 w-4 text-muted-foreground" /> },
   };
 
   const handleCopyLogs = async () => {
@@ -263,6 +336,148 @@ export function CombatLogsDetailedPanel({
       ...prev,
       [category]: !prev[category],
     }));
+  };
+
+  // Render a resolution log with parsed data
+  const renderResolutionLog = (log: ParsedLog) => {
+    const data = log.parsedResolution;
+    
+    if (!data) {
+      // Fallback to simple display if parsing failed
+      return renderLogEntry(log);
+    }
+
+    return (
+      <div
+        key={log.id}
+        className="rounded-lg border border-primary/30 bg-primary/5 overflow-hidden"
+      >
+        {/* Header */}
+        <div className="p-3 bg-primary/10 border-b border-primary/20 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            <span className="font-medium text-sm">Résolution Combat</span>
+          </div>
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {log.timestamp ? format(new Date(log.timestamp), 'HH:mm:ss', { locale: fr }) : '??:??:??'}
+          </span>
+        </div>
+
+        {/* Stats summary */}
+        <div className="p-3 grid grid-cols-3 gap-3 border-b border-border/50">
+          <div className="text-center p-2 rounded bg-red-500/10 border border-red-500/20">
+            <Swords className="h-4 w-4 mx-auto mb-1 text-red-400" />
+            <div className="text-lg font-bold text-red-400">{data.totalDamage}</div>
+            <div className="text-xs text-muted-foreground">Dégâts totaux</div>
+          </div>
+          <div className="text-center p-2 rounded bg-amber-500/10 border border-amber-500/20">
+            <Skull className="h-4 w-4 mx-auto mb-1 text-amber-400" />
+            <div className="text-lg font-bold text-amber-400">{data.kills.length}</div>
+            <div className="text-xs text-muted-foreground">Éliminations</div>
+          </div>
+          <div className="text-center p-2 rounded bg-green-500/10 border border-green-500/20">
+            <Trophy className="h-4 w-4 mx-auto mb-1 text-green-400" />
+            <div className="text-lg font-bold text-green-400">{data.totalRewards}</div>
+            <div className="text-xs text-muted-foreground">Récompenses</div>
+          </div>
+        </div>
+
+        {/* Actions list */}
+        {data.actions.length > 0 && (
+          <div className="p-3 border-b border-border/50">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Actions des joueurs
+              </span>
+            </div>
+            <div className="space-y-1">
+              {data.actions.map((action, idx) => (
+                <div
+                  key={idx}
+                  className={`p-2 rounded text-sm flex items-center justify-between ${
+                    action.cancelled
+                      ? 'bg-destructive/10 border border-destructive/20'
+                      : 'bg-secondary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      #{action.position}
+                    </Badge>
+                    <span className="font-medium">{action.nom}</span>
+                    {action.weapons.length > 0 && (
+                      <span className="text-muted-foreground text-xs">
+                        ({action.weapons.join(' + ')})
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {action.cancelled ? (
+                      <span className="text-destructive text-xs flex items-center gap-1">
+                        <Ban className="h-3 w-3" />
+                        {action.cancelReason || 'Annulée'}
+                      </span>
+                    ) : (
+                      <span className="text-green-500 text-xs flex items-center gap-1">
+                        <Check className="h-3 w-3" />
+                        {action.totalDamage} dégâts
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Kills */}
+        {data.kills.length > 0 && (
+          <div className="p-3 border-b border-border/50">
+            <div className="flex items-center gap-2 mb-2">
+              <Skull className="h-4 w-4 text-amber-400" />
+              <span className="text-xs font-medium text-amber-400 uppercase tracking-wide">
+                Coups de grâce
+              </span>
+            </div>
+            <div className="space-y-1">
+              {data.kills.map((kill, idx) => (
+                <div
+                  key={idx}
+                  className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-sm"
+                >
+                  <span className="font-bold text-amber-400">{kill.killerName}</span>
+                  {' a éliminé '}
+                  <span className="font-bold text-red-400">{kill.monsterName}</span>
+                  {' (Slot {kill.slot}) '}
+                  <Badge variant="outline" className="text-xs ml-2 text-green-400 border-green-400/50">
+                    +{kill.reward} jetons
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Forest state */}
+        {data.forestState && (
+          <div className="p-3 bg-green-500/5">
+            <div className="flex items-center gap-2 text-sm">
+              <TreePine className="h-4 w-4 text-green-500" />
+              <span className="text-green-400">
+                État de la forêt : {data.forestState.totalPvRemaining} PV restants
+              </span>
+              {data.forestState.monstersKilled > 0 && (
+                <Badge variant="outline" className="text-xs text-amber-400 border-amber-400/50">
+                  {data.forestState.monstersKilled} monstre(s) éliminé(s)
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderLogEntry = (log: ParsedLog) => (
@@ -318,8 +533,10 @@ export function CombatLogsDetailedPanel({
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="space-y-1 mt-2 pl-2 border-l-2 border-border ml-2">
-            {logsInCategory.map(renderLogEntry)}
+          <div className="space-y-2 mt-2 pl-2 border-l-2 border-border ml-2">
+            {category === 'resolution'
+              ? logsInCategory.map(renderResolutionLog)
+              : logsInCategory.map(renderLogEntry)}
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -371,8 +588,9 @@ export function CombatLogsDetailedPanel({
             <p className="text-muted-foreground text-sm">Aucun log de combat pour cette manche</p>
           </div>
         ) : (
-          <ScrollArea className="h-[400px] pr-2">
+          <ScrollArea className="h-[500px] pr-2">
             <div className="space-y-3">
+              {renderSection('resolution', groupedLogs.resolution)}
               {renderSection('kill', groupedLogs.kill)}
               {renderSection('damage', groupedLogs.damage)}
               {renderSection('protection', groupedLogs.protection)}
@@ -390,6 +608,10 @@ export function CombatLogsDetailedPanel({
           {filteredLogs.length} log(s) de combat pour la manche {displayManche}
         </span>
         <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1">
+            <Activity className="h-3 w-3 text-primary" />
+            {groupedLogs.resolution.length}
+          </span>
           <span className="flex items-center gap-1">
             <Skull className="h-3 w-3 text-amber-400" />
             {groupedLogs.kill.length}
