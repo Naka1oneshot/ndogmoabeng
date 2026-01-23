@@ -47,6 +47,11 @@ interface CatalogItem {
   notes: string;
 }
 
+interface BattlefieldSlot {
+  slot: number;
+  monstre_id_en_place: number | null;
+}
+
 export function CombatPanel({ game, player, className }: CombatPanelProps) {
   const [submitting, setSubmitting] = useState(false);
   const [positionSouhaitee, setPositionSouhaitee] = useState<string>('');
@@ -59,6 +64,7 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
   const [itemCatalog, setItemCatalog] = useState<CatalogItem[]>([]);
   const [currentAction, setCurrentAction] = useState<Record<string, unknown> | null>(null);
   const [activePlayerCount, setActivePlayerCount] = useState<number>(6);
+  const [battlefieldSlots, setBattlefieldSlots] = useState<BattlefieldSlot[]>([]);
 
   const isActivePhase = game.phase === 'PHASE2_POSITIONS';
   const isCombatPhase = game.phase === 'PHASE4_COMBAT' || game.phase === 'RESOLUTION';
@@ -82,6 +88,13 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
   // Check if Attaque 2 is enabled (only when Attaque 1 is "Piqure Berseker")
   const isAttaque2Enabled = attaque1 === 'Piqure Berseker';
 
+  // Compute which slots are occupied (have monsters)
+  const occupiedSlots = useMemo(() => {
+    return battlefieldSlots
+      .filter(s => s.monstre_id_en_place !== null)
+      .map(s => s.slot);
+  }, [battlefieldSlots]);
+
   // Get catalog info for an item
   const getItemInfo = (itemName: string): CatalogItem | undefined => {
     return itemCatalog.find(c => c.name === itemName);
@@ -93,6 +106,13 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
       setAttaque2('none');
     }
   }, [attaque1]);
+
+  // Reset slot_attaque if the selected slot becomes empty
+  useEffect(() => {
+    if (slotAttaque && !occupiedSlots.includes(parseInt(slotAttaque))) {
+      setSlotAttaque('');
+    }
+  }, [occupiedSlots, slotAttaque]);
 
   // Fetch active player count for position options
   const fetchActivePlayerCount = async () => {
@@ -108,11 +128,24 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
     }
   };
 
+  // Fetch battlefield slots to know which have monsters
+  const fetchBattlefieldSlots = async () => {
+    const { data } = await supabase
+      .from('battlefield')
+      .select('slot, monstre_id_en_place')
+      .eq('game_id', game.id);
+
+    if (data) {
+      setBattlefieldSlots(data);
+    }
+  };
+
   useEffect(() => {
     fetchActivePlayerCount();
     fetchInventory();
     fetchItemCatalog();
     fetchCurrentAction();
+    fetchBattlefieldSlots();
 
     const channel = supabase
       .channel(`combat-panel-${game.id}-${player.playerNumber}`)
@@ -127,6 +160,10 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'actions', filter: `game_id=eq.${game.id}` },
         () => { fetchCurrentAction(); }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'battlefield', filter: `game_id=eq.${game.id}` },
+        () => { fetchBattlefieldSlots(); }
       )
       .subscribe();
 
@@ -360,14 +397,24 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
 
           <div className="space-y-1">
             <Label className="text-xs">Slot attaque (1-3)</Label>
-            <Select value={slotAttaque} onValueChange={setSlotAttaque} disabled={isLocked || !isActivePhase}>
+            <Select value={slotAttaque} onValueChange={setSlotAttaque} disabled={isLocked || !isActivePhase || occupiedSlots.length === 0}>
               <SelectTrigger className="h-9">
-                <SelectValue placeholder="Slot" />
+                <SelectValue placeholder={occupiedSlots.length === 0 ? "Aucun monstre" : "Slot"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">Slot 1</SelectItem>
-                <SelectItem value="2">Slot 2</SelectItem>
-                <SelectItem value="3">Slot 3</SelectItem>
+                {[1, 2, 3].map(slot => {
+                  const isOccupied = occupiedSlots.includes(slot);
+                  return (
+                    <SelectItem 
+                      key={slot} 
+                      value={slot.toString()} 
+                      disabled={!isOccupied}
+                      className={!isOccupied ? 'opacity-50' : ''}
+                    >
+                      Slot {slot} {!isOccupied && '(vide)'}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
