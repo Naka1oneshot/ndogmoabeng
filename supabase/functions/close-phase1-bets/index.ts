@@ -202,16 +202,17 @@ serve(async (req) => {
       }
     }
 
-    // Get all bets for this round (filter by session_game_id if available)
+    // Get all bets for this round
+    // IMPORTANT: Include bets with null session_game_id (player bets submitted before session assigned)
+    // OR matching session_game_id (bot bets)
     let betsQuery = supabase
       .from('round_bets')
       .select('*')
       .eq('game_id', gameId)
       .eq('manche', manche);
     
-    if (sessionGameId) {
-      betsQuery = betsQuery.eq('session_game_id', sessionGameId);
-    }
+    // Don't filter by session_game_id - include all bets for this game/manche
+    // Player bets may have null session_game_id, bot bets have the session_game_id
     
     const { data: bets, error: betsError } = await betsQuery;
 
