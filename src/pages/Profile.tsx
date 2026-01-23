@@ -58,6 +58,7 @@ import { GameHistorySection } from '@/components/profile/GameHistorySection';
 import { MyRegistrationsSection } from '@/components/profile/MyRegistrationsSection';
 import { ChangePasswordSection } from '@/components/profile/ChangePasswordSection';
 import { LoginHistorySection } from '@/components/profile/LoginHistorySection';
+import { SessionManagementSection } from '@/components/profile/SessionManagementSection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -458,6 +459,9 @@ export default function Profile() {
 
         {/* Login History Section */}
         <LoginHistorySection />
+
+        {/* Session Management Section */}
+        <SessionManagementSection />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
