@@ -56,6 +56,7 @@ import { SubscriptionSection } from '@/components/profile/SubscriptionSection';
 import { LoyaltyPointsSection } from '@/components/profile/LoyaltyPointsSection';
 import { GameHistorySection } from '@/components/profile/GameHistorySection';
 import { MyRegistrationsSection } from '@/components/profile/MyRegistrationsSection';
+import { ChangePasswordSection } from '@/components/profile/ChangePasswordSection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -546,6 +547,10 @@ export default function Profile() {
                     placeholder="123 rue Example, 75000 Paris"
                   />
                 </div>
+
+                <Separator className="my-4" />
+                
+                <ChangePasswordSection />
               </>
             ) : (
               <div className="space-y-4">
