@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro, Plus, TrendingUp, Percent, Building2, BarChart3, Copy as CopyIcon, Settings2 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro, Plus, TrendingUp, Percent, Building2, BarChart3, Copy as CopyIcon, Settings2, UserCheck } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { ForestButton } from '@/components/ui/ForestButton';
@@ -334,7 +334,7 @@ export default function AdminMeetups() {
         ) : (
           <div className="space-y-4">
             {/* Main Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <Card className="bg-surface border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
@@ -377,6 +377,19 @@ export default function AdminMeetups() {
                   <p className="text-2xl font-bold text-foreground">{stats.upcomingEvents}</p>
                   <p className="text-xs text-muted-foreground">
                     +{stats.archivedEvents} archivés
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-surface border-border">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                    <UserCheck className="w-4 h-4" />
+                    Invités liés
+                  </div>
+                  <p className="text-2xl font-bold text-green-500">{stats.linkedInvites}</p>
+                  <p className="text-xs text-muted-foreground">
+                    / {stats.totalInvites} invités au total
                   </p>
                 </CardContent>
               </Card>

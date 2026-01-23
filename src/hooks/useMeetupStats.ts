@@ -19,6 +19,8 @@ export interface MeetupStats {
   archivedEvents: number;
   pendingCallbacks: number;
   monthlyRevenue: MonthlyRevenue[];
+  linkedInvites: number;
+  totalInvites: number;
 }
 
 interface RawRegistration {
@@ -33,22 +35,30 @@ interface RawEvent {
   status: string;
 }
 
+interface RawInvite {
+  user_id: string | null;
+}
+
 export function useMeetupStats() {
   const [registrations, setRegistrations] = useState<RawRegistration[]>([]);
   const [events, setEvents] = useState<RawEvent[]>([]);
+  const [invites, setInvites] = useState<RawInvite[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
       
-      const [regResult, eventsResult] = await Promise.all([
+      const [regResult, eventsResult, invitesResult] = await Promise.all([
         supabase
           .from('meetup_registrations')
           .select('payment_status, paid_amount_cents, companions_count, paid_at'),
         supabase
           .from('meetup_events')
-          .select('city, status')
+          .select('city, status'),
+        supabase
+          .from('event_invites')
+          .select('user_id')
       ]);
 
       if (regResult.data) {
@@ -56,6 +66,9 @@ export function useMeetupStats() {
       }
       if (eventsResult.data) {
         setEvents(eventsResult.data);
+      }
+      if (invitesResult.data) {
+        setInvites(invitesResult.data);
       }
       
       setLoading(false);
@@ -152,6 +165,10 @@ export function useMeetupStats() {
         registrations: data.registrations,
       }));
 
+    // Invites linked to user accounts
+    const linkedInvites = invites.filter(i => i.user_id !== null).length;
+    const totalInvites = invites.length;
+
     return {
       totalRevenue,
       totalRegistrations,
@@ -162,8 +179,10 @@ export function useMeetupStats() {
       archivedEvents,
       pendingCallbacks,
       monthlyRevenue,
+      linkedInvites,
+      totalInvites,
     };
-  }, [registrations, events]);
+  }, [registrations, events, invites]);
 
   return { stats, loading };
 }
