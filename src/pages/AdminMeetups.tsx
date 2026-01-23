@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro, Plus, TrendingUp, Percent, Building2, BarChart3, Copy as CopyIcon } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Edit, Archive, Eye, Download, Copy, Loader2, Check, X, Crown, ChevronLeft, CreditCard, Phone, Banknote, Euro, Plus, TrendingUp, Percent, Building2, BarChart3, Copy as CopyIcon, Settings2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { ForestButton } from '@/components/ui/ForestButton';
@@ -547,6 +547,14 @@ export default function AdminMeetups() {
                             title="Dupliquer"
                           >
                             <CopyIcon className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate('/admin/event-management', { state: { eventId: event.id } })}
+                            title="Gestion avancée"
+                          >
+                            <Settings2 className="w-4 h-4" />
                           </Button>
                           {event.status !== 'ARCHIVED' && (
                             <Button

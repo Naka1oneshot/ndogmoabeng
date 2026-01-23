@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useAdminMeetups } from '@/hooks/useAdminMeetups';
@@ -15,11 +15,15 @@ import { EventImportTab } from '@/components/admin/EventImportTab';
 
 export default function AdminEventManagement() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
   const { events, loading: eventsLoading } = useAdminMeetups();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('invites');
+
+  // Get eventId from navigation state if passed
+  const stateEventId = (location.state as { eventId?: string })?.eventId;
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -31,10 +35,13 @@ export default function AdminEventManagement() {
   }, [user, authLoading, isAdmin, roleLoading, navigate]);
 
   useEffect(() => {
-    if (events.length > 0 && !selectedEventId) {
+    // Priority: state eventId > first event
+    if (stateEventId && events.some(e => e.id === stateEventId)) {
+      setSelectedEventId(stateEventId);
+    } else if (events.length > 0 && !selectedEventId) {
       setSelectedEventId(events[0].id);
     }
-  }, [events, selectedEventId]);
+  }, [events, stateEventId, selectedEventId]);
 
   if (authLoading || roleLoading || eventsLoading) {
     return (
