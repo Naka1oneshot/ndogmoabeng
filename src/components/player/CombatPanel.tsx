@@ -47,9 +47,9 @@ interface CatalogItem {
   notes: string;
 }
 
-interface BattlefieldSlot {
-  slot: number;
-  monstre_id_en_place: number | null;
+interface MonsterSlotState {
+  battlefield_slot: number | null;
+  status: string;
 }
 
 export function CombatPanel({ game, player, className }: CombatPanelProps) {
@@ -64,7 +64,7 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
   const [itemCatalog, setItemCatalog] = useState<CatalogItem[]>([]);
   const [currentAction, setCurrentAction] = useState<Record<string, unknown> | null>(null);
   const [activePlayerCount, setActivePlayerCount] = useState<number>(6);
-  const [battlefieldSlots, setBattlefieldSlots] = useState<BattlefieldSlot[]>([]);
+  const [monsterSlots, setMonsterSlots] = useState<MonsterSlotState[]>([]);
 
   const isActivePhase = game.phase === 'PHASE2_POSITIONS';
   const isCombatPhase = game.phase === 'PHASE4_COMBAT' || game.phase === 'RESOLUTION';
@@ -88,12 +88,12 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
   // Check if Attaque 2 is enabled (only when Attaque 1 is "Piqure Berseker")
   const isAttaque2Enabled = attaque1 === 'Piqure Berseker';
 
-  // Compute which slots are occupied (have monsters)
+  // Compute which slots are occupied (have monsters in battle)
   const occupiedSlots = useMemo(() => {
-    return battlefieldSlots
-      .filter(s => s.monstre_id_en_place !== null)
-      .map(s => s.slot);
-  }, [battlefieldSlots]);
+    return monsterSlots
+      .filter(s => s.battlefield_slot !== null && s.status === 'EN_BATAILLE')
+      .map(s => s.battlefield_slot as number);
+  }, [monsterSlots]);
 
   // Get catalog info for an item
   const getItemInfo = (itemName: string): CatalogItem | undefined => {
@@ -128,15 +128,15 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
     }
   };
 
-  // Fetch battlefield slots to know which have monsters
-  const fetchBattlefieldSlots = async () => {
+  // Fetch monster slots from game_state_monsters to know which slots have monsters
+  const fetchMonsterSlots = async () => {
     const { data } = await supabase
-      .from('battlefield')
-      .select('slot, monstre_id_en_place')
+      .from('game_state_monsters')
+      .select('battlefield_slot, status')
       .eq('game_id', game.id);
 
     if (data) {
-      setBattlefieldSlots(data);
+      setMonsterSlots(data);
     }
   };
 
@@ -145,7 +145,7 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
     fetchInventory();
     fetchItemCatalog();
     fetchCurrentAction();
-    fetchBattlefieldSlots();
+    fetchMonsterSlots();
 
     const channel = supabase
       .channel(`combat-panel-${game.id}-${player.playerNumber}`)
@@ -162,8 +162,8 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
         () => { fetchCurrentAction(); }
       )
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'battlefield', filter: `game_id=eq.${game.id}` },
-        () => { fetchBattlefieldSlots(); }
+        { event: '*', schema: 'public', table: 'game_state_monsters', filter: `game_id=eq.${game.id}` },
+        () => { fetchMonsterSlots(); }
       )
       .subscribe();
 
