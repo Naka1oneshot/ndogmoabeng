@@ -193,7 +193,7 @@ export function RivieresResolveAnimation({
                 <div className="text-2xl text-red-400 mb-1">Danger</div>
                 <div className="text-5xl font-bold text-red-500">{danger}</div>
               </div>
-              <div className="text-3xl text-[#9CA3AF]">{isSuccess ? '<' : '≥'}</div>
+              <div className="text-3xl text-[#9CA3AF]">{isSuccess ? '≤' : '>'}</div>
               <div className="text-center">
                 <div className="text-2xl text-[#4ADE80] mb-1">Mises</div>
                 <div className="text-5xl font-bold text-[#4ADE80]">{totalMises}</div>
