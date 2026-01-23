@@ -32,7 +32,7 @@ export const GAMES_DATA: GameData[] = [
     clan: 'Maison des Keryndes',
     personnages: ['Capitaine du nord'],
     image: '/placeholder.svg',
-    minPlayers: 4,
+    minPlayers: 2,
   },
   {
     id: 'foret',
@@ -43,7 +43,7 @@ export const GAMES_DATA: GameData[] = [
     clan: 'Cercle d\'Aséyra',
     objetCle: 'L\'Essence de Ndogmoabeng',
     image: '/placeholder.svg',
-    minPlayers: 4,
+    minPlayers: 2,
   },
   {
     id: 'infection',
