@@ -15,11 +15,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Bar, BarChart } from 'recharts';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useAdminMeetups, useAdminRegistrations, MeetupEventAdmin } from '@/hooks/useAdminMeetups';
 import { useMeetupStats } from '@/hooks/useMeetupStats';
+import { MeetupEventRowCompact } from '@/components/admin/MeetupEventRowCompact';
 import { toast } from 'sonner';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
@@ -62,6 +64,7 @@ export default function AdminMeetups() {
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const { isAdminOrSuper, loading: roleLoading } = useUserRole();
+  const isMobile = useIsMobile();
   const { events, loading: eventsLoading, archiveEvent, updateEvent, createEvent } = useAdminMeetups();
   const { stats, loading: statsLoading } = useMeetupStats();
   
@@ -497,100 +500,129 @@ export default function AdminMeetups() {
               </Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border">
-                    <TableHead className="text-muted-foreground">Titre</TableHead>
-                    <TableHead className="text-muted-foreground">Date</TableHead>
-                    <TableHead className="text-muted-foreground">Ville</TableHead>
-                    <TableHead className="text-muted-foreground">Inscrits</TableHead>
-                    <TableHead className="text-muted-foreground">Statut</TableHead>
-                    <TableHead className="text-muted-foreground">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {events.map((event) => (
-                    <TableRow key={event.id} className="border-border">
-                      <TableCell className="font-medium text-foreground">{event.title}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(event.start_at)}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {event.city}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Users className="w-3 h-3 text-muted-foreground" />
-                          <span className="text-foreground">{event.registration_count}</span>
-                          <span className="text-muted-foreground">/ {event.expected_players}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(event.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedEvent(event);
-                              setShowRegistrations(true);
-                            }}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setEditingEvent(event);
-                              setShowEdit(true);
-                            }}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDuplicateEvent(event)}
-                            title="Dupliquer"
-                          >
-                            <CopyIcon className="w-4 h-4" />
-                          </Button>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
+              <TooltipProvider>
+                {isMobile ? (
+                  <div className="space-y-3">
+                    {events.map((event) => (
+                      <MeetupEventRowCompact
+                        key={event.id}
+                        event={{
+                          ...event,
+                          paid_registrations: 0,
+                          total_registrations: event.registration_count,
+                        }}
+                        onViewRegistrations={(e) => {
+                          setSelectedEvent(event);
+                          setShowRegistrations(true);
+                        }}
+                        onEdit={(e) => {
+                          setEditingEvent(event);
+                          setShowEdit(true);
+                        }}
+                        onArchive={handleArchive}
+                        onDuplicate={() => handleDuplicateEvent(event)}
+                        onManage={(eventId) => navigate('/admin/event-management', { state: { eventId } })}
+                        getStatusBadge={getStatusBadge}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border">
+                        <TableHead className="text-muted-foreground">Titre</TableHead>
+                        <TableHead className="text-muted-foreground">Date</TableHead>
+                        <TableHead className="text-muted-foreground">Ville</TableHead>
+                        <TableHead className="text-muted-foreground">Inscrits</TableHead>
+                        <TableHead className="text-muted-foreground">Statut</TableHead>
+                        <TableHead className="text-muted-foreground">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {events.map((event) => (
+                        <TableRow key={event.id} className="border-border">
+                          <TableCell className="font-medium text-foreground">{event.title}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(event.start_at)}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {event.city}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-foreground">{event.registration_count}</span>
+                              <span className="text-muted-foreground">/ {event.expected_players}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(event.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => navigate('/admin/event-management', { state: { eventId: event.id } })}
+                                onClick={() => {
+                                  setSelectedEvent(event);
+                                  setShowRegistrations(true);
+                                }}
                               >
-                                <Settings2 className="w-4 h-4" />
+                                <Eye className="w-4 h-4" />
                               </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Gestion avancée : Invités, Budget, PNL, Tâches</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          {event.status !== 'ARCHIVED' && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleArchive(event.id)}
-                            >
-                              <Archive className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setEditingEvent(event);
+                                  setShowEdit(true);
+                                }}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDuplicateEvent(event)}
+                                title="Dupliquer"
+                              >
+                                <CopyIcon className="w-4 h-4" />
+                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => navigate('/admin/event-management', { state: { eventId: event.id } })}
+                                  >
+                                    <Settings2 className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Gestion avancée : Invités, Budget, PNL, Tâches</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              {event.status !== 'ARCHIVED' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleArchive(event.id)}
+                                >
+                                  <Archive className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </TooltipProvider>
             </CardContent>
           </Card>
         )}

@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
+import { GameRowCompact } from '@/components/admin/GameRowCompact';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ShieldAlert, Eye, Trash2, Users, Crown, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -44,6 +46,7 @@ export default function AdminGames() {
   const { user, loading: authLoading } = useAuth();
   const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [games, setGames] = useState<GameRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -235,8 +238,19 @@ export default function AdminGames() {
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : games.length === 0 ? (
-            <div className="text-center p-8 text-muted-foreground">
+          <div className="text-center p-8 text-muted-foreground">
               Aucune partie trouvée
+            </div>
+          ) : isMobile ? (
+            <div className="p-4 space-y-3">
+              {games.map((game) => (
+                <GameRowCompact
+                  key={game.id}
+                  game={game}
+                  deleting={deleting}
+                  onDelete={handleDeleteGame}
+                />
+              ))}
             </div>
           ) : (
             <Table>
