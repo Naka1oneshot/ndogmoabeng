@@ -335,6 +335,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   }, [game.id, game.adventure_id, isAdventure, game.selected_game_type_code, game.current_session_game_id]);
 
   // Fetch player count for animation
+  // PERMANENT FIX: Multiple fetch attempts to handle race conditions
   useEffect(() => {
     const fetchPlayerCount = async () => {
       const { count } = await supabase
@@ -343,9 +344,21 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         .eq('game_id', game.id)
         .eq('is_host', false)
         .eq('status', 'ACTIVE');
+      console.log('[MJDashboard] Player count fetched:', count);
       setPlayerCount(count || 0);
     };
+    
+    // Initial fetch
     fetchPlayerCount();
+    
+    // PERMANENT FIX: Retry after delays to catch late-arriving bot insertions
+    const retryTimer = setTimeout(fetchPlayerCount, 1000);
+    const safetyTimer = setTimeout(fetchPlayerCount, 3000);
+    
+    return () => {
+      clearTimeout(retryTimer);
+      clearTimeout(safetyTimer);
+    };
   }, [game.id]);
 
   useEffect(() => {
