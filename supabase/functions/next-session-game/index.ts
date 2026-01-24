@@ -682,6 +682,90 @@ serve(async (req) => {
         .eq("id", gameId);
       
       console.log(`[next-session-game] INFECTION initialization complete`);
+    } else if (nextStep.game_type_code === "SHERIFF") {
+      console.log(`[next-session-game] Initializing SHERIFF game`);
+      
+      // SHERIFF requires:
+      // 1. Create sheriff_round_state with common pool
+      // 2. Initialize all players with 20 tokens
+      // 3. Create sheriff_player_choices for each player
+      
+      // Use default common pool of 100 for adventure transitions
+      const commonPoolInitial = 100;
+      
+      // Create sheriff_round_state
+      const { error: stateError } = await supabase
+        .from("sheriff_round_state")
+        .upsert({
+          game_id: gameId,
+          session_game_id: newSessionGameId,
+          phase: 'CHOICES',
+          current_duel_order: null,
+          total_duels: 0,
+          common_pool_initial: commonPoolInitial,
+          common_pool_spent: 0,
+        }, { onConflict: 'session_game_id' });
+      
+      if (stateError) {
+        console.error(`[next-session-game] Error creating sheriff_round_state:`, stateError);
+      } else {
+        console.log(`[next-session-game] sheriff_round_state created with pool ${commonPoolInitial}`);
+      }
+      
+      // Initialize all player tokens to 20 for SHERIFF
+      if (players && players.length > 0) {
+        for (const player of players) {
+          await supabase
+            .from("game_players")
+            .update({ jetons: 20 })
+            .eq("id", player.id);
+        }
+        console.log(`[next-session-game] All players set to 20 tokens for SHERIFF`);
+        
+        // Delete old inventory items for this session (from previous game)
+        for (const player of players) {
+          await supabase
+            .from("inventory")
+            .delete()
+            .eq("session_game_id", newSessionGameId)
+            .eq("owner_num", player.player_number);
+        }
+        
+        // Create sheriff_player_choices for each player
+        const choicesInsert = players.map(p => ({
+          game_id: gameId,
+          session_game_id: newSessionGameId,
+          player_id: p.id,
+          player_number: p.player_number,
+          visa_choice: null,
+          tokens_entering: null,
+          has_illegal_tokens: false,
+        }));
+        
+        const { error: choicesError } = await supabase
+          .from("sheriff_player_choices")
+          .upsert(choicesInsert, { onConflict: 'session_game_id,player_number' });
+        
+        if (choicesError) {
+          console.error(`[next-session-game] Error creating sheriff_player_choices:`, choicesError);
+        } else {
+          console.log(`[next-session-game] sheriff_player_choices created for ${players.length} players`);
+        }
+      }
+      
+      // Update session_game phase to PHASE1_CHOICES for SHERIFF
+      await supabase
+        .from("session_games")
+        .update({ phase: 'PHASE1_CHOICES' })
+        .eq("id", newSessionGameId);
+      
+      // Update games phase to PHASE1_CHOICES for SHERIFF
+      await supabase
+        .from("games")
+        .update({ phase: 'PHASE1_CHOICES' })
+        .eq("id", gameId);
+      
+      console.log(`[next-session-game] SHERIFF initialization complete`);
     } else {
       console.log(`[next-session-game] Skipping special init for ${nextStep.game_type_code}`);
     }
