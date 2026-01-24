@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ArrowLeft, Users, Shield, Target, Play, Lock, CheckCircle, 
   RefreshCw, Copy, Check, UserX, Loader2, Pencil, Save, X,
-  Bot, Trash2, Swords, Eye
+  Bot, Trash2, Swords, Eye, Dices
 } from 'lucide-react';
 import { getSheriffThemeClasses, SHERIFF_COLORS } from './SheriffTheme';
 import { toast } from 'sonner';
@@ -134,6 +134,10 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   const [addingBots, setAddingBots] = useState(false);
   const [deletingBots, setDeletingBots] = useState(false);
   const [botCount, setBotCount] = useState(5);
+  
+  // Bot decisions state
+  const [generatingBotChoices, setGeneratingBotChoices] = useState(false);
+  const [generatingBotDuels, setGeneratingBotDuels] = useState(false);
 
   const getPresenceBadge = (lastSeen: string | null) => {
     if (!lastSeen) return { color: 'bg-red-500', textColor: 'text-red-500', label: 'Déconnecté' };
@@ -515,6 +519,51 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
     }
   };
 
+  // Bot decision handlers
+  const handleBotChoices = async () => {
+    if (!game.current_session_game_id) return;
+    setGeneratingBotChoices(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sheriff-bot-decisions', {
+        body: {
+          gameId: game.id,
+          sessionGameId: game.current_session_game_id,
+          action: 'choices',
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erreur');
+      toast.success(`${data.decisions_made} bots ont fait leurs choix !`);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors des choix bots');
+    } finally {
+      setGeneratingBotChoices(false);
+    }
+  };
+
+  const handleBotDuels = async () => {
+    if (!game.current_session_game_id) return;
+    setGeneratingBotDuels(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sheriff-bot-decisions', {
+        body: {
+          gameId: game.id,
+          sessionGameId: game.current_session_game_id,
+          action: 'duels',
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erreur');
+      toast.success(`${data.decisions_made} décisions de duel !`);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors des duels bots');
+    } finally {
+      setGeneratingBotDuels(false);
+    }
+  };
+
   const activePlayers = players.filter(p => p.status === 'ACTIVE' && !p.is_host && p.player_number !== null);
   const kickedPlayers = players.filter(p => p.status === 'REMOVED');
   const botPlayers = activePlayers.filter(p => p.is_bot);
@@ -830,11 +879,29 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
             {roundState?.phase === 'CHOICES' && (
               <div className="space-y-4">
                 <p className="text-[#9CA3AF]">
-                  Phase de choix: {choices.length}/{activePlayers.length} joueurs ont fait leurs choix
+                  Phase de choix: {choices.filter(c => c.visa_choice !== null).length}/{activePlayers.length} joueurs ont fait leurs choix
                 </p>
+                
+                {/* Bot choices button */}
+                {botPlayers.length > 0 && (
+                  <Button 
+                    onClick={handleBotChoices}
+                    disabled={generatingBotChoices}
+                    variant="outline"
+                    className="w-full border-[#D4AF37]/50 hover:bg-[#D4AF37]/10"
+                  >
+                    {generatingBotChoices ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Dices className="h-4 w-4 mr-2" />
+                    )}
+                    🤖 Choix aléatoires des Bots ({botPlayers.length})
+                  </Button>
+                )}
+                
                 <Button 
                   onClick={handleLockChoices}
-                  disabled={choices.length < activePlayers.length}
+                  disabled={choices.filter(c => c.visa_choice !== null).length < activePlayers.length}
                   className={theme.button}
                 >
                   <Lock className="h-4 w-4 mr-2" />
@@ -864,7 +931,27 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                       </div>
                     </div>
                     
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2">
+                      {/* Bot duel decisions button */}
+                      {botPlayers.length > 0 && (
+                        (botPlayers.some(b => b.player_number === currentDuel.player1_number) && currentDuel.player1_searches === null) ||
+                        (botPlayers.some(b => b.player_number === currentDuel.player2_number) && currentDuel.player2_searches === null)
+                      ) && (
+                        <Button 
+                          onClick={handleBotDuels}
+                          disabled={generatingBotDuels}
+                          variant="outline"
+                          className="w-full border-[#D4AF37]/50 hover:bg-[#D4AF37]/10"
+                        >
+                          {generatingBotDuels ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Dices className="h-4 w-4 mr-2" />
+                          )}
+                          🤖 Décisions aléatoires des Bots
+                        </Button>
+                      )}
+                      
                       <Button 
                         onClick={handleResolveDuel}
                         disabled={currentDuel.player1_searches === null || currentDuel.player2_searches === null}
