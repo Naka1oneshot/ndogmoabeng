@@ -459,8 +459,231 @@ serve(async (req) => {
       } else {
         console.log(`[next-session-game] Monster state initialized for session ${newSessionGameId}`);
       }
+    } else if (nextStep.game_type_code === "INFECTION") {
+      console.log(`[next-session-game] Initializing INFECTION game`);
+      
+      // INFECTION requires special initialization:
+      // 1. Assign roles to players
+      // 2. Create infection_round_state for manche 1
+      // 3. Create role-specific inventory items
+      
+      const ROLE_TO_TEAM: Record<string, string> = {
+        BA: 'NEUTRE',
+        PV: 'PV',
+        SY: 'SY',
+        AE: 'NEUTRE',
+        OC: 'NEUTRE',
+        KK: 'NEUTRE',
+        CV: 'CITOYEN',
+      };
+      
+      // Shuffle helper
+      const shuffleArray = <T>(array: T[]): T[] => {
+        const result = [...array];
+        for (let i = result.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+      };
+      
+      const playerCount = players?.length || 0;
+      
+      // Calculate role distribution based on player count
+      let roleConfig: Record<string, number>;
+      if (playerCount === 7) {
+        roleConfig = { BA: 1, PV: 2, SY: 2, AE: 0, OC: 1, KK: 0, CV: 1 };
+      } else if (playerCount === 8) {
+        roleConfig = { BA: 1, PV: 2, SY: 2, AE: 0, OC: 1, KK: 1, CV: 1 };
+      } else {
+        roleConfig = { BA: 1, PV: 2, SY: 2, AE: 1, OC: 1, KK: 1, CV: Math.max(1, playerCount - 8) };
+      }
+      
+      // Build role list and shuffle
+      const roles: string[] = [];
+      for (const [role, count] of Object.entries(roleConfig)) {
+        for (let i = 0; i < count; i++) {
+          roles.push(role);
+        }
+      }
+      const shuffledRoles = shuffleArray(roles);
+      
+      console.log(`[next-session-game] INFECTION role distribution:`, roleConfig);
+      
+      // Assign roles to players
+      if (players && players.length >= 7) {
+        let antibodiesAssigned = false;
+        const cvPlayerIds: string[] = [];
+        
+        for (let i = 0; i < players.length; i++) {
+          const player = players[i];
+          const role = shuffledRoles[i] || 'CV';
+          const team = ROLE_TO_TEAM[role] || 'CITOYEN';
+          
+          if (role === 'CV') {
+            cvPlayerIds.push(player.id);
+          }
+          
+          await supabase
+            .from("game_players")
+            .update({
+              role_code: role,
+              team_code: team,
+              is_alive: true,
+              immune_permanent: false,
+              is_carrier: false,
+              is_contagious: false,
+              infected_at_manche: null,
+              will_contaminate_at_manche: null,
+              will_die_at_manche: null,
+              has_antibodies: false,
+            })
+            .eq("id", player.id);
+        }
+        
+        // Assign antibodies to random CV player
+        if (cvPlayerIds.length > 0) {
+          const randomCvId = cvPlayerIds[Math.floor(Math.random() * cvPlayerIds.length)];
+          await supabase
+            .from("game_players")
+            .update({ has_antibodies: true })
+            .eq("id", randomCvId);
+          console.log(`[next-session-game] Antibodies assigned to player ${randomCvId}`);
+        }
+        
+        // Create role-specific inventory items
+        for (let i = 0; i < players.length; i++) {
+          const player = players[i];
+          const role = shuffledRoles[i] || 'CV';
+          const playerNum = player.player_number!;
+          
+          // Delete old default weapon (from FORET) for this session
+          await supabase
+            .from("inventory")
+            .delete()
+            .eq("session_game_id", newSessionGameId)
+            .eq("owner_num", playerNum);
+          
+          // Role-specific items
+          if (role === 'BA') {
+            await supabase.from("inventory").insert({
+              game_id: gameId,
+              session_game_id: newSessionGameId,
+              owner_num: playerNum,
+              objet: 'Balle BA',
+              quantite: 1,
+              disponible: true,
+              dispo_attaque: true,
+            });
+          } else if (role === 'PV') {
+            await supabase.from("inventory").insert([
+              {
+                game_id: gameId,
+                session_game_id: newSessionGameId,
+                owner_num: playerNum,
+                objet: 'Balle PV',
+                quantite: 1,
+                disponible: true,
+                dispo_attaque: true,
+              },
+              {
+                game_id: gameId,
+                session_game_id: newSessionGameId,
+                owner_num: playerNum,
+                objet: 'Antidote PV',
+                quantite: 1,
+                disponible: true,
+                dispo_attaque: false,
+              },
+            ]);
+          } else if (role === 'OC') {
+            await supabase.from("inventory").insert({
+              game_id: gameId,
+              session_game_id: newSessionGameId,
+              owner_num: playerNum,
+              objet: 'Boule de cristal',
+              quantite: 1,
+              disponible: true,
+              dispo_attaque: false,
+            });
+          }
+          
+          // Ezkar clan bonus
+          if (player.clan === 'Ezkar') {
+            await supabase.from("inventory").insert([
+              {
+                game_id: gameId,
+                session_game_id: newSessionGameId,
+                owner_num: playerNum,
+                objet: 'Antidote Ezkar',
+                quantite: 1,
+                disponible: true,
+                dispo_attaque: false,
+              },
+              {
+                game_id: gameId,
+                session_game_id: newSessionGameId,
+                owner_num: playerNum,
+                objet: 'Gilet',
+                quantite: 1,
+                disponible: true,
+                dispo_attaque: false,
+              },
+            ]);
+          }
+        }
+        
+        // Create shared PV venin item
+        await supabase.from("inventory").insert({
+          game_id: gameId,
+          session_game_id: newSessionGameId,
+          owner_num: 0,
+          objet: 'Dose de venin PV',
+          quantite: 1,
+          disponible: true,
+          dispo_attaque: false,
+        });
+        
+        console.log(`[next-session-game] INFECTION inventory created`);
+      }
+      
+      // Create infection_round_state for manche 1
+      const syCount = roleConfig.SY || 2;
+      const syRequiredSuccess = syCount >= 2 ? 2 : 3;
+      
+      const { error: roundError } = await supabase
+        .from("infection_round_state")
+        .insert({
+          game_id: gameId,
+          session_game_id: newSessionGameId,
+          manche: 1,
+          status: 'OPEN',
+          sy_success_count: 0,
+          sy_required_success: syRequiredSuccess,
+          opened_at: new Date().toISOString(),
+        });
+      
+      if (roundError) {
+        console.error(`[next-session-game] Error creating infection_round_state:`, roundError);
+      } else {
+        console.log(`[next-session-game] infection_round_state created for manche 1`);
+      }
+      
+      // Update session_game phase to OPEN for INFECTION
+      await supabase
+        .from("session_games")
+        .update({ phase: 'OPEN' })
+        .eq("id", newSessionGameId);
+      
+      // Update games phase to OPEN for INFECTION
+      await supabase
+        .from("games")
+        .update({ phase: 'OPEN' })
+        .eq("id", gameId);
+      
+      console.log(`[next-session-game] INFECTION initialization complete`);
     } else {
-      console.log(`[next-session-game] Skipping monster init for ${nextStep.game_type_code} (not FORET)`);
+      console.log(`[next-session-game] Skipping special init for ${nextStep.game_type_code}`);
     }
 
     // Update session_game status to RUNNING
