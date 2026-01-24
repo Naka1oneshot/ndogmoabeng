@@ -113,8 +113,11 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }
     }, 3000);
   }, []);
   
+  // Early return check - must be before effects that trigger animations
+  const hasValidData = show && rankings.length > 0;
+  
   useEffect(() => {
-    if (!show) {
+    if (!hasValidData) {
       setAnimationStep(0);
       return;
     }
@@ -130,16 +133,16 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }
     ];
     
     return () => timers.forEach(t => clearTimeout(t));
-  }, [show]);
+  }, [hasValidData]);
 
-  // Trigger confetti when 1st place is revealed
+  // Trigger confetti when 1st place is revealed - only if we have valid data
   useEffect(() => {
-    if (animationStep === 5) {
+    if (hasValidData && animationStep === 5) {
       fireConfetti();
     }
-  }, [animationStep, fireConfetti]);
+  }, [animationStep, fireConfetti, hasValidData]);
   
-  if (!show || rankings.length === 0) return null;
+  if (!hasValidData) return null;
   
   const top3 = rankings.slice(0, 3);
   const others = rankings.slice(3);
