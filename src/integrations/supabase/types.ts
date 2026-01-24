@@ -2397,6 +2397,7 @@ export type Database = {
           danger_effectif: number | null
           danger_raw: number | null
           dice_count: number | null
+          distribution_details: Json | null
           game_id: string
           id: string
           manche: number
@@ -2414,6 +2415,7 @@ export type Database = {
           danger_effectif?: number | null
           danger_raw?: number | null
           dice_count?: number | null
+          distribution_details?: Json | null
           game_id: string
           id?: string
           manche: number
@@ -2431,6 +2433,7 @@ export type Database = {
           danger_effectif?: number | null
           danger_raw?: number | null
           dice_count?: number | null
+          distribution_details?: Json | null
           game_id?: string
           id?: string
           manche?: number

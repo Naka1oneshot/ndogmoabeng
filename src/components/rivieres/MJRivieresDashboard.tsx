@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, Dice6, Lock, Play, Users, History, 
   AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship, Waves,
-  RefreshCw, Copy, Check, UserX, Calculator, Zap, Bot, Plus, Trash2, Presentation
+  RefreshCw, Copy, Check, UserX, Calculator, Zap, Bot, Plus, Trash2, Presentation, Coins
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
@@ -95,6 +95,18 @@ interface StageScore {
   };
 }
 
+interface LevelHistory {
+  id: string;
+  manche: number;
+  niveau: number;
+  outcome: string;
+  cagnotte_before: number;
+  cagnotte_after: number;
+  total_mises: number;
+  danger_effectif: number | null;
+  distribution_details: { player_id: string; display_name: string; cagnotte_share: number; level_bonus: number; total_gain: number }[] | null;
+}
+
 interface MJRivieresDashboardProps {
   gameId: string;
   sessionGameId: string;
@@ -137,6 +149,9 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
 
   // Logs
   const [logs, setLogs] = useState<{ id: string; action: string; details: string; manche: number }[]>([]);
+
+  // Level history with distribution
+  const [levelHistory, setLevelHistory] = useState<LevelHistory[]>([]);
 
   // Scores
   const [stageScores, setStageScores] = useState<StageScore[]>([]);
@@ -264,6 +279,16 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         .eq('session_game_id', sessionGameId);
 
       if (scoresData) setStageScores(scoresData as StageScore[]);
+
+      // Fetch level history with distribution details
+      const { data: historyData } = await supabase
+        .from('river_level_history')
+        .select('id, manche, niveau, outcome, cagnotte_before, cagnotte_after, total_mises, danger_effectif, distribution_details')
+        .eq('session_game_id', sessionGameId)
+        .order('manche', { ascending: true })
+        .order('niveau', { ascending: true });
+
+      if (historyData) setLevelHistory(historyData as LevelHistory[]);
 
     } catch (error) {
       console.error('Error fetching RIVIERES data:', error);
@@ -1026,7 +1051,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-[#20232A] h-auto">
+        <TabsList className="grid w-full grid-cols-5 bg-[#20232A] h-auto">
           <TabsTrigger value="players" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black py-2 px-1 sm:px-3 text-xs sm:text-sm">
             <Users className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Joueurs</span>
           </TabsTrigger>
@@ -1035,6 +1060,9 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           </TabsTrigger>
           <TabsTrigger value="decisions" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black py-2 px-1 sm:px-3 text-xs sm:text-sm">
             <Anchor className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Décisions</span>
+          </TabsTrigger>
+          <TabsTrigger value="distribution" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black py-2 px-1 sm:px-3 text-xs sm:text-sm">
+            <Coins className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Distrib</span>
           </TabsTrigger>
           <TabsTrigger value="logs" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black py-2 px-1 sm:px-3 text-xs sm:text-sm">
             <History className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Logs</span>
@@ -1331,7 +1359,125 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           </div>
         </TabsContent>
 
-        {/* Logs Tab */}
+        {/* Distribution Tab */}
+        <TabsContent value="distribution" className="mt-4">
+          <div className={`${rivieresCardStyle} p-4 max-h-[500px] overflow-y-auto`}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-[#D4AF37] flex items-center gap-2">
+                <Coins className="h-5 w-5" /> Distribution par Manche
+              </h3>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  const { data: historyData } = await supabase
+                    .from('river_level_history')
+                    .select('id, manche, niveau, outcome, cagnotte_before, cagnotte_after, total_mises, danger_effectif, distribution_details')
+                    .eq('session_game_id', sessionGameId)
+                    .order('manche', { ascending: true })
+                    .order('niveau', { ascending: true });
+                  if (historyData) setLevelHistory(historyData as LevelHistory[]);
+                  toast.success('Distribution actualisée');
+                }}
+                className="text-[#D4AF37] hover:bg-[#D4AF37]/10"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Group by manche and show distribution events */}
+            {[1, 2, 3].map((manche) => {
+              const mancheLevels = levelHistory.filter(l => l.manche === manche);
+              const distributionEvents = mancheLevels.filter(l => l.distribution_details && l.distribution_details.length > 0);
+              
+              if (mancheLevels.length === 0) return null;
+
+              // Calculate total gains per player for this manche
+              const playerTotals = new Map<string, { display_name: string; cagnotte_share: number; level_bonus: number; total_gain: number }>();
+              distributionEvents.forEach(event => {
+                event.distribution_details?.forEach(d => {
+                  const existing = playerTotals.get(d.player_id) || { display_name: d.display_name, cagnotte_share: 0, level_bonus: 0, total_gain: 0 };
+                  existing.cagnotte_share += d.cagnotte_share;
+                  existing.level_bonus += d.level_bonus;
+                  existing.total_gain += d.total_gain;
+                  playerTotals.set(d.player_id, existing);
+                });
+              });
+
+              const sortedPlayerTotals = Array.from(playerTotals.values()).sort((a, b) => b.total_gain - a.total_gain);
+
+              return (
+                <div key={manche} className="mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Ship className="h-5 w-5 text-[#D4AF37]" />
+                    <h4 className="font-bold text-[#E8E8E8]">Manche {manche}</h4>
+                    <span className="text-[#9CA3AF] text-sm">
+                      ({mancheLevels.filter(l => l.outcome === 'SUCCESS').length}/5 niveaux réussis)
+                    </span>
+                  </div>
+
+                  {/* Level progression */}
+                  <div className="flex gap-1 mb-3">
+                    {mancheLevels.map((level) => (
+                      <div 
+                        key={level.id}
+                        className={`flex-1 p-2 rounded text-center text-xs ${
+                          level.outcome === 'SUCCESS' 
+                            ? 'bg-green-600/20 border border-green-500/50 text-green-400' 
+                            : 'bg-red-600/20 border border-red-500/50 text-red-400'
+                        }`}
+                        title={`Niveau ${level.niveau}: ${level.outcome === 'SUCCESS' ? 'Réussi' : 'Échec'} - Mises: ${level.total_mises}💎, Danger: ${level.danger_effectif}`}
+                      >
+                        N{level.niveau}
+                        {level.outcome === 'SUCCESS' ? ' ✓' : ' ✗'}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Distribution details */}
+                  {distributionEvents.length > 0 ? (
+                    <div className="bg-[#0B1020] rounded-lg p-3">
+                      <h5 className="text-[#9CA3AF] text-sm mb-2 flex items-center gap-1">
+                        <Coins className="h-3 w-3" /> Distribution des gains
+                      </h5>
+                      <div className="space-y-1.5">
+                        {sortedPlayerTotals.map((player, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-sm p-2 bg-[#20232A] rounded">
+                            <span className="text-[#E8E8E8] font-medium">{player.display_name}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-[#9CA3AF]" title="Part de cagnotte">
+                                🎰 {player.cagnotte_share}
+                              </span>
+                              {player.level_bonus > 0 && (
+                                <span className="text-amber-400" title="Bonus de niveau de descente">
+                                  ⬆️ +{player.level_bonus}
+                                </span>
+                              )}
+                              <span className="text-[#4ADE80] font-bold">
+                                = {player.total_gain}💎
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[#9CA3AF] text-sm italic p-2 bg-[#0B1020] rounded">
+                      Pas de distribution enregistrée pour cette manche.
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {levelHistory.length === 0 && (
+              <div className="text-center text-[#9CA3AF] py-8">
+                Aucun historique de niveau disponible.
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
         <TabsContent value="logs" className="mt-4">
           <div className={`${rivieresCardStyle} p-4 max-h-96 overflow-y-auto`}>
             <div className="flex items-center justify-between mb-3">
