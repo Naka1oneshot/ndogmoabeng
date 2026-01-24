@@ -23,6 +23,7 @@ import MJTeamChatViewer from './MJTeamChatViewer';
 import MJLobbyChatViewer from './MJLobbyChatViewer';
 import { MJRivieresDashboard } from '@/components/rivieres/MJRivieresDashboard';
 import { MJInfectionDashboard } from '@/components/infection/MJInfectionDashboard';
+import { MJSheriffDashboard } from '@/components/sheriff/MJSheriffDashboard';
 import { MJActionsMenu } from './MJActionsMenu';
 import { LandscapeModePrompt } from './LandscapeModePrompt';
 import {
@@ -37,7 +38,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 
 // Implemented game types
-const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION'];
+const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION', 'SHERIFF'];
 
 
 interface Game {
@@ -618,6 +619,11 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       {/* INFECTION Dashboard */}
       {game.selected_game_type_code === 'INFECTION' && (
         <MJInfectionDashboard game={game} onBack={onBack} />
+      )}
+
+      {/* SHERIFF Dashboard */}
+      {game.selected_game_type_code === 'SHERIFF' && (
+        <MJSheriffDashboard game={game} onBack={onBack} />
       )}
 
       {/* FORET Tabs (original) - Only show for FORET games or when no game type is selected */}

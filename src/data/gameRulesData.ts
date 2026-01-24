@@ -84,6 +84,42 @@ export const GAME_RULES: Record<string, GameRules> = {
     ]
   },
 
+  SHERIFF: {
+    id: 'sheriff',
+    title: 'Le Shérif de Ndogmoabeng',
+    objective: 'Franchissez le contrôle du Centre en gérant vos ressources et en décidant si vous fouillez les autres visiteurs.',
+    setup: [
+      'Chaque joueur doit payer un visa pour entrer (20% des points de victoire OU 10€ de la cagnotte commune).',
+      'Chaque joueur choisit combien de jetons entrer : 20 légaux, ou jusqu\'à 30 avec des jetons illégaux.',
+      'Les joueurs sont appairés en duels aléatoires (jamais entre coéquipiers).',
+    ],
+    phases: [
+      {
+        name: 'Phase de choix',
+        description: 'Chaque joueur fait deux choix : le paiement du visa (PV ou cagnotte) et le nombre de jetons pour entrer (20 légaux ou jusqu\'à 30 avec des illégaux).'
+      },
+      {
+        name: 'Phase des duels',
+        description: 'Les duels s\'enchaînent. À chaque duel, les deux joueurs décident simultanément s\'ils fouillent l\'autre ou non. Les joueurs en attente ne peuvent pas voir ni agir.'
+      },
+      {
+        name: 'Résolution',
+        description: 'Les résultats des fouilles sont révélés. Les gains/pertes de points de victoire sont appliqués.'
+      }
+    ],
+    winConditions: [
+      { team: 'Fouille réussie', condition: 'Si vous fouillez et trouvez des jetons illégaux (>20), vous gagnez un % de PV égal aux jetons illégaux trouvés.' },
+      { team: 'Fouille ratée', condition: 'Si vous fouillez et le joueur a 20 jetons, vous perdez 10% de vos PV.' },
+      { team: 'Passage discret', condition: 'Si personne ne vous fouille et vous aviez des jetons illégaux, vous les gardez et gagnez un % de PV égal aux jetons illégaux.' }
+    ],
+    tips: [
+      'Payer avec la cagnotte préserve vos PV mais réduit le pot commun.',
+      'Entrer avec des jetons illégaux est risqué mais potentiellement très rentable.',
+      'Observer le comportement des autres joueurs peut vous aider à décider si vous fouillez.',
+      'Un joueur fouillé perd ses jetons illégaux et entre avec 20 jetons seulement.',
+    ]
+  },
+
   INFECTION: {
     id: 'infection',
     title: 'Infection à Ndogmoabeng',
