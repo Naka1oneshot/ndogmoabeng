@@ -814,6 +814,20 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
   // If game is ended, show victory podium
   if (isGameEnded) {
+    console.log('[Presentation] Game ended - showing podium. Players:', players.length, 'Rankings:', playerRankings.length, playerRankings);
+    
+    // If we still don't have player data, show loading while we fetch
+    if (players.length === 0) {
+      return (
+        <div className="fixed inset-0 z-[100] bg-gradient-to-b from-background to-secondary flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <Trophy className="h-16 w-16 text-primary mx-auto animate-pulse" />
+            <p className="text-lg text-muted-foreground">Chargement du podium...</p>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <VictoryPodiumAnimation 
         show={true}
