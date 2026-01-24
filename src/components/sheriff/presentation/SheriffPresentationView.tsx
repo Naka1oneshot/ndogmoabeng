@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RefreshCw, X, History, Trophy, Shield, Swords, Users } from 'lucide-react';
 import { getSheriffThemeClasses, SHERIFF_COLORS } from '../SheriffTheme';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { SheriffChoicesResolutionAnimation } from './SheriffChoicesResolutionAnimation';
 import { SheriffTeamSortAnimation } from './SheriffTeamSortAnimation';
 import { SheriffDuelStartAnimation } from './SheriffDuelStartAnimation';
@@ -597,15 +600,7 @@ function ChoicesPhaseDisplay({
           </h4>
           <div className="space-y-2">
             {teamRanking.map((team, idx) => (
-              <div key={team.name} className="flex items-center justify-between p-2 rounded bg-[#1A1510]">
-                <div className="flex items-center gap-2">
-                  <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-amber-600' : 'text-[#9CA3AF]'}`}>
-                    #{idx + 1}
-                  </span>
-                  <span className="text-sm truncate max-w-[120px]">{team.name}</span>
-                </div>
-                <span className="text-[#D4AF37] font-bold">{team.totalPvic}</span>
-              </div>
+              <TeamRankingRow key={team.name} team={team} idx={idx} />
             ))}
           </div>
         </div>
@@ -769,5 +764,52 @@ function DuelsPhaseDisplay({
         </div>
       </div>
     </div>
+  );
+}
+
+// Team ranking row with tooltip/popover for long names
+function TeamRankingRow({ team, idx }: { team: { name: string; totalPvic: number; players: Player[] }; idx: number }) {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+  
+  const rankColor = idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-amber-600' : 'text-[#9CA3AF]';
+  
+  const content = (
+    <div className="flex items-center justify-between p-2 rounded bg-[#1A1510]">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <span className={`font-bold shrink-0 ${rankColor}`}>
+          #{idx + 1}
+        </span>
+        <span className="text-sm truncate">{team.name}</span>
+      </div>
+      <span className="text-[#D4AF37] font-bold shrink-0 ml-2">{team.totalPvic}</span>
+    </div>
+  );
+  
+  if (isMobile) {
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer">{content}</div>
+        </PopoverTrigger>
+        <PopoverContent className="bg-[#2A2215] border-[#D4AF37]/30 text-white p-3 max-w-xs">
+          <div className="text-sm font-medium break-words">{team.name}</div>
+          <div className="text-xs text-[#D4AF37] mt-1">{team.totalPvic} PV</div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+  
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div>{content}</div>
+        </TooltipTrigger>
+        <TooltipContent className="bg-[#2A2215] border-[#D4AF37]/30 text-white max-w-xs">
+          <p className="break-words">{team.name}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
