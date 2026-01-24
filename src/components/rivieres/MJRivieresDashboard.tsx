@@ -799,7 +799,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         <ForestButton
           size="lg"
           onClick={handleStartGame}
-          disabled={actionLoading === 'start' || players.length < 1}
+          disabled={actionLoading === 'start' || loading}
           className="w-full mt-6 bg-[#4ADE80] hover:bg-[#4ADE80]/80 text-black text-lg py-6 font-bold"
         >
           {actionLoading === 'start' ? (
@@ -807,15 +807,20 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
               Démarrage en cours...
             </>
+          ) : loading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              Chargement...
+            </>
           ) : (
             <>
               <Ship className="h-5 w-5 mr-2" />
-              Démarrer la partie RIVIERES
+              Démarrer la partie RIVIERES ({players.length} joueurs)
             </>
           )}
         </ForestButton>
 
-        {players.length < 1 && (
+        {!loading && players.length < 1 && (
           <p className="text-center text-amber-400 text-sm mt-3">
             ⚠️ Au moins 1 joueur doit être connecté pour démarrer
           </p>
