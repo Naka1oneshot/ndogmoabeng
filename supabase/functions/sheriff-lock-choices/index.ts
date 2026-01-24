@@ -25,14 +25,19 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Get all players with their choices
+    // Get all players with their choices (including visa_choice and visa_cost_applied)
     const { data: choices, error: choicesError } = await supabase
       .from('sheriff_player_choices')
-      .select('player_number, has_illegal_tokens')
+      .select('player_number, has_illegal_tokens, visa_choice, visa_cost_applied')
       .eq('session_game_id', sessionGameId)
       .not('visa_choice', 'is', null);
 
     if (choicesError) throw choicesError;
+
+    // Calculate total pool spent from COMMON_POOL visa choices
+    const totalPoolSpent = choices
+      ?.filter(c => c.visa_choice === 'COMMON_POOL')
+      .reduce((sum, c) => sum + (c.visa_cost_applied || 0), 0) || 0;
 
     // Get players with mate info to avoid same-team duels
     const { data: players, error: playersError } = await supabase
@@ -107,13 +112,14 @@ Deno.serve(async (req) => {
       if (insertError) throw insertError;
     }
 
-    // Update round state
+    // Update round state with pool spent
     const { error: stateError } = await supabase
       .from('sheriff_round_state')
       .update({
         phase: 'DUELS',
         total_duels: duels.length,
         current_duel_order: null, // Will be set when first duel is activated
+        common_pool_spent: totalPoolSpent,
         updated_at: new Date().toISOString(),
       })
       .eq('session_game_id', sessionGameId);
