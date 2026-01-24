@@ -198,30 +198,37 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
     prevPhaseRef.current = roundState.phase;
   }, [roundState?.phase]);
   
-  // Detect duel changes
+  // Detect duel changes - trigger animation when MJ activates a new duel
   useEffect(() => {
     if (!roundState || roundState.phase !== 'DUELS') return;
     
-    const currentDuel = duels.find(d => d.status === 'ACTIVE');
+    const activeDuel = duels.find(d => d.status === 'ACTIVE');
     
-    // New duel started
-    if (currentDuel && prevDuelOrderRef.current !== currentDuel.duel_order) {
-      if (prevDuelOrderRef.current !== null) {
-        // Show duel start animation
-        setCurrentDuelForAnimation(currentDuel);
+    // New duel activated by MJ (status changed from PENDING to ACTIVE)
+    if (activeDuel) {
+      const prevOrder = prevDuelOrderRef.current;
+      const isNewDuel = prevOrder === null || prevOrder !== activeDuel.duel_order;
+      
+      if (isNewDuel) {
+        // Show duel start animation for every new duel activation
+        setCurrentDuelForAnimation(activeDuel);
         setShowDuelStart(true);
+        prevDuelOrderRef.current = activeDuel.duel_order;
+        prevDuelStatusRef.current = activeDuel.status;
       }
-      prevDuelOrderRef.current = currentDuel.duel_order;
-      prevDuelStatusRef.current = currentDuel.status;
     }
     
-    // Duel resolved
-    if (currentDuel && prevDuelStatusRef.current === 'ACTIVE') {
-      const justResolved = duels.find(d => d.status === 'RESOLVED' && d.duel_order === prevDuelOrderRef.current);
-      if (justResolved && justResolved.id !== currentDuel.id) {
-        setCurrentDuelForAnimation(justResolved);
-        setShowDuelResolution(true);
-      }
+    // Duel resolved - detect when a previously active duel becomes resolved
+    const justResolvedDuel = duels.find(
+      d => d.status === 'RESOLVED' && 
+           d.duel_order === prevDuelOrderRef.current && 
+           prevDuelStatusRef.current === 'ACTIVE'
+    );
+    
+    if (justResolvedDuel) {
+      setCurrentDuelForAnimation(justResolvedDuel);
+      setShowDuelResolution(true);
+      prevDuelStatusRef.current = 'RESOLVED';
     }
   }, [duels, roundState?.phase]);
   
@@ -242,13 +249,9 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   
   const handleTeamSortComplete = () => {
     setShowTeamSort(false);
-    if (duels.length > 0) {
-      const firstDuel = duels.find(d => d.status === 'ACTIVE' || d.status === 'PENDING');
-      if (firstDuel) {
-        setCurrentDuelForAnimation(firstDuel);
-        setShowDuelStart(true);
-      }
-    }
+    // No longer auto-trigger duel animation here
+    // The duel start animation is now triggered when the MJ clicks "Déclencher le prochain duel"
+    // and the duel status changes to ACTIVE (detected in useEffect above)
   };
   
   const handleDuelStartComplete = () => {
