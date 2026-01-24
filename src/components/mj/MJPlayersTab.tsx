@@ -37,6 +37,7 @@ interface Player {
   mate_num: number | null;
   jetons: number;
   recompenses: number;
+  pvic: number;
   is_alive: boolean;
   status: string;
   joined_at: string;
@@ -56,6 +57,13 @@ interface Game {
   phase_locked?: boolean;
   manche_active?: number;
   current_session_game_id?: string | null;
+  mode?: string;
+  adventure_id?: string | null;
+}
+
+interface AdventureScore {
+  game_player_id: string;
+  total_score_value: number;
 }
 
 interface MJPlayersTabProps {
@@ -66,6 +74,7 @@ interface MJPlayersTabProps {
 export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   const { isAdminOrSuper } = useUserRole();
   const [players, setPlayers] = useState<Player[]>([]);
+  const [adventureScores, setAdventureScores] = useState<AdventureScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [resettingId, setResettingId] = useState<string | null>(null);
@@ -96,9 +105,46 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   const isLobby = game.status === 'LOBBY';
   const isInGame = game.status === 'IN_GAME';
   const isEnded = game.status === 'ENDED' || game.phase === 'FINISHED';
+  const isAdventure = game.mode === 'ADVENTURE' && game.adventure_id;
+
+  const fetchPlayers = async () => {
+    const { data, error } = await supabase
+      .from('game_players')
+      .select('*')
+      .eq('game_id', game.id)
+      .order('player_number', { ascending: true, nullsFirst: false });
+
+    if (!error && data) {
+      setPlayers(data as Player[]);
+    }
+    setLoading(false);
+  };
+
+  const fetchAdventureScores = async () => {
+    if (!isAdventure) {
+      setAdventureScores([]);
+      return;
+    }
+    
+    const { data } = await supabase
+      .from('adventure_scores')
+      .select('game_player_id, total_score_value')
+      .eq('session_id', game.id);
+    
+    if (data) {
+      setAdventureScores(data);
+    }
+  };
+
+  const getAdventurePvic = (playerId: string): number | undefined => {
+    if (!isAdventure) return undefined;
+    const score = adventureScores.find(s => s.game_player_id === playerId);
+    return score?.total_score_value || 0;
+  };
 
   useEffect(() => {
     fetchPlayers();
+    fetchAdventureScores();
 
     const channel = supabase
       .channel(`mj-players-tab-${game.id}`)
@@ -110,14 +156,27 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
           table: 'game_players',
           filter: `game_id=eq.${game.id}`,
         },
-        () => fetchPlayers()
+        () => {
+          fetchPlayers();
+          fetchAdventureScores();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'adventure_scores',
+          filter: `session_id=eq.${game.id}`,
+        },
+        () => fetchAdventureScores()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [game.id]);
+  }, [game.id, isAdventure]);
 
   // State for manual refresh
   const [isRefreshingPhaseState, setIsRefreshingPhaseState] = useState(false);
@@ -246,18 +305,6 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
     };
   }, [game.id, game.phase, game.manche_active, game.current_session_game_id, isInGame, players.length]);
 
-  const fetchPlayers = async () => {
-    const { data, error } = await supabase
-      .from('game_players')
-      .select('*')
-      .eq('game_id', game.id)
-      .order('player_number', { ascending: true, nullsFirst: false });
-
-    if (!error && data) {
-      setPlayers(data as Player[]);
-    }
-    setLoading(false);
-  };
 
   // Phase action handlers
   const handlePhaseAction = async () => {
@@ -954,6 +1001,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
                     <PlayerRowCompact
                       key={player.id}
                       player={player}
+                      adventurePvic={getAdventurePvic(player.id)}
                       presenceBadge={getPresenceBadge(player.last_seen)}
                       onEdit={startEditing}
                       onCopyLink={(id) => handleCopyJoinLink(id, player.player_token!)}
@@ -968,12 +1016,13 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
               </div>
 
               {/* Desktop full view - Header */}
-              <div className="hidden lg:grid grid-cols-12 gap-2 text-xs text-muted-foreground px-3 py-1">
+              <div className={`hidden lg:grid ${isAdventure ? 'grid-cols-13' : 'grid-cols-12'} gap-2 text-xs text-muted-foreground px-3 py-1`}>
                 <div className="col-span-1">#</div>
                 <div className="col-span-2">Nom</div>
                 <div className="col-span-2">Clan</div>
                 <div className="col-span-1">Mate</div>
                 <div className="col-span-1">Jetons</div>
+                {isAdventure && <div className="col-span-1">PVic</div>}
                 <div className="col-span-2">Rejoint</div>
                 <div className="col-span-1">Statut</div>
                 <div className="col-span-2 text-right">Actions</div>
@@ -1069,7 +1118,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-12 gap-2 items-center">
+                    <div className={`grid ${isAdventure ? 'grid-cols-13' : 'grid-cols-12'} gap-2 items-center`}>
                       <div className="col-span-1">
                         <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
                           <span className="text-sm font-medium text-primary">
@@ -1125,6 +1174,11 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
                       <div className="col-span-1 text-sm font-medium text-forest-gold">
                         {player.jetons}
                       </div>
+                      {isAdventure && (
+                        <div className="col-span-1 text-sm font-medium text-amber-500">
+                          {(getAdventurePvic(player.id) || 0) + (player.recompenses || 0) + (player.pvic || 0)}🏆
+                        </div>
+                      )}
                       <div className="col-span-2 text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(player.joined_at), { addSuffix: true, locale: fr })}
                       </div>
