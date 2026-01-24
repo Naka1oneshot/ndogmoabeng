@@ -29,6 +29,7 @@ interface Player {
   player_number: number;
   display_name: string;
   status: string;
+  clan: string | null;
 }
 
 interface InventoryItem {
@@ -61,7 +62,7 @@ export function MJInventoryTab({ game }: MJInventoryTabProps) {
     const [playersResult, inventoryResult, catalogResult] = await Promise.all([
       supabase
         .from('game_players')
-        .select('id, player_number, display_name, status')
+        .select('id, player_number, display_name, status, clan')
         .eq('game_id', game.id)
         .eq('is_host', false)
         .in('status', ['ACTIVE', 'IN_GAME', 'LEFT', 'REMOVED'])
@@ -102,10 +103,13 @@ export function MJInventoryTab({ game }: MJInventoryTabProps) {
     };
   }, [game.id, fetchData]);
 
-  // Get player name by number
-  const getPlayerName = (num: number): string => {
+  // Get player info by number
+  const getPlayerInfo = (num: number): { name: string; clan: string | null } => {
     const player = players.find(p => p.player_number === num);
-    return player?.display_name || `Joueur ${num}`;
+    return {
+      name: player?.display_name || `Joueur ${num}`,
+      clan: player?.clan || null,
+    };
   };
 
   // Filter inventory
@@ -204,8 +208,13 @@ export function MJInventoryTab({ game }: MJInventoryTabProps) {
                 <div className="p-3 border-b border-border bg-secondary/30 flex items-center gap-2">
                   <User className="h-4 w-4 text-primary" />
                   <span className="font-medium">
-                    P{playerNum} - {getPlayerName(playerNum)}
+                    P{playerNum} - {getPlayerInfo(playerNum).name}
                   </span>
+                  {getPlayerInfo(playerNum).clan && (
+                    <Badge variant="outline" className="text-xs">
+                      {getPlayerInfo(playerNum).clan}
+                    </Badge>
+                  )}
                   <Badge variant="secondary" className="ml-auto">
                     {items.reduce((sum, i) => sum + (i.quantite || 0), 0)} objets
                   </Badge>
