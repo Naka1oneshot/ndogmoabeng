@@ -636,83 +636,91 @@ function DuelsPhaseDisplay({
   const player2 = currentDuel ? getPlayer(currentDuel.player2_number) : null;
   
   return (
-    <div className="grid grid-cols-12 gap-4">
+    <div className="grid grid-cols-12 gap-4 h-full">
       {/* Center: Current Duel */}
-      <div className="col-span-12 lg:col-span-8">
+      <div className="col-span-12 lg:col-span-8 flex flex-col">
         {currentDuel ? (
-          <div className="bg-gradient-to-br from-[#2A2215] to-[#1A1510] border-2 border-[#D4AF37]/40 rounded-2xl p-8">
+          <div className="bg-gradient-to-br from-[#2A2215] to-[#1A1510] border-2 border-[#D4AF37]/40 rounded-2xl p-6 lg:p-10 flex-1 flex flex-col justify-center min-h-[70vh]">
             {/* PVics Display */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-3 gap-4 mb-6 lg:mb-10">
               <div className="text-center">
-                <div className="text-sm text-[#9CA3AF] mb-1">PVic Équipe</div>
-                <div className="text-3xl font-bold text-[#D4AF37]">{player1?.pvic || 0}</div>
+                <div className="text-sm lg:text-base text-[#9CA3AF] mb-1">PVic Équipe</div>
+                <div className="text-4xl lg:text-5xl font-bold text-[#D4AF37]">{player1?.pvic || 0}</div>
               </div>
               <div className="flex items-center justify-center">
-                <Swords className="h-8 w-8 text-[#D4AF37] animate-pulse" />
+                <Swords className="h-10 w-10 lg:h-14 lg:w-14 text-[#D4AF37] animate-pulse" />
               </div>
               <div className="text-center">
-                <div className="text-sm text-[#9CA3AF] mb-1">PVic Équipe</div>
-                <div className="text-3xl font-bold text-[#D4AF37]">{player2?.pvic || 0}</div>
+                <div className="text-sm lg:text-base text-[#9CA3AF] mb-1">PVic Équipe</div>
+                <div className="text-4xl lg:text-5xl font-bold text-[#D4AF37]">{player2?.pvic || 0}</div>
               </div>
             </div>
             
-            {/* Players VS */}
-            <div className="grid grid-cols-3 gap-4 items-center">
+            {/* Players VS - Maximized */}
+            <div className="grid grid-cols-3 gap-4 items-center flex-1">
               {/* Player 1 */}
-              <div className="text-center">
+              <div className="text-center flex flex-col items-center justify-center">
                 {player1?.avatar_url ? (
-                  <img src={player1.avatar_url} alt="" className="h-24 w-24 rounded-full object-cover mx-auto mb-3 border-4 border-[#D4AF37]" />
+                  <img 
+                    src={player1.avatar_url} 
+                    alt="" 
+                    className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full object-cover mb-4 border-4 lg:border-[6px] border-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20" 
+                  />
                 ) : (
-                  <div className="h-24 w-24 rounded-full bg-[#D4AF37]/20 flex items-center justify-center mx-auto mb-3 border-4 border-[#D4AF37] text-3xl font-bold text-[#D4AF37]">
+                  <div className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full bg-[#D4AF37]/20 flex items-center justify-center mb-4 border-4 lg:border-[6px] border-[#D4AF37] text-4xl lg:text-6xl xl:text-7xl font-bold text-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20">
                     {player1?.player_number}
                   </div>
                 )}
-                <div className="text-xl font-bold text-white">{player1?.display_name}</div>
-                <div className="text-sm text-[#9CA3AF]">#{player1?.player_number} • {player1?.clan || 'Solo'}</div>
-                <div className="mt-2">
+                <div className="text-xl lg:text-2xl xl:text-3xl font-bold text-white">{player1?.display_name}</div>
+                <div className="text-sm lg:text-base text-[#9CA3AF]">#{player1?.player_number} • {player1?.clan || 'Solo'}</div>
+                <div className="mt-3">
                   {currentDuel.player1_searches !== null ? (
-                    <span className={`px-3 py-1 rounded-full text-sm ${currentDuel.player1_searches ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                    <span className={`px-4 py-2 rounded-full text-sm lg:text-base font-medium ${currentDuel.player1_searches ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-green-500/20 text-green-400 border border-green-500/40'}`}>
                       {currentDuel.player1_searches ? '🔍 Fouille' : '✓ Laisse passer'}
                     </span>
                   ) : (
-                    <span className="px-3 py-1 rounded-full text-sm bg-orange-500/20 text-orange-400">⏳ En attente</span>
+                    <span className="px-4 py-2 rounded-full text-sm lg:text-base font-medium bg-orange-500/20 text-orange-400 border border-orange-500/40">⏳ En attente</span>
                   )}
                 </div>
               </div>
               
               {/* VS */}
-              <div className="text-center">
-                <div className="text-6xl font-black text-[#D4AF37]">VS</div>
-                <div className="text-sm text-[#9CA3AF] mt-2">Duel {currentDuel.duel_order}</div>
+              <div className="text-center flex flex-col items-center justify-center">
+                <div className="text-7xl lg:text-8xl xl:text-9xl font-black text-[#D4AF37] drop-shadow-lg">VS</div>
+                <div className="text-base lg:text-lg text-[#9CA3AF] mt-3">Duel {currentDuel.duel_order}</div>
               </div>
               
               {/* Player 2 */}
-              <div className="text-center">
+              <div className="text-center flex flex-col items-center justify-center">
                 {player2?.avatar_url ? (
-                  <img src={player2.avatar_url} alt="" className="h-24 w-24 rounded-full object-cover mx-auto mb-3 border-4 border-[#D4AF37]" />
+                  <img 
+                    src={player2.avatar_url} 
+                    alt="" 
+                    className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full object-cover mb-4 border-4 lg:border-[6px] border-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20" 
+                  />
                 ) : (
-                  <div className="h-24 w-24 rounded-full bg-[#D4AF37]/20 flex items-center justify-center mx-auto mb-3 border-4 border-[#D4AF37] text-3xl font-bold text-[#D4AF37]">
+                  <div className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full bg-[#D4AF37]/20 flex items-center justify-center mb-4 border-4 lg:border-[6px] border-[#D4AF37] text-4xl lg:text-6xl xl:text-7xl font-bold text-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20">
                     {player2?.player_number}
                   </div>
                 )}
-                <div className="text-xl font-bold text-white">{player2?.display_name}</div>
-                <div className="text-sm text-[#9CA3AF]">#{player2?.player_number} • {player2?.clan || 'Solo'}</div>
-                <div className="mt-2">
+                <div className="text-xl lg:text-2xl xl:text-3xl font-bold text-white">{player2?.display_name}</div>
+                <div className="text-sm lg:text-base text-[#9CA3AF]">#{player2?.player_number} • {player2?.clan || 'Solo'}</div>
+                <div className="mt-3">
                   {currentDuel.player2_searches !== null ? (
-                    <span className={`px-3 py-1 rounded-full text-sm ${currentDuel.player2_searches ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                    <span className={`px-4 py-2 rounded-full text-sm lg:text-base font-medium ${currentDuel.player2_searches ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-green-500/20 text-green-400 border border-green-500/40'}`}>
                       {currentDuel.player2_searches ? '🔍 Fouille' : '✓ Laisse passer'}
                     </span>
                   ) : (
-                    <span className="px-3 py-1 rounded-full text-sm bg-orange-500/20 text-orange-400">⏳ En attente</span>
+                    <span className="px-4 py-2 rounded-full text-sm lg:text-base font-medium bg-orange-500/20 text-orange-400 border border-orange-500/40">⏳ En attente</span>
                   )}
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="bg-[#2A2215] border border-[#D4AF37]/20 rounded-xl p-8 text-center">
-            <Shield className="h-16 w-16 mx-auto mb-4 text-[#D4AF37]/50" />
-            <p className="text-[#9CA3AF]">En attente du prochain duel...</p>
+          <div className="bg-[#2A2215] border border-[#D4AF37]/20 rounded-xl p-12 text-center flex-1 flex flex-col items-center justify-center min-h-[70vh]">
+            <Shield className="h-24 w-24 mb-6 text-[#D4AF37]/50" />
+            <p className="text-xl text-[#9CA3AF]">En attente du prochain duel...</p>
           </div>
         )}
       </div>
