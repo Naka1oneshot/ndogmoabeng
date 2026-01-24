@@ -904,6 +904,23 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
           <div className={`${theme.card} p-4`}>
             <h3 className="text-lg font-bold text-[#D4AF37] mb-4">Contrôle du Jeu</h3>
             
+            {/* Fallback if roundState is missing - repair button */}
+            {!roundState && game.current_session_game_id && (
+              <div className="space-y-4">
+                <p className="text-amber-500 text-sm">
+                  ⚠️ L'état de la partie Sheriff n'a pas été initialisé correctement. 
+                  Essayez de relancer l'initialisation.
+                </p>
+                <Button 
+                  onClick={handleStartGame}
+                  className={theme.button}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Réinitialiser la partie Sheriff
+                </Button>
+              </div>
+            )}
+            
             {roundState?.phase === 'CHOICES' && (
               <div className="space-y-4">
                 <p className="text-[#9CA3AF]">
