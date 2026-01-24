@@ -100,13 +100,18 @@ export function useSubscription() {
     checkSubscription();
   }, [checkSubscription]);
 
-  // Auto-refresh every minute
+  // Auto-refresh every 10 minutes instead of every minute (cost optimization)
   useEffect(() => {
     if (!user) return;
     
-    const interval = setInterval(checkSubscription, 60000);
+    const interval = setInterval(checkSubscription, 600000); // 10 minutes
     return () => clearInterval(interval);
   }, [user, checkSubscription]);
+
+  // Expose a manual refresh for use after purchases/actions
+  const refreshSubscription = useCallback(() => {
+    return checkSubscription();
+  }, [checkSubscription]);
 
   const createCheckout = async (tier: 'starter' | 'premium' | 'royal') => {
     try {
@@ -177,6 +182,7 @@ export function useSubscription() {
     loading,
     error,
     checkSubscription,
+    refreshSubscription, // Use this after purchases to force refresh
     createCheckout,
     createTokenPayment,
     openCustomerPortal,
