@@ -141,6 +141,7 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   // Bot decisions state
   const [generatingBotChoices, setGeneratingBotChoices] = useState(false);
   const [generatingBotDuels, setGeneratingBotDuels] = useState(false);
+  const [generatingAllBotDuels, setGeneratingAllBotDuels] = useState(false);
 
   const getPresenceBadge = (lastSeen: string | null) => {
     if (!lastSeen) return { color: 'bg-red-500', textColor: 'text-red-500', label: 'Déconnecté' };
@@ -567,6 +568,28 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
     }
   };
 
+  const handleAllBotDuels = async () => {
+    if (!game.current_session_game_id) return;
+    setGeneratingAllBotDuels(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sheriff-bot-decisions', {
+        body: {
+          gameId: game.id,
+          sessionGameId: game.current_session_game_id,
+          action: 'duels_all',
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erreur');
+      toast.success(`${data.decisions_made} décisions pré-remplies pour tous les duels bots !`);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de l\'automatisation des duels bots');
+    } finally {
+      setGeneratingAllBotDuels(false);
+    }
+  };
+
   const activePlayers = players.filter(p => p.status === 'ACTIVE' && !p.is_host && p.player_number !== null);
   const kickedPlayers = players.filter(p => p.status === 'REMOVED');
   const botPlayers = activePlayers.filter(p => p.is_bot);
@@ -915,6 +938,23 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
 
             {roundState?.phase === 'DUELS' && (
               <div className="space-y-4">
+                {/* Button to automate ALL bot duels at once */}
+                {botPlayers.length > 0 && (pendingDuels.length > 0 || currentDuel) && (
+                  <Button 
+                    onClick={handleAllBotDuels}
+                    disabled={generatingAllBotDuels}
+                    variant="outline"
+                    className="w-full border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 bg-[#1A1F2C]"
+                  >
+                    {generatingAllBotDuels ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Dices className="h-4 w-4 mr-2" />
+                    )}
+                    🤖 Automatiser TOUS les duels Bots ({pendingDuels.length + (currentDuel ? 1 : 0)} restants)
+                  </Button>
+                )}
+
                 {currentDuel ? (
                   <>
                     <div className={`${theme.card} p-4 border-[#D4AF37]`}>
@@ -935,7 +975,7 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      {/* Bot duel decisions button */}
+                      {/* Bot duel decisions button for current duel only */}
                       {botPlayers.length > 0 && (
                         (botPlayers.some(b => b.player_number === currentDuel.player1_number) && currentDuel.player1_searches === null) ||
                         (botPlayers.some(b => b.player_number === currentDuel.player2_number) && currentDuel.player2_searches === null)
@@ -944,14 +984,14 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                           onClick={handleBotDuels}
                           disabled={generatingBotDuels}
                           variant="outline"
-                          className="w-full border-[#D4AF37]/50 hover:bg-[#D4AF37]/10"
+                          className="w-full border-[#D4AF37]/30 hover:bg-[#D4AF37]/10"
                         >
                           {generatingBotDuels ? (
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                           ) : (
                             <Dices className="h-4 w-4 mr-2" />
                           )}
-                          🤖 Décisions aléatoires des Bots
+                          🤖 Bots de ce duel uniquement
                         </Button>
                       )}
                       
