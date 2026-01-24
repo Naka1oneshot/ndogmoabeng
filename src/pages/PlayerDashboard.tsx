@@ -657,6 +657,7 @@ export default function PlayerDashboard() {
             <div className="space-y-4 overflow-auto">
               <PlayerInventory
                 gameId={game.id}
+                sessionGameId={game.current_session_game_id}
                 playerNumber={player.playerNumber}
                 jetons={player.jetons}
                 recompenses={player.recompenses}
@@ -754,6 +755,7 @@ export default function PlayerDashboard() {
           <TabsContent value="inventory" className="p-4 mt-0 space-y-4">
             <PlayerInventory
               gameId={game.id}
+              sessionGameId={game.current_session_game_id}
               playerNumber={player.playerNumber}
               jetons={player.jetons}
               recompenses={player.recompenses}

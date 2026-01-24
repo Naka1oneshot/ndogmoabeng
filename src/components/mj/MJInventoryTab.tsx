@@ -18,6 +18,7 @@ import {
 
 interface Game {
   id: string;
+  current_session_game_id?: string | null;
 }
 
 interface MJInventoryTabProps {
@@ -59,6 +60,17 @@ export function MJInventoryTab({ game }: MJInventoryTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchData = useCallback(async () => {
+    // Build inventory query - filter by session_game_id if available
+    let inventoryQuery = supabase
+      .from('inventory')
+      .select('*')
+      .eq('game_id', game.id)
+      .order('owner_num', { ascending: true });
+    
+    if (game.current_session_game_id) {
+      inventoryQuery = inventoryQuery.eq('session_game_id', game.current_session_game_id);
+    }
+
     const [playersResult, inventoryResult, catalogResult] = await Promise.all([
       supabase
         .from('game_players')
@@ -67,11 +79,7 @@ export function MJInventoryTab({ game }: MJInventoryTabProps) {
         .eq('is_host', false)
         .in('status', ['ACTIVE', 'IN_GAME', 'LEFT', 'REMOVED'])
         .order('player_number', { ascending: true }),
-      supabase
-        .from('inventory')
-        .select('*')
-        .eq('game_id', game.id)
-        .order('owner_num', { ascending: true }),
+      inventoryQuery,
       supabase
         .from('item_catalog')
         .select('name, category, base_damage, base_heal, detailed_description, consumable'),
@@ -87,7 +95,7 @@ export function MJInventoryTab({ game }: MJInventoryTabProps) {
       setCatalog(catalogMap);
     }
     setLoading(false);
-  }, [game.id]);
+  }, [game.id, game.current_session_game_id]);
 
   useEffect(() => {
     fetchData();
