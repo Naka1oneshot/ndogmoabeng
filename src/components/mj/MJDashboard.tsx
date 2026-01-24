@@ -79,6 +79,9 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [totalAdventureSteps, setTotalAdventureSteps] = useState(3);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   
+  // Adventure cumulative scores
+  const [adventureScores, setAdventureScores] = useState<{ playerId: string; playerName: string; totalScore: number }[]>([]);
+  
   // Apply game-specific theme
   useGameTheme(game.selected_game_type_code);
   
@@ -146,6 +149,64 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       fetchSteps();
     }
   }, [game.adventure_id, isAdventure]);
+
+  // Fetch adventure cumulative scores
+  useEffect(() => {
+    if (!isAdventure || !game.adventure_id) return;
+    
+    const fetchAdventureScores = async () => {
+      // Get adventure scores from adventure_scores table
+      const { data: scores } = await supabase
+        .from('adventure_scores')
+        .select('game_player_id, total_score_value')
+        .eq('session_id', game.id);
+      
+      // Get current game players with their live scores
+      const { data: players } = await supabase
+        .from('game_players')
+        .select('id, display_name, recompenses, pvic')
+        .eq('game_id', game.id)
+        .eq('status', 'ACTIVE')
+        .eq('is_host', false);
+      
+      if (players) {
+        const scoresMap = new Map(scores?.map(s => [s.game_player_id, s.total_score_value]) || []);
+        
+        const combinedScores = players.map(p => {
+          const adventureScore = scoresMap.get(p.id) || 0;
+          const currentGameScore = (p.recompenses || 0) + (p.pvic || 0);
+          return {
+            playerId: p.id,
+            playerName: p.display_name,
+            totalScore: adventureScore + currentGameScore
+          };
+        }).sort((a, b) => b.totalScore - a.totalScore);
+        
+        setAdventureScores(combinedScores);
+      }
+    };
+    
+    fetchAdventureScores();
+    
+    // Subscribe to changes
+    const channel = supabase
+      .channel(`adventure-scores-${game.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'adventure_scores', filter: `session_id=eq.${game.id}` },
+        () => fetchAdventureScores()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` },
+        () => fetchAdventureScores()
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [game.id, game.adventure_id, isAdventure]);
 
   // Fetch player count for animation
   useEffect(() => {
@@ -522,9 +583,9 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         joinCode={game.join_code}
       />
 
-      {/* Adventure Progress Display */}
+      {/* Adventure Progress Display with Cumulative Scores */}
       {isAdventure && (
-        <div className="card-gradient rounded-lg border border-primary/30 p-4">
+        <div className="card-gradient rounded-lg border border-primary/30 p-4 space-y-4">
           <AdventureProgressDisplay
             mode={game.mode}
             currentStepIndex={game.current_step_index}
@@ -532,6 +593,42 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             adventureId={game.adventure_id}
             showTitle={true}
           />
+          
+          {/* Cumulative PVic Summary */}
+          {adventureScores.length > 0 && (
+            <div className="pt-3 border-t border-border/50">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-medium text-muted-foreground">🏆 Points de Victoire Cumulés</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {adventureScores.slice(0, 5).map((score, index) => (
+                  <div 
+                    key={score.playerId}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                      index === 0 
+                        ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' 
+                        : index === 1 
+                          ? 'bg-slate-400/20 text-slate-300 border border-slate-400/30'
+                          : index === 2
+                            ? 'bg-amber-600/20 text-amber-400 border border-amber-600/30'
+                            : 'bg-secondary/50 text-muted-foreground'
+                    }`}
+                  >
+                    <span className="font-medium">
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                    </span>
+                    <span className="truncate max-w-24">{score.playerName}</span>
+                    <span className="font-bold">{score.totalScore}</span>
+                  </div>
+                ))}
+                {adventureScores.length > 5 && (
+                  <div className="px-3 py-1.5 bg-secondary/30 rounded-full text-sm text-muted-foreground">
+                    +{adventureScores.length - 5} autres
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
