@@ -8,7 +8,7 @@ const corsHeaders = {
 interface BotDecisionRequest {
   gameId: string;
   sessionGameId: string;
-  action: 'choices' | 'duels'; // Which action to generate decisions for
+  action: 'choices' | 'duels' | 'duels_all'; // Which action to generate decisions for
   duelId?: string; // Optional for specific duel
 }
 
@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
       });
 
     } else if (action === 'duels') {
-      // Generate duel decisions for bots
+      // Generate duel decisions for bots (only active duel)
 
       // Get round state for config
       const { data: roundState } = await supabase
@@ -301,6 +301,87 @@ Deno.serve(async (req) => {
           session_game_id: sessionGameId,
           type: 'BOT_SHERIFF_DUELS',
           message: `${results.length} décisions de duel par les bots`,
+          payload: { results },
+        });
+      }
+
+    } else if (action === 'duels_all') {
+      // Generate decisions for ALL pending/active duels involving bots
+
+      // Get round state for config
+      const { data: roundState } = await supabase
+        .from('sheriff_round_state')
+        .select('bot_config')
+        .eq('session_game_id', sessionGameId)
+        .single();
+
+      const config: SheriffBotConfig = { ...DEFAULT_CONFIG, ...(roundState?.bot_config as Partial<SheriffBotConfig> || {}) };
+
+      // Get ALL duels (PENDING or ACTIVE) that involve bots
+      const { data: allDuels } = await supabase
+        .from('sheriff_duels')
+        .select('*')
+        .eq('session_game_id', sessionGameId)
+        .in('status', ['PENDING', 'ACTIVE'])
+        .order('duel_order', { ascending: true });
+
+      // Get player choices to know who has illegal tokens
+      const { data: allChoices } = await supabase
+        .from('sheriff_player_choices')
+        .select('player_number, has_illegal_tokens')
+        .eq('session_game_id', sessionGameId);
+
+      const illegalMap = new Map(
+        allChoices?.map(c => [c.player_number, c.has_illegal_tokens]) || []
+      );
+
+      // Process each duel that involves at least one bot with pending decision
+      for (const duel of allDuels || []) {
+        const p1IsBot = botNumbers.has(duel.player1_number);
+        const p2IsBot = botNumbers.has(duel.player2_number);
+
+        // Skip duels with no bots
+        if (!p1IsBot && !p2IsBot) continue;
+
+        const updates: Record<string, boolean> = {};
+
+        // Player 1 decision (if bot and hasn't decided)
+        if (p1IsBot && duel.player1_searches === null) {
+          const opponentSuspicious = illegalMap.get(duel.player2_number) === true;
+          const searchChance = opponentSuspicious ? config.search_if_suspicious : config.search_chance;
+          updates.player1_searches = Math.random() * 100 < searchChance;
+        }
+
+        // Player 2 decision (if bot and hasn't decided)
+        if (p2IsBot && duel.player2_searches === null) {
+          const opponentSuspicious = illegalMap.get(duel.player1_number) === true;
+          const searchChance = opponentSuspicious ? config.search_if_suspicious : config.search_chance;
+          updates.player2_searches = Math.random() * 100 < searchChance;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          const { error: duelError } = await supabase
+            .from('sheriff_duels')
+            .update(updates)
+            .eq('id', duel.id);
+
+          if (!duelError) {
+            results.push({
+              duel_id: duel.id,
+              duel_order: duel.duel_order,
+              ...updates,
+            });
+          }
+        }
+      }
+
+      // Log action
+      if (results.length > 0) {
+        await supabase.from('logs_mj').insert({
+          game_id: gameId,
+          session_game_id: sessionGameId,
+          type: 'BOT_SHERIFF_DUELS_ALL',
+          message: `${results.length} décisions pré-remplies pour tous les duels bots`,
           payload: { results },
         });
       }
