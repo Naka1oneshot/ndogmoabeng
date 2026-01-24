@@ -48,7 +48,7 @@ serve(async (req) => {
     // Fetch the game with adventure info
     const { data: game, error: gameError } = await supabase
       .from("games")
-      .select("id, name, status, host_user_id, current_session_game_id, current_step_index, adventure_id, mode, starting_tokens")
+      .select("id, name, status, host_user_id, current_session_game_id, current_step_index, adventure_id, mode, starting_tokens, selected_game_type_code")
       .eq("id", gameId)
       .single();
 
@@ -149,6 +149,17 @@ serve(async (req) => {
     const currentStepIndex = game.current_step_index || 1;
     const nextStepIndex = currentStepIndex + 1;
 
+    // Get the CURRENT step to know the game type we're coming FROM
+    const { data: currentStep } = await supabase
+      .from("adventure_steps")
+      .select("id, game_type_code")
+      .eq("adventure_id", game.adventure_id)
+      .eq("step_index", currentStepIndex)
+      .single();
+
+    const currentGameType = currentStep?.game_type_code || game.selected_game_type_code;
+    console.log(`[next-session-game] Current game type: ${currentGameType}`);
+
     // Get the next adventure step
     const { data: nextStep, error: stepError } = await supabase
       .from("adventure_steps")
@@ -232,20 +243,44 @@ serve(async (req) => {
       );
     }
 
-    // Calculate starting tokens for the new step
-    let newStartingTokens = game.starting_tokens;
-    if (nextStep.token_policy === "RESET_TO_DEFAULT") {
-      // Get default from game_types
-      const { data: gameType } = await supabase
-        .from("game_types")
-        .select("default_starting_tokens")
-        .eq("code", nextStep.game_type_code)
-        .single();
-      newStartingTokens = gameType?.default_starting_tokens || 10;
-    } else if (nextStep.token_policy === "CUSTOM" && nextStep.custom_starting_tokens) {
-      newStartingTokens = nextStep.custom_starting_tokens;
+    // NEW TOKEN POLICY based on game types:
+    // - RIVIERES: players start with 100 tokens
+    // - FORET: players start with 100 tokens
+    // - SHERIFF: players start with 0 tokens
+    // - INFECTION: players inherit tokens from previous game (SHERIFF)
+    
+    const GAME_TYPE_TOKENS: Record<string, number | "INHERIT"> = {
+      "RIVIERES": 100,
+      "FORET": 100,
+      "SHERIFF": 0,
+      "INFECTION": "INHERIT",
+    };
+
+    const nextGameTokenPolicy = GAME_TYPE_TOKENS[nextStep.game_type_code];
+    let newStartingTokens: number;
+    
+    if (nextGameTokenPolicy === "INHERIT") {
+      // For INFECTION: inherit tokens from previous game
+      newStartingTokens = game.starting_tokens || 0;
+      console.log(`[next-session-game] INHERIT mode: keeping tokens from previous game`);
+    } else if (typeof nextGameTokenPolicy === "number") {
+      newStartingTokens = nextGameTokenPolicy;
+      console.log(`[next-session-game] Fixed tokens for ${nextStep.game_type_code}: ${newStartingTokens}`);
+    } else {
+      // Fallback to old logic if game type not in our map
+      if (nextStep.token_policy === "RESET_TO_DEFAULT") {
+        const { data: gameType } = await supabase
+          .from("game_types")
+          .select("default_starting_tokens")
+          .eq("code", nextStep.game_type_code)
+          .single();
+        newStartingTokens = gameType?.default_starting_tokens || 10;
+      } else if (nextStep.token_policy === "CUSTOM" && nextStep.custom_starting_tokens) {
+        newStartingTokens = nextStep.custom_starting_tokens;
+      } else {
+        newStartingTokens = game.starting_tokens || 10;
+      }
     }
-    // INHERIT: keep the current starting_tokens
 
     // Create the new session_game for this step
     const { data: newSessionGame, error: createError } = await supabase
@@ -286,29 +321,50 @@ serve(async (req) => {
       })
       .eq("id", gameId);
 
-    // Reset players' jetons for the new game based on token_policy
+    // Reset players' jetons for the new game based on NEW token policy
     const { data: players } = await supabase
       .from("game_players")
-      .select("id, player_number, jetons, clan")
+      .select("id, player_number, jetons, clan, pvic")
       .eq("game_id", gameId)
       .eq("status", "ACTIVE")
       .not("player_number", "is", null);
 
     if (players && players.length > 0) {
       for (const player of players) {
-        let newJetons = player.jetons; // INHERIT by default
+        let newJetons: number;
         
-        if (nextStep.token_policy === "RESET_TO_DEFAULT" || nextStep.token_policy === "CUSTOM") {
-          // Royaux clan bonus: 1.5x starting tokens
+        if (nextGameTokenPolicy === "INHERIT") {
+          // INFECTION: inherit final tokens from SHERIFF
+          newJetons = player.jetons || 0;
+          console.log(`[next-session-game] Player ${player.player_number} inherits ${newJetons} jetons`);
+        } else if (typeof nextGameTokenPolicy === "number") {
+          // Fixed starting tokens with Royaux bonus
           newJetons = player.clan === 'Royaux' 
-            ? Math.floor(newStartingTokens * 1.5) 
-            : newStartingTokens;
+            ? Math.floor(nextGameTokenPolicy * 1.5) 
+            : nextGameTokenPolicy;
+        } else {
+          // Fallback to old logic
+          if (nextStep.token_policy === "RESET_TO_DEFAULT" || nextStep.token_policy === "CUSTOM") {
+            newJetons = player.clan === 'Royaux' 
+              ? Math.floor(newStartingTokens * 1.5) 
+              : newStartingTokens;
+          } else {
+            newJetons = player.jetons || 0;
+          }
         }
         
+        // Keep PVic accumulated - DON'T reset it!
         await supabase
           .from("game_players")
-          .update({ jetons: newJetons, is_alive: true, recompenses: 0 })
+          .update({ 
+            jetons: newJetons, 
+            is_alive: true, 
+            recompenses: 0,
+            // pvic is NOT reset - it accumulates across games
+          })
           .eq("id", player.id);
+        
+        console.log(`[next-session-game] Player ${player.player_number}: jetons=${newJetons}, pvic kept=${player.pvic}`);
       }
     }
 
@@ -346,29 +402,65 @@ serve(async (req) => {
       }
     }
 
-    // Initialize monsters for the new session_game
-    const { error: initMonsterConfigError } = await supabase.rpc(
-      "initialize_game_monsters",
-      { p_game_id: gameId }
-    );
-    if (initMonsterConfigError) {
-      console.error("Monster config init error:", initMonsterConfigError);
-    }
+    // Only initialize monsters for FORET game type
+    if (nextStep.game_type_code === "FORET") {
+      console.log(`[next-session-game] Initializing monsters for FORET game`);
+      
+      // First, delete any existing game_state_monsters for this game to start fresh
+      const { error: deleteStateError } = await supabase
+        .from("game_state_monsters")
+        .delete()
+        .eq("game_id", gameId);
+      
+      if (deleteStateError) {
+        console.error("Error deleting old monster state:", deleteStateError);
+      } else {
+        console.log(`[next-session-game] Cleared old game_state_monsters`);
+      }
+      
+      // Delete old game_monsters config to start fresh
+      const { error: deleteConfigError } = await supabase
+        .from("game_monsters")
+        .delete()
+        .eq("game_id", gameId);
+      
+      if (deleteConfigError) {
+        console.error("Error deleting old monster config:", deleteConfigError);
+      } else {
+        console.log(`[next-session-game] Cleared old game_monsters config`);
+      }
 
-    // Update new monsters with session_game_id
-    await supabase
-      .from("game_monsters")
-      .update({ session_game_id: newSessionGameId })
-      .eq("game_id", gameId)
-      .is("session_game_id", null);
+      // Initialize fresh monster configuration
+      const { error: initMonsterConfigError } = await supabase.rpc(
+        "initialize_game_monsters",
+        { p_game_id: gameId }
+      );
+      if (initMonsterConfigError) {
+        console.error("Monster config init error:", initMonsterConfigError);
+      } else {
+        console.log(`[next-session-game] Monster config initialized`);
+      }
 
-    // Initialize runtime monster state with session_game_id
-    const { error: initMonsterStateError } = await supabase.rpc(
-      "initialize_game_state_monsters",
-      { p_game_id: gameId, p_session_game_id: newSessionGameId }
-    );
-    if (initMonsterStateError) {
-      console.error("Monster state init error:", initMonsterStateError);
+      // Update new monsters with session_game_id
+      await supabase
+        .from("game_monsters")
+        .update({ session_game_id: newSessionGameId })
+        .eq("game_id", gameId);
+      
+      console.log(`[next-session-game] Updated game_monsters with session_game_id`);
+
+      // Initialize runtime monster state with session_game_id
+      const { error: initMonsterStateError } = await supabase.rpc(
+        "initialize_game_state_monsters",
+        { p_game_id: gameId, p_session_game_id: newSessionGameId }
+      );
+      if (initMonsterStateError) {
+        console.error("Monster state init error:", initMonsterStateError);
+      } else {
+        console.log(`[next-session-game] Monster state initialized for session ${newSessionGameId}`);
+      }
+    } else {
+      console.log(`[next-session-game] Skipping monster init for ${nextStep.game_type_code} (not FORET)`);
     }
 
     // Update session_game status to RUNNING
