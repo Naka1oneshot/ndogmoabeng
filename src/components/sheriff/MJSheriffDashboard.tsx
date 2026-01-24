@@ -20,6 +20,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
+import { SheriffBotConfigPanel, SheriffBotConfig } from './SheriffBotConfigPanel';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface Game {
   id: string;
@@ -85,6 +87,7 @@ interface RoundState {
   total_duels: number;
   common_pool_initial: number;
   common_pool_spent: number;
+  bot_config?: SheriffBotConfig | null;
 }
 
 interface EditForm {
@@ -220,7 +223,7 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
         .maybeSingle();
 
       if (stateData) {
-        setRoundState(stateData as RoundState);
+        setRoundState(stateData as unknown as RoundState);
       }
     }
 
@@ -1003,6 +1006,28 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
               </div>
             </div>
           </div>
+
+          {/* Bot Config Panel */}
+          {botPlayers.length > 0 && game.current_session_game_id && (
+            <Collapsible>
+              <div className={`${theme.card} p-4`}>
+                <CollapsibleTrigger className="w-full flex items-center justify-between text-left">
+                  <h3 className="text-sm font-medium text-[#D4AF37] flex items-center gap-2">
+                    <Bot className="h-4 w-4" />
+                    Configuration des Bots ({botPlayers.length})
+                  </h3>
+                  <Badge variant="outline" className="text-xs">Cliquez pour configurer</Badge>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-4">
+                  <SheriffBotConfigPanel
+                    sessionGameId={game.current_session_game_id}
+                    currentConfig={roundState?.bot_config}
+                    onConfigUpdate={fetchData}
+                  />
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          )}
         </TabsContent>
 
         <TabsContent value="players" className="p-4">

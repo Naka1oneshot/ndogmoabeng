@@ -2920,6 +2920,7 @@ export type Database = {
       }
       sheriff_round_state: {
         Row: {
+          bot_config: Json | null
           common_pool_initial: number | null
           common_pool_spent: number | null
           created_at: string | null
@@ -2932,6 +2933,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          bot_config?: Json | null
           common_pool_initial?: number | null
           common_pool_spent?: number | null
           created_at?: string | null
@@ -2944,6 +2946,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          bot_config?: Json | null
           common_pool_initial?: number | null
           common_pool_spent?: number | null
           created_at?: string | null
