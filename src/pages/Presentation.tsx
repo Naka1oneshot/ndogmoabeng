@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PresentationModeView } from "@/components/mj/presentation/PresentationModeView";
 import { RivieresPresentationView } from "@/components/rivieres/presentation/RivieresPresentationView";
 import { InfectionPresentationView } from "@/components/infection/presentation/InfectionPresentationView";
+import { SheriffPresentationView } from "@/components/sheriff/presentation/SheriffPresentationView";
 
 interface Game {
   id: string;
@@ -79,6 +80,10 @@ const Presentation = () => {
 
   if (game.selected_game_type_code === 'INFECTION') {
     return <InfectionPresentationView game={game} onClose={() => window.close()} />;
+  }
+
+  if (game.selected_game_type_code === 'SHERIFF') {
+    return <SheriffPresentationView game={game} onClose={() => window.close()} />;
   }
 
   // Default to Forest presentation
