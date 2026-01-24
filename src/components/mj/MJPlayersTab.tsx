@@ -1015,234 +1015,248 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
                 ))}
               </div>
 
-              {/* Desktop full view - Header */}
-              <div className={`hidden lg:grid ${isAdventure ? 'grid-cols-13' : 'grid-cols-12'} gap-2 text-xs text-muted-foreground px-3 py-1`}>
-                <div className="col-span-1">#</div>
-                <div className="col-span-2">Nom</div>
-                <div className="col-span-2">Clan</div>
-                <div className="col-span-1">Mate</div>
-                <div className="col-span-1">Jetons</div>
-                {isAdventure && <div className="col-span-1">PVic</div>}
-                <div className="col-span-2">Rejoint</div>
-                <div className="col-span-1">Statut</div>
-                <div className="col-span-2 text-right">Actions</div>
-              </div>
-
-              {/* Desktop full view - Rows */}
-              {activePlayers.map((player) => (
-                <div
-                  key={player.id}
-                  className={`hidden lg:block p-3 rounded-md bg-secondary/50 ${!player.is_alive ? 'opacity-50' : ''}`}
-                >
-                  {editingId === player.id ? (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div>
-                          <label className="text-xs text-muted-foreground">Nom</label>
-                          <Input
-                            value={editForm.display_name || ''}
-                            onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground flex items-center gap-1">
-                            Clan
-                            {!canEditClan(player) && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Lock className="h-3 w-3 text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {getClanEditTooltip(player)}
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                          </label>
-                          <Select
-                            value={editForm.clan || 'none'}
-                            onValueChange={(val) => setEditForm({ ...editForm, clan: val === 'none' ? '' : val })}
-                            disabled={!canEditClan(player)}
-                          >
-                            <SelectTrigger className={`h-8 text-sm ${!canEditClan(player) ? 'opacity-50' : ''}`}>
-                              <SelectValue placeholder="Clan" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {getAvailableClans(player).map(c => (
-                                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground">Coéquipier</label>
-                          <Select
-                            value={editForm.mate_num?.toString() || 'none'}
-                            onValueChange={(val) => setEditForm({ ...editForm, mate_num: val === 'none' ? null : parseInt(val) })}
-                          >
-                            <SelectTrigger className="h-8 text-sm">
-                              <SelectValue placeholder="Mate" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Aucun</SelectItem>
-                              {availablePlayerNumbers
-                                .filter(n => n !== player.player_number)
-                                .map(n => (
-                                  <SelectItem key={n} value={n.toString()}>
-                                    Joueur {n}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground">Jetons</label>
-                          <NumberInput
-                            value={editForm.jetons || 0}
-                            onChange={(v) => setEditForm({ ...editForm, jetons: v })}
-                            defaultValue={0}
-                            min={0}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <ForestButton variant="ghost" size="sm" onClick={cancelEditing}>
-                          <X className="h-4 w-4" />
-                          Annuler
-                        </ForestButton>
-                        <ForestButton size="sm" onClick={() => handleSave(player.id)} disabled={saving}>
-                          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                          Sauvegarder
-                        </ForestButton>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className={`grid ${isAdventure ? 'grid-cols-13' : 'grid-cols-12'} gap-2 items-center`}>
-                      <div className="col-span-1">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                          <span className="text-sm font-medium text-primary">
-                            {player.player_number || '?'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="col-span-2 flex items-center gap-1">
-                        <span className="font-medium text-sm truncate">{player.display_name}</span>
-                        {player.is_bot && (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Bot className="h-3 w-3 text-primary" />
-                            </TooltipTrigger>
-                            <TooltipContent>Bot automatique</TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                      <div className="col-span-2 text-sm text-muted-foreground flex items-center gap-1">
-                        {player.clan || '-'}
-                        {player.clan && (
+              {/* Desktop full view - Table */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs text-muted-foreground border-b border-border/30">
+                      <th className="text-left py-2 px-2 w-12">#</th>
+                      <th className="text-left py-2 px-2 min-w-[120px]">Nom</th>
+                      <th className="text-left py-2 px-2 min-w-[100px]">Clan</th>
+                      <th className="text-left py-2 px-2 w-16">Mate</th>
+                      <th className="text-left py-2 px-2 w-20">Jetons</th>
+                      {isAdventure && <th className="text-left py-2 px-2 w-16">PVic</th>}
+                      <th className="text-left py-2 px-2 min-w-[100px]">Rejoint</th>
+                      <th className="text-left py-2 px-2 w-28">Statut</th>
+                      <th className="text-right py-2 px-2 w-40">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activePlayers.map((player) => (
+                      <tr 
+                        key={player.id} 
+                        className={`border-b border-border/10 hover:bg-secondary/30 ${!player.is_alive ? 'opacity-50' : ''}`}
+                      >
+                        {editingId === player.id ? (
+                          <td colSpan={isAdventure ? 9 : 8} className="py-3 px-2">
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div>
+                                  <label className="text-xs text-muted-foreground">Nom</label>
+                                  <Input
+                                    value={editForm.display_name || ''}
+                                    onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-muted-foreground flex items-center gap-1">
+                                    Clan
+                                    {!canEditClan(player) && (
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <Lock className="h-3 w-3 text-muted-foreground" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {getClanEditTooltip(player)}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                  </label>
+                                  <Select
+                                    value={editForm.clan || 'none'}
+                                    onValueChange={(val) => setEditForm({ ...editForm, clan: val === 'none' ? '' : val })}
+                                    disabled={!canEditClan(player)}
+                                  >
+                                    <SelectTrigger className={`h-8 text-sm ${!canEditClan(player) ? 'opacity-50' : ''}`}>
+                                      <SelectValue placeholder="Clan" />
+                                    </SelectTrigger>
+                                    <SelectContent className="z-[300]">
+                                      {getAvailableClans(player).map(c => (
+                                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-muted-foreground">Coéquipier</label>
+                                  <Select
+                                    value={editForm.mate_num?.toString() || 'none'}
+                                    onValueChange={(val) => setEditForm({ ...editForm, mate_num: val === 'none' ? null : parseInt(val) })}
+                                  >
+                                    <SelectTrigger className="h-8 text-sm">
+                                      <SelectValue placeholder="Mate" />
+                                    </SelectTrigger>
+                                    <SelectContent className="z-[300]">
+                                      <SelectItem value="none">Aucun</SelectItem>
+                                      {availablePlayerNumbers
+                                        .filter(n => n !== player.player_number)
+                                        .map(n => (
+                                          <SelectItem key={n} value={n.toString()}>
+                                            Joueur {n}
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-muted-foreground">Jetons</label>
+                                  <NumberInput
+                                    value={editForm.jetons || 0}
+                                    onChange={(v) => setEditForm({ ...editForm, jetons: v })}
+                                    defaultValue={0}
+                                    min={0}
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <ForestButton variant="ghost" size="sm" onClick={cancelEditing}>
+                                  <X className="h-4 w-4" />
+                                  Annuler
+                                </ForestButton>
+                                <ForestButton size="sm" onClick={() => handleSave(player.id)} disabled={saving}>
+                                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                  Sauvegarder
+                                </ForestButton>
+                              </div>
+                            </div>
+                          </td>
+                        ) : (
                           <>
-                            {player.clan_locked && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Lock className="h-3 w-3 text-primary" />
-                                </TooltipTrigger>
-                                <TooltipContent>Verrouillé par le joueur</TooltipContent>
-                              </Tooltip>
+                            <td className="py-3 px-2">
+                              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                                <span className="text-sm font-medium text-primary">
+                                  {player.player_number || '?'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium text-sm truncate">{player.display_name}</span>
+                                {player.is_bot && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Bot className="h-3 w-3 text-primary" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>Bot automatique</TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="flex items-center gap-1 text-muted-foreground">
+                                {player.clan || '-'}
+                                {player.clan && (
+                                  <>
+                                    {player.clan_locked && (
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <Lock className="h-3 w-3 text-primary" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>Verrouillé par le joueur</TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                    {player.clan_token_used && (
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <Coins className="h-3 w-3 text-gold" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>Token utilisé</TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                    {(player.clan_locked || player.clan_token_used) && (
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <ShieldCheck className="h-3 w-3 text-success" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>Avantages de clan actifs</TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-2 text-muted-foreground">
+                              {player.mate_num || '-'}
+                            </td>
+                            <td className="py-3 px-2 font-medium text-gold">
+                              {player.jetons}
+                            </td>
+                            {isAdventure && (
+                              <td className="py-3 px-2 font-medium text-warning">
+                                {(getAdventurePvic(player.id) || 0) + (player.recompenses || 0) + (player.pvic || 0)}🏆
+                              </td>
                             )}
-                            {player.clan_token_used && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Coins className="h-3 w-3 text-forest-gold" />
-                                </TooltipTrigger>
-                                <TooltipContent>Token utilisé</TooltipContent>
-                              </Tooltip>
-                            )}
-                            {(player.clan_locked || player.clan_token_used) && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <ShieldCheck className="h-3 w-3 text-green-500" />
-                                </TooltipTrigger>
-                                <TooltipContent>Avantages de clan actifs</TooltipContent>
-                              </Tooltip>
-                            )}
+                            <td className="py-3 px-2 text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(player.joined_at), { addSuffix: true, locale: fr })}
+                            </td>
+                            <td className="py-3 px-2">
+                              {(() => {
+                                const badge = getPresenceBadge(player.last_seen);
+                                return (
+                                  <span className={`inline-flex items-center gap-1 text-xs ${badge.textColor}`}>
+                                    <span className={`w-2 h-2 rounded-full ${badge.color}`} />
+                                    {badge.label}
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="flex items-center justify-end gap-1">
+                                <ForestButton
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => startEditing(player)}
+                                  title="Modifier le joueur"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </ForestButton>
+                                {player.player_token && (
+                                  <ForestButton
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
+                                    title="Copier le lien de reconnexion"
+                                  >
+                                    {copiedId === player.id ? (
+                                      <Check className="h-4 w-4 text-success" />
+                                    ) : (
+                                      <Copy className="h-4 w-4" />
+                                    )}
+                                  </ForestButton>
+                                )}
+                                <ForestButton
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleResetToken(player.id, player.display_name)}
+                                  disabled={resettingId === player.id}
+                                  title="Réinitialiser le token"
+                                >
+                                  {resettingId === player.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="h-4 w-4" />
+                                  )}
+                                </ForestButton>
+                                <ForestButton
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openKickModal(player.id, player.display_name)}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  title="Expulser le joueur"
+                                >
+                                  <UserX className="h-4 w-4" />
+                                </ForestButton>
+                              </div>
+                            </td>
                           </>
                         )}
-                      </div>
-                      <div className="col-span-1 text-sm text-muted-foreground">
-                        {player.mate_num || '-'}
-                      </div>
-                      <div className="col-span-1 text-sm font-medium text-forest-gold">
-                        {player.jetons}
-                      </div>
-                      {isAdventure && (
-                        <div className="col-span-1 text-sm font-medium text-amber-500">
-                          {(getAdventurePvic(player.id) || 0) + (player.recompenses || 0) + (player.pvic || 0)}🏆
-                        </div>
-                      )}
-                      <div className="col-span-2 text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(player.joined_at), { addSuffix: true, locale: fr })}
-                      </div>
-                      <div className="col-span-1">
-                        {(() => {
-                          const badge = getPresenceBadge(player.last_seen);
-                          return (
-                            <span className={`inline-flex items-center gap-1 text-xs ${badge.textColor}`}>
-                              <span className={`w-2 h-2 rounded-full ${badge.color}`} />
-                              {badge.label}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                      <div className="col-span-2 flex items-center justify-end gap-1">
-                        <ForestButton
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => startEditing(player)}
-                          title="Modifier le joueur"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </ForestButton>
-                        {player.player_token && (
-                          <ForestButton
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleCopyJoinLink(player.id, player.player_token!)}
-                            title="Copier le lien de reconnexion"
-                          >
-                            {copiedId === player.id ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </ForestButton>
-                        )}
-                        <ForestButton
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleResetToken(player.id, player.display_name)}
-                          disabled={resettingId === player.id}
-                          title="Réinitialiser le token"
-                        >
-                          {resettingId === player.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-4 w-4" />
-                          )}
-                        </ForestButton>
-                        <ForestButton
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openKickModal(player.id, player.display_name)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title="Expulser le joueur"
-                        >
-                          <UserX className="h-4 w-4" />
-                        </ForestButton>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
