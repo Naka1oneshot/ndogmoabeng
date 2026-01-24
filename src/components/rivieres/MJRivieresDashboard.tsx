@@ -178,11 +178,15 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
     stateRef.current = state;
   }, [state]);
 
+  // CRITICAL: Include BOTH gameId and sessionGameId as dependencies
+  // - gameId is used to fetch game_players
+  // - sessionGameId is used for RIVIERES-specific state (river_session_state, etc.)
   useEffect(() => {
+    console.log('[MJRivieresDashboard] Effect triggered - gameId:', gameId, 'sessionGameId:', sessionGameId);
     fetchData();
     const channel = setupRealtime();
     return () => { supabase.removeChannel(channel); };
-  }, [sessionGameId]);
+  }, [gameId, sessionGameId]);
 
   // Refetch decisions when manche/niveau changes
   useEffect(() => {
@@ -740,8 +744,24 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
 
   // LOBBY VIEW - Use unified MJRivieresPlayersTab for player management
   if (gameStatus === 'LOBBY') {
+    // Use the players state from this component, which is fetched via fetchData
+    // The fetchData includes gameId in its dependencies, so it should always be current
+    const playerCount = players.length;
+    const botPlayerCount = players.filter(p => p.display_name.includes('🤖')).length;
+    
     const handleStartGame = async () => {
-      if (players.length < 1) {
+      // Refetch players to ensure we have the latest count before checking
+      const { data: latestPlayers } = await supabase
+        .from('game_players')
+        .select('id')
+        .eq('game_id', gameId)
+        .eq('status', 'ACTIVE')
+        .not('player_number', 'is', null)
+        .eq('is_host', false);
+      
+      const actualPlayerCount = latestPlayers?.length || 0;
+      
+      if (actualPlayerCount < 1) {
         toast.error('Au moins 1 joueur requis');
         return;
       }
@@ -765,7 +785,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           // Don't throw - game is already started, RIVIERES init might auto-retry
         }
         
-        toast.success(`Partie RIVIERES lancée avec ${players.length} joueur${players.length > 1 ? 's' : ''} !`);
+        toast.success(`Partie RIVIERES lancée avec ${actualPlayerCount} joueur${actualPlayerCount > 1 ? 's' : ''} !`);
         fetchData();
       } catch (error: any) {
         console.error('Start game error:', error);
@@ -787,10 +807,10 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
             En attente du lancement de la partie...
           </p>
           <p className="text-[#E8E8E8]">
-            <span className="text-[#D4AF37] font-bold text-2xl">{players.length}</span> joueur{players.length > 1 ? 's' : ''} connecté{players.length > 1 ? 's' : ''}
-            {botPlayers.length > 0 && (
+            <span className="text-[#D4AF37] font-bold text-2xl">{playerCount}</span> joueur{playerCount > 1 ? 's' : ''} connecté{playerCount > 1 ? 's' : ''}
+            {botPlayerCount > 0 && (
               <span className="text-[#9CA3AF] text-sm ml-2">
-                (dont {botPlayers.length} 🤖)
+                (dont {botPlayerCount} 🤖)
               </span>
             )}
           </p>
@@ -824,12 +844,12 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           ) : (
             <>
               <Ship className="h-5 w-5 mr-2" />
-              Démarrer la partie RIVIERES ({players.length} joueurs)
+              Démarrer la partie RIVIERES ({playerCount} joueurs)
             </>
           )}
         </ForestButton>
 
-        {!loading && players.length < 1 && (
+        {!loading && playerCount < 1 && (
           <p className="text-center text-amber-400 text-sm mt-3">
             ⚠️ Au moins 1 joueur doit être connecté pour démarrer
           </p>
