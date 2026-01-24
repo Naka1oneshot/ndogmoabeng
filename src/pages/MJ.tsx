@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { AdventureSelector } from '@/components/mj/AdventureSelector';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdminBadge } from '@/components/game/AdminBadge';
+import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 
 import { 
   Plus, Loader2, 
@@ -130,6 +131,19 @@ const GameListItem = memo(function GameListItem({
               </Badge>
             )}
           </div>
+          {/* Adventure Progress Display */}
+          {game.mode === 'ADVENTURE' && game.adventure_id && (
+            <div className="mt-2">
+              <AdventureProgressDisplay
+                mode={game.mode}
+                currentStepIndex={game.current_step_index}
+                currentGameTypeCode={game.selected_game_type_code}
+                adventureId={game.adventure_id}
+                compact={false}
+                showTitle={true}
+              />
+            </div>
+          )}
           <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
             <span className="font-mono text-primary">{game.join_code}</span>
             <span className="flex items-center gap-1">

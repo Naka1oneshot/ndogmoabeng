@@ -69,9 +69,21 @@ export function AdventureProgressDisplay({
 
   // Determine the games order
   const adventureSteps = providedSteps || fetchedSteps;
-  const gamesOrder = adventureSteps.length > 0
-    ? adventureSteps.sort((a, b) => a.step_index - b.step_index).map((s) => s.game_type_code)
+  const sortedSteps = adventureSteps.length > 0
+    ? [...adventureSteps].sort((a, b) => a.step_index - b.step_index)
+    : [];
+  const gamesOrder = sortedSteps.length > 0
+    ? sortedSteps.map((s) => s.game_type_code)
     : DEFAULT_ADVENTURE_ORDER;
+  
+  // Detect if step_index is 1-based (starts at 1) or 0-based (starts at 0)
+  const minStepIndex = sortedSteps.length > 0 ? Math.min(...sortedSteps.map(s => s.step_index)) : 0;
+  const isOneBased = minStepIndex === 1;
+  
+  // Adjust currentStepIndex based on the step_index base
+  // Both games.current_step_index and adventure_steps.step_index are 1-based in the database
+  // We need to convert to 0-based index for array iteration
+  const adjustedCurrentIndex = isOneBased ? currentStepIndex - 1 : currentStepIndex;
 
   if (!isAdventure) {
     // Single game mode
@@ -106,7 +118,7 @@ export function AdventureProgressDisplay({
           <span className="text-sm font-medium text-foreground/80">{adventureName}</span>
         )}
         <span className="text-xs text-muted-foreground">
-          ({currentStepIndex + 1}/{gamesOrder.length} jeux)
+          ({adjustedCurrentIndex + 1}/{gamesOrder.length} jeux)
         </span>
       </div>
       <div className="flex items-center gap-1 flex-wrap">
@@ -114,9 +126,9 @@ export function AdventureProgressDisplay({
           const gameInfo = GAME_INFO[gameCode] || { label: gameCode, icon: Swords, color: 'text-muted-foreground' };
           const Icon = gameInfo.icon;
 
-          const isPast = index < currentStepIndex;
-          const isCurrent = index === currentStepIndex;
-          const isFuture = index > currentStepIndex;
+          const isPast = index < adjustedCurrentIndex;
+          const isCurrent = index === adjustedCurrentIndex;
+          const isFuture = index > adjustedCurrentIndex;
 
           let stateClasses = '';
           if (isPast) {
