@@ -181,11 +181,35 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   // CRITICAL: Include BOTH gameId and sessionGameId as dependencies
   // - gameId is used to fetch game_players
   // - sessionGameId is used for RIVIERES-specific state (river_session_state, etc.)
+  // PERMANENT FIX: Use multiple fetch attempts with delays to handle race conditions
+  // when bots are added just before component mount
   useEffect(() => {
     console.log('[MJRivieresDashboard] Effect triggered - gameId:', gameId, 'sessionGameId:', sessionGameId);
+    
+    // Initial fetch
     fetchData();
+    
+    // PERMANENT FIX: Schedule a second fetch after a short delay
+    // This handles the race condition where bots are inserted 
+    // just before/during component mount but before realtime is subscribed
+    const retryTimer = setTimeout(() => {
+      console.log('[MJRivieresDashboard] Retry fetch for late-arriving data');
+      fetchData();
+    }, 1000);
+    
+    // Optional: Third fetch after 3 seconds for extra safety
+    const safetyTimer = setTimeout(() => {
+      console.log('[MJRivieresDashboard] Safety fetch for any missed data');
+      fetchData();
+    }, 3000);
+    
     const channel = setupRealtime();
-    return () => { supabase.removeChannel(channel); };
+    
+    return () => { 
+      clearTimeout(retryTimer);
+      clearTimeout(safetyTimer);
+      supabase.removeChannel(channel); 
+    };
   }, [gameId, sessionGameId]);
 
   // Refetch decisions when manche/niveau changes
