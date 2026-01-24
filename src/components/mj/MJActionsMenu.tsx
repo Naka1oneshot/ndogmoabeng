@@ -107,7 +107,7 @@ export function MJActionsMenu({
       toast.success('✅ Positions finales publiées !');
       await new Promise(r => setTimeout(r, 500));
 
-      // Step 3: Resolve combat
+      // Step 3: Resolve combat - CHECK FOR GAME END HERE
       toast.info('⚔️ Résolution des combats...');
       const { data: combatData, error: combatError } = await supabase.functions.invoke('resolve-combat', {
         body: { gameId },
@@ -116,9 +116,16 @@ export function MJActionsMenu({
         throw new Error(combatData?.error || 'Erreur lors de la résolution du combat');
       }
       toast.success('✅ Combat résolu !');
+      
+      // Check if combat resolution ended the game (all monsters dead)
+      if (combatData.gameEnded) {
+        toast.success('🏆 Partie terminée ! Tous les monstres sont vaincus.');
+        onGameUpdate();
+        return;
+      }
       await new Promise(r => setTimeout(r, 500));
 
-      // Step 4: Generate shop (if not already generated)
+      // Step 4: Generate shop (only if game not ended)
       toast.info('🛒 Génération du shop...');
       await supabase.functions.invoke('generate-shop', {
         body: { gameId },
