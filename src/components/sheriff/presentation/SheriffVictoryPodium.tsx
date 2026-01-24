@@ -79,6 +79,83 @@ function TeamNameWithTooltip({ name, className }: { name: string; className?: st
   );
 }
 
+// Stats Panel Component
+function StatsPanel({ 
+  topGainers, 
+  topLosers, 
+  showStats,
+  className = ""
+}: { 
+  topGainers: { player: Player; totalDelta: number }[];
+  topLosers: { player: Player; totalDelta: number }[];
+  showStats: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`space-y-4 transition-all duration-1000 ${showStats ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'} ${className}`}>
+      {/* Top Gainers */}
+      <div className="bg-[#2A2215] border border-green-500/30 rounded-xl p-4">
+        <h3 className="text-green-400 font-bold text-lg mb-3 flex items-center gap-2">
+          <TrendingUp className="h-5 w-5" />
+          Plus Gros Gains
+        </h3>
+        {topGainers.length > 0 ? (
+          <div className="space-y-2">
+            {topGainers.map((stat, idx) => (
+              <div key={stat.player.id} className="flex items-center justify-between p-2 rounded-lg bg-green-500/10">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400 font-bold w-5">{idx + 1}.</span>
+                  {stat.player.avatar_url ? (
+                    <img src={stat.player.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover border border-green-500/30" />
+                  ) : (
+                    <div className="h-7 w-7 rounded-full bg-green-500/20 flex items-center justify-center text-xs font-bold text-green-400">
+                      {stat.player.player_number}
+                    </div>
+                  )}
+                  <span className="text-white text-sm truncate max-w-[100px]">{stat.player.display_name}</span>
+                </div>
+                <span className="text-green-400 font-bold">+{stat.totalDelta}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[#9CA3AF] text-sm">Aucun gain enregistré</p>
+        )}
+      </div>
+      
+      {/* Top Losers */}
+      <div className="bg-[#2A2215] border border-red-500/30 rounded-xl p-4">
+        <h3 className="text-red-400 font-bold text-lg mb-3 flex items-center gap-2">
+          <TrendingDown className="h-5 w-5" />
+          Plus Grosses Pertes
+        </h3>
+        {topLosers.length > 0 ? (
+          <div className="space-y-2">
+            {topLosers.map((stat, idx) => (
+              <div key={stat.player.id} className="flex items-center justify-between p-2 rounded-lg bg-red-500/10">
+                <div className="flex items-center gap-2">
+                  <span className="text-red-400 font-bold w-5">{idx + 1}.</span>
+                  {stat.player.avatar_url ? (
+                    <img src={stat.player.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover border border-red-500/30" />
+                  ) : (
+                    <div className="h-7 w-7 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-bold text-red-400">
+                      {stat.player.player_number}
+                    </div>
+                  )}
+                  <span className="text-white text-sm truncate max-w-[100px]">{stat.player.display_name}</span>
+                </div>
+                <span className="text-red-400 font-bold">{stat.totalDelta}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[#9CA3AF] text-sm">Aucune perte enregistrée</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function SheriffVictoryPodium({
   players,
   teamRanking,
@@ -90,7 +167,7 @@ export function SheriffVictoryPodium({
   const [showRanking, setShowRanking] = useState(false);
   const [showStats, setShowStats] = useState(false);
   
-  // Calculate player stats from choices and duels
+  // Calculate player stats from choices and duels (PVic deltas)
   const playerStats = players.map(player => {
     const pNum = player.player_number;
     if (pNum === null) return { player, totalDelta: 0 };
@@ -164,7 +241,6 @@ export function SheriffVictoryPodium({
   }, []);
   
   useEffect(() => {
-    // Animate podium entry
     setTimeout(() => setShowPodium(true), 500);
     setTimeout(() => {
       setShowRanking(true);
@@ -174,7 +250,6 @@ export function SheriffVictoryPodium({
   }, [fireConfetti]);
   
   const top3 = teamRanking.slice(0, 3);
-  const rest = teamRanking.slice(3);
   
   const getMedalIcon = (position: number) => {
     switch (position) {
@@ -220,15 +295,17 @@ export function SheriffVictoryPodium({
         </div>
       </div>
       
-      <div className="p-4 max-w-6xl mx-auto">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Main content (left) */}
-          <div className="flex-1">
-            {/* Confetti / Celebration Header */}
-            <div className="text-center mb-8">
-              <div className="text-5xl mb-4">🎉🏆🎉</div>
-              <h2 className="text-3xl font-bold text-[#D4AF37]">Félicitations aux Vainqueurs!</h2>
-            </div>
+      {/* Desktop Stats - Fixed on right edge */}
+      <div className="hidden lg:block fixed right-4 top-24 w-72 z-30">
+        <StatsPanel topGainers={topGainers} topLosers={topLosers} showStats={showStats} />
+      </div>
+      
+      <div className="p-4 lg:pr-80 max-w-5xl mx-auto">
+        {/* Confetti / Celebration Header */}
+        <div className="text-center mb-8">
+          <div className="text-5xl mb-4">🎉🏆🎉</div>
+          <h2 className="text-3xl font-bold text-[#D4AF37]">Félicitations aux Vainqueurs!</h2>
+        </div>
         
         {/* Podium */}
         <div className={`flex items-end justify-center gap-4 mb-12 transition-all duration-1000 ${showPodium ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
@@ -349,69 +426,10 @@ export function SheriffVictoryPodium({
             ))}
           </div>
         </div>
-          </div>
-          {/* Stats Panel (right) */}
-          <div className={`lg:w-80 space-y-4 transition-all duration-1000 ${showStats ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
-            {/* Top Gainers */}
-            <div className="bg-[#2A2215] border border-green-500/30 rounded-xl p-4">
-              <h3 className="text-green-400 font-bold text-lg mb-3 flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Plus Gros Gains
-              </h3>
-              {topGainers.length > 0 ? (
-                <div className="space-y-2">
-                  {topGainers.map((stat, idx) => (
-                    <div key={stat.player.id} className="flex items-center justify-between p-2 rounded-lg bg-green-500/10">
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-400 font-bold w-5">{idx + 1}.</span>
-                        {stat.player.avatar_url ? (
-                          <img src={stat.player.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover border border-green-500/30" />
-                        ) : (
-                          <div className="h-7 w-7 rounded-full bg-green-500/20 flex items-center justify-center text-xs font-bold text-green-400">
-                            {stat.player.player_number}
-                          </div>
-                        )}
-                        <span className="text-white text-sm truncate max-w-[120px]">{stat.player.display_name}</span>
-                      </div>
-                      <span className="text-green-400 font-bold">+{stat.totalDelta}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[#9CA3AF] text-sm">Aucun gain enregistré</p>
-              )}
-            </div>
-            
-            {/* Top Losers */}
-            <div className="bg-[#2A2215] border border-red-500/30 rounded-xl p-4">
-              <h3 className="text-red-400 font-bold text-lg mb-3 flex items-center gap-2">
-                <TrendingDown className="h-5 w-5" />
-                Plus Grosses Pertes
-              </h3>
-              {topLosers.length > 0 ? (
-                <div className="space-y-2">
-                  {topLosers.map((stat, idx) => (
-                    <div key={stat.player.id} className="flex items-center justify-between p-2 rounded-lg bg-red-500/10">
-                      <div className="flex items-center gap-2">
-                        <span className="text-red-400 font-bold w-5">{idx + 1}.</span>
-                        {stat.player.avatar_url ? (
-                          <img src={stat.player.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover border border-red-500/30" />
-                        ) : (
-                          <div className="h-7 w-7 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-bold text-red-400">
-                            {stat.player.player_number}
-                          </div>
-                        )}
-                        <span className="text-white text-sm truncate max-w-[120px]">{stat.player.display_name}</span>
-                      </div>
-                      <span className="text-red-400 font-bold">{stat.totalDelta}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[#9CA3AF] text-sm">Aucune perte enregistrée</p>
-              )}
-            </div>
-          </div>
+        
+        {/* Mobile Stats - shown below ranking */}
+        <div className="lg:hidden mt-6">
+          <StatsPanel topGainers={topGainers} topLosers={topLosers} showStats={showStats} />
         </div>
       </div>
     </div>
