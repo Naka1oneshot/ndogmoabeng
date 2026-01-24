@@ -21,7 +21,9 @@ import { fr } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 import { SheriffBotConfigPanel, SheriffBotConfig } from './SheriffBotConfigPanel';
+import { SheriffBotHistoryPanel } from './SheriffBotHistoryPanel';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { History } from 'lucide-react';
 
 interface Game {
   id: string;
@@ -1061,8 +1063,31 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                 <CollapsibleContent className="mt-4">
                   <SheriffBotConfigPanel
                     sessionGameId={game.current_session_game_id}
+                    gameId={game.id}
                     currentConfig={roundState?.bot_config}
+                    currentPhase={roundState?.phase}
                     onConfigUpdate={fetchData}
+                  />
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          )}
+
+          {/* Bot History Panel */}
+          {botPlayers.length > 0 && game.current_session_game_id && (
+            <Collapsible>
+              <div className={`${theme.card} p-4`}>
+                <CollapsibleTrigger className="w-full flex items-center justify-between text-left">
+                  <h3 className="text-sm font-medium text-[#D4AF37] flex items-center gap-2">
+                    <History className="h-4 w-4" />
+                    Historique des Bots
+                  </h3>
+                  <Badge variant="outline" className="text-xs">Voir les logs</Badge>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-4">
+                  <SheriffBotHistoryPanel
+                    gameId={game.id}
+                    sessionGameId={game.current_session_game_id}
                   />
                 </CollapsibleContent>
               </div>
