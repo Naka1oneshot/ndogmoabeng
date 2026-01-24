@@ -199,6 +199,7 @@ export default function WatchGame() {
     const presentationGame = {
       id: gameInfo.game_id,
       name: gameInfo.name,
+      status: gameInfo.status || 'RUNNING',
       manche_active: gameInfo.manche_active || 1,
       phase: gameInfo.phase || 'PHASE1_MISES',
       phase_locked: false,

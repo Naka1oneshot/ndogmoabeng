@@ -23,6 +23,7 @@ import emptySlotRip from '@/assets/monsters/empty-slot-rip.png';
 interface Game {
   id: string;
   name: string;
+  status: string;
   manche_active: number;
   phase: string;
   phase_locked: boolean;
@@ -245,10 +246,10 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const fetchData = useCallback(async () => {
     console.log('[Presentation] Fetching data for game', game.id, 'manche', game.manche_active, 'phase', game.phase);
     
-    // First, fetch latest game state to ensure we have current phase/manche
+    // First, fetch latest game state to ensure we have current phase/manche/status
     const { data: latestGame } = await supabase
       .from('games')
-      .select('id, name, manche_active, phase, phase_locked, current_session_game_id')
+      .select('id, name, status, manche_active, phase, phase_locked, current_session_game_id')
       .eq('id', game.id)
       .single();
     
@@ -564,8 +565,9 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   // Check if game is ended - ONLY when phase is explicitly FINISHED/ENDED
   // Explicitly exclude shop phases to prevent false positives when battlefield is empty
   const gamePhase = game.phase;
+  const gameStatus = game.status;
   const isShopPhase = gamePhase === 'PHASE3_SHOP' || gamePhase === 'SHOP';
-  const isGameEnded = !isShopPhase && (gamePhase === 'FINISHED' || gamePhase === 'ENDED');
+  const isGameEnded = gameStatus === 'ENDED' || gameStatus === 'FINISHED' || gamePhase === 'FINISHED';
   
   // Build team/player rankings for victory screen with detailed stats
   // Score formula: recompenses + (jetons / 3)
