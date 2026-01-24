@@ -85,6 +85,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
     playerNames: string[]; 
     totalScore: number;
     playerIds: string[];
+    hasCurrentGameScore: boolean; // Track if score includes in-progress game estimates
   }[]>([]);
   const [showAllScores, setShowAllScores] = useState(false);
   
@@ -198,6 +199,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           playerNames: string[]; 
           totalScore: number;
           playerIds: string[];
+          hasCurrentGameScore: boolean; // Track if score includes in-progress game estimates
         }>();
         
         // Helper function to calculate current game score based on game type
@@ -249,7 +251,9 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           
           // Create team key (sorted player ids to ensure uniqueness)
           const teamKey = playerIds.sort().join('-');
-          teamScores.set(teamKey, { playerNames, totalScore, playerIds });
+          // Mark as having current game score if any player has non-zero current score
+          const hasCurrentGameScore = currentGameScore > 0 || (player.mate_num && playerMap.has(player.mate_num) && calculateCurrentGameScore(playerMap.get(player.mate_num)!) > 0);
+          teamScores.set(teamKey, { playerNames, totalScore, playerIds, hasCurrentGameScore: hasCurrentGameScore || false });
         }
         
         // Convert to array and sort by score
@@ -258,7 +262,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             teamKey,
             playerNames: data.playerNames,
             totalScore: data.totalScore,
-            playerIds: data.playerIds
+            playerIds: data.playerIds,
+            hasCurrentGameScore: data.hasCurrentGameScore
           }))
           .sort((a, b) => b.totalScore - a.totalScore);
         
@@ -761,13 +766,20 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
                           : team.playerNames[0]}
                       </span>
                     </div>
-                    <span className={`font-bold text-base ${
-                      index === 0 ? 'text-yellow-400' : 
-                      index === 1 ? 'text-slate-300' : 
-                      index === 2 ? 'text-amber-500' : 'text-primary'
-                    }`}>
-                      {team.totalScore} pts
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`font-bold text-base ${
+                        index === 0 ? 'text-yellow-400' : 
+                        index === 1 ? 'text-slate-300' : 
+                        index === 2 ? 'text-amber-500' : 'text-primary'
+                      }`}>
+                        {team.totalScore} pts
+                      </span>
+                      {team.hasCurrentGameScore && game.status !== 'ENDED' && (
+                        <span className="text-xs text-muted-foreground/70 flex items-center gap-0.5" title="Score incluant une estimation du jeu en cours">
+                          🔄 estimé
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
