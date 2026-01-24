@@ -1406,6 +1406,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                     <div className="flex items-center gap-3">
                       <span className="text-[#D4AF37] font-bold">#{stats.player_num}</span>
                       <span className="text-[#E8E8E8]">{player?.display_name}</span>
+                      <span className="text-[#9CA3AF] text-sm">({player?.jetons ?? 0}💎)</span>
                     </div>
                     <div className="flex items-center gap-4">
                       {decision ? (
