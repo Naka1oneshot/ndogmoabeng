@@ -215,13 +215,39 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch state
-      const { data: stateData } = await supabase
+      // CRITICAL: Fetch players FIRST - this is needed for both LOBBY and IN_GAME
+      // Use a separate try-catch to ensure players are always fetched even if other queries fail
+      try {
+        const { data: playersData, error: playersError } = await supabase
+          .from('game_players')
+          .select('id, display_name, player_number, clan, jetons, is_host, player_token, user_id')
+          .eq('game_id', gameId)
+          .eq('status', 'ACTIVE')
+          .order('player_number');
+
+        if (playersError) {
+          console.error('[MJRivieresDashboard] Error fetching players:', playersError);
+        }
+        
+        if (playersData) {
+          const activePlayers = playersData.filter(p => !p.is_host && p.player_number !== null);
+          console.log('[MJRivieresDashboard] Fetched players:', activePlayers.length);
+          setPlayers(activePlayers);
+        }
+      } catch (playerError) {
+        console.error('[MJRivieresDashboard] Critical error fetching players:', playerError);
+      }
+
+      // Fetch state - use maybeSingle() to avoid error when no state exists (LOBBY mode)
+      const { data: stateData, error: stateError } = await supabase
         .from('river_session_state')
         .select('*')
         .eq('session_game_id', sessionGameId)
-        .single();
+        .maybeSingle();
 
+      if (stateError) {
+        console.log('[MJRivieresDashboard] No river_session_state yet (expected in LOBBY)');
+      }
       if (stateData) setState(stateData);
 
       // Fetch player stats
@@ -232,23 +258,6 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         .order('player_num');
 
       if (statsData) setPlayerStats(statsData);
-
-      // Fetch players (excluding host)
-      const { data: playersData, error: playersError } = await supabase
-        .from('game_players')
-        .select('id, display_name, player_number, clan, jetons, is_host, player_token, user_id')
-        .eq('game_id', gameId)
-        .eq('status', 'ACTIVE')
-        .order('player_number');
-
-      if (playersError) {
-        console.error('[MJRivieresDashboard] Error fetching players:', playersError);
-      }
-      
-      if (playersData) {
-        const activePlayers = playersData.filter(p => !p.is_host && p.player_number !== null);
-        setPlayers(activePlayers);
-      }
 
       // Fetch current level decisions
       if (stateData) {
