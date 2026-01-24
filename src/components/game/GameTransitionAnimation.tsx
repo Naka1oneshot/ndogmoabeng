@@ -1,15 +1,21 @@
-import { ArrowRight, Ship, Trees, Syringe, Sparkles, Trophy } from 'lucide-react';
+import { ArrowRight, Ship, Trees, Syringe, Sparkles, Trophy, Shield } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 interface GameTransitionAnimationProps {
-  fromGameType: 'FORET' | 'RIVIERES' | 'INFECTION';
-  toGameType: 'FORET' | 'RIVIERES' | 'INFECTION';
+  fromGameType: string | null;
+  toGameType: string | null;
   stepIndex: number; // 1-based index of the next game
   totalSteps: number;
   onComplete?: () => void;
 }
 
-const GAME_INFO = {
+const GAME_INFO: Record<string, {
+  name: string;
+  icon: typeof Trees;
+  color: string;
+  bgColor: string;
+  accentBg: string;
+}> = {
   FORET: {
     name: 'La Forêt',
     icon: Trees,
@@ -31,6 +37,21 @@ const GAME_INFO = {
     bgColor: 'bg-[#0B0E14]',
     accentBg: 'bg-[#1A2235]',
   },
+  SHERIFF: {
+    name: 'Le Shérif',
+    icon: Shield,
+    color: 'text-[#F59E0B]',
+    bgColor: 'bg-[#1C1917]',
+    accentBg: 'bg-[#422006]',
+  },
+};
+
+const DEFAULT_GAME_INFO = {
+  name: 'Jeu',
+  icon: Sparkles,
+  color: 'text-primary',
+  bgColor: 'bg-background',
+  accentBg: 'bg-secondary',
 };
 
 export function GameTransitionAnimation({
@@ -43,8 +64,9 @@ export function GameTransitionAnimation({
   const [phase, setPhase] = useState<'exit' | 'transition' | 'enter'>('exit');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const fromInfo = GAME_INFO[fromGameType];
-  const toInfo = GAME_INFO[toGameType];
+  // Use fallback if game type is not found
+  const fromInfo = (fromGameType && GAME_INFO[fromGameType]) || DEFAULT_GAME_INFO;
+  const toInfo = (toGameType && GAME_INFO[toGameType]) || DEFAULT_GAME_INFO;
   const FromIcon = fromInfo.icon;
   const ToIcon = toInfo.icon;
 
