@@ -424,35 +424,37 @@ export function JoinGameModal({ open, onOpenChange }: JoinGameModalProps) {
               )}
 
               {publicGames.length > 0 && (
-                <div className="space-y-2">
-                  {publicGames.map((game) => (
-                    <button
-                      key={game.id}
-                      onClick={() => handleJoinPublicGame(game.join_code)}
-                      className="w-full p-3 rounded-lg bg-muted/50 hover:bg-primary/20 border border-border hover:border-primary/50 transition-colors text-left group"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate group-hover:text-primary transition-colors">
-                            {game.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {game.game_type_name || 'Mode unique'}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 ml-3">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Users className="h-3 w-3" />
-                            <span>{game.player_count}</span>
+                <ScrollArea className="max-h-[200px]">
+                  <div className="space-y-2 pr-2">
+                    {publicGames.map((game) => (
+                      <button
+                        key={game.id}
+                        onClick={() => handleJoinPublicGame(game.join_code)}
+                        className="w-full p-3 rounded-lg bg-muted/50 hover:bg-primary/20 border border-border hover:border-primary/50 transition-colors text-left group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate group-hover:text-primary transition-colors">
+                              {game.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {game.game_type_name || 'Mode unique'}
+                            </p>
                           </div>
-                          <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">
-                            {game.join_code}
-                          </span>
+                          <div className="flex items-center gap-3 ml-3">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Users className="h-3 w-3" />
+                              <span>{game.player_count}</span>
+                            </div>
+                            <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">
+                              {game.join_code}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
               )}
             </div>
           </div>
