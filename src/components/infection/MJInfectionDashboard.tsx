@@ -26,6 +26,7 @@ import { PlayerRowCompact } from '@/components/mj/PlayerRowCompact';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 
 interface Game {
   id: string;
@@ -37,6 +38,9 @@ interface Game {
   starting_tokens: number;
   current_session_game_id: string | null;
   selected_game_type_code: string | null;
+  mode?: string;
+  adventure_id?: string | null;
+  current_step_index?: number;
 }
 
 interface Player {
@@ -498,8 +502,8 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   if (game.status === 'LOBBY') {
     return (
       <div className={theme.container}>
-      <div className={`${theme.header} p-3 sm:p-4`}>
-          <div className="flex items-center justify-between gap-2">
+      <div className={theme.header}>
+          <div className="flex items-center justify-between gap-2 p-3 sm:p-4">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
                 <ArrowLeft className="h-5 w-5" />
@@ -514,6 +518,21 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
               <span className="hidden sm:inline">INFECTION</span>
             </Badge>
           </div>
+          
+          {/* Adventure Progress */}
+          {game.mode === 'ADVENTURE' && (
+            <div className="px-4 pb-3 border-t border-[#2D3748]/50">
+              <div className="pt-3">
+                <AdventureProgressDisplay
+                  mode={game.mode}
+                  currentStepIndex={game.current_step_index}
+                  currentGameTypeCode={game.selected_game_type_code}
+                  adventureId={game.adventure_id}
+                  showTitle={true}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-4 space-y-6">

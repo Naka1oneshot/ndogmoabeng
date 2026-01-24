@@ -39,6 +39,7 @@ import {
   getDifficultyLabel,
 } from '@/lib/rivieresDangerCalculator';
 import { LandscapeModePrompt } from '@/components/mj/LandscapeModePrompt';
+import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 
 interface RiverSessionState {
   id: string;
@@ -100,6 +101,8 @@ interface MJRivieresDashboardProps {
   isAdventure?: boolean;
   onNextGame?: () => void;
   gameStatus?: string;
+  adventureId?: string | null;
+  currentStepIndex?: number;
 }
 
 export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false, onNextGame, gameStatus = 'IN_GAME' }: MJRivieresDashboardProps) {

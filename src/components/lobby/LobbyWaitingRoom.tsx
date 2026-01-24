@@ -7,11 +7,21 @@ import LobbyPlayerList from './LobbyPlayerList';
 import LobbyChat from './LobbyChat';
 import { InviteFriendsModal } from '@/components/game/InviteFriendsModal';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 
 interface LobbyWaitingRoomProps {
   gameId: string;
   playerNum: number;
   playerName: string;
+}
+
+interface GameInfo {
+  name: string;
+  join_code: string;
+  mode?: string;
+  adventure_id?: string | null;
+  current_step_index?: number;
+  selected_game_type_code?: string | null;
 }
 
 const LobbyWaitingRoom: React.FC<LobbyWaitingRoomProps> = ({
@@ -22,13 +32,13 @@ const LobbyWaitingRoom: React.FC<LobbyWaitingRoomProps> = ({
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<string>('players');
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
-  const [gameInfo, setGameInfo] = useState<{ name: string; join_code: string } | null>(null);
+  const [gameInfo, setGameInfo] = useState<GameInfo | null>(null);
 
   useEffect(() => {
     const fetchGameInfo = async () => {
       const { data } = await supabase
         .from('games')
-        .select('name, join_code')
+        .select('name, join_code, mode, adventure_id, current_step_index, selected_game_type_code')
         .eq('id', gameId)
         .single();
       if (data) {
@@ -42,6 +52,19 @@ const LobbyWaitingRoom: React.FC<LobbyWaitingRoomProps> = ({
   if (isMobile) {
     return (
       <>
+        {/* Adventure Progress for mobile */}
+        {gameInfo?.mode === 'ADVENTURE' && (
+          <div className="card-gradient rounded-lg border border-primary/30 p-3 mb-4">
+            <AdventureProgressDisplay
+              mode={gameInfo.mode}
+              currentStepIndex={gameInfo.current_step_index}
+              currentGameTypeCode={gameInfo.selected_game_type_code}
+              adventureId={gameInfo.adventure_id}
+              showTitle={true}
+            />
+          </div>
+        )}
+        
         <div className="card-gradient rounded-lg border border-border overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="flex items-center justify-between border-b border-border bg-card/50 px-2">
@@ -96,6 +119,19 @@ const LobbyWaitingRoom: React.FC<LobbyWaitingRoomProps> = ({
   // Desktop: Side by side layout with aligned input
   return (
     <>
+      {/* Adventure Progress for desktop */}
+      {gameInfo?.mode === 'ADVENTURE' && (
+        <div className="card-gradient rounded-lg border border-primary/30 p-4 mb-4">
+          <AdventureProgressDisplay
+            mode={gameInfo.mode}
+            currentStepIndex={gameInfo.current_step_index}
+            currentGameTypeCode={gameInfo.selected_game_type_code}
+            adventureId={gameInfo.adventure_id}
+            showTitle={true}
+          />
+        </div>
+      )}
+      
       <div className="grid md:grid-cols-2 gap-4">
         {/* Player list */}
         <div className="card-gradient rounded-lg border border-border p-4 flex flex-col">

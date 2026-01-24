@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
+import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { GameStartAnimation } from '@/components/game/GameStartAnimation';
 import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
@@ -521,15 +522,21 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         joinCode={game.join_code}
       />
 
+      {/* Adventure Progress Display */}
+      {isAdventure && (
+        <div className="card-gradient rounded-lg border border-primary/30 p-4">
+          <AdventureProgressDisplay
+            mode={game.mode}
+            currentStepIndex={game.current_step_index}
+            currentGameTypeCode={game.selected_game_type_code}
+            adventureId={game.adventure_id}
+            showTitle={true}
+          />
+        </div>
+      )}
+
       {/* Game info bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 md:gap-3 text-sm">
-        {isAdventure && (
-          <div className="p-2 md:p-3 bg-primary/20 rounded-lg text-center border border-primary/30">
-            <div className="text-muted-foreground text-xs">Étape</div>
-            <div className="font-bold text-base md:text-lg">{game.current_step_index}</div>
-            <div className="text-xs text-muted-foreground hidden sm:block">{game.selected_game_type_code}</div>
-          </div>
-        )}
         <div className="p-2 md:p-3 bg-secondary/50 rounded-lg text-center">
           <div className="text-muted-foreground text-xs">Manche</div>
           <div className="font-bold text-base md:text-lg">{game.manche_active}</div>
@@ -591,6 +598,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           isAdventure={!!isAdventure}
           onNextGame={isAdventure ? handleNextSessionGame : undefined}
           gameStatus={game.status}
+          adventureId={game.adventure_id}
+          currentStepIndex={game.current_step_index}
         />
       )}
 

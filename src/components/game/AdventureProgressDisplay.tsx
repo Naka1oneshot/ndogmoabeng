@@ -1,18 +1,23 @@
 import { Badge } from '@/components/ui/badge';
-import { Swords, Droplets, Bug, ChevronRight } from 'lucide-react';
+import { Swords, Droplets, Bug, ChevronRight, Shield, Map } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AdventureProgressDisplayProps {
   mode: string;
   currentStepIndex?: number;
   currentGameTypeCode?: string | null;
   adventureSteps?: { game_type_code: string; step_index: number }[];
+  adventureId?: string | null;
   compact?: boolean;
+  showTitle?: boolean;
 }
 
 const GAME_INFO: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   RIVIERES: { label: 'Rivières', icon: Droplets, color: 'text-blue-400' },
   FORET: { label: 'Forêt', icon: Swords, color: 'text-emerald-400' },
   INFECTION: { label: 'Infection', icon: Bug, color: 'text-red-400' },
+  SHERIFF: { label: 'Shérif', icon: Shield, color: 'text-amber-400' },
 };
 
 // Default trilogy order
@@ -22,13 +27,49 @@ export function AdventureProgressDisplay({
   mode,
   currentStepIndex = 0,
   currentGameTypeCode,
-  adventureSteps,
+  adventureSteps: providedSteps,
+  adventureId,
   compact = false,
+  showTitle = false,
 }: AdventureProgressDisplayProps) {
   const isAdventure = mode === 'ADVENTURE';
+  const [fetchedSteps, setFetchedSteps] = useState<{ game_type_code: string; step_index: number }[]>([]);
+  const [adventureName, setAdventureName] = useState<string | null>(null);
+
+  // Fetch adventure steps if not provided and adventureId is available
+  useEffect(() => {
+    if (isAdventure && adventureId && !providedSteps) {
+      const fetchSteps = async () => {
+        const { data: stepsData } = await supabase
+          .from('adventure_steps')
+          .select('game_type_code, step_index')
+          .eq('adventure_id', adventureId)
+          .order('step_index');
+        
+        if (stepsData) {
+          setFetchedSteps(stepsData);
+        }
+
+        // Also fetch adventure name if showTitle is true
+        if (showTitle) {
+          const { data: adventureData } = await supabase
+            .from('adventures')
+            .select('name')
+            .eq('id', adventureId)
+            .single();
+          
+          if (adventureData) {
+            setAdventureName(adventureData.name);
+          }
+        }
+      };
+      fetchSteps();
+    }
+  }, [adventureId, isAdventure, providedSteps, showTitle]);
 
   // Determine the games order
-  const gamesOrder = adventureSteps
+  const adventureSteps = providedSteps || fetchedSteps;
+  const gamesOrder = adventureSteps.length > 0
     ? adventureSteps.sort((a, b) => a.step_index - b.step_index).map((s) => s.game_type_code)
     : DEFAULT_ADVENTURE_ORDER;
 
@@ -56,9 +97,18 @@ export function AdventureProgressDisplay({
   // Adventure mode - show progression
   return (
     <div className="flex flex-col gap-1">
-      <Badge variant="default" className="w-fit bg-primary/80">
-        Aventure
-      </Badge>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Badge variant="default" className="bg-primary/80 flex items-center gap-1">
+          <Map className="w-3 h-3" />
+          Aventure
+        </Badge>
+        {showTitle && adventureName && (
+          <span className="text-sm font-medium text-foreground/80">{adventureName}</span>
+        )}
+        <span className="text-xs text-muted-foreground">
+          ({currentStepIndex + 1}/{gamesOrder.length} jeux)
+        </span>
+      </div>
       <div className="flex items-center gap-1 flex-wrap">
         {gamesOrder.map((gameCode, index) => {
           const gameInfo = GAME_INFO[gameCode] || { label: gameCode, icon: Swords, color: 'text-muted-foreground' };
