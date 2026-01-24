@@ -272,24 +272,40 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const playersWithChoices = choices.filter(c => c.visa_choice !== null);
   const playersWithoutChoices = activePlayers.filter(p => !choices.find(c => c.player_number === p.player_number && c.visa_choice !== null));
   
-  // Team ranking (grouped by mate_num - teammates share the same mate_num)
+  // Team ranking (grouped by mate pairs - player_number <-> mate_num are cross-referenced)
   const teamRanking = (() => {
     const teams: Record<string, { name: string; totalPvic: number; players: Player[] }> = {};
+    const processed = new Set<number>();
     
     activePlayers.forEach(p => {
-      // Use mate_num to group teammates (like in Rivières)
-      const teamKey = p.mate_num !== null ? `team-${p.mate_num}` : `solo-${p.player_number}`;
-      if (!teams[teamKey]) {
-        teams[teamKey] = { name: '', totalPvic: 0, players: [] };
+      const pNum = p.player_number;
+      if (pNum === null || processed.has(pNum)) return;
+      
+      // Find the teammate (the player whose player_number equals this player's mate_num)
+      const teammate = activePlayers.find(t => t.player_number === p.mate_num);
+      
+      if (teammate && teammate.player_number !== null) {
+        // It's a pair
+        const teamKey = `team-${Math.min(pNum, teammate.player_number)}-${Math.max(pNum, teammate.player_number)}`;
+        const sortedPair = [p, teammate].sort((a, b) => (a.player_number || 0) - (b.player_number || 0));
+        
+        teams[teamKey] = {
+          name: sortedPair.map(pl => pl.display_name).join(' & '),
+          totalPvic: (p.pvic || 0) + (teammate.pvic || 0),
+          players: sortedPair,
+        };
+        
+        processed.add(pNum);
+        processed.add(teammate.player_number);
+      } else {
+        // Solo player (no mate found)
+        teams[`solo-${pNum}`] = {
+          name: p.display_name,
+          totalPvic: p.pvic || 0,
+          players: [p],
+        };
+        processed.add(pNum);
       }
-      teams[teamKey].totalPvic += p.pvic || 0;
-      teams[teamKey].players.push(p);
-    });
-    
-    // Build team names by combining player pseudos (like in Rivières)
-    Object.values(teams).forEach(team => {
-      team.players.sort((a, b) => (a.player_number || 0) - (b.player_number || 0));
-      team.name = team.players.map(p => p.display_name).join(' & ');
     });
     
     return Object.values(teams).sort((a, b) => b.totalPvic - a.totalPvic);
@@ -580,7 +596,7 @@ function ChoicesPhaseDisplay({
             Classement Équipes
           </h4>
           <div className="space-y-2">
-            {teamRanking.slice(0, 10).map((team, idx) => (
+            {teamRanking.map((team, idx) => (
               <div key={team.name} className="flex items-center justify-between p-2 rounded bg-[#1A1510]">
                 <div className="flex items-center gap-2">
                   <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-amber-600' : 'text-[#9CA3AF]'}`}>
