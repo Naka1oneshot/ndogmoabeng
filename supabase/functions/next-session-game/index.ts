@@ -245,13 +245,13 @@ serve(async (req) => {
 
     // NEW TOKEN POLICY based on game types:
     // - RIVIERES: players start with 100 tokens
-    // - FORET: players start with 100 tokens
+    // - FORET: players start with 50 tokens
     // - SHERIFF: players start with 0 tokens
     // - INFECTION: players inherit tokens from previous game (SHERIFF)
     
     const GAME_TYPE_TOKENS: Record<string, number | "INHERIT"> = {
       "RIVIERES": 100,
-      "FORET": 100,
+      "FORET": 50,
       "SHERIFF": 0,
       "INFECTION": "INHERIT",
     };
