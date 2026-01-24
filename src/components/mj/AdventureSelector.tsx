@@ -330,59 +330,93 @@ export function AdventureSelector({
                         toast.error('Cette aventure est réservée aux administrateurs');
                       }
                     }}
-                    className={`p-3 rounded-lg border-2 transition-all ${
-                      !canSelect 
-                        ? 'opacity-60 cursor-not-allowed border-border bg-muted/30'
-                        : selectedAdventureId === adventure.id
-                          ? 'border-primary bg-primary/10 cursor-pointer'
-                          : 'border-border hover:border-primary/50 cursor-pointer'
-                    }`}
+                    className={`relative p-4 rounded-lg border-2 transition-all overflow-hidden ${
+                      isAdminOnly 
+                        ? 'parchment-card'
+                        : !canSelect 
+                          ? 'opacity-60 cursor-not-allowed border-border bg-muted/30'
+                          : selectedAdventureId === adventure.id
+                            ? 'border-primary bg-primary/10 cursor-pointer'
+                            : 'border-border hover:border-primary/50 cursor-pointer'
+                    } ${selectedAdventureId === adventure.id && isAdminOnly ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                    style={isAdminOnly ? {
+                      background: `
+                        linear-gradient(135deg, rgba(245, 235, 220, 0.95) 0%, rgba(235, 220, 195, 0.9) 50%, rgba(225, 205, 175, 0.95) 100%)
+                      `,
+                      borderColor: '#c9a86c',
+                      boxShadow: 'inset 0 0 30px rgba(139, 90, 43, 0.1), 0 2px 8px rgba(139, 90, 43, 0.15)'
+                    } : undefined}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{adventure.name}</span>
-                      {isAdminOnly && (
-                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
-                          <Crown className="h-3 w-3 mr-1" />
-                          Admin
-                        </Badge>
+                    {/* Parchment texture overlay for admin adventures */}
+                    {isAdminOnly && (
+                      <div 
+                        className="absolute inset-0 pointer-events-none opacity-30"
+                        style={{
+                          backgroundImage: `
+                            url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")
+                          `,
+                          mixBlendMode: 'multiply'
+                        }}
+                      />
+                    )}
+                    
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${isAdminOnly ? 'text-amber-900' : ''}`}>
+                          {adventure.name}
+                        </span>
+                        {isAdminOnly && (
+                          <Badge variant="outline" className="bg-amber-700/20 text-amber-800 border-amber-700/40 text-xs">
+                            <Crown className="h-3 w-3 mr-1" />
+                            Admin
+                          </Badge>
+                        )}
+                        {!canSelect && (
+                          <Lock className="h-4 w-4 text-amber-700/60" />
+                        )}
+                        {hasComingSoonGames && (
+                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Incomplet
+                          </Badge>
+                        )}
+                      </div>
+                      {adventure.description && (
+                        <div className={`text-sm mb-2 ${isAdminOnly ? 'text-amber-800/80' : 'text-muted-foreground'}`}>
+                          {adventure.description}
+                        </div>
                       )}
                       {!canSelect && (
-                        <Lock className="h-4 w-4 text-muted-foreground" />
+                        <div className="text-xs text-amber-700 mb-2 font-medium">
+                          🔒 Réservée aux administrateurs
+                        </div>
                       )}
-                      {hasComingSoonGames && (
-                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Incomplet
-                        </Badge>
-                      )}
-                    </div>
-                    {adventure.description && (
-                      <div className="text-sm text-muted-foreground mb-2">{adventure.description}</div>
-                    )}
-                    {!canSelect && (
-                      <div className="text-xs text-amber-600 mb-2">
-                        🔒 Réservée aux administrateurs
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
-                      {adventure.steps.map((step, index) => {
-                        const gameType = gameTypes.find(t => t.code === step.game_type_code);
-                        const isComingSoon = gameType?.status === 'COMING_SOON';
-                        
-                        return (
-                          <span key={step.id} className="flex items-center">
-                            <span className={`px-2 py-0.5 rounded flex items-center gap-1 ${
-                              isComingSoon ? 'bg-amber-500/20 text-amber-600' : 'bg-secondary'
-                            }`}>
-                              {step.game_type_code}
-                              {isComingSoon && <Clock className="h-3 w-3" />}
+                      <div className="flex items-center gap-1 text-xs flex-wrap">
+                        {adventure.steps.map((step, index) => {
+                          const gameType = gameTypes.find(t => t.code === step.game_type_code);
+                          const isComingSoon = gameType?.status === 'COMING_SOON';
+                          
+                          return (
+                            <span key={step.id} className="flex items-center">
+                              <span className={`px-2 py-0.5 rounded flex items-center gap-1 ${
+                                isAdminOnly 
+                                  ? isComingSoon 
+                                    ? 'bg-amber-600/20 text-amber-800 border border-amber-600/30' 
+                                    : 'bg-amber-800/15 text-amber-900 border border-amber-700/30'
+                                  : isComingSoon 
+                                    ? 'bg-amber-500/20 text-amber-600' 
+                                    : 'bg-secondary'
+                              }`}>
+                                {step.game_type_code}
+                                {isComingSoon && <Clock className="h-3 w-3" />}
+                              </span>
+                              {index < adventure.steps.length - 1 && (
+                                <ChevronRight className={`h-3 w-3 mx-1 ${isAdminOnly ? 'text-amber-700' : ''}`} />
+                              )}
                             </span>
-                            {index < adventure.steps.length - 1 && (
-                              <ChevronRight className="h-3 w-3 mx-1" />
-                            )}
-                          </span>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 );
