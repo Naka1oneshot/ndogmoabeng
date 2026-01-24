@@ -79,8 +79,14 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [totalAdventureSteps, setTotalAdventureSteps] = useState(3);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   
-  // Adventure cumulative scores
-  const [adventureScores, setAdventureScores] = useState<{ playerId: string; playerName: string; totalScore: number }[]>([]);
+  // Adventure cumulative scores - grouped by team (mates)
+  const [adventureScores, setAdventureScores] = useState<{ 
+    teamKey: string; 
+    playerNames: string[]; 
+    totalScore: number;
+    playerIds: string[];
+  }[]>([]);
+  const [showAllScores, setShowAllScores] = useState(false);
   
   // Apply game-specific theme
   useGameTheme(game.selected_game_type_code);
@@ -150,7 +156,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
     }
   }, [game.adventure_id, isAdventure]);
 
-  // Fetch adventure cumulative scores
+  // Fetch adventure cumulative scores - grouped by team (mates)
   useEffect(() => {
     if (!isAdventure || !game.adventure_id) return;
     
@@ -161,10 +167,10 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         .select('game_player_id, total_score_value')
         .eq('session_id', game.id);
       
-      // Get current game players with their live scores
+      // Get current game players with their live scores and mate_num
       const { data: players } = await supabase
         .from('game_players')
-        .select('id, display_name, recompenses, pvic')
+        .select('id, display_name, recompenses, pvic, player_number, mate_num')
         .eq('game_id', game.id)
         .eq('status', 'ACTIVE')
         .eq('is_host', false);
@@ -172,17 +178,57 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       if (players) {
         const scoresMap = new Map(scores?.map(s => [s.game_player_id, s.total_score_value]) || []);
         
-        const combinedScores = players.map(p => {
-          const adventureScore = scoresMap.get(p.id) || 0;
-          const currentGameScore = (p.recompenses || 0) + (p.pvic || 0);
-          return {
-            playerId: p.id,
-            playerName: p.display_name,
-            totalScore: adventureScore + currentGameScore
-          };
-        }).sort((a, b) => b.totalScore - a.totalScore);
+        // Build player -> team map and aggregate scores by team
+        const playerMap = new Map(players.map(p => [p.player_number, p]));
+        const teamScores = new Map<string, { 
+          playerNames: string[]; 
+          totalScore: number;
+          playerIds: string[];
+        }>();
         
-        setAdventureScores(combinedScores);
+        // Processed players (to avoid counting twice)
+        const processedPlayers = new Set<number>();
+        
+        for (const player of players) {
+          if (processedPlayers.has(player.player_number!)) continue;
+          
+          const adventureScore = scoresMap.get(player.id) || 0;
+          const currentGameScore = (player.recompenses || 0) + (player.pvic || 0);
+          let totalScore = adventureScore + currentGameScore;
+          const playerNames: string[] = [player.display_name];
+          const playerIds: string[] = [player.id];
+          
+          processedPlayers.add(player.player_number!);
+          
+          // Check if player has a mate
+          if (player.mate_num && playerMap.has(player.mate_num)) {
+            const mate = playerMap.get(player.mate_num)!;
+            if (!processedPlayers.has(mate.player_number!)) {
+              const mateAdventureScore = scoresMap.get(mate.id) || 0;
+              const mateCurrentScore = (mate.recompenses || 0) + (mate.pvic || 0);
+              totalScore += mateAdventureScore + mateCurrentScore;
+              playerNames.push(mate.display_name);
+              playerIds.push(mate.id);
+              processedPlayers.add(mate.player_number!);
+            }
+          }
+          
+          // Create team key (sorted player ids to ensure uniqueness)
+          const teamKey = playerIds.sort().join('-');
+          teamScores.set(teamKey, { playerNames, totalScore, playerIds });
+        }
+        
+        // Convert to array and sort by score
+        const sortedTeams = Array.from(teamScores.entries())
+          .map(([teamKey, data]) => ({
+            teamKey,
+            playerNames: data.playerNames,
+            totalScore: data.totalScore,
+            playerIds: data.playerIds
+          }))
+          .sort((a, b) => b.totalScore - a.totalScore);
+        
+        setAdventureScores(sortedTeams);
       }
     };
     
@@ -594,17 +640,27 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             showTitle={true}
           />
           
-          {/* Cumulative PVic Ranking */}
+          {/* Cumulative PVic Ranking - Team based with podium toggle */}
           {adventureScores.length > 0 && (
             <div className="pt-3 border-t border-border/50">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm font-medium text-muted-foreground">🏆 Classement Points de Victoire</span>
-                <span className="text-xs text-muted-foreground/70">(cumulé sur l'aventure)</span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">🏆 Classement Équipes</span>
+                  <span className="text-xs text-muted-foreground/70">(PVic cumulés)</span>
+                </div>
+                {adventureScores.length > 3 && (
+                  <button
+                    onClick={() => setShowAllScores(!showAllScores)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {showAllScores ? 'Voir moins' : `Voir tout (${adventureScores.length})`}
+                  </button>
+                )}
               </div>
               <div className="grid gap-2">
-                {adventureScores.map((score, index) => (
+                {(showAllScores ? adventureScores : adventureScores.slice(0, 3)).map((team, index) => (
                   <div 
-                    key={score.playerId}
+                    key={team.teamKey}
                     className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${
                       index === 0 
                         ? 'bg-yellow-500/20 border border-yellow-500/30' 
@@ -625,14 +681,18 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
                       </span>
                       <span className={`font-medium ${
                         index < 3 ? 'text-foreground' : 'text-muted-foreground'
-                      }`}>{score.playerName}</span>
+                      }`}>
+                        {team.playerNames.length > 1 
+                          ? team.playerNames.join(' & ')
+                          : team.playerNames[0]}
+                      </span>
                     </div>
                     <span className={`font-bold text-base ${
                       index === 0 ? 'text-yellow-400' : 
                       index === 1 ? 'text-slate-300' : 
                       index === 2 ? 'text-amber-500' : 'text-primary'
                     }`}>
-                      {score.totalScore} pts
+                      {team.totalScore} pts
                     </span>
                   </div>
                 ))}
