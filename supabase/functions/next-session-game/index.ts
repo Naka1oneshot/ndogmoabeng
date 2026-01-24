@@ -102,46 +102,15 @@ serve(async (req) => {
         .eq("status", "ACTIVE")
         .not("player_number", "is", null);
 
+      // NOTE: adventure_scores are saved by each game's resolution function (e.g., rivieres-resolve-level, resolve-combat)
+      // Do NOT save adventure scores here to avoid double-counting!
+      // The individual game resolution already saves to adventure_scores with proper score calculation
+      console.log(`[next-session-game] Skipping adventure_score save - already done by game resolution function`);
+      
+      // Just log current pvic values for debugging
       if (players && players.length > 0) {
-        console.log(`[next-session-game] Saving adventure scores for ${players.length} players`);
-        
         for (const player of players) {
-          // Calculate score: recompenses (kills) + bonus for remaining tokens
-          const score = (player.recompenses || 0) + (player.pvic || 0);
-          
-          // Check if adventure_score already exists for this player
-          const { data: existingScore } = await supabase
-            .from("adventure_scores")
-            .select("id, total_score_value, breakdown")
-            .eq("session_id", gameId)
-            .eq("game_player_id", player.id)
-            .single();
-
-          if (existingScore) {
-            const breakdown = existingScore.breakdown || {};
-            breakdown[game.current_session_game_id] = score;
-            const newTotal = Object.values(breakdown).reduce((sum: number, val: unknown) => sum + (Number(val) || 0), 0);
-
-            await supabase
-              .from("adventure_scores")
-              .update({
-                total_score_value: newTotal,
-                breakdown,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", existingScore.id);
-            
-            console.log(`[next-session-game] Updated adventure_score for player ${player.player_number}: +${score} = ${newTotal}`);
-          } else {
-            await supabase.from("adventure_scores").insert({
-              session_id: gameId,
-              game_player_id: player.id,
-              total_score_value: score,
-              breakdown: { [game.current_session_game_id]: score },
-            });
-            
-            console.log(`[next-session-game] Created adventure_score for player ${player.player_number}: ${score}`);
-          }
+          console.log(`[next-session-game] Player ${player.player_number}: pvic=${player.pvic}, recompenses=${player.recompenses}`);
         }
       }
     }
@@ -179,40 +148,14 @@ serve(async (req) => {
         .eq("status", "ACTIVE")
         .not("player_number", "is", null);
 
-      if (finalPlayers && finalPlayers.length > 0 && game.current_session_game_id) {
-        console.log(`[next-session-game] Saving final adventure scores for ${finalPlayers.length} players`);
-        
+      // NOTE: Final scores are saved by the last game's resolution function 
+      // Do NOT recalculate here to avoid double-counting!
+      console.log(`[next-session-game] Adventure complete - scores already saved by game resolution`);
+      
+      // Just log final state for debugging
+      if (finalPlayers && finalPlayers.length > 0) {
         for (const player of finalPlayers) {
-          const score = (player.recompenses || 0) + (player.pvic || 0);
-          
-          const { data: existingScore } = await supabase
-            .from("adventure_scores")
-            .select("id, total_score_value, breakdown")
-            .eq("session_id", gameId)
-            .eq("game_player_id", player.id)
-            .single();
-
-          if (existingScore) {
-            const breakdown = existingScore.breakdown || {};
-            breakdown[game.current_session_game_id] = score;
-            const newTotal = Object.values(breakdown).reduce((sum: number, val: unknown) => sum + (Number(val) || 0), 0);
-
-            await supabase
-              .from("adventure_scores")
-              .update({
-                total_score_value: newTotal,
-                breakdown,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", existingScore.id);
-          } else {
-            await supabase.from("adventure_scores").insert({
-              session_id: gameId,
-              game_player_id: player.id,
-              total_score_value: score,
-              breakdown: { [game.current_session_game_id]: score },
-            });
-          }
+          console.log(`[next-session-game] Final player ${player.player_number}: pvic=${player.pvic}, recompenses=${player.recompenses}`);
         }
       }
       
