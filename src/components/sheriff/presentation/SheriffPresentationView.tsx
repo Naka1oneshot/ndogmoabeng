@@ -272,17 +272,24 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const playersWithChoices = choices.filter(c => c.visa_choice !== null);
   const playersWithoutChoices = activePlayers.filter(p => !choices.find(c => c.player_number === p.player_number && c.visa_choice !== null));
   
-  // Team ranking (grouped by clan/team)
+  // Team ranking (grouped by mate_num - teammates share the same mate_num)
   const teamRanking = (() => {
     const teams: Record<string, { name: string; totalPvic: number; players: Player[] }> = {};
     
     activePlayers.forEach(p => {
-      const teamKey = p.clan || `solo-${p.player_number}`;
+      // Use mate_num to group teammates (like in Rivières)
+      const teamKey = p.mate_num !== null ? `team-${p.mate_num}` : `solo-${p.player_number}`;
       if (!teams[teamKey]) {
-        teams[teamKey] = { name: p.clan || p.display_name, totalPvic: 0, players: [] };
+        teams[teamKey] = { name: '', totalPvic: 0, players: [] };
       }
       teams[teamKey].totalPvic += p.pvic || 0;
       teams[teamKey].players.push(p);
+    });
+    
+    // Build team names by combining player pseudos (like in Rivières)
+    Object.values(teams).forEach(team => {
+      team.players.sort((a, b) => (a.player_number || 0) - (b.player_number || 0));
+      team.name = team.players.map(p => p.display_name).join(' & ');
     });
     
     return Object.values(teams).sort((a, b) => b.totalPvic - a.totalPvic);
