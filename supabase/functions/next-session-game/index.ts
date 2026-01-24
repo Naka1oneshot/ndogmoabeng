@@ -82,7 +82,7 @@ serve(async (req) => {
       );
     }
 
-    // Mark the current session_game as ENDED
+    // Mark the current session_game as ENDED and save adventure scores
     if (game.current_session_game_id) {
       await supabase
         .from("session_games")
@@ -93,6 +93,57 @@ serve(async (req) => {
         .eq("id", game.current_session_game_id);
       
       console.log(`[next-session-game] Marked session_game ${game.current_session_game_id} as ENDED`);
+
+      // Save adventure scores for this session_game
+      const { data: players } = await supabase
+        .from("game_players")
+        .select("id, player_number, recompenses, pvic, jetons")
+        .eq("game_id", gameId)
+        .eq("status", "ACTIVE")
+        .not("player_number", "is", null);
+
+      if (players && players.length > 0) {
+        console.log(`[next-session-game] Saving adventure scores for ${players.length} players`);
+        
+        for (const player of players) {
+          // Calculate score: recompenses (kills) + bonus for remaining tokens
+          const score = (player.recompenses || 0) + (player.pvic || 0);
+          
+          // Check if adventure_score already exists for this player
+          const { data: existingScore } = await supabase
+            .from("adventure_scores")
+            .select("id, total_score_value, breakdown")
+            .eq("session_id", gameId)
+            .eq("game_player_id", player.id)
+            .single();
+
+          if (existingScore) {
+            const breakdown = existingScore.breakdown || {};
+            breakdown[game.current_session_game_id] = score;
+            const newTotal = Object.values(breakdown).reduce((sum: number, val: unknown) => sum + (Number(val) || 0), 0);
+
+            await supabase
+              .from("adventure_scores")
+              .update({
+                total_score_value: newTotal,
+                breakdown,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existingScore.id);
+            
+            console.log(`[next-session-game] Updated adventure_score for player ${player.player_number}: +${score} = ${newTotal}`);
+          } else {
+            await supabase.from("adventure_scores").insert({
+              session_id: gameId,
+              game_player_id: player.id,
+              total_score_value: score,
+              breakdown: { [game.current_session_game_id]: score },
+            });
+            
+            console.log(`[next-session-game] Created adventure_score for player ${player.player_number}: ${score}`);
+          }
+        }
+      }
     }
 
     const currentStepIndex = game.current_step_index || 1;
@@ -108,6 +159,51 @@ serve(async (req) => {
 
     if (stepError || !nextStep) {
       console.log(`[next-session-game] No more steps found, adventure complete`);
+      
+      // Save final adventure scores before ending
+      const { data: finalPlayers } = await supabase
+        .from("game_players")
+        .select("id, player_number, recompenses, pvic")
+        .eq("game_id", gameId)
+        .eq("status", "ACTIVE")
+        .not("player_number", "is", null);
+
+      if (finalPlayers && finalPlayers.length > 0 && game.current_session_game_id) {
+        console.log(`[next-session-game] Saving final adventure scores for ${finalPlayers.length} players`);
+        
+        for (const player of finalPlayers) {
+          const score = (player.recompenses || 0) + (player.pvic || 0);
+          
+          const { data: existingScore } = await supabase
+            .from("adventure_scores")
+            .select("id, total_score_value, breakdown")
+            .eq("session_id", gameId)
+            .eq("game_player_id", player.id)
+            .single();
+
+          if (existingScore) {
+            const breakdown = existingScore.breakdown || {};
+            breakdown[game.current_session_game_id] = score;
+            const newTotal = Object.values(breakdown).reduce((sum: number, val: unknown) => sum + (Number(val) || 0), 0);
+
+            await supabase
+              .from("adventure_scores")
+              .update({
+                total_score_value: newTotal,
+                breakdown,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existingScore.id);
+          } else {
+            await supabase.from("adventure_scores").insert({
+              session_id: gameId,
+              game_player_id: player.id,
+              total_score_value: score,
+              breakdown: { [game.current_session_game_id]: score },
+            });
+          }
+        }
+      }
       
       // Adventure is complete
       await supabase
