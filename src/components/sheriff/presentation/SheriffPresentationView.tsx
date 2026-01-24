@@ -90,6 +90,7 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const [showDuelStart, setShowDuelStart] = useState(false);
   const [showDuelResolution, setShowDuelResolution] = useState(false);
   const [currentDuelForAnimation, setCurrentDuelForAnimation] = useState<Duel | null>(null);
+  const [showVictoryPodium, setShowVictoryPodium] = useState(false);
   
   // Track previous state for animations
   const prevPhaseRef = useRef<string | null>(null);
@@ -266,6 +267,8 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const activePlayers = players.filter(p => p.player_number !== null);
   const currentDuel = duels.find(d => d.status === 'ACTIVE');
   const resolvedDuels = duels.filter(d => d.status === 'RESOLVED');
+  const pendingDuels = duels.filter(d => d.status === 'PENDING');
+  const allDuelsResolved = roundState?.phase === 'DUELS' && duels.length > 0 && pendingDuels.length === 0 && !currentDuel;
   
   const getPlayer = (num: number) => activePlayers.find(p => p.player_number === num);
   const getChoice = (num: number) => choices.find(c => c.player_number === num);
@@ -329,8 +332,8 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
     );
   }
   
-  // Show victory podium when game is complete
-  if (roundState?.phase === 'COMPLETE' || game.status === 'ENDED') {
+  // Show victory podium when triggered manually or game is complete
+  if (showVictoryPodium || roundState?.phase === 'COMPLETE' || game.status === 'ENDED') {
     return (
       <SheriffVictoryPodium
         players={activePlayers}
@@ -451,8 +454,21 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
             getChoice={getChoice}
           />
         )}
+        
+        {/* Show Podium Button when all duels are resolved */}
+        {allDuelsResolved && (
+          <div className="flex justify-center mt-8">
+            <Button
+              size="lg"
+              onClick={() => setShowVictoryPodium(true)}
+              className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-bold text-lg px-8 py-6 rounded-xl shadow-lg shadow-yellow-500/30 animate-pulse"
+            >
+              <Trophy className="h-6 w-6 mr-3" />
+              🏆 Voir le Podium
+            </Button>
+          </div>
+        )}
       </div>
-      
       {/* History Sidebar */}
       {showHistory && (
         <div className="fixed right-0 top-0 bottom-0 w-80 bg-[#1A1510] border-l border-[#D4AF37]/30 p-4 overflow-auto z-50">
