@@ -42,9 +42,13 @@ interface Player {
   jetons: number | null;
   pvic: number | null;
   last_seen: string | null;
+  joined_at: string;
   is_host: boolean;
   player_token: string | null;
   is_bot?: boolean;
+  user_id?: string | null;
+  clan_locked?: boolean;
+  clan_token_used?: boolean;
 }
 
 interface PlayerChoice {
@@ -752,13 +756,16 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
           </div>
         </div>
 
-        <KickPlayerModal
-          isOpen={kickModalOpen}
-          onClose={() => setKickModalOpen(false)}
-          gameId={game.id}
-          player={selectedPlayer}
-          onKicked={fetchData}
-        />
+        {selectedPlayer && (
+          <KickPlayerModal
+            open={kickModalOpen}
+            onOpenChange={setKickModalOpen}
+            gameId={game.id}
+            playerId={selectedPlayer.id}
+            playerName={selectedPlayer.name}
+            onSuccess={fetchData}
+          />
+        )}
       </div>
     );
   }
@@ -1059,13 +1066,16 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
         </TabsContent>
       </Tabs>
 
-      <KickPlayerModal
-        isOpen={kickModalOpen}
-        onClose={() => setKickModalOpen(false)}
-        gameId={game.id}
-        player={selectedPlayer}
-        onKicked={fetchData}
-      />
+      {selectedPlayer && (
+        <KickPlayerModal
+          open={kickModalOpen}
+          onOpenChange={setKickModalOpen}
+          gameId={game.id}
+          playerId={selectedPlayer.id}
+          playerName={selectedPlayer.name}
+          onSuccess={fetchData}
+        />
+      )}
     </div>
   );
 }
