@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, Dice6, Lock, Play, Users, History, 
   AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship, Waves,
-  RefreshCw, Copy, Check, UserX, Calculator, Zap, Bot, Plus, Trash2, Presentation, Coins
+  RefreshCw, Copy, Check, UserX, Calculator, Zap, Bot, Plus, Trash2, Presentation, Coins, FastForward
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
@@ -650,59 +650,141 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   const humanPlayers = players.filter(p => !p.display_name.includes('🤖') && !p.is_host);
   const isFullBotGame = humanPlayers.length === 0 && botPlayers.length > 0;
 
+  // Helper function to execute one level skip - returns outcome or null on error
+  const executeOneLevel = async (currentEnBateauCount: number, mancheActive: number, niveauActive: number): Promise<{ outcome: string; danger: number } | null> => {
+    // 1. Generate random danger
+    const suggestedDanger = generateSuggestedDanger(currentEnBateauCount, mancheActive, niveauActive);
+    
+    // 2. Define the danger
+    const { error: dangerError } = await supabase.functions.invoke('rivieres-set-danger', {
+      body: { session_game_id: sessionGameId, mode: 'MANUAL', danger_value: suggestedDanger },
+    });
+    if (dangerError) throw dangerError;
+    
+    // 3. Bot decisions
+    const { error: botError } = await supabase.functions.invoke('rivieres-bot-decisions', {
+      body: { session_game_id: sessionGameId },
+    });
+    if (botError) throw botError;
+    
+    // 4. Lock decisions
+    const { data: lockData, error: lockError } = await supabase.functions.invoke('rivieres-lock-decisions', {
+      body: { session_game_id: sessionGameId },
+    });
+    if (lockError) throw lockError;
+    
+    // Handle missing players if needed (shouldn't happen with 100% bots)
+    if (lockData?.needs_mj_decision) {
+      const defaultActions = lockData.missing_players.map((mp: any) => ({
+        player_id: mp.player_id,
+        action: 'RESTE_ZERO' as const,
+      }));
+      await supabase.functions.invoke('rivieres-lock-decisions', {
+        body: { session_game_id: sessionGameId, missing_players_action: defaultActions },
+      });
+    }
+    
+    // 5. Resolve level
+    const { data: resolveData, error: resolveError } = await supabase.functions.invoke('rivieres-resolve-level', {
+      body: { session_game_id: sessionGameId },
+    });
+    if (resolveError) throw resolveError;
+    
+    return { outcome: resolveData.outcome, danger: suggestedDanger };
+  };
+
   // Auto-skip level: generate danger, define, bot decisions, lock, resolve
   const handleSkipLevel = async () => {
     setActionLoading('skipLevel');
     try {
-      // 1. Generate random danger
-      const suggestedDanger = generateSuggestedDanger(enBateauPlayers.length, state?.manche_active || 1, state?.niveau_active || 1);
-      toast.info(`Danger généré: ${suggestedDanger}`);
+      const result = await executeOneLevel(enBateauPlayers.length, state?.manche_active || 1, state?.niveau_active || 1);
       
-      // 2. Define the danger
-      const { error: dangerError } = await supabase.functions.invoke('rivieres-set-danger', {
-        body: { session_game_id: sessionGameId, mode: 'MANUAL', danger_value: suggestedDanger },
-      });
-      if (dangerError) throw dangerError;
-      
-      // 3. Bot decisions
-      const { error: botError } = await supabase.functions.invoke('rivieres-bot-decisions', {
-        body: { session_game_id: sessionGameId },
-      });
-      if (botError) throw botError;
-      
-      // 4. Lock decisions
-      const { data: lockData, error: lockError } = await supabase.functions.invoke('rivieres-lock-decisions', {
-        body: { session_game_id: sessionGameId },
-      });
-      if (lockError) throw lockError;
-      
-      // Handle missing players if needed (shouldn't happen with 100% bots)
-      if (lockData?.needs_mj_decision) {
-        const defaultActions = lockData.missing_players.map((mp: any) => ({
-          player_id: mp.player_id,
-          action: 'RESTE_ZERO' as const,
-        }));
-        await supabase.functions.invoke('rivieres-lock-decisions', {
-          body: { session_game_id: sessionGameId, missing_players_action: defaultActions },
-        });
-      }
-      
-      // 5. Resolve level
-      const { data: resolveData, error: resolveError } = await supabase.functions.invoke('rivieres-resolve-level', {
-        body: { session_game_id: sessionGameId },
-      });
-      if (resolveError) throw resolveError;
-      
-      if (resolveData.outcome === 'SUCCESS') {
-        toast.success(`✅ Niveau passé ! (Danger: ${suggestedDanger})`);
-      } else {
-        toast.warning(`⛵ Bateau chavire ! (Danger: ${suggestedDanger})`);
+      if (result) {
+        if (result.outcome === 'SUCCESS') {
+          toast.success(`✅ Niveau passé ! (Danger: ${result.danger})`);
+        } else {
+          toast.warning(`⛵ Bateau chavire ! (Danger: ${result.danger})`);
+        }
       }
       
       await fetchData();
     } catch (error: any) {
       console.error('Skip level error:', error);
       toast.error(error.message || 'Erreur lors du passage automatique');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Auto-skip entire round: loop through levels until round ends (capsize or level 9 completed)
+  const handleSkipRound = async () => {
+    setActionLoading('skipRound');
+    let levelsCompleted = 0;
+    let finalOutcome = '';
+    
+    try {
+      const MAX_LEVELS = 9;
+      
+      for (let i = 0; i < MAX_LEVELS; i++) {
+        // Re-fetch current state to get updated niveau and players en bateau
+        const { data: currentState } = await supabase
+          .from('river_session_state')
+          .select('*')
+          .eq('session_game_id', sessionGameId)
+          .single();
+        
+        if (!currentState || currentState.status !== 'RUNNING') {
+          finalOutcome = 'ROUND_ENDED';
+          break;
+        }
+        
+        // Get current players still on boat
+        const { data: currentStats } = await supabase
+          .from('river_player_stats')
+          .select('*')
+          .eq('session_game_id', sessionGameId)
+          .eq('current_round_status', 'EN_BATEAU');
+        
+        const enBateauCount = currentStats?.length || 0;
+        
+        // If no one is on the boat, round is over
+        if (enBateauCount === 0) {
+          finalOutcome = 'ALL_DESCENDED';
+          break;
+        }
+        
+        toast.info(`⏩ Niveau ${currentState.niveau_active}...`);
+        
+        const result = await executeOneLevel(enBateauCount, currentState.manche_active, currentState.niveau_active);
+        
+        if (!result) {
+          throw new Error('Erreur lors du passage du niveau');
+        }
+        
+        levelsCompleted++;
+        
+        if (result.outcome === 'FAIL') {
+          finalOutcome = 'CAPSIZE';
+          break;
+        }
+        
+        // Small delay for UI feedback
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      
+      // Summary toast
+      if (finalOutcome === 'CAPSIZE') {
+        toast.warning(`⛵ Manche terminée par chavirement après ${levelsCompleted} niveau(x)`);
+      } else if (finalOutcome === 'ALL_DESCENDED') {
+        toast.success(`🏆 Tous les joueurs ont débarqué après ${levelsCompleted} niveau(x)`);
+      } else {
+        toast.success(`✅ Manche complète ! ${levelsCompleted} niveau(x) passé(s)`);
+      }
+      
+      await fetchData();
+    } catch (error: any) {
+      console.error('Skip round error:', error);
+      toast.error(error.message || 'Erreur lors du passage de la manche');
     } finally {
       setActionLoading(null);
     }
@@ -1357,7 +1439,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                     {isAdminOrSuper && isFullBotGame && (
                       <ForestButton
                         onClick={handleSkipLevel}
-                        disabled={actionLoading === 'skipLevel'}
+                        disabled={actionLoading === 'skipLevel' || actionLoading === 'skipRound'}
                         className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold shadow-lg"
                       >
                         {actionLoading === 'skipLevel' ? (
@@ -1366,6 +1448,22 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                           <Zap className="h-4 w-4 mr-1" />
                         )}
                         Passer le niveau
+                      </ForestButton>
+                    )}
+
+                    {/* Skip Round Button - only for 100% bot games */}
+                    {isAdminOrSuper && isFullBotGame && (
+                      <ForestButton
+                        onClick={handleSkipRound}
+                        disabled={actionLoading === 'skipRound' || actionLoading === 'skipLevel'}
+                        className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold shadow-lg"
+                      >
+                        {actionLoading === 'skipRound' ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <FastForward className="h-4 w-4 mr-1" />
+                        )}
+                        Passer la manche
                       </ForestButton>
                     )}
 
