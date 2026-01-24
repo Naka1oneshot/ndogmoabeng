@@ -647,7 +647,66 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   };
 
   const botPlayers = players.filter(p => p.display_name.includes('🤖'));
-  const humanPlayers = players.filter(p => !p.display_name.includes('🤖'));
+  const humanPlayers = players.filter(p => !p.display_name.includes('🤖') && !p.is_host);
+  const isFullBotGame = humanPlayers.length === 0 && botPlayers.length > 0;
+
+  // Auto-skip level: generate danger, define, bot decisions, lock, resolve
+  const handleSkipLevel = async () => {
+    setActionLoading('skipLevel');
+    try {
+      // 1. Generate random danger
+      const suggestedDanger = generateSuggestedDanger(enBateauPlayers.length, state?.manche_active || 1, state?.niveau_active || 1);
+      toast.info(`Danger généré: ${suggestedDanger}`);
+      
+      // 2. Define the danger
+      const { error: dangerError } = await supabase.functions.invoke('rivieres-set-danger', {
+        body: { session_game_id: sessionGameId, mode: 'MANUAL', danger_value: suggestedDanger },
+      });
+      if (dangerError) throw dangerError;
+      
+      // 3. Bot decisions
+      const { error: botError } = await supabase.functions.invoke('rivieres-bot-decisions', {
+        body: { session_game_id: sessionGameId },
+      });
+      if (botError) throw botError;
+      
+      // 4. Lock decisions
+      const { data: lockData, error: lockError } = await supabase.functions.invoke('rivieres-lock-decisions', {
+        body: { session_game_id: sessionGameId },
+      });
+      if (lockError) throw lockError;
+      
+      // Handle missing players if needed (shouldn't happen with 100% bots)
+      if (lockData?.needs_mj_decision) {
+        const defaultActions = lockData.missing_players.map((mp: any) => ({
+          player_id: mp.player_id,
+          action: 'RESTE_ZERO' as const,
+        }));
+        await supabase.functions.invoke('rivieres-lock-decisions', {
+          body: { session_game_id: sessionGameId, missing_players_action: defaultActions },
+        });
+      }
+      
+      // 5. Resolve level
+      const { data: resolveData, error: resolveError } = await supabase.functions.invoke('rivieres-resolve-level', {
+        body: { session_game_id: sessionGameId },
+      });
+      if (resolveError) throw resolveError;
+      
+      if (resolveData.outcome === 'SUCCESS') {
+        toast.success(`✅ Niveau passé ! (Danger: ${suggestedDanger})`);
+      } else {
+        toast.warning(`⛵ Bateau chavire ! (Danger: ${suggestedDanger})`);
+      }
+      
+      await fetchData();
+    } catch (error: any) {
+      console.error('Skip level error:', error);
+      toast.error(error.message || 'Erreur lors du passage automatique');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   // End game handler - same actions as Forêt
   const handleEndGame = async () => {
@@ -1294,6 +1353,22 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
                     <Lock className="h-5 w-5" /> Actions MJ
                   </h3>
                   <div className="flex gap-3 flex-wrap">
+                    {/* Skip Level Button - only for 100% bot games */}
+                    {isAdminOrSuper && isFullBotGame && (
+                      <ForestButton
+                        onClick={handleSkipLevel}
+                        disabled={actionLoading === 'skipLevel'}
+                        className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold shadow-lg"
+                      >
+                        {actionLoading === 'skipLevel' ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <Zap className="h-4 w-4 mr-1" />
+                        )}
+                        Passer le niveau
+                      </ForestButton>
+                    )}
+
                     {/* Bot Decisions Button - only if there are bots */}
                     {isAdminOrSuper && botPlayers.length > 0 && (
                       <ForestButton
