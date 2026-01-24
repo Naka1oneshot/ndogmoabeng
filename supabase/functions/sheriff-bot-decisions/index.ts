@@ -1,0 +1,299 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface BotDecisionRequest {
+  gameId: string;
+  sessionGameId: string;
+  action: 'choices' | 'duels'; // Which action to generate decisions for
+  duelId?: string; // Optional for specific duel
+}
+
+interface PlayerChoice {
+  id: string;
+  player_number: number;
+  visa_choice: string | null;
+  tokens_entering: number | null;
+}
+
+interface Duel {
+  id: string;
+  duel_order: number;
+  player1_number: number;
+  player2_number: number;
+  player1_searches: boolean | null;
+  player2_searches: boolean | null;
+  status: string;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { gameId, sessionGameId, action, duelId } = await req.json() as BotDecisionRequest;
+
+    if (!gameId || !sessionGameId || !action) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing required fields' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing authorization' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Get user and check permissions
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'User not authenticated' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Check host or admin
+    const { data: hostPlayer } = await supabase
+      .from('game_players')
+      .select('is_host')
+      .eq('game_id', gameId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const { data: isAdmin } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
+
+    const { data: isSuper } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'super_admin'
+    });
+
+    if (!hostPlayer?.is_host && !isAdmin && !isSuper) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized - must be host or admin' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
+    }
+
+    // Get bot players
+    const { data: botPlayers } = await supabase
+      .from('game_players')
+      .select('id, player_number, pvic')
+      .eq('game_id', gameId)
+      .eq('is_bot', true)
+      .eq('status', 'ACTIVE')
+      .is('removed_at', null);
+
+    if (!botPlayers || botPlayers.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, message: 'No bots found', decisions_made: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const botNumbers = new Set(botPlayers.map(p => p.player_number));
+    const results: any[] = [];
+
+    if (action === 'choices') {
+      // Generate choice decisions for bots
+      const { data: roundState } = await supabase
+        .from('sheriff_round_state')
+        .select('phase')
+        .eq('session_game_id', sessionGameId)
+        .single();
+
+      if (!roundState || roundState.phase !== 'CHOICES') {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Not in CHOICES phase' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+
+      // Get existing choices to find bots who haven't decided
+      const { data: existingChoices } = await supabase
+        .from('sheriff_player_choices')
+        .select('player_number, visa_choice')
+        .eq('session_game_id', sessionGameId);
+
+      const decidedPlayers = new Set(
+        existingChoices?.filter(c => c.visa_choice !== null).map(c => c.player_number) || []
+      );
+
+      // Generate decisions for each undecided bot
+      for (const bot of botPlayers) {
+        if (!bot.player_number || decidedPlayers.has(bot.player_number)) continue;
+
+        // Random choice: 60% VICTORY_POINTS, 40% COMMON_POOL
+        const visaChoice = Math.random() < 0.6 ? 'VICTORY_POINTS' : 'COMMON_POOL';
+        
+        // Random tokens: 70% legal (20), 30% illegal (30)
+        const tokensEntering = Math.random() < 0.7 ? 20 : 30;
+        const hasIllegalTokens = tokensEntering > 20;
+
+        // Calculate visa cost
+        let visaCostApplied = 0;
+        if (visaChoice === 'VICTORY_POINTS') {
+          visaCostApplied = (bot.pvic || 0) * 0.2;
+        } else {
+          visaCostApplied = 10;
+        }
+
+        // Update choice
+        const { error: updateError } = await supabase
+          .from('sheriff_player_choices')
+          .update({
+            visa_choice: visaChoice,
+            visa_cost_applied: visaCostApplied,
+            tokens_entering: tokensEntering,
+            has_illegal_tokens: hasIllegalTokens,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('session_game_id', sessionGameId)
+          .eq('player_number', bot.player_number);
+
+        if (!updateError) {
+          results.push({
+            player_number: bot.player_number,
+            visa_choice: visaChoice,
+            tokens_entering: tokensEntering,
+            has_illegal_tokens: hasIllegalTokens,
+          });
+        }
+      }
+
+      // Log action
+      await supabase.from('logs_mj').insert({
+        game_id: gameId,
+        session_game_id: sessionGameId,
+        type: 'BOT_SHERIFF_CHOICES',
+        message: `${results.length} bots ont fait leurs choix`,
+        payload: { results },
+      });
+
+    } else if (action === 'duels') {
+      // Generate duel decisions for bots
+
+      // Get active duel(s) based on duelId or current active
+      let duelsToProcess: Duel[] = [];
+      
+      if (duelId) {
+        const { data: specificDuel } = await supabase
+          .from('sheriff_duels')
+          .select('*')
+          .eq('id', duelId)
+          .single();
+        
+        if (specificDuel && specificDuel.status === 'ACTIVE') {
+          duelsToProcess = [specificDuel];
+        }
+      } else {
+        // Get all active duels
+        const { data: activeDuels } = await supabase
+          .from('sheriff_duels')
+          .select('*')
+          .eq('session_game_id', sessionGameId)
+          .eq('status', 'ACTIVE');
+        
+        if (activeDuels) {
+          duelsToProcess = activeDuels;
+        }
+      }
+
+      // Get player choices to know who has illegal tokens
+      const { data: allChoices } = await supabase
+        .from('sheriff_player_choices')
+        .select('player_number, has_illegal_tokens')
+        .eq('session_game_id', sessionGameId);
+
+      const illegalMap = new Map(
+        allChoices?.map(c => [c.player_number, c.has_illegal_tokens]) || []
+      );
+
+      for (const duel of duelsToProcess) {
+        const p1IsBot = botNumbers.has(duel.player1_number);
+        const p2IsBot = botNumbers.has(duel.player2_number);
+
+        const updates: Record<string, boolean> = {};
+
+        // Player 1 decision (if bot and hasn't decided)
+        if (p1IsBot && duel.player1_searches === null) {
+          // Strategy: 40% base chance to search, higher if opponent might be illegal
+          // Bots are slightly less likely to search
+          const searchChance = 0.35;
+          updates.player1_searches = Math.random() < searchChance;
+        }
+
+        // Player 2 decision (if bot and hasn't decided)
+        if (p2IsBot && duel.player2_searches === null) {
+          const searchChance = 0.35;
+          updates.player2_searches = Math.random() < searchChance;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          const { error: duelError } = await supabase
+            .from('sheriff_duels')
+            .update(updates)
+            .eq('id', duel.id);
+
+          if (!duelError) {
+            results.push({
+              duel_id: duel.id,
+              duel_order: duel.duel_order,
+              ...updates,
+            });
+          }
+        }
+      }
+
+      // Log action
+      if (results.length > 0) {
+        await supabase.from('logs_mj').insert({
+          game_id: gameId,
+          session_game_id: sessionGameId,
+          type: 'BOT_SHERIFF_DUELS',
+          message: `${results.length} décisions de duel par les bots`,
+          payload: { results },
+        });
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        decisions_made: results.length,
+        results 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error: unknown) {
+    console.error('sheriff-bot-decisions error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(
+      JSON.stringify({ success: false, error: message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
+  }
+});
