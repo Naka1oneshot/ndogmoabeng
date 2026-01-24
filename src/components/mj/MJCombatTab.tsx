@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Swords, Heart, Skull, Target, Trophy, Flag, FastForward } from 'lucide-react';
+import { Loader2, Swords, Heart, Skull, Target, Trophy, Flag, FastForward, Bug } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { toast } from 'sonner';
@@ -62,6 +62,7 @@ interface CombatLog {
 
 interface MJCombatTabProps {
   game: Game;
+  phase?: string;
   isAdventure?: boolean;
   onNextGame?: () => void;
 }
@@ -74,7 +75,7 @@ const COMBAT_ACTIONS = [
   'ATTAQUE', 'EFFECT', 'COMBAT_RESOLUTION', 'COMBAT_RESOLU', 'COMBAT_DATA'
 ];
 
-export function MJCombatTab({ game, isAdventure, onNextGame }: MJCombatTabProps) {
+export function MJCombatTab({ game, phase, isAdventure, onNextGame }: MJCombatTabProps) {
   const [monsters, setMonsters] = useState<MonsterState[]>([]);
   const [combatLogs, setCombatLogs] = useState<CombatLog[]>([]);
   const [players, setPlayers] = useState<GamePlayer[]>([]);
@@ -82,6 +83,71 @@ export function MJCombatTab({ game, isAdventure, onNextGame }: MJCombatTabProps)
   const [availableManches, setAvailableManches] = useState<number[]>([]);
   const [showFinalRanking, setShowFinalRanking] = useState(false);
   const [endingGame, setEndingGame] = useState(false);
+  const [initializingMonsters, setInitializingMonsters] = useState(false);
+
+  // Check if we should show manual initialization button
+  const showInitButton = monsters.length === 0 && game.manche_active === 1 && phase === 'PHASE1_MISES';
+
+  const handleInitializeMonsters = async () => {
+    setInitializingMonsters(true);
+    try {
+      const sessionGameId = game.current_session_game_id;
+      
+      // First check if game_monsters exist for this session
+      let configQuery = supabase
+        .from('game_monsters')
+        .select('*')
+        .eq('game_id', game.id);
+      
+      if (sessionGameId) {
+        configQuery = configQuery.eq('session_game_id', sessionGameId);
+      }
+      
+      const { data: existingConfig } = await configQuery;
+      
+      // If no config exists for this session, create it
+      if (!existingConfig || existingConfig.length === 0) {
+        // Copy default monsters from catalog
+        const { data: catalog } = await supabase
+          .from('monster_catalog')
+          .select('id, pv_max_default')
+          .eq('is_default_in_pool', true)
+          .order('id', { ascending: true });
+        
+        if (catalog && catalog.length > 0) {
+          const monstersToInsert = catalog.map((m, idx) => ({
+            game_id: game.id,
+            session_game_id: sessionGameId,
+            monster_id: m.id,
+            initial_status: (idx < 3 ? 'EN_BATAILLE' : 'EN_FILE') as 'EN_BATAILLE' | 'EN_FILE',
+            order_index: idx + 1,
+            is_enabled: true,
+          }));
+          
+          await supabase.from('game_monsters').insert(monstersToInsert);
+        }
+      }
+      
+      // Now create game_state_monsters
+      const { error: rpcError } = await supabase.rpc('initialize_game_state_monsters', {
+        p_game_id: game.id,
+        p_session_game_id: sessionGameId,
+      });
+      
+      if (rpcError) {
+        console.error('RPC error:', rpcError);
+        throw rpcError;
+      }
+      
+      toast.success('Monstres initialisés avec succès !');
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error initializing monsters:', error);
+      toast.error('Erreur lors de l\'initialisation des monstres');
+    } finally {
+      setInitializingMonsters(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     // Fetch monsters - filter by session_game_id for adventure mode
@@ -278,6 +344,34 @@ export function MJCombatTab({ game, isAdventure, onNextGame }: MJCombatTabProps)
 
   return (
     <div className="space-y-6">
+      {/* Manual initialization button when monsters are missing */}
+      {showInitButton && (
+        <div className="card-gradient rounded-lg border border-amber-500/50 bg-amber-500/10 p-6 text-center">
+          <h3 className="font-display text-lg mb-2 text-amber-400">⚠️ Monstres non initialisés</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Les monstres n'ont pas été initialisés automatiquement lors de la transition. 
+            Cliquez sur le bouton ci-dessous pour les initialiser manuellement.
+          </p>
+          <ForestButton
+            onClick={handleInitializeMonsters}
+            disabled={initializingMonsters}
+            className="gap-2"
+          >
+            {initializingMonsters ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Initialisation...
+              </>
+            ) : (
+              <>
+                <Bug className="h-4 w-4" />
+                Initialiser les monstres
+              </>
+            )}
+          </ForestButton>
+        </div>
+      )}
+
       {/* Champ de bataille */}
       <div className="card-gradient rounded-lg border border-border p-6">
         <h3 className="font-display text-lg mb-4 flex items-center gap-2">

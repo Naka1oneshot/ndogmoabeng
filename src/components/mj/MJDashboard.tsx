@@ -1010,7 +1010,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
         <TabsContent value="combat" className="mt-6">
           <MJCombatTab 
-            game={game} 
+            game={game}
+            phase={game.phase}
             isAdventure={!!isAdventure}
             onNextGame={isAdventure ? handleNextSessionGame : undefined}
           />
