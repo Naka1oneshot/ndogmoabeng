@@ -69,8 +69,7 @@ export function BattlefieldView({ gameId, sessionGameId, className, showDetails 
   }, [gameId, sessionGameId]);
 
   const fetchData = async () => {
-    // Build query - include monsters with matching session_game_id OR null session_game_id
-    // This handles the case where monsters are initialized without a session_game_id
+    // Build query for monsters
     let stateQuery = supabase
       .from('game_state_monsters')
       .select(`
@@ -78,16 +77,24 @@ export function BattlefieldView({ gameId, sessionGameId, className, showDetails 
         monster_id,
         pv_current,
         status,
-        battlefield_slot
+        battlefield_slot,
+        session_game_id
       `)
       .eq('game_id', gameId);
     
-    // If sessionGameId is provided, filter to include monsters with that session_game_id OR null
+    // If sessionGameId is provided, filter to that specific session only
     if (sessionGameId) {
-      stateQuery = stateQuery.or(`session_game_id.eq.${sessionGameId},session_game_id.is.null`);
+      stateQuery = stateQuery.eq('session_game_id', sessionGameId);
     }
 
     const { data: stateData, error: stateError } = await stateQuery.order('battlefield_slot', { ascending: true, nullsFirst: false });
+    
+    console.log('[BattlefieldView] Fetched monsters:', { 
+      gameId, 
+      sessionGameId, 
+      count: stateData?.length || 0,
+      monsters: stateData?.map(m => ({ id: m.monster_id, session: m.session_game_id }))
+    });
 
     if (stateError) {
       console.error('Error fetching monster state:', stateError);

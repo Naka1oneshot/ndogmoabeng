@@ -33,8 +33,11 @@ export function useSessionGame(gameId: string | undefined, currentSessionGameId:
     }
 
     const fetchSessionGame = async () => {
+      setLoading(true);
+      
       // If we have a direct session_game_id, use it
       if (currentSessionGameId) {
+        console.log('[useSessionGame] Fetching with direct session_game_id:', currentSessionGameId);
         const { data, error: fetchError } = await supabase
           .from('session_games')
           .select('id, game_type_code, step_index, manche_active, phase, status')
@@ -45,6 +48,7 @@ export function useSessionGame(gameId: string | undefined, currentSessionGameId:
           console.error('[useSessionGame] Error fetching session_game:', fetchError);
           setError(fetchError.message);
         } else if (data) {
+          console.log('[useSessionGame] Got session_game:', data);
           setSessionGame(data);
         }
         setLoading(false);
