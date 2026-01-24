@@ -572,11 +572,12 @@ async function computeFinalScores(
     });
 
     // IMPORTANT: Update pvic on game_players - Rivières score = PVic for adventure
+    // NOTE: Only set pvic, NOT recompenses - otherwise next-session-game will double-count (pvic + recompenses)
     await supabase
       .from("game_players")
       .update({ 
         pvic: score,
-        recompenses: score, // Also set recompenses for consistency
+        recompenses: 0, // Keep at 0 to avoid double-counting in adventure score calculation
       })
       .eq("id", stats.player_id);
     
