@@ -287,27 +287,34 @@ serve(async (req) => {
       // FAIL - boat capsizes
       const cagnotteFail = cagnotteBefore + totalMises;
 
-      // Identify beneficiaries - ONLY players who were ALREADY A_TERRE before this level
+      // Identify beneficiaries:
+      // 1. Players who were ALREADY A_TERRE before this level
+      // 2. Players who chose DESCENDS at THIS level (they DO get tokens - they got off before the capsize)
+      // ONLY players who chose RESTE and didn't have AV1 get nothing (CHAVIRE)
       const beneficiaries: { player_id: string; descended_level: number }[] = [];
 
-      // A_TERRE players (descended BEFORE this level) - these are the ONLY beneficiaries
+      // A_TERRE players (descended BEFORE this level)
       const aTerreStats = allPlayerStats?.filter(s => s.current_round_status === "A_TERRE") || [];
       for (const s of aTerreStats) {
         beneficiaries.push({ player_id: s.player_id, descended_level: s.descended_level || 0 });
       }
 
-      // DESCENDS at this level - they DON'T get tokens, they sink with the boat!
-      // We still mark them as CHAVIRE since they didn't get off in time
+      // DESCENDS at this level - they DO get tokens (they got off in time!)
       const descendsDecisions = decisions.filter(d => d.decision === "DESCENDS");
       for (const d of descendsDecisions) {
+        // Mark as A_TERRE - they successfully descended
         await supabase
           .from("river_player_stats")
           .update({ 
-            current_round_status: "CHAVIRE", // They sink, not A_TERRE!
+            current_round_status: "A_TERRE",
+            descended_level: state.niveau_active,
             updated_at: new Date().toISOString()
           })
           .eq("session_game_id", session_game_id)
           .eq("player_id", d.player_id);
+
+        // Add to beneficiaries - they share the pot with level bonus
+        beneficiaries.push({ player_id: d.player_id, descended_level: state.niveau_active });
       }
 
       // Check AV1_CANOT - they CAN escape even when capsizing (special ability)
@@ -336,7 +343,7 @@ serve(async (req) => {
         mjSummaryParts.push(`AV1_CANOT: ${playerName} sauvé par le canot`);
       }
 
-      // Mark remaining EN_BATEAU (who didn't use canot) as CHAVIRE
+      // Mark remaining EN_BATEAU (who chose RESTE and didn't use canot) as CHAVIRE - they get NOTHING
       const av1PlayerIds = new Set(av1Candidates.map(d => d.player_id));
       const chavirePlayers = resteDecisions.filter(d => !av1PlayerIds.has(d.player_id));
 
@@ -351,7 +358,7 @@ serve(async (req) => {
           .eq("player_id", d.player_id);
       }
 
-      // Distribute cagnotte to beneficiaries
+      // Distribute cagnotte to beneficiaries (includes those who descended at this level)
       if (beneficiaries.length > 0) {
         const share = Math.floor(cagnotteFail / beneficiaries.length);
 
@@ -378,9 +385,10 @@ serve(async (req) => {
           }
         }
 
-        const totalChavires = chavirePlayers.length + descendsDecisions.length;
-        publicSummaryParts.push(`⛵ Le bateau chavire ! ${beneficiaries.length} joueur(s) à terre se partagent ${cagnotteFail}💎 + bonus de descente`);
-        mjSummaryParts.push(`FAIL: Cagnotte ${cagnotteFail} / ${beneficiaries.length} = ${Math.floor(cagnotteFail / beneficiaries.length)}. Chavirés: ${totalChavires}`);
+        const descendsCount = descendsDecisions.length;
+        const totalBeneficiaries = beneficiaries.length;
+        publicSummaryParts.push(`⛵ Le bateau chavire au niveau ${state.niveau_active} ! ${totalBeneficiaries} joueur(s) à terre (dont ${descendsCount} descendu(s) à ce niveau) se partagent ${cagnotteFail}💎 + bonus de descente`);
+        mjSummaryParts.push(`FAIL N${state.niveau_active}: Cagnotte ${cagnotteFail} / ${totalBeneficiaries} bénéficiaires = ${share}/joueur. Chavirés: ${chavirePlayers.length}`);
       } else {
         publicSummaryParts.push(`💀 Le bateau chavire ! Aucun survivant à terre... La cagnotte est perdue !`);
         mjSummaryParts.push(`FAIL: Aucun bénéficiaire, cagnotte ${cagnotteFail} perdue`);
