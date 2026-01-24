@@ -30,10 +30,11 @@ import TeamChat from '@/components/player/TeamChat';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { PlayerRivieresDashboard } from '@/components/rivieres/PlayerRivieresDashboard';
 import { PlayerInfectionDashboard } from '@/components/infection/PlayerInfectionDashboard';
+import { PlayerSheriffDashboard } from '@/components/sheriff/PlayerSheriffDashboard';
 import LobbyWaitingRoom from '@/components/lobby/LobbyWaitingRoom';
 
 // Implemented game types
-const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION'];
+const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION', 'SHERIFF'];
 
 interface Game {
   id: string;
@@ -540,6 +541,25 @@ export default function PlayerDashboard() {
           role_code: player.roleCode,
           team_code: player.teamCode,
           immune_permanent: player.immunePermanent ?? false,
+        }}
+        onLeave={handleLeave}
+      />
+    );
+  }
+
+  // SHERIFF Dashboard
+  if (game.selected_game_type_code === 'SHERIFF') {
+    return (
+      <PlayerSheriffDashboard 
+        game={game} 
+        player={{
+          id: player.id,
+          display_name: player.displayName,
+          player_number: player.playerNumber,
+          clan: player.clan,
+          mate_num: player.mateNum,
+          jetons: player.jetons,
+          pvic: player.pvic ?? 0,
         }}
         onLeave={handleLeave}
       />

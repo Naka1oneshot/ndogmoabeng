@@ -46,6 +46,17 @@ export const GAMES_DATA: GameData[] = [
     minPlayers: 2,
   },
   {
+    id: 'sheriff',
+    code: 'SHERIFF',
+    name: 'Le Shérif de Ndogmoabeng',
+    tagline: 'Le contrôle',
+    lieu: 'Les portes du Centre',
+    clan: 'Maison Royale',
+    personnages: ['Shérif du Centre'],
+    image: '/placeholder.svg',
+    minPlayers: 2,
+  },
+  {
     id: 'infection',
     code: 'INFECTION',
     name: 'Infection à Ndogmoabeng',

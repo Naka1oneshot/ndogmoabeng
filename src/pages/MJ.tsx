@@ -64,6 +64,7 @@ const GAME_TYPE_LABELS: Record<string, { label: string; emoji: string; colorClas
   FORET: { label: 'Forêt', emoji: '🌲', colorClass: 'text-emerald-400' },
   RIVIERES: { label: 'Rivières', emoji: '🌊', colorClass: 'text-blue-400' },
   INFECTION: { label: 'Infection', emoji: '🧟', colorClass: 'text-purple-400' },
+  SHERIFF: { label: 'Sheriff', emoji: '🤠', colorClass: 'text-amber-400' },
 };
 
 // Throttle constant for realtime updates
