@@ -19,6 +19,7 @@ interface Player {
   mate_num: number | null;
   jetons: number;
   recompenses?: number;
+  pvic?: number;
   is_alive?: boolean;
   last_seen: string | null;
   joined_at: string;
@@ -34,6 +35,8 @@ interface PlayerRowCompactProps {
   index?: number;
   // Optional extra stats for Rivières
   validatedLevels?: number;
+  // Adventure cumulative PVic (from adventure_scores)
+  adventurePvic?: number;
   // Presence badge config
   presenceBadge?: { color: string; textColor: string; label: string };
   // Actions
@@ -78,6 +81,7 @@ const THEME_STYLES = {
 export function PlayerRowCompact({
   player,
   validatedLevels,
+  adventurePvic,
   presenceBadge,
   onEdit,
   onCopyLink,
@@ -90,6 +94,10 @@ export function PlayerRowCompact({
   const [popoverOpen, setPopoverOpen] = useState(false);
   const navigate = useNavigate();
   const theme = THEME_STYLES[variant];
+  
+  // Calculate total PVic for display: adventure cumulative + current game points
+  const currentGamePvic = (player.recompenses || 0) + (player.pvic || 0);
+  const totalPvic = adventurePvic !== undefined ? adventurePvic + currentGamePvic : undefined;
 
   const handleViewProfile = () => {
     if (player.user_id) {
@@ -131,6 +139,13 @@ export function PlayerRowCompact({
       <span className={`text-sm font-medium shrink-0 ${theme.accent}`}>
         {player.jetons}💎
       </span>
+
+      {/* Adventure PVic cumulative */}
+      {totalPvic !== undefined && (
+        <span className="text-sm font-medium shrink-0 text-amber-500">
+          {totalPvic}🏆
+        </span>
+      )}
 
       {/* Presence indicator (dot only) */}
       {presenceBadge && (
@@ -181,6 +196,12 @@ export function PlayerRowCompact({
                 <span className={theme.secondary}>Jetons:</span>
                 <span className={`ml-1 font-medium ${theme.accent}`}>{player.jetons}💎</span>
               </div>
+              {totalPvic !== undefined && (
+                <div>
+                  <span className={theme.secondary}>PVic:</span>
+                  <span className="ml-1 font-medium text-amber-500">{totalPvic}🏆</span>
+                </div>
+              )}
               {validatedLevels !== undefined && (
                 <div>
                   <span className={theme.secondary}>Niveaux:</span>

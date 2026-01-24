@@ -30,6 +30,7 @@ interface Player {
   mate_num: number | null;
   jetons: number;
   recompenses: number;
+  pvic: number;
   is_alive: boolean;
   status: string;
   joined_at: string;
@@ -38,6 +39,11 @@ interface Player {
   clan_token_used: boolean;
   user_id: string | null;
   is_bot?: boolean;
+}
+
+interface AdventureScore {
+  game_player_id: string;
+  total_score_value: number;
 }
 
 interface RiverPlayerStats {
@@ -55,13 +61,15 @@ interface MJRivieresPlayersTabProps {
   sessionGameId?: string;
   gameStatus?: string;
   isLobby?: boolean;
+  isAdventure?: boolean;
   onRefresh: () => void;
 }
 
-export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobby: isLobbyProp, onRefresh }: MJRivieresPlayersTabProps) {
+export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobby: isLobbyProp, isAdventure = false, onRefresh }: MJRivieresPlayersTabProps) {
   const { isAdminOrSuper } = useUserRole();
   const [players, setPlayers] = useState<Player[]>([]);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats[]>([]);
+  const [adventureScores, setAdventureScores] = useState<AdventureScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -81,18 +89,50 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
   
   const isLobby = isLobbyProp || gameStatus === 'LOBBY';
 
+  const fetchAdventureScores = async () => {
+    if (!isAdventure) {
+      setAdventureScores([]);
+      return;
+    }
+    
+    const { data } = await supabase
+      .from('adventure_scores')
+      .select('game_player_id, total_score_value')
+      .eq('session_id', gameId);
+    
+    if (data) {
+      setAdventureScores(data);
+    }
+  };
+
+  const getAdventurePvic = (playerId: string): number | undefined => {
+    if (!isAdventure) return undefined;
+    const score = adventureScores.find(s => s.game_player_id === playerId);
+    return score?.total_score_value || 0;
+  };
+
   useEffect(() => {
     fetchData();
+    fetchAdventureScores();
 
     const channel = supabase
       .channel(`mj-rivieres-players-${gameId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` }, 
-        () => fetchData());
+        () => {
+          fetchData();
+          fetchAdventureScores();
+        });
     
     // Only subscribe to river_player_stats if we have a sessionGameId
     if (sessionGameId) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table: 'river_player_stats', filter: `session_game_id=eq.${sessionGameId}` },
         () => fetchStats());
+    }
+
+    // Subscribe to adventure_scores if in adventure mode
+    if (isAdventure) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table: 'adventure_scores', filter: `session_id=eq.${gameId}` },
+        () => fetchAdventureScores());
     }
     
     channel.subscribe();
@@ -100,7 +140,7 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, sessionGameId]);
+  }, [gameId, sessionGameId, isAdventure]);
 
   const fetchData = async () => {
     const { data, error } = await supabase
@@ -630,6 +670,7 @@ export function MJRivieresPlayersTab({ gameId, sessionGameId, gameStatus, isLobb
                       key={player.id}
                       player={player}
                       validatedLevels={stats?.validated_levels}
+                      adventurePvic={getAdventurePvic(player.id)}
                       presenceBadge={getPresenceBadge(player.last_seen)}
                       onEdit={startEditing}
                       onCopyLink={(id) => handleCopyJoinLink(id, player.player_token!)}

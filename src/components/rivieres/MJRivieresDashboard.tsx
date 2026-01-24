@@ -765,7 +765,8 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         {/* Use the unified player management tab */}
         <MJRivieresPlayersTab 
           gameId={gameId} 
-          isLobby={true} 
+          isLobby={true}
+          isAdventure={isAdventure}
           onRefresh={fetchData} 
         />
 
@@ -1271,6 +1272,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
             gameId={gameId}
             sessionGameId={sessionGameId}
             gameStatus={gameStatus}
+            isAdventure={isAdventure}
             onRefresh={fetchData}
           />
         </TabsContent>
