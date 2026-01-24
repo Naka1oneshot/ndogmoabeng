@@ -77,6 +77,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [advancingStep, setAdvancingStep] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
+  const [isAllBots, setIsAllBots] = useState(false);
   const [totalAdventureSteps, setTotalAdventureSteps] = useState(3);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   
@@ -339,26 +340,31 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
     };
   }, [game.id, game.adventure_id, isAdventure, game.selected_game_type_code, game.current_session_game_id]);
 
-  // Fetch player count for animation
+  // Fetch player count and isAllBots for animation and bot automation
   // PERMANENT FIX: Multiple fetch attempts to handle race conditions
   useEffect(() => {
-    const fetchPlayerCount = async () => {
-      const { count } = await supabase
+    const fetchPlayerInfo = async () => {
+      const { data: players, count } = await supabase
         .from('game_players')
-        .select('*', { count: 'exact', head: true })
+        .select('id, is_bot', { count: 'exact' })
         .eq('game_id', game.id)
         .eq('is_host', false)
         .eq('status', 'ACTIVE');
+      
       console.log('[MJDashboard] Player count fetched:', count);
       setPlayerCount(count || 0);
+      
+      // Check if all players are bots
+      const allBots = players && players.length > 0 && players.every(p => p.is_bot === true);
+      setIsAllBots(allBots || false);
     };
     
     // Initial fetch
-    fetchPlayerCount();
+    fetchPlayerInfo();
     
     // PERMANENT FIX: Retry after delays to catch late-arriving bot insertions
-    const retryTimer = setTimeout(fetchPlayerCount, 1000);
-    const safetyTimer = setTimeout(fetchPlayerCount, 3000);
+    const retryTimer = setTimeout(fetchPlayerInfo, 1000);
+    const safetyTimer = setTimeout(fetchPlayerInfo, 3000);
     
     return () => {
       clearTimeout(retryTimer);
@@ -870,6 +876,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         gameId={game.id}
         gameName={game.name}
         gameStatus={game.status}
+        gamePhase={game.phase}
+        mancheActive={game.manche_active}
         gameTypeCode={game.selected_game_type_code}
         sessionGameId={game.current_session_game_id}
         startingTokens={game.starting_tokens}
@@ -877,8 +885,10 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         currentStepIndex={game.current_step_index}
         advancingStep={advancingStep}
         deleting={deleting}
+        isAllBots={isAllBots}
         onNextSessionGame={handleNextSessionGame}
         onDeleteGame={handleDeleteGame}
+        onGameUpdate={fetchGame}
       />
       {/* QR Code (collapsible on mobile) */}
       {game.status === 'LOBBY' && (

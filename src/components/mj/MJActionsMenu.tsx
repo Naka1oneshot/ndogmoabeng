@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { 
-  Menu, Presentation, Trophy, FastForward, Trash2, Loader2, BarChart3
+  Menu, Presentation, Trophy, FastForward, Trash2, Loader2, BarChart3, Zap
 } from 'lucide-react';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { BotVsHumanStatsSheet } from './BotVsHumanStatsSheet';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +28,8 @@ interface MJActionsMenuProps {
   gameId: string;
   gameName: string;
   gameStatus: string;
+  gamePhase: string;
+  mancheActive: number;
   gameTypeCode: string | null;
   sessionGameId: string | null;
   startingTokens: number;
@@ -33,14 +37,18 @@ interface MJActionsMenuProps {
   currentStepIndex: number;
   advancingStep: boolean;
   deleting: boolean;
+  isAllBots: boolean;
   onNextSessionGame: () => Promise<void>;
   onDeleteGame: () => Promise<void>;
+  onGameUpdate: () => void;
 }
 
 export function MJActionsMenu({
   gameId,
   gameName,
   gameStatus,
+  gamePhase,
+  mancheActive,
   gameTypeCode,
   sessionGameId,
   startingTokens,
@@ -48,19 +56,95 @@ export function MJActionsMenu({
   currentStepIndex,
   advancingStep,
   deleting,
+  isAllBots,
   onNextSessionGame,
   onDeleteGame,
+  onGameUpdate,
 }: MJActionsMenuProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showNextGameDialog, setShowNextGameDialog] = useState(false);
   const [statsSheetOpen, setStatsSheetOpen] = useState(false);
+  const [passingManche, setPassingManche] = useState(false);
 
   const isForet = gameTypeCode === 'FORET' || !gameTypeCode;
   const isInGame = gameStatus === 'IN_GAME';
   const isEnded = gameStatus === 'ENDED' || gameStatus === 'FINISHED';
 
+  // Show "Passer la manche" only for Forêt games with 100% bots
+  const canPassManche = isForet && isInGame && isAllBots;
+
   const handlePresentationMode = () => {
     window.open(`/presentation/${gameId}`, '_blank');
+  };
+
+  // Full round automation: Close Phase1 → Publish Positions → Resolve Combat → Resolve Shop
+  const handlePasserManche = async () => {
+    setPassingManche(true);
+    try {
+      // Step 1: Close Phase 1 (if in PHASE1_MISES)
+      if (gamePhase === 'PHASE1_MISES') {
+        toast.info('🎲 Clôture des mises et calcul des priorités...');
+        const { data: closeData, error: closeError } = await supabase.functions.invoke('close-phase1-bets', {
+          body: { gameId },
+        });
+        if (closeError || !closeData?.success) {
+          throw new Error(closeData?.error || 'Erreur lors de la clôture Phase 1');
+        }
+        toast.success(`✅ Phase 1 clôturée ! ${closeData.playerCount} joueurs classés.`);
+        await new Promise(r => setTimeout(r, 500)); // Small delay for UI feedback
+      }
+
+      // Step 2: Publish positions (final positions)
+      toast.info('📍 Calcul des positions finales...');
+      const { data: posData, error: posError } = await supabase.functions.invoke('publish-positions', {
+        body: { gameId },
+      });
+      if (posError || !posData?.success) {
+        throw new Error(posData?.error || 'Erreur lors de la publication des positions');
+      }
+      toast.success('✅ Positions finales publiées !');
+      await new Promise(r => setTimeout(r, 500));
+
+      // Step 3: Resolve combat
+      toast.info('⚔️ Résolution des combats...');
+      const { data: combatData, error: combatError } = await supabase.functions.invoke('resolve-combat', {
+        body: { gameId },
+      });
+      if (combatError || !combatData?.success) {
+        throw new Error(combatData?.error || 'Erreur lors de la résolution du combat');
+      }
+      toast.success('✅ Combat résolu !');
+      await new Promise(r => setTimeout(r, 500));
+
+      // Step 4: Generate shop (if not already generated)
+      toast.info('🛒 Génération du shop...');
+      await supabase.functions.invoke('generate-shop', {
+        body: { gameId },
+      });
+      await new Promise(r => setTimeout(r, 300));
+
+      // Step 5: Resolve shop (moves to next round)
+      toast.info('🛍️ Résolution du shop...');
+      const { data: shopData, error: shopError } = await supabase.functions.invoke('resolve-shop', {
+        body: { gameId },
+      });
+      if (shopError || !shopData?.success) {
+        throw new Error(shopData?.error || 'Erreur lors de la résolution du shop');
+      }
+
+      if (shopData.gameEnded) {
+        toast.success('🏆 Partie terminée ! Tous les monstres sont vaincus.');
+      } else {
+        toast.success(`🎯 Manche ${mancheActive} terminée → Passage à la manche ${shopData.nextRound?.manche || mancheActive + 1}`);
+      }
+      
+      onGameUpdate();
+    } catch (error) {
+      console.error('Passer manche error:', error);
+      toast.error(error instanceof Error ? error.message : 'Erreur lors du passage de manche');
+    } finally {
+      setPassingManche(false);
+    }
   };
 
   return (
@@ -72,7 +156,7 @@ export function MJActionsMenu({
             <ForestButton 
               size="sm" 
               onClick={handlePresentationMode}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-purple-600/90 hover:bg-purple-600"
             >
               <Presentation className="h-4 w-4 mr-1" />
               Mode Présentation
@@ -83,6 +167,23 @@ export function MJActionsMenu({
               startingTokens={startingTokens}
             />
           </>
+        )}
+
+        {/* Passer la manche - Only for 100% bot games in Forêt */}
+        {canPassManche && (
+          <ForestButton
+            size="sm"
+            className="bg-amber-600/90 hover:bg-amber-600"
+            disabled={passingManche}
+            onClick={handlePasserManche}
+          >
+            {passingManche ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+            ) : (
+              <Zap className="h-4 w-4 mr-1" />
+            )}
+            Passer la manche
+          </ForestButton>
         )}
 
         {isForet && isEnded && (
@@ -148,6 +249,21 @@ export function MJActionsMenu({
                   Stats Bots vs Humains
                 </DropdownMenuItem>
               </>
+            )}
+
+            {/* Passer la manche - Only for 100% bot games */}
+            {canPassManche && (
+              <DropdownMenuItem
+                onClick={handlePasserManche}
+                disabled={passingManche}
+              >
+                {passingManche ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Zap className="h-4 w-4 mr-2" />
+                )}
+                Passer la manche
+              </DropdownMenuItem>
             )}
 
             {isForet && isEnded && (
