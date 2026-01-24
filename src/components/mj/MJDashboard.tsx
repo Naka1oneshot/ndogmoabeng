@@ -719,6 +719,35 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             showTitle={true}
           />
           
+          {/* Adventure Token Transition Rules */}
+          <div className="pt-3 border-t border-border/50">
+            <div className="flex items-center gap-2 mb-2">
+              <Coins className="h-4 w-4 text-amber-400" />
+              <span className="text-sm font-medium text-muted-foreground">Règles de Transition (Jetons)</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className={`p-2 rounded-lg border ${game.selected_game_type_code === 'RIVIERES' ? 'bg-primary/20 border-primary/50' : 'bg-secondary/30 border-border/30'}`}>
+                <div className="font-medium text-blue-400">🌊 Rivières</div>
+                <div className="text-muted-foreground">Début: <span className="font-mono font-bold text-foreground">100💎</span></div>
+              </div>
+              <div className={`p-2 rounded-lg border ${game.selected_game_type_code === 'FORET' ? 'bg-primary/20 border-primary/50' : 'bg-secondary/30 border-border/30'}`}>
+                <div className="font-medium text-green-400">🌲 Forêt</div>
+                <div className="text-muted-foreground">Début: <span className="font-mono font-bold text-foreground">50💎</span></div>
+              </div>
+              <div className={`p-2 rounded-lg border ${game.selected_game_type_code === 'SHERIFF' ? 'bg-primary/20 border-primary/50' : 'bg-secondary/30 border-border/30'}`}>
+                <div className="font-medium text-amber-400">🤠 Shérif</div>
+                <div className="text-muted-foreground">Début: <span className="font-mono font-bold text-foreground">0💎</span></div>
+              </div>
+              <div className={`p-2 rounded-lg border ${game.selected_game_type_code === 'INFECTION' ? 'bg-primary/20 border-primary/50' : 'bg-secondary/30 border-border/30'}`}>
+                <div className="font-medium text-purple-400">🦠 Infection</div>
+                <div className="text-muted-foreground">Hérite: <span className="font-mono font-bold text-foreground">du Shérif</span></div>
+              </div>
+            </div>
+            <div className="mt-2 text-xs text-muted-foreground/70">
+              💡 Clan Royaux: +50% bonus sur les jetons de départ
+            </div>
+          </div>
+          
           {/* Cumulative PVic Ranking - Team based with podium toggle */}
           {adventureScores.length > 0 && (
             <div className="pt-3 border-t border-border/50">
