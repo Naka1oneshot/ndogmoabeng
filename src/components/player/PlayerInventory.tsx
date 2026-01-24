@@ -23,6 +23,7 @@ interface CatalogItem {
 
 interface PlayerInventoryProps {
   gameId: string;
+  sessionGameId?: string | null;
   playerNumber: number;
   jetons: number;
   recompenses: number;
@@ -134,6 +135,7 @@ function UsableItemDetails({ item, catalog }: { item: InventoryItem; catalog: Ma
 
 export function PlayerInventory({
   gameId,
+  sessionGameId,
   playerNumber,
   jetons,
   recompenses,
@@ -165,7 +167,7 @@ export function PlayerInventory({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, playerNumber]);
+  }, [gameId, sessionGameId, playerNumber]);
 
   const fetchData = async () => {
     await Promise.all([fetchInventory(), fetchCatalog()]);
@@ -173,11 +175,18 @@ export function PlayerInventory({
   };
 
   const fetchInventory = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('inventory')
       .select('id, objet, quantite, disponible, dispo_attaque')
       .eq('game_id', gameId)
       .eq('owner_num', playerNumber);
+    
+    // Filter by session_game_id if available
+    if (sessionGameId) {
+      query = query.eq('session_game_id', sessionGameId);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       setItems(data);
