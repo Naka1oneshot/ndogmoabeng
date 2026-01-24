@@ -140,6 +140,9 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   const [deletingBots, setDeletingBots] = useState(false);
   const [botCount, setBotCount] = useState(5);
   
+  // Game settings state
+  const [initialPool, setInitialPool] = useState(100);
+  
   // Bot decisions state
   const [generatingBotChoices, setGeneratingBotChoices] = useState(false);
   const [generatingBotDuels, setGeneratingBotDuels] = useState(false);
@@ -251,6 +254,7 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
         body: {
           gameId: game.id,
           sessionGameId: game.current_session_game_id,
+          initialPool: initialPool,
         },
       });
 
@@ -650,6 +654,25 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
             <Shield className="h-12 w-12 mx-auto mb-4 text-[#D4AF37]" />
             <h2 className="text-xl font-bold mb-2">Le Shérif de Ndogmoabeng</h2>
             <p className="text-[#9CA3AF] mb-4">Contrôle d'entrée au Centre</p>
+            
+            {/* Initial Pool Configuration */}
+            <div className="mb-4 p-3 rounded-lg bg-[#1A1F2C] border border-[#D4AF37]/30">
+              <label className="text-sm text-[#9CA3AF] block mb-2">💰 Cagnotte initiale (€)</label>
+              <div className="flex items-center justify-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={1000}
+                  step={10}
+                  value={initialPool}
+                  onChange={(e) => setInitialPool(Math.max(0, parseInt(e.target.value) || 0))}
+                  className={`w-24 text-center ${theme.input}`}
+                />
+                <span className="text-[#D4AF37] font-bold">€</span>
+              </div>
+              <p className="text-xs text-[#9CA3AF]/70 mt-1">Montant disponible pour les Visas PV</p>
+            </div>
+            
             <Button 
               onClick={handleStartGame} 
               disabled={activePlayers.length < 2}

@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { gameId, sessionGameId } = await req.json();
+    const { gameId, sessionGameId, initialPool } = await req.json();
 
     if (!gameId || !sessionGameId) {
       return new Response(
@@ -19,6 +19,9 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
+
+    // Use provided initialPool or default to 100
+    const commonPoolInitial = typeof initialPool === 'number' && initialPool >= 0 ? initialPool : 100;
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -53,7 +56,7 @@ Deno.serve(async (req) => {
         phase: 'CHOICES',
         current_duel_order: null,
         total_duels: 0,
-        common_pool_initial: 100, // Default common pool
+        common_pool_initial: commonPoolInitial,
         common_pool_spent: 0,
       }, { onConflict: 'session_game_id' });
 
