@@ -594,38 +594,48 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             showTitle={true}
           />
           
-          {/* Cumulative PVic Summary */}
+          {/* Cumulative PVic Ranking */}
           {adventureScores.length > 0 && (
             <div className="pt-3 border-t border-border/50">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-medium text-muted-foreground">🏆 Points de Victoire Cumulés</span>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm font-medium text-muted-foreground">🏆 Classement Points de Victoire</span>
+                <span className="text-xs text-muted-foreground/70">(cumulé sur l'aventure)</span>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {adventureScores.slice(0, 5).map((score, index) => (
+              <div className="grid gap-2">
+                {adventureScores.map((score, index) => (
                   <div 
                     key={score.playerId}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${
                       index === 0 
-                        ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' 
+                        ? 'bg-yellow-500/20 border border-yellow-500/30' 
                         : index === 1 
-                          ? 'bg-slate-400/20 text-slate-300 border border-slate-400/30'
+                          ? 'bg-slate-400/20 border border-slate-400/30'
                           : index === 2
-                            ? 'bg-amber-600/20 text-amber-400 border border-amber-600/30'
-                            : 'bg-secondary/50 text-muted-foreground'
+                            ? 'bg-amber-600/20 border border-amber-600/30'
+                            : 'bg-secondary/30'
                     }`}
                   >
-                    <span className="font-medium">
-                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                    <div className="flex items-center gap-3">
+                      <span className={`font-bold w-8 text-center ${
+                        index === 0 ? 'text-yellow-400' : 
+                        index === 1 ? 'text-slate-300' : 
+                        index === 2 ? 'text-amber-500' : 'text-muted-foreground'
+                      }`}>
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                      </span>
+                      <span className={`font-medium ${
+                        index < 3 ? 'text-foreground' : 'text-muted-foreground'
+                      }`}>{score.playerName}</span>
+                    </div>
+                    <span className={`font-bold text-base ${
+                      index === 0 ? 'text-yellow-400' : 
+                      index === 1 ? 'text-slate-300' : 
+                      index === 2 ? 'text-amber-500' : 'text-primary'
+                    }`}>
+                      {score.totalScore} pts
                     </span>
-                    <span className="truncate max-w-24">{score.playerName}</span>
-                    <span className="font-bold">{score.totalScore}</span>
                   </div>
                 ))}
-                {adventureScores.length > 5 && (
-                  <div className="px-3 py-1.5 bg-secondary/30 rounded-full text-sm text-muted-foreground">
-                    +{adventureScores.length - 5} autres
-                  </div>
-                )}
               </div>
             </div>
           )}
