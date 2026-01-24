@@ -52,6 +52,7 @@ export function SubscriptionSection() {
     createTokenPayment,
     openCustomerPortal,
     getRemainingTrialDays,
+    refreshSubscription,
   } = useSubscription();
 
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
@@ -73,6 +74,8 @@ export function SubscriptionSection() {
     setCheckoutLoading(selectedTier);
     try {
       await createCheckout(selectedTier);
+      // Refresh subscription status after checkout window opens
+      setTimeout(() => refreshSubscription(), 5000);
     } catch (error) {
       toast({
         title: "Erreur",
@@ -88,6 +91,8 @@ export function SubscriptionSection() {
     setCheckoutLoading('token');
     try {
       await createTokenPayment(1);
+      // Refresh subscription status after checkout window opens
+      setTimeout(() => refreshSubscription(), 5000);
     } catch (error) {
       toast({
         title: "Erreur",
