@@ -157,6 +157,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   }, [game.adventure_id, isAdventure]);
 
   // Fetch adventure cumulative scores - grouped by team (mates)
+  // For RIVIERES: Calculate simulated PVic based on validated_levels and jetons in real-time
   useEffect(() => {
     if (!isAdventure || !game.adventure_id) return;
     
@@ -170,10 +171,23 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       // Get current game players with their live scores and mate_num
       const { data: players } = await supabase
         .from('game_players')
-        .select('id, display_name, recompenses, pvic, player_number, mate_num')
+        .select('id, display_name, recompenses, pvic, player_number, mate_num, jetons')
         .eq('game_id', game.id)
         .eq('status', 'ACTIVE')
         .eq('is_host', false);
+      
+      // For RIVIERES: Get river_player_stats to calculate simulated PVic
+      let riverStatsMap = new Map<string, { validated_levels: number }>();
+      if (game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id) {
+        const { data: riverStats } = await supabase
+          .from('river_player_stats')
+          .select('player_id, validated_levels')
+          .eq('session_game_id', game.current_session_game_id);
+        
+        if (riverStats) {
+          riverStatsMap = new Map(riverStats.map(s => [s.player_id, { validated_levels: s.validated_levels }]));
+        }
+      }
       
       if (players) {
         const scoresMap = new Map(scores?.map(s => [s.game_player_id, s.total_score_value]) || []);
@@ -186,6 +200,26 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           playerIds: string[];
         }>();
         
+        // Helper function to calculate current game score based on game type
+        const calculateCurrentGameScore = (player: any): number => {
+          if (game.selected_game_type_code === 'RIVIERES') {
+            // For RIVIERES: Simulate PVic based on validated_levels and jetons
+            const riverStats = riverStatsMap.get(player.id);
+            const validatedLevels = riverStats?.validated_levels || 0;
+            const jetons = player.jetons || 0;
+            
+            // Same formula as in rivieres-resolve-level
+            if (validatedLevels < 9) {
+              return Math.round((validatedLevels * jetons) / 9);
+            } else {
+              return Math.round(jetons);
+            }
+          } else {
+            // For FORET and others: Use recompenses + pvic
+            return (player.recompenses || 0) + (player.pvic || 0);
+          }
+        };
+        
         // Processed players (to avoid counting twice)
         const processedPlayers = new Set<number>();
         
@@ -193,7 +227,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           if (processedPlayers.has(player.player_number!)) continue;
           
           const adventureScore = scoresMap.get(player.id) || 0;
-          const currentGameScore = (player.recompenses || 0) + (player.pvic || 0);
+          const currentGameScore = calculateCurrentGameScore(player);
           let totalScore = adventureScore + currentGameScore;
           const playerNames: string[] = [player.display_name];
           const playerIds: string[] = [player.id];
@@ -205,7 +239,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             const mate = playerMap.get(player.mate_num)!;
             if (!processedPlayers.has(mate.player_number!)) {
               const mateAdventureScore = scoresMap.get(mate.id) || 0;
-              const mateCurrentScore = (mate.recompenses || 0) + (mate.pvic || 0);
+              const mateCurrentScore = calculateCurrentGameScore(mate);
               totalScore += mateAdventureScore + mateCurrentScore;
               playerNames.push(mate.display_name);
               playerIds.push(mate.id);
@@ -249,10 +283,26 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       )
       .subscribe();
     
+    // For RIVIERES: Also subscribe to river_player_stats changes
+    let riverChannel: any = null;
+    if (game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id) {
+      riverChannel = supabase
+        .channel(`adventure-river-stats-${game.current_session_game_id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'river_player_stats', filter: `session_game_id=eq.${game.current_session_game_id}` },
+          () => fetchAdventureScores()
+        )
+        .subscribe();
+    }
+    
     return () => {
       supabase.removeChannel(channel);
+      if (riverChannel) {
+        supabase.removeChannel(riverChannel);
+      }
     };
-  }, [game.id, game.adventure_id, isAdventure]);
+  }, [game.id, game.adventure_id, isAdventure, game.selected_game_type_code, game.current_session_game_id]);
 
   // Fetch player count for animation
   useEffect(() => {
