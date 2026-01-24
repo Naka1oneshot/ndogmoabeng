@@ -203,7 +203,11 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           hasCurrentGameScore: boolean; // Track if score includes in-progress game estimates
         }>();
         
-        // Helper function to calculate current game score based on game type
+        // Helper function to calculate CURRENT GAME'S ESTIMATED score (not accumulated)
+        // This is for live estimation during active games ONLY
+        // For FORET: only count recompenses from current game (kills/rewards)
+        // For RIVIERES: simulate based on current jetons and validated_levels
+        // NOTE: adventure_scores already contains pvic from previous games, so we should NOT add pvic again
         const calculateCurrentGameScore = (player: any): number => {
           if (game.selected_game_type_code === 'RIVIERES') {
             // For RIVIERES: Simulate PVic based on validated_levels and jetons
@@ -218,8 +222,9 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
               return Math.round(jetons);
             }
           } else {
-            // For FORET and others: Use recompenses + pvic
-            return (player.recompenses || 0) + (player.pvic || 0);
+            // For FORET and others: Use only recompenses (current game kills/rewards)
+            // pvic is already included in adventure_scores, don't double-count it
+            return (player.recompenses || 0);
           }
         };
         
