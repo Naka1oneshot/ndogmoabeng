@@ -84,11 +84,17 @@ export function MJCombatTab({ game, isAdventure, onNextGame }: MJCombatTabProps)
   const [endingGame, setEndingGame] = useState(false);
 
   const fetchData = useCallback(async () => {
-    // Fetch monsters
-    const { data: stateData } = await supabase
+    // Fetch monsters - filter by session_game_id for adventure mode
+    let monstersQuery = supabase
       .from('game_state_monsters')
       .select('id, monster_id, pv_current, status, battlefield_slot')
-      .eq('game_id', game.id)
+      .eq('game_id', game.id);
+    
+    if (game.current_session_game_id) {
+      monstersQuery = monstersQuery.eq('session_game_id', game.current_session_game_id);
+    }
+    
+    const { data: stateData } = await monstersQuery
       .order('battlefield_slot', { ascending: true, nullsFirst: false });
 
     if (stateData && stateData.length > 0) {
