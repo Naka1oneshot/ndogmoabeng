@@ -96,7 +96,8 @@ export function PlayerRowCompact({
   const theme = THEME_STYLES[variant];
   
   // Calculate total PVic for display: adventure cumulative + current game points
-  const currentGamePvic = (player.recompenses || 0) + (player.pvic || 0);
+  // NOTE: adventurePvic already contains pvic from previous games, only add recompenses (current game kills/rewards)
+  const currentGamePvic = player.recompenses || 0;
   const totalPvic = adventurePvic !== undefined ? adventurePvic + currentGamePvic : undefined;
 
   const handleViewProfile = () => {

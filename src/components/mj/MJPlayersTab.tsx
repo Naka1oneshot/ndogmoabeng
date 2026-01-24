@@ -1185,7 +1185,7 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
                             </td>
                             {isAdventure && (
                               <td className="py-3 px-2 font-medium text-warning">
-                                {(getAdventurePvic(player.id) || 0) + (player.recompenses || 0) + (player.pvic || 0)}🏆
+                                {(getAdventurePvic(player.id) || 0) + (player.recompenses || 0)}🏆
                               </td>
                             )}
                             <td className="py-3 px-2 text-xs text-muted-foreground">
