@@ -12,6 +12,20 @@ interface BotDecisionRequest {
   duelId?: string; // Optional for specific duel
 }
 
+interface SheriffBotConfig {
+  visa_pv_chance: number;
+  illegal_tokens_chance: number;
+  search_chance: number;
+  search_if_suspicious: number;
+}
+
+const DEFAULT_CONFIG: SheriffBotConfig = {
+  visa_pv_chance: 60,
+  illegal_tokens_chance: 30,
+  search_chance: 35,
+  search_if_suspicious: 60,
+};
+
 interface PlayerChoice {
   id: string;
   player_number: number;
@@ -120,7 +134,7 @@ Deno.serve(async (req) => {
       // Generate choice decisions for bots
       const { data: roundState } = await supabase
         .from('sheriff_round_state')
-        .select('phase')
+        .select('phase, bot_config')
         .eq('session_game_id', sessionGameId)
         .single();
 
@@ -130,6 +144,9 @@ Deno.serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
         );
       }
+
+      // Use config from round state or defaults
+      const config: SheriffBotConfig = { ...DEFAULT_CONFIG, ...(roundState.bot_config as Partial<SheriffBotConfig> || {}) };
 
       // Get existing choices to find bots who haven't decided
       const { data: existingChoices } = await supabase
@@ -145,11 +162,11 @@ Deno.serve(async (req) => {
       for (const bot of botPlayers) {
         if (!bot.player_number || decidedPlayers.has(bot.player_number)) continue;
 
-        // Random choice: 60% VICTORY_POINTS, 40% COMMON_POOL
-        const visaChoice = Math.random() < 0.6 ? 'VICTORY_POINTS' : 'COMMON_POOL';
+        // Use config probabilities
+        const visaChoice = Math.random() * 100 < config.visa_pv_chance ? 'VICTORY_POINTS' : 'COMMON_POOL';
         
-        // Random tokens: 70% legal (20), 30% illegal (30)
-        const tokensEntering = Math.random() < 0.7 ? 20 : 30;
+        // Use config for illegal tokens probability
+        const tokensEntering = Math.random() * 100 < config.illegal_tokens_chance ? 30 : 20;
         const hasIllegalTokens = tokensEntering > 20;
 
         // Calculate visa cost
@@ -195,6 +212,15 @@ Deno.serve(async (req) => {
     } else if (action === 'duels') {
       // Generate duel decisions for bots
 
+      // Get round state for config
+      const { data: roundState } = await supabase
+        .from('sheriff_round_state')
+        .select('bot_config')
+        .eq('session_game_id', sessionGameId)
+        .single();
+
+      const config: SheriffBotConfig = { ...DEFAULT_CONFIG, ...(roundState?.bot_config as Partial<SheriffBotConfig> || {}) };
+
       // Get active duel(s) based on duelId or current active
       let duelsToProcess: Duel[] = [];
       
@@ -239,16 +265,17 @@ Deno.serve(async (req) => {
 
         // Player 1 decision (if bot and hasn't decided)
         if (p1IsBot && duel.player1_searches === null) {
-          // Strategy: 40% base chance to search, higher if opponent might be illegal
-          // Bots are slightly less likely to search
-          const searchChance = 0.35;
-          updates.player1_searches = Math.random() < searchChance;
+          // Check if opponent seems suspicious (has illegal tokens)
+          const opponentSuspicious = illegalMap.get(duel.player2_number) === true;
+          const searchChance = opponentSuspicious ? config.search_if_suspicious : config.search_chance;
+          updates.player1_searches = Math.random() * 100 < searchChance;
         }
 
         // Player 2 decision (if bot and hasn't decided)
         if (p2IsBot && duel.player2_searches === null) {
-          const searchChance = 0.35;
-          updates.player2_searches = Math.random() < searchChance;
+          const opponentSuspicious = illegalMap.get(duel.player1_number) === true;
+          const searchChance = opponentSuspicious ? config.search_if_suspicious : config.search_chance;
+          updates.player2_searches = Math.random() * 100 < searchChance;
         }
 
         if (Object.keys(updates).length > 0) {
