@@ -338,6 +338,8 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
       <SheriffVictoryPodium
         players={activePlayers}
         teamRanking={teamRanking}
+        choices={choices}
+        duels={duels}
         onClose={onClose}
       />
     );

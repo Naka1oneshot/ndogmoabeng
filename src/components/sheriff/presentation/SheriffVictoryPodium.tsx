@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Trophy, Medal, Crown, X } from 'lucide-react';
+import { Trophy, Medal, Crown, X, TrendingUp, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -16,6 +16,19 @@ interface Player {
   clan?: string | null;
 }
 
+interface PlayerChoice {
+  player_number: number;
+  victory_points_delta: number;
+}
+
+interface Duel {
+  player1_number: number;
+  player2_number: number;
+  player1_vp_delta: number;
+  player2_vp_delta: number;
+  status: string;
+}
+
 interface TeamRanking {
   name: string;
   totalPvic: number;
@@ -25,6 +38,8 @@ interface TeamRanking {
 interface SheriffVictoryPodiumProps {
   players: Player[];
   teamRanking: TeamRanking[];
+  choices: PlayerChoice[];
+  duels: Duel[];
   onClose: () => void;
 }
 
@@ -67,10 +82,42 @@ function TeamNameWithTooltip({ name, className }: { name: string; className?: st
 export function SheriffVictoryPodium({
   players,
   teamRanking,
+  choices,
+  duels,
   onClose,
 }: SheriffVictoryPodiumProps) {
   const [showPodium, setShowPodium] = useState(false);
   const [showRanking, setShowRanking] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  
+  // Calculate player stats from choices and duels
+  const playerStats = players.map(player => {
+    const pNum = player.player_number;
+    if (pNum === null) return { player, totalDelta: 0 };
+    
+    // Get visa choice delta
+    const choice = choices.find(c => c.player_number === pNum);
+    const visaDelta = choice?.victory_points_delta || 0;
+    
+    // Get duel deltas
+    const duelDeltas = duels
+      .filter(d => d.status === 'RESOLVED')
+      .reduce((sum, d) => {
+        if (d.player1_number === pNum) return sum + (d.player1_vp_delta || 0);
+        if (d.player2_number === pNum) return sum + (d.player2_vp_delta || 0);
+        return sum;
+      }, 0);
+    
+    return {
+      player,
+      totalDelta: visaDelta + duelDeltas,
+    };
+  });
+  
+  // Top gainers and losers
+  const sortedByGain = [...playerStats].sort((a, b) => b.totalDelta - a.totalDelta);
+  const topGainers = sortedByGain.filter(p => p.totalDelta > 0).slice(0, 3);
+  const topLosers = sortedByGain.filter(p => p.totalDelta < 0).sort((a, b) => a.totalDelta - b.totalDelta).slice(0, 3);
   
   // Confetti burst function
   const fireConfetti = useCallback(() => {
@@ -123,6 +170,7 @@ export function SheriffVictoryPodium({
       setShowRanking(true);
       fireConfetti();
     }, 1500);
+    setTimeout(() => setShowStats(true), 2000);
   }, [fireConfetti]);
   
   const top3 = teamRanking.slice(0, 3);
@@ -172,12 +220,15 @@ export function SheriffVictoryPodium({
         </div>
       </div>
       
-      <div className="p-4 max-w-4xl mx-auto">
-        {/* Confetti / Celebration Header */}
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-4">🎉🏆🎉</div>
-          <h2 className="text-3xl font-bold text-[#D4AF37]">Félicitations aux Vainqueurs!</h2>
-        </div>
+      <div className="p-4 max-w-6xl mx-auto">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Main content (left) */}
+          <div className="flex-1">
+            {/* Confetti / Celebration Header */}
+            <div className="text-center mb-8">
+              <div className="text-5xl mb-4">🎉🏆🎉</div>
+              <h2 className="text-3xl font-bold text-[#D4AF37]">Félicitations aux Vainqueurs!</h2>
+            </div>
         
         {/* Podium */}
         <div className={`flex items-end justify-center gap-4 mb-12 transition-all duration-1000 ${showPodium ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
@@ -296,6 +347,70 @@ export function SheriffVictoryPodium({
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+          </div>
+          {/* Stats Panel (right) */}
+          <div className={`lg:w-80 space-y-4 transition-all duration-1000 ${showStats ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
+            {/* Top Gainers */}
+            <div className="bg-[#2A2215] border border-green-500/30 rounded-xl p-4">
+              <h3 className="text-green-400 font-bold text-lg mb-3 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Plus Gros Gains
+              </h3>
+              {topGainers.length > 0 ? (
+                <div className="space-y-2">
+                  {topGainers.map((stat, idx) => (
+                    <div key={stat.player.id} className="flex items-center justify-between p-2 rounded-lg bg-green-500/10">
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-400 font-bold w-5">{idx + 1}.</span>
+                        {stat.player.avatar_url ? (
+                          <img src={stat.player.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover border border-green-500/30" />
+                        ) : (
+                          <div className="h-7 w-7 rounded-full bg-green-500/20 flex items-center justify-center text-xs font-bold text-green-400">
+                            {stat.player.player_number}
+                          </div>
+                        )}
+                        <span className="text-white text-sm truncate max-w-[120px]">{stat.player.display_name}</span>
+                      </div>
+                      <span className="text-green-400 font-bold">+{stat.totalDelta}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[#9CA3AF] text-sm">Aucun gain enregistré</p>
+              )}
+            </div>
+            
+            {/* Top Losers */}
+            <div className="bg-[#2A2215] border border-red-500/30 rounded-xl p-4">
+              <h3 className="text-red-400 font-bold text-lg mb-3 flex items-center gap-2">
+                <TrendingDown className="h-5 w-5" />
+                Plus Grosses Pertes
+              </h3>
+              {topLosers.length > 0 ? (
+                <div className="space-y-2">
+                  {topLosers.map((stat, idx) => (
+                    <div key={stat.player.id} className="flex items-center justify-between p-2 rounded-lg bg-red-500/10">
+                      <div className="flex items-center gap-2">
+                        <span className="text-red-400 font-bold w-5">{idx + 1}.</span>
+                        {stat.player.avatar_url ? (
+                          <img src={stat.player.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover border border-red-500/30" />
+                        ) : (
+                          <div className="h-7 w-7 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-bold text-red-400">
+                            {stat.player.player_number}
+                          </div>
+                        )}
+                        <span className="text-white text-sm truncate max-w-[120px]">{stat.player.display_name}</span>
+                      </div>
+                      <span className="text-red-400 font-bold">{stat.totalDelta}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[#9CA3AF] text-sm">Aucune perte enregistrée</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
