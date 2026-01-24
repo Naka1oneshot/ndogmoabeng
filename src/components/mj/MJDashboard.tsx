@@ -268,7 +268,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
     
     fetchAdventureScores();
     
-    // Subscribe to changes
+    // Subscribe to changes - base subscriptions for all game types
     const channel = supabase
       .channel(`adventure-scores-${game.id}`)
       .on(
@@ -283,23 +283,47 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       )
       .subscribe();
     
-    // For RIVIERES: Also subscribe to river_player_stats changes
-    let riverChannel: any = null;
-    if (game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id) {
-      riverChannel = supabase
-        .channel(`adventure-river-stats-${game.current_session_game_id}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'river_player_stats', filter: `session_game_id=eq.${game.current_session_game_id}` },
-          () => fetchAdventureScores()
-        )
-        .subscribe();
+    // Game-specific subscriptions
+    let gameSpecificChannel: any = null;
+    
+    if (game.current_session_game_id) {
+      if (game.selected_game_type_code === 'RIVIERES') {
+        // RIVIERES: Subscribe to river_player_stats for validated_levels updates
+        gameSpecificChannel = supabase
+          .channel(`adventure-river-stats-${game.current_session_game_id}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'river_player_stats', filter: `session_game_id=eq.${game.current_session_game_id}` },
+            () => fetchAdventureScores()
+          )
+          .subscribe();
+      } else if (game.selected_game_type_code === 'FORET') {
+        // FORET: Subscribe to combat_results for kill updates (recompenses are updated in game_players)
+        gameSpecificChannel = supabase
+          .channel(`adventure-combat-${game.current_session_game_id}`)
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'combat_results', filter: `session_game_id=eq.${game.current_session_game_id}` },
+            () => fetchAdventureScores()
+          )
+          .subscribe();
+      } else if (game.selected_game_type_code === 'INFECTION') {
+        // INFECTION: Subscribe to infection_round_state for round resolution (AE pvic updates via corruption)
+        gameSpecificChannel = supabase
+          .channel(`adventure-infection-${game.current_session_game_id}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'infection_round_state', filter: `session_game_id=eq.${game.current_session_game_id}` },
+            () => fetchAdventureScores()
+          )
+          .subscribe();
+      }
     }
     
     return () => {
       supabase.removeChannel(channel);
-      if (riverChannel) {
-        supabase.removeChannel(riverChannel);
+      if (gameSpecificChannel) {
+        supabase.removeChannel(gameSpecificChannel);
       }
     };
   }, [game.id, game.adventure_id, isAdventure, game.selected_game_type_code, game.current_session_game_id]);
