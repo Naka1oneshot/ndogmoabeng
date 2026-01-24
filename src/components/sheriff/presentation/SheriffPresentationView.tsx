@@ -376,6 +376,8 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
           duel={currentDuelForAnimation}
           player1={getPlayer(currentDuelForAnimation.player1_number)}
           player2={getPlayer(currentDuelForAnimation.player2_number)}
+          choice1={getChoice(currentDuelForAnimation.player1_number)}
+          choice2={getChoice(currentDuelForAnimation.player2_number)}
           onComplete={handleDuelResolutionComplete}
         />
       )}
@@ -675,9 +677,7 @@ function DuelsPhaseDisplay({
                 <div className="text-sm lg:text-base text-[#9CA3AF]">#{player1?.player_number} • {player1?.clan || 'Solo'}</div>
                 <div className="mt-3">
                   {currentDuel.player1_searches !== null ? (
-                    <span className={`px-4 py-2 rounded-full text-sm lg:text-base font-medium ${currentDuel.player1_searches ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-green-500/20 text-green-400 border border-green-500/40'}`}>
-                      {currentDuel.player1_searches ? '🔍 Fouille' : '✓ Laisse passer'}
-                    </span>
+                    <span className="px-4 py-2 rounded-full text-sm lg:text-base font-medium bg-green-500/20 text-green-400 border border-green-500/40">✓ A choisi</span>
                   ) : (
                     <span className="px-4 py-2 rounded-full text-sm lg:text-base font-medium bg-orange-500/20 text-orange-400 border border-orange-500/40">⏳ En attente</span>
                   )}
@@ -707,9 +707,7 @@ function DuelsPhaseDisplay({
                 <div className="text-sm lg:text-base text-[#9CA3AF]">#{player2?.player_number} • {player2?.clan || 'Solo'}</div>
                 <div className="mt-3">
                   {currentDuel.player2_searches !== null ? (
-                    <span className={`px-4 py-2 rounded-full text-sm lg:text-base font-medium ${currentDuel.player2_searches ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-green-500/20 text-green-400 border border-green-500/40'}`}>
-                      {currentDuel.player2_searches ? '🔍 Fouille' : '✓ Laisse passer'}
-                    </span>
+                    <span className="px-4 py-2 rounded-full text-sm lg:text-base font-medium bg-green-500/20 text-green-400 border border-green-500/40">✓ A choisi</span>
                   ) : (
                     <span className="px-4 py-2 rounded-full text-sm lg:text-base font-medium bg-orange-500/20 text-orange-400 border border-orange-500/40">⏳ En attente</span>
                   )}
