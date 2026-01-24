@@ -570,6 +570,17 @@ async function computeFinalScores(
         formula: penalty ? `round((${validatedLevels} * ${jetons}) / 9)` : `round(${jetons})`,
       },
     });
+
+    // IMPORTANT: Update pvic on game_players - Rivières score = PVic for adventure
+    await supabase
+      .from("game_players")
+      .update({ 
+        pvic: score,
+        recompenses: score, // Also set recompenses for consistency
+      })
+      .eq("id", stats.player_id);
+    
+    console.log(`[rivieres-resolve-level] Updated player ${player.display_name} pvic/recompenses to ${score}`);
   }
 
   // Sort by score desc
