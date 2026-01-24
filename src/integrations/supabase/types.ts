@@ -2773,6 +2773,202 @@ export type Database = {
           },
         ]
       }
+      sheriff_duels: {
+        Row: {
+          created_at: string | null
+          duel_order: number
+          game_id: string
+          id: string
+          player1_number: number
+          player1_searches: boolean | null
+          player1_tokens_lost: number | null
+          player1_vp_delta: number | null
+          player2_number: number
+          player2_searches: boolean | null
+          player2_tokens_lost: number | null
+          player2_vp_delta: number | null
+          resolution_summary: Json | null
+          resolved_at: string | null
+          session_game_id: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          duel_order: number
+          game_id: string
+          id?: string
+          player1_number: number
+          player1_searches?: boolean | null
+          player1_tokens_lost?: number | null
+          player1_vp_delta?: number | null
+          player2_number: number
+          player2_searches?: boolean | null
+          player2_tokens_lost?: number | null
+          player2_vp_delta?: number | null
+          resolution_summary?: Json | null
+          resolved_at?: string | null
+          session_game_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          duel_order?: number
+          game_id?: string
+          id?: string
+          player1_number?: number
+          player1_searches?: boolean | null
+          player1_tokens_lost?: number | null
+          player1_vp_delta?: number | null
+          player2_number?: number
+          player2_searches?: boolean | null
+          player2_tokens_lost?: number | null
+          player2_vp_delta?: number | null
+          resolution_summary?: Json | null
+          resolved_at?: string | null
+          session_game_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sheriff_duels_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sheriff_duels_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sheriff_player_choices: {
+        Row: {
+          created_at: string | null
+          final_tokens: number | null
+          game_id: string
+          has_illegal_tokens: boolean | null
+          id: string
+          player_id: string
+          player_number: number
+          session_game_id: string | null
+          tokens_entering: number | null
+          updated_at: string | null
+          victory_points_delta: number | null
+          visa_choice: string | null
+          visa_cost_applied: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          final_tokens?: number | null
+          game_id: string
+          has_illegal_tokens?: boolean | null
+          id?: string
+          player_id: string
+          player_number: number
+          session_game_id?: string | null
+          tokens_entering?: number | null
+          updated_at?: string | null
+          victory_points_delta?: number | null
+          visa_choice?: string | null
+          visa_cost_applied?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          final_tokens?: number | null
+          game_id?: string
+          has_illegal_tokens?: boolean | null
+          id?: string
+          player_id?: string
+          player_number?: number
+          session_game_id?: string | null
+          tokens_entering?: number | null
+          updated_at?: string | null
+          victory_points_delta?: number | null
+          visa_choice?: string | null
+          visa_cost_applied?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sheriff_player_choices_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sheriff_player_choices_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sheriff_player_choices_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sheriff_round_state: {
+        Row: {
+          common_pool_initial: number | null
+          common_pool_spent: number | null
+          created_at: string | null
+          current_duel_order: number | null
+          game_id: string
+          id: string
+          phase: string | null
+          session_game_id: string
+          total_duels: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          common_pool_initial?: number | null
+          common_pool_spent?: number | null
+          created_at?: string | null
+          current_duel_order?: number | null
+          game_id: string
+          id?: string
+          phase?: string | null
+          session_game_id: string
+          total_duels?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          common_pool_initial?: number | null
+          common_pool_spent?: number | null
+          created_at?: string | null
+          current_duel_order?: number | null
+          game_id?: string
+          id?: string
+          phase?: string | null
+          session_game_id?: string
+          total_duels?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sheriff_round_state_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sheriff_round_state_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: true
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_catalogue: {
         Row: {
           actif: boolean | null
