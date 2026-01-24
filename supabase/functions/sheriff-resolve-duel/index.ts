@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
 
     if (updateDuelError) throw updateDuelError;
 
-    // Update player choices with cumulative VP delta
+    // Update player choices with cumulative VP delta and final tokens
     await supabase
       .from('sheriff_player_choices')
       .update({
@@ -212,22 +212,22 @@ Deno.serve(async (req) => {
       })
       .eq('id', p2Choice.id);
 
-    // Update game_players jetons if tokens were lost
-    if (result.player1TokensLost > 0) {
-      await supabase
-        .from('game_players')
-        .update({ jetons: 20 })
-        .eq('game_id', gameId)
-        .eq('player_number', duel.player1_number);
-    }
+    // Update game_players jetons for both players
+    // Player1: if caught with illegal tokens, reset to 20; otherwise keep their tokens_entering
+    const p1FinalTokens = result.player1TokensLost > 0 ? 20 : (p1Choice.tokens_entering || 20);
+    await supabase
+      .from('game_players')
+      .update({ jetons: p1FinalTokens })
+      .eq('game_id', gameId)
+      .eq('player_number', duel.player1_number);
 
-    if (result.player2TokensLost > 0) {
-      await supabase
-        .from('game_players')
-        .update({ jetons: 20 })
-        .eq('game_id', gameId)
-        .eq('player_number', duel.player2_number);
-    }
+    // Player2: if caught with illegal tokens, reset to 20; otherwise keep their tokens_entering
+    const p2FinalTokens = result.player2TokensLost > 0 ? 20 : (p2Choice.tokens_entering || 20);
+    await supabase
+      .from('game_players')
+      .update({ jetons: p2FinalTokens })
+      .eq('game_id', gameId)
+      .eq('player_number', duel.player2_number);
 
     // Get player names
     const { data: players } = await supabase

@@ -1249,17 +1249,33 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
               <h3 className="text-sm font-medium text-[#D4AF37] mb-3">Duels Résolus</h3>
               <div className="space-y-2">
                 {resolvedDuels.map(duel => (
-                  <div key={duel.id} className="flex items-center justify-between p-2 bg-[#1A1510] rounded">
-                    <span className="text-sm">
-                      {getPlayerName(duel.player1_number)} vs {getPlayerName(duel.player2_number)}
-                    </span>
-                    <div className="flex gap-2">
-                      <Badge className={duel.player1_vp_delta >= 0 ? theme.badgeLegal : theme.badgeIllegal}>
-                        {duel.player1_vp_delta > 0 ? '+' : ''}{duel.player1_vp_delta.toFixed(1)}%
-                      </Badge>
-                      <Badge className={duel.player2_vp_delta >= 0 ? theme.badgeLegal : theme.badgeIllegal}>
-                        {duel.player2_vp_delta > 0 ? '+' : ''}{duel.player2_vp_delta.toFixed(1)}%
-                      </Badge>
+                  <div key={duel.id} className="p-3 bg-[#1A1510] rounded space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        #{duel.duel_order}: {getPlayerName(duel.player1_number)} vs {getPlayerName(duel.player2_number)}
+                      </span>
+                      <div className="flex gap-2">
+                        <Badge className={duel.player1_vp_delta >= 0 ? theme.badgeLegal : theme.badgeIllegal}>
+                          {duel.player1_vp_delta > 0 ? '+' : ''}{duel.player1_vp_delta.toFixed(1)}%
+                        </Badge>
+                        <Badge className={duel.player2_vp_delta >= 0 ? theme.badgeLegal : theme.badgeIllegal}>
+                          {duel.player2_vp_delta > 0 ? '+' : ''}{duel.player2_vp_delta.toFixed(1)}%
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-[#9CA3AF]">
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">{getPlayerName(duel.player1_number)}:</span>
+                        <Badge variant="outline" className={`text-xs ${duel.player1_searches ? 'border-orange-500 text-orange-400' : 'border-blue-500 text-blue-400'}`}>
+                          {duel.player1_searches ? '🔍 Fouille' : '👋 Laisse passer'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">{getPlayerName(duel.player2_number)}:</span>
+                        <Badge variant="outline" className={`text-xs ${duel.player2_searches ? 'border-orange-500 text-orange-400' : 'border-blue-500 text-blue-400'}`}>
+                          {duel.player2_searches ? '🔍 Fouille' : '👋 Laisse passer'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 ))}

@@ -62,6 +62,15 @@ Deno.serve(async (req) => {
 
     if (stateError) throw stateError;
 
+    // Initialize all player tokens to 20
+    const playerIds = players.map(p => p.id);
+    const { error: tokensError } = await supabase
+      .from('game_players')
+      .update({ jetons: 20 })
+      .in('id', playerIds);
+
+    if (tokensError) throw tokensError;
+
     // Initialize player choices
     const choicesInsert = players.map(p => ({
       game_id: gameId,
