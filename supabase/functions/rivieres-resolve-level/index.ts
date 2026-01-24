@@ -193,6 +193,9 @@ serve(async (req) => {
     const publicSummaryParts: string[] = [];
     const mjSummaryParts: string[] = [];
 
+    // Track distribution details for history
+    let distributionDetails: { player_id: string; display_name: string; cagnotte_share: number; level_bonus: number; total_gain: number }[] = [];
+
     if (outcome === "SUCCESS") {
       // Increment validated_levels for RESTE players
       for (const d of resteDecisions) {
@@ -251,7 +254,7 @@ serve(async (req) => {
         cagnotteAfter += bonusSurvivor * survivorCount;
         const share = survivorCount > 0 ? Math.floor(cagnotteAfter / survivorCount) : 0;
 
-        // Distribute to survivors
+        // Distribute to survivors and track distribution
         for (const s of survivors) {
           const player = playerMap.get(s.player_id);
           if (player) {
@@ -260,6 +263,15 @@ serve(async (req) => {
               .from("game_players")
               .update({ jetons: newTokens })
               .eq("id", s.player_id);
+
+            // Track distribution details
+            distributionDetails.push({
+              player_id: s.player_id,
+              display_name: player.display_name,
+              cagnotte_share: share,
+              level_bonus: 0, // At level 5 success, bonus is included in cagnotte
+              total_gain: share,
+            });
           }
         }
 
@@ -354,6 +366,15 @@ serve(async (req) => {
               .from("game_players")
               .update({ jetons: newTokens })
               .eq("id", b.player_id);
+
+            // Track distribution details
+            distributionDetails.push({
+              player_id: b.player_id,
+              display_name: player.display_name,
+              cagnotte_share: share,
+              level_bonus: bonus,
+              total_gain: totalGain,
+            });
           }
         }
 
@@ -370,7 +391,7 @@ serve(async (req) => {
       cagnotteAfter = 0;
     }
 
-    // Save level history
+    // Save level history with distribution details
     await supabase.from("river_level_history").insert({
       game_id: state.game_id,
       session_game_id: session_game_id,
@@ -385,6 +406,7 @@ serve(async (req) => {
       cagnotte_after: cagnotteAfter,
       public_summary: publicSummaryParts.join(" | "),
       mj_summary: mjSummaryParts.join(" | "),
+      distribution_details: distributionDetails.length > 0 ? distributionDetails : null,
     });
 
     // Log joueurs
