@@ -873,6 +873,21 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           )}
         </ForestButton>
 
+        {/* Manual refresh button - PERMANENT FIX for sync issues */}
+        <ForestButton
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            console.log('[MJRivieresDashboard] Manual refresh triggered');
+            fetchData();
+            toast.info('Actualisation en cours...');
+          }}
+          className="w-full mt-3 border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Rafraîchir la liste des joueurs
+        </ForestButton>
+
         {!loading && playerCount < 1 && (
           <p className="text-center text-amber-400 text-sm mt-3">
             ⚠️ Au moins 1 joueur doit être connecté pour démarrer
