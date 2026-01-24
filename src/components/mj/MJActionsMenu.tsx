@@ -65,6 +65,8 @@ export function MJActionsMenu({
   const [showNextGameDialog, setShowNextGameDialog] = useState(false);
   const [statsSheetOpen, setStatsSheetOpen] = useState(false);
   const [passingManche, setPassingManche] = useState(false);
+  const [simulatingGame, setSimulatingGame] = useState(false);
+  const [simulationProgress, setSimulationProgress] = useState('');
 
   const isForet = gameTypeCode === 'FORET' || !gameTypeCode;
   const isInGame = gameStatus === 'IN_GAME';
@@ -147,6 +149,82 @@ export function MJActionsMenu({
     }
   };
 
+  // Full game simulation: Loop through all rounds until game ends
+  const handleSimulerPartie = async () => {
+    setSimulatingGame(true);
+    let currentManche = mancheActive;
+    let gameEnded = false;
+    
+    try {
+      while (!gameEnded) {
+        setSimulationProgress(`Manche ${currentManche}...`);
+        
+        // Step 1: Close Phase 1
+        toast.info(`🎲 Manche ${currentManche} - Clôture des mises...`);
+        const { data: closeData, error: closeError } = await supabase.functions.invoke('close-phase1-bets', {
+          body: { gameId },
+        });
+        if (closeError || !closeData?.success) {
+          throw new Error(closeData?.error || 'Erreur clôture Phase 1');
+        }
+        await new Promise(r => setTimeout(r, 300));
+
+        // Step 2: Publish positions
+        const { data: posData, error: posError } = await supabase.functions.invoke('publish-positions', {
+          body: { gameId },
+        });
+        if (posError || !posData?.success) {
+          throw new Error(posData?.error || 'Erreur positions');
+        }
+        await new Promise(r => setTimeout(r, 300));
+
+        // Step 3: Resolve combat
+        const { data: combatData, error: combatError } = await supabase.functions.invoke('resolve-combat', {
+          body: { gameId },
+        });
+        if (combatError || !combatData?.success) {
+          throw new Error(combatData?.error || 'Erreur combat');
+        }
+        await new Promise(r => setTimeout(r, 300));
+
+        // Step 4: Generate shop
+        await supabase.functions.invoke('generate-shop', {
+          body: { gameId },
+        });
+        await new Promise(r => setTimeout(r, 200));
+
+        // Step 5: Resolve shop
+        const { data: shopData, error: shopError } = await supabase.functions.invoke('resolve-shop', {
+          body: { gameId },
+        });
+        if (shopError || !shopData?.success) {
+          throw new Error(shopData?.error || 'Erreur shop');
+        }
+
+        if (shopData.gameEnded) {
+          gameEnded = true;
+          toast.success(`🏆 Partie terminée après ${currentManche} manches !`);
+        } else {
+          currentManche = shopData.nextRound?.manche || currentManche + 1;
+        }
+        
+        // Safety: max 20 rounds to prevent infinite loop
+        if (currentManche > 20) {
+          toast.warning('⚠️ Limite de 20 manches atteinte');
+          break;
+        }
+      }
+      
+      onGameUpdate();
+    } catch (error) {
+      console.error('Simulation error:', error);
+      toast.error(error instanceof Error ? error.message : 'Erreur simulation');
+    } finally {
+      setSimulatingGame(false);
+      setSimulationProgress('');
+    }
+  };
+
   return (
     <>
       {/* Desktop: Show buttons inline */}
@@ -171,19 +249,39 @@ export function MJActionsMenu({
 
         {/* Passer la manche - Only for 100% bot games in Forêt */}
         {canPassManche && (
-          <ForestButton
-            size="sm"
-            className="bg-amber-600/90 hover:bg-amber-600"
-            disabled={passingManche}
-            onClick={handlePasserManche}
-          >
-            {passingManche ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-1" />
-            ) : (
-              <Zap className="h-4 w-4 mr-1" />
-            )}
-            Passer la manche
-          </ForestButton>
+          <>
+            <ForestButton
+              size="sm"
+              className="bg-amber-600/90 hover:bg-amber-600"
+              disabled={passingManche || simulatingGame}
+              onClick={handlePasserManche}
+            >
+              {passingManche ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Zap className="h-4 w-4 mr-1" />
+              )}
+              Passer la manche
+            </ForestButton>
+            <ForestButton
+              size="sm"
+              className="bg-orange-600/90 hover:bg-orange-600"
+              disabled={passingManche || simulatingGame}
+              onClick={handleSimulerPartie}
+            >
+              {simulatingGame ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  {simulationProgress || 'Simulation...'}
+                </>
+              ) : (
+                <>
+                  <FastForward className="h-4 w-4 mr-1" />
+                  Simuler la partie
+                </>
+              )}
+            </ForestButton>
+          </>
         )}
 
         {isForet && isEnded && (
@@ -253,17 +351,30 @@ export function MJActionsMenu({
 
             {/* Passer la manche - Only for 100% bot games */}
             {canPassManche && (
-              <DropdownMenuItem
-                onClick={handlePasserManche}
-                disabled={passingManche}
-              >
-                {passingManche ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Zap className="h-4 w-4 mr-2" />
-                )}
-                Passer la manche
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem
+                  onClick={handlePasserManche}
+                  disabled={passingManche || simulatingGame}
+                >
+                  {passingManche ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Zap className="h-4 w-4 mr-2" />
+                  )}
+                  Passer la manche
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleSimulerPartie}
+                  disabled={passingManche || simulatingGame}
+                >
+                  {simulatingGame ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <FastForward className="h-4 w-4 mr-2" />
+                  )}
+                  {simulatingGame ? simulationProgress : 'Simuler la partie'}
+                </DropdownMenuItem>
+              </>
             )}
 
             {isForet && isEnded && (
