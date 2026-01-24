@@ -766,6 +766,110 @@ serve(async (req) => {
         .eq("id", gameId);
       
       console.log(`[next-session-game] SHERIFF initialization complete`);
+    } else if (nextStep.game_type_code === "RIVIERES") {
+      console.log(`[next-session-game] Initializing RIVIERES game`);
+      
+      // RIVIERES requires:
+      // 1. Create river_session_state
+      // 2. Create river_player_stats for each player
+      // 3. Set starting tokens (100 for RIVIERES)
+      
+      // Check if river_session_state already exists (idempotency)
+      const { data: existingState } = await supabase
+        .from("river_session_state")
+        .select("id")
+        .eq("session_game_id", newSessionGameId)
+        .maybeSingle();
+      
+      if (!existingState) {
+        // Create river_session_state
+        const { error: stateError } = await supabase
+          .from("river_session_state")
+          .insert({
+            game_id: gameId,
+            session_game_id: newSessionGameId,
+            manche_active: 1,
+            niveau_active: 1,
+            cagnotte_manche: 0,
+            status: "RUNNING",
+          });
+        
+        if (stateError) {
+          console.error(`[next-session-game] Error creating river_session_state:`, stateError);
+        } else {
+          console.log(`[next-session-game] river_session_state created`);
+        }
+      }
+      
+      // Create river_player_stats for each player
+      if (players && players.length > 0) {
+        // Delete old inventory items for this session
+        for (const player of players) {
+          await supabase
+            .from("inventory")
+            .delete()
+            .eq("session_game_id", newSessionGameId)
+            .eq("owner_num", player.player_number);
+        }
+        
+        // Create river_player_stats
+        const playerStats = players.map((p) => ({
+          game_id: gameId,
+          session_game_id: newSessionGameId,
+          player_id: p.id,
+          player_num: p.player_number,
+          validated_levels: 0,
+          keryndes_available: p.clan === "Keryndes",
+          current_round_status: "EN_BATEAU",
+          descended_level: null,
+        }));
+        
+        const { error: statsError } = await supabase
+          .from("river_player_stats")
+          .upsert(playerStats, { onConflict: 'session_game_id,player_num' });
+        
+        if (statsError) {
+          console.error(`[next-session-game] Error creating river_player_stats:`, statsError);
+        } else {
+          console.log(`[next-session-game] river_player_stats created for ${players.length} players`);
+        }
+        
+        // Set starting tokens to 100 for RIVIERES (with Royaux bonus)
+        for (const player of players) {
+          const playerTokens = player.clan === 'Royaux' 
+            ? Math.floor(100 * 1.5) 
+            : 100;
+          
+          await supabase
+            .from("game_players")
+            .update({ jetons: playerTokens })
+            .eq("id", player.id);
+        }
+        console.log(`[next-session-game] All players set to 100 tokens for RIVIERES`);
+      }
+      
+      // Update session_game phase to DECISIONS for RIVIERES
+      await supabase
+        .from("session_games")
+        .update({ phase: 'DECISIONS' })
+        .eq("id", newSessionGameId);
+      
+      // Update games phase to DECISIONS for RIVIERES
+      await supabase
+        .from("games")
+        .update({ phase: 'DECISIONS' })
+        .eq("id", gameId);
+      
+      // Log joueurs (narratif)
+      await supabase.from("logs_joueurs").insert({
+        game_id: gameId,
+        session_game_id: newSessionGameId,
+        manche: 1,
+        type: "NARRATION",
+        message: `🚣 Les Rivières de Ndogmoabeng s'éveillent... ${players?.length || 0} aventuriers embarquent sur le fleuve sacré. Manche 1, Niveau 1 - Que le courant vous soit favorable !`,
+      });
+      
+      console.log(`[next-session-game] RIVIERES initialization complete`);
     } else {
       console.log(`[next-session-game] Skipping special init for ${nextStep.game_type_code}`);
     }
