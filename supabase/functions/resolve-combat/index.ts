@@ -1204,8 +1204,13 @@ serve(async (req) => {
     const totalPvCurrent = updatedMonsters?.reduce((sum, m) => sum + (m.pv_current || 0), 0) || 0;
     
     // Check if ALL monsters are dead
-    const allMonstersDead = updatedMonsters?.every(m => m.status === 'MORT') || false;
+    // IMPORTANT: Only consider game ended if we have monsters AND they're all dead
+    // Empty array would return true for .every() which would incorrectly end the game
+    const hasMonsters = updatedMonsters && updatedMonsters.length > 0;
+    const allMonstersDead = hasMonsters && updatedMonsters.every(m => m.status === 'MORT');
     const hasAliveMonsters = updatedMonsters?.some(m => m.status !== 'MORT') || false;
+    
+    console.log(`[resolve-combat] Monster check: hasMonsters=${hasMonsters}, count=${updatedMonsters?.length || 0}, allDead=${allMonstersDead}`);
     
     const forestState = {
       totalPvRemaining: totalPvCurrent,
