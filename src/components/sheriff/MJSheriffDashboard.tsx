@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ArrowLeft, Users, Shield, Target, Play, Lock, CheckCircle, 
   RefreshCw, Copy, Check, UserX, Loader2, Pencil, Save, X,
-  Bot, Trash2, Swords, Eye, Dices
+  Bot, Trash2, Swords, Eye, Dices, Presentation
 } from 'lucide-react';
 import { getSheriffThemeClasses, SHERIFF_COLORS } from './SheriffTheme';
 import { toast } from 'sonner';
@@ -889,6 +889,10 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
     );
   }
 
+  const handlePresentationMode = () => {
+    window.open(`/presentation/${game.id}`, '_blank');
+  };
+
   // In-game view
   return (
     <div className={theme.container}>
@@ -906,11 +910,21 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
               </p>
             </div>
           </div>
-          {roundState && (
-            <Badge className={theme.badge}>
-              💰 Cagnotte: {(roundState.common_pool_initial - roundState.common_pool_spent).toFixed(0)}€
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={handlePresentationMode}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <Presentation className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Présentation</span>
+            </Button>
+            {roundState && (
+              <Badge className={theme.badge}>
+                💰 {(roundState.common_pool_initial - roundState.common_pool_spent).toFixed(0)}€
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 
