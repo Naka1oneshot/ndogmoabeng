@@ -7,6 +7,7 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
+import { AdventureTransitionGuide } from './AdventureTransitionGuide';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { GameStartAnimation } from '@/components/game/GameStartAnimation';
 import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
@@ -746,6 +747,11 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             <div className="mt-2 text-xs text-muted-foreground/70">
               💡 Clan Royaux: +50% bonus sur les jetons de départ
             </div>
+          </div>
+          
+          {/* Adventure Transition Guide - Detailed initialization info */}
+          <div className="pt-3 border-t border-border/50">
+            <AdventureTransitionGuide />
           </div>
           
           {/* Cumulative PVic Ranking - Team based with podium toggle */}
