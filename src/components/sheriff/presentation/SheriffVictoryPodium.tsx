@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Trophy, Medal, Crown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useIsMobile } from '@/hooks/use-mobile';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Player {
@@ -22,6 +25,42 @@ interface SheriffVictoryPodiumProps {
   players: Player[];
   teamRanking: TeamRanking[];
   onClose: () => void;
+}
+
+// Component for team name with tooltip/popover
+function TeamNameWithTooltip({ name, className }: { name: string; className?: string }) {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+
+  const content = (
+    <span className={`truncate ${className || ''}`}>{name}</span>
+  );
+
+  if (isMobile) {
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer min-w-0 flex-1">{content}</div>
+        </PopoverTrigger>
+        <PopoverContent className="bg-[#2A2215] border-[#D4AF37]/30 text-white p-3 max-w-[250px]">
+          <div className="text-sm font-medium break-words">{name}</div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="min-w-0 flex-1">{content}</div>
+        </TooltipTrigger>
+        <TooltipContent className="bg-[#2A2215] border-[#D4AF37]/30 text-white max-w-[300px]">
+          <p className="break-words">{name}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 export function SheriffVictoryPodium({
@@ -109,7 +148,9 @@ export function SheriffVictoryPodium({
                   )
                 ))}
               </div>
-              <div className="text-lg font-bold text-white mb-1">{top3[1].name}</div>
+              <div className="text-lg font-bold text-white mb-1 max-w-[120px]">
+                <TeamNameWithTooltip name={top3[1].name} />
+              </div>
               <div className="text-xl font-bold text-gray-300 mb-2">{top3[1].totalPvic} PV</div>
               <div className={`${getPodiumHeight(1)} w-24 bg-gradient-to-t from-gray-600 to-gray-400 rounded-t-lg flex items-end justify-center pb-2`}>
                 <span className="text-2xl font-bold text-white">2</span>
@@ -132,7 +173,9 @@ export function SheriffVictoryPodium({
                   )
                 ))}
               </div>
-              <div className="text-xl font-bold text-white mb-1">{top3[0].name}</div>
+              <div className="text-xl font-bold text-white mb-1 max-w-[140px]">
+                <TeamNameWithTooltip name={top3[0].name} />
+              </div>
               <div className="text-2xl font-bold text-yellow-400 mb-2">{top3[0].totalPvic} PV</div>
               <div className={`${getPodiumHeight(0)} w-28 bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t-lg flex items-end justify-center pb-2`}>
                 <span className="text-3xl font-bold text-white">1</span>
@@ -155,7 +198,9 @@ export function SheriffVictoryPodium({
                   )
                 ))}
               </div>
-              <div className="text-base font-bold text-white mb-1">{top3[2].name}</div>
+              <div className="text-base font-bold text-white mb-1 max-w-[100px]">
+                <TeamNameWithTooltip name={top3[2].name} />
+              </div>
               <div className="text-lg font-bold text-amber-600 mb-2">{top3[2].totalPvic} PV</div>
               <div className={`${getPodiumHeight(2)} w-20 bg-gradient-to-t from-amber-800 to-amber-600 rounded-t-lg flex items-end justify-center pb-2`}>
                 <span className="text-xl font-bold text-white">3</span>
@@ -196,7 +241,7 @@ export function SheriffVictoryPodium({
                       </div>
                     )}
                   </div>
-                  <span className="font-medium">{team.name}</span>
+                  <TeamNameWithTooltip name={team.name} className="font-medium" />
                 </div>
                 <span className={`font-bold ${idx < 3 ? 'text-[#D4AF37] text-lg' : 'text-[#9CA3AF]'}`}>
                   {team.totalPvic} PV
