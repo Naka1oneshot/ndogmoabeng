@@ -4,10 +4,11 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Map, Gamepad2, Plus, ChevronRight, Clock, Check, AlertTriangle } from 'lucide-react';
+import { Loader2, Map, Gamepad2, Plus, ChevronRight, Clock, Check, AlertTriangle, Lock, Crown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface Adventure {
   id: string;
@@ -49,6 +50,7 @@ export function AdventureSelector({
   selectedGameTypeCode,
   onGameTypeSelect,
 }: AdventureSelectorProps) {
+  const { isAdminOrSuper, loading: roleLoading } = useUserRole();
   const [adventures, setAdventures] = useState<Adventure[]>([]);
   const [gameTypes, setGameTypes] = useState<GameType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -176,13 +178,18 @@ export function AdventureSelector({
     setSelectedSteps(prev => prev.filter((_, i) => i !== index));
   };
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div className="flex items-center justify-center p-4">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
+
+  // Check if adventure requires admin (has 4 steps = "La carte trouvée")
+  const isAdminOnlyAdventure = (adventure: Adventure) => {
+    return adventure.steps.length === 4 && adventure.name === 'La carte trouvée';
+  };
 
   return (
     <div className="space-y-4">
@@ -310,18 +317,38 @@ export function AdventureSelector({
                   return gameType?.status === 'COMING_SOON';
                 });
 
+                const isAdminOnly = isAdminOnlyAdventure(adventure);
+                const canSelect = !isAdminOnly || isAdminOrSuper;
+
                 return (
                   <div
                     key={adventure.id}
-                    onClick={() => onAdventureSelect(adventure.id)}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedAdventureId === adventure.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/50'
+                    onClick={() => {
+                      if (canSelect) {
+                        onAdventureSelect(adventure.id);
+                      } else {
+                        toast.error('Cette aventure est réservée aux administrateurs');
+                      }
+                    }}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      !canSelect 
+                        ? 'opacity-60 cursor-not-allowed border-border bg-muted/30'
+                        : selectedAdventureId === adventure.id
+                          ? 'border-primary bg-primary/10 cursor-pointer'
+                          : 'border-border hover:border-primary/50 cursor-pointer'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{adventure.name}</span>
+                      {isAdminOnly && (
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
+                          <Crown className="h-3 w-3 mr-1" />
+                          Admin
+                        </Badge>
+                      )}
+                      {!canSelect && (
+                        <Lock className="h-4 w-4 text-muted-foreground" />
+                      )}
                       {hasComingSoonGames && (
                         <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
                           <Clock className="h-3 w-3 mr-1" />
@@ -331,6 +358,11 @@ export function AdventureSelector({
                     </div>
                     {adventure.description && (
                       <div className="text-sm text-muted-foreground mb-2">{adventure.description}</div>
+                    )}
+                    {!canSelect && (
+                      <div className="text-xs text-amber-600 mb-2">
+                        🔒 Réservée aux administrateurs
+                      </div>
                     )}
                     <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
                       {adventure.steps.map((step, index) => {
