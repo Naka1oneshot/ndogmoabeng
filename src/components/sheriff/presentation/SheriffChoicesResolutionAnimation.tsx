@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface SheriffChoicesResolutionAnimationProps {
   initialPool: number;
@@ -18,6 +18,12 @@ export function SheriffChoicesResolutionAnimation({
   const [phase, setPhase] = useState<'counting' | 'reveal'>('counting');
   const [displayPool, setDisplayPool] = useState(initialPool);
   const [displayPvics, setDisplayPvics] = useState(initialPvics);
+  const onCompleteRef = useRef(onComplete);
+  
+  // Keep ref updated
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
   
   useEffect(() => {
     // Random counting animation
@@ -38,14 +44,19 @@ export function SheriffChoicesResolutionAnimation({
         setPhase('reveal');
         setDisplayPool(finalPool);
         setDisplayPvics(finalPvics);
-        
-        // Complete after reveal
-        setTimeout(onComplete, 1500);
       }
     }, interval);
     
-    return () => clearInterval(countInterval);
-  }, [initialPool, finalPool, initialPvics, finalPvics, onComplete]);
+    // Complete after reveal delay
+    const completeTimer = setTimeout(() => {
+      onCompleteRef.current();
+    }, countingDuration + 1500);
+    
+    return () => {
+      clearInterval(countInterval);
+      clearTimeout(completeTimer);
+    };
+  }, [initialPool, finalPool, initialPvics, finalPvics]); // Don't include onComplete
   
   return (
     <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center">

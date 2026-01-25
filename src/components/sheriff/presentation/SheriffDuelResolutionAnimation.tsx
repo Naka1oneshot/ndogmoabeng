@@ -45,9 +45,15 @@ export function SheriffDuelResolutionAnimation({
   const [p1TokenDisplay, setP1TokenDisplay] = useState<number>(0);
   const [p2TokenDisplay, setP2TokenDisplay] = useState<number>(0);
   const animationRef = useRef<NodeJS.Timeout | null>(null);
+  const onCompleteRef = useRef(onComplete);
   
   const p1Tokens = choice1?.tokens_entering ?? 20;
   const p2Tokens = choice2?.tokens_entering ?? 20;
+  
+  // Keep ref updated
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
   
   useEffect(() => {
     // Phase 1: Show search choices for 2.5s
@@ -77,16 +83,20 @@ export function SheriffDuelResolutionAnimation({
     // Complete at 8.5s
     const timer3 = setTimeout(() => {
       setPhase('done');
-      setTimeout(onComplete, 300);
     }, 8500);
+    
+    const timer4 = setTimeout(() => {
+      onCompleteRef.current();
+    }, 8800);
     
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
+      clearTimeout(timer4);
       if (animationRef.current) clearInterval(animationRef.current);
     };
-  }, [onComplete, p1Tokens, p2Tokens]);
+  }, [p1Tokens, p2Tokens]); // Remove onComplete from deps
   
   const renderPlayerCard = (
     player: Player | undefined,
