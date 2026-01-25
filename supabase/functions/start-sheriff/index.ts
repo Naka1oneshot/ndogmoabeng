@@ -80,6 +80,12 @@ Deno.serve(async (req) => {
     if (tokensError) throw tokensError;
 
     // Initialize player choices with initial PVic snapshot
+    // First, delete any existing choices to ensure fresh insert with correct pvic_initial
+    await supabase
+      .from('sheriff_player_choices')
+      .delete()
+      .eq('session_game_id', sessionGameId);
+
     const choicesInsert = players.map(p => ({
       game_id: gameId,
       session_game_id: sessionGameId,
@@ -93,7 +99,7 @@ Deno.serve(async (req) => {
 
     const { error: choicesError } = await supabase
       .from('sheriff_player_choices')
-      .upsert(choicesInsert, { onConflict: 'session_game_id,player_number' });
+      .insert(choicesInsert);
 
     if (choicesError) throw choicesError;
 
