@@ -1281,12 +1281,18 @@ serve(async (req) => {
       }
     }
     
-    // Map player actions with mine placed info
+    // Map player actions with mine placed info and protection usage
     const playerActionSummaries = publicActions.map(a => {
       // Check if this player placed a mine
       const minePlacedByPlayer = pendingEffects.find(
         e => e.type === 'MINE' && e.sourcePlayerNum === a.num_joueur
       );
+      
+      // Find protection used by this player from mjActions
+      const mjAction = mjActions.find(m => m.num_joueur === a.num_joueur);
+      const protectionUsed = mjAction?.protection && mjAction.protection !== 'Aucune' 
+        ? { item: mjAction.protection, slot: mjAction.slot_protection } 
+        : undefined;
       
       return {
         position: a.position,
@@ -1296,6 +1302,7 @@ serve(async (req) => {
         cancelled: a.cancelled,
         cancelReason: a.cancelReason,
         minePlaced: minePlacedByPlayer ? { slot: minePlacedByPlayer.targetSlots[0], weapon: minePlacedByPlayer.weaponName } : undefined,
+        protectionUsed,
       };
     });
     
