@@ -574,14 +574,13 @@ Deno.serve(async (req) => {
     }
 
     // 8b: Contamination (spread to neighbors)
-    // RULE: Each contaminator MUST contaminate exactly 2 people (if available)
-    // They contaminate based on original circle position, finding next valid targets
-    // SPECIAL RULE: Patient 0 (infected at manche 1) can contaminate even if dead
-    // SPECIAL RULE: Dead contaminators also contaminate their neighbors
+    // RULE: Maximum 2 NEW infections per round (global limit, not per contaminator)
+    // Each contaminator checks ONLY their immediate neighbors (left and right)
+    // If immediate neighbor is already a carrier -> NO spread in that direction
+    // SPECIAL RULE: Dead contaminators still contaminate their neighbors
     const contaminators = players.filter(p => {
       const scheduledToContaminate = p.will_contaminate_at_manche === manche;
       
-      // Dead contaminators still contaminate! (virus continues spreading)
       // Exception: immune_permanent players don't spread
       if (p.immune_permanent) return false;
       
@@ -592,7 +591,21 @@ Deno.serve(async (req) => {
     const allPlayersSorted = [...players].sort((a, b) => a.player_number - b.player_number);
     const allNums = allPlayersSorted.map(p => p.player_number);
 
+    // Global limit: max 2 new infections per round
+    const MAX_NEW_INFECTIONS_PER_ROUND = 2;
+    let newInfectionsThisRound = 0;
+    const newlyInfectedThisRound: number[] = [];
+
     for (const contaminator of contaminators) {
+      // Stop if we've reached the max infections for this round
+      if (newInfectionsThisRound >= MAX_NEW_INFECTIONS_PER_ROUND) {
+        addLog('STEP_8_MAX_REACHED', { 
+          contaminator_num: contaminator.player_number, 
+          reason: 'Max 2 infections reached for this round' 
+        });
+        break;
+      }
+
       const contaminatorIsAlive = contaminator.is_alive && !deaths.includes(contaminator.player_number);
       
       if (contaminatorIsAlive) {
@@ -600,61 +613,69 @@ Deno.serve(async (req) => {
         await supabase.from('game_players').update({ is_contagious: true }).eq('id', contaminator.id);
       }
 
-      // Find EXACTLY 2 targets to contaminate
-      // Search outward from contaminator's position in ORIGINAL circle
-      // Skip: dead players, already infected players, immune players
+      // Find position in circle
       const contaminatorIdx = allNums.indexOf(contaminator.player_number);
       const targets: number[] = [];
       
-      // Search left (counter-clockwise) - find 1 valid target
-      let leftOffset = 1;
-      while (targets.length < 1 && leftOffset < allNums.length) {
-        const leftIdx = (contaminatorIdx - leftOffset + allNums.length) % allNums.length;
-        const candidateNum = allNums[leftIdx];
-        const candidate = getPlayerByNum(players, candidateNum);
-        
-        if (candidate && 
-            candidate.is_alive && 
-            !deaths.includes(candidate.player_number) &&
-            !candidate.is_carrier && 
-            !candidate.immune_permanent) {
-          targets.push(candidateNum);
+      // Check IMMEDIATE left neighbor (only offset 1)
+      // Rule: If immediate neighbor is already carrier -> STOP, don't look further
+      const leftIdx = (contaminatorIdx - 1 + allNums.length) % allNums.length;
+      const leftNum = allNums[leftIdx];
+      const leftNeighbor = getPlayerByNum(players, leftNum);
+      
+      if (leftNeighbor) {
+        // If immediate left neighbor was EVER a carrier (is_carrier=true), don't spread left
+        if (leftNeighbor.is_carrier || newlyInfectedThisRound.includes(leftNum)) {
+          addLog('STEP_8_LEFT_BLOCKED', { 
+            contaminator: contaminator.player_number, 
+            left_neighbor: leftNum, 
+            reason: 'Already carrier' 
+          });
+        } else if (leftNeighbor.is_alive && 
+                   !deaths.includes(leftNeighbor.player_number) && 
+                   !leftNeighbor.immune_permanent &&
+                   newInfectionsThisRound < MAX_NEW_INFECTIONS_PER_ROUND) {
+          // Valid target: alive, not carrier, not immune
+          targets.push(leftNum);
         }
-        leftOffset++;
       }
       
-      // Search right (clockwise) - find 1 valid target
-      let rightOffset = 1;
-      while (targets.length < 2 && rightOffset < allNums.length) {
-        const rightIdx = (contaminatorIdx + rightOffset) % allNums.length;
-        const candidateNum = allNums[rightIdx];
-        
-        // Don't re-add if already targeted from left search
-        if (targets.includes(candidateNum)) {
-          rightOffset++;
-          continue;
+      // Check IMMEDIATE right neighbor (only offset 1)
+      // Rule: If immediate neighbor is already carrier -> STOP, don't look further
+      const rightIdx = (contaminatorIdx + 1) % allNums.length;
+      const rightNum = allNums[rightIdx];
+      const rightNeighbor = getPlayerByNum(players, rightNum);
+      
+      if (rightNeighbor && rightNum !== leftNum) { // Avoid duplicate in 2-player edge case
+        // If immediate right neighbor was EVER a carrier (is_carrier=true), don't spread right
+        if (rightNeighbor.is_carrier || newlyInfectedThisRound.includes(rightNum)) {
+          addLog('STEP_8_RIGHT_BLOCKED', { 
+            contaminator: contaminator.player_number, 
+            right_neighbor: rightNum, 
+            reason: 'Already carrier' 
+          });
+        } else if (rightNeighbor.is_alive && 
+                   !deaths.includes(rightNeighbor.player_number) && 
+                   !rightNeighbor.immune_permanent &&
+                   newInfectionsThisRound + targets.length < MAX_NEW_INFECTIONS_PER_ROUND) {
+          // Valid target: alive, not carrier, not immune
+          targets.push(rightNum);
         }
-        
-        const candidate = getPlayerByNum(players, candidateNum);
-        
-        if (candidate && 
-            candidate.is_alive && 
-            !deaths.includes(candidate.player_number) &&
-            !candidate.is_carrier && 
-            !candidate.immune_permanent) {
-          targets.push(candidateNum);
-        }
-        rightOffset++;
       }
 
       addLog('STEP_8_CONTAMINATOR', { 
         contaminator_num: contaminator.player_number, 
         contaminatorIsAlive,
+        left_neighbor: leftNum,
+        right_neighbor: rightNum,
         targets_found: targets,
-        total_targets: targets.length
+        infections_so_far: newInfectionsThisRound
       });
 
+      // Apply infections (respecting global limit)
       for (const targetNum of targets) {
+        if (newInfectionsThisRound >= MAX_NEW_INFECTIONS_PER_ROUND) break;
+        
         const neighbor = getPlayerByNum(players, targetNum);
         if (neighbor && neighbor.is_alive && !deaths.includes(neighbor.player_number) && !neighbor.is_carrier) {
           neighbor.is_carrier = true;
@@ -669,15 +690,24 @@ Deno.serve(async (req) => {
             will_die_at_manche: manche + 2,
           }).eq('id', neighbor.id);
 
+          newInfectionsThisRound++;
+          newlyInfectedThisRound.push(targetNum);
+
           addLog('STEP_8_CONTAMINATION', { 
             source: contaminator.player_number, 
             sourceWasDead: !contaminatorIsAlive,
             target: targetNum,
-            will_die_at: manche + 2
+            will_die_at: manche + 2,
+            total_new_infections: newInfectionsThisRound
           });
         }
       }
     }
+
+    addLog('STEP_8_CONTAMINATION_SUMMARY', { 
+      total_new_infections: newInfectionsThisRound,
+      newly_infected: newlyInfectedThisRound 
+    });
 
     // 8c: Virus deaths
     const virusVictims = players.filter(p => 
