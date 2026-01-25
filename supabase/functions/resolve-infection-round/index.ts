@@ -459,9 +459,23 @@ Deno.serve(async (req) => {
             crystal.quantite -= 1;
             await supabase.from('inventory').update({ quantite: crystal.quantite }).eq('id', crystal.id);
             
+            const ocMessage = `🔮 Le rôle de ${targetPlayer.display_name} est: ${targetPlayer.role_code}`;
             privateMessages.push({ 
               player_num: aliveOC.player_number, 
-              message: `🔮 Le rôle de ${targetPlayer.display_name} est: ${targetPlayer.role_code}` 
+              message: ocMessage
+            });
+
+            // Also insert as game_event for the private messages panel
+            await supabase.from('game_events').insert({
+              game_id: gameId,
+              session_game_id: sessionGameId,
+              event_type: 'OC_REVEAL',
+              message: ocMessage,
+              manche,
+              phase: 'RESOLVED',
+              visibility: 'PRIVATE',
+              player_num: aliveOC.player_number,
+              payload: { target_num: ocTarget, role_revealed: targetPlayer.role_code, target_name: targetPlayer.display_name },
             });
 
             addLog('STEP_3_OC', { oc_num: aliveOC.player_number, target: ocTarget, role_revealed: targetPlayer.role_code });
