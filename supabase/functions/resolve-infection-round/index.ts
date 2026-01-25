@@ -263,7 +263,9 @@ Deno.serve(async (req) => {
           addLog('STEP_5_CORRUPTION_RESULT', { case: 'B_PV_OVERRIDE', sabotage: true });
         } else {
           // Case C: Neither threshold met -> Sabotage remains ACTIVE (default)
-          addLog('STEP_5_CORRUPTION_RESULT', { case: 'C_DEFAULT_ACTIVE', sabotage: true });
+          // AE gets +10 PVic bonus for successful sabotage without corruption
+          aeGain = 10;
+          addLog('STEP_5_CORRUPTION_RESULT', { case: 'C_DEFAULT_ACTIVE', sabotage: true, aeBonus: 10 });
         }
 
         // Apply debits and calculate AE gain
