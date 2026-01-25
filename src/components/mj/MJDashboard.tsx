@@ -161,6 +161,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
   // Fetch adventure cumulative scores - grouped by team (mates)
   // For RIVIERES: Calculate simulated PVic based on validated_levels and jetons in real-time
+  // For SHERIFF: Calculate based on visa costs and duel results
   useEffect(() => {
     if (!isAdventure || !game.adventure_id) return;
     
@@ -192,6 +193,41 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         }
       }
       
+      // For SHERIFF: Get visa costs and duel deltas from sheriff tables
+      let sheriffDeltaMap = new Map<number, number>(); // player_number -> cumulative delta percentage
+      if (game.selected_game_type_code === 'SHERIFF' && game.current_session_game_id) {
+        // Get visa choice deltas
+        const { data: choices } = await supabase
+          .from('sheriff_player_choices')
+          .select('player_number, victory_points_delta')
+          .eq('session_game_id', game.current_session_game_id);
+        
+        // Get duel result deltas
+        const { data: duels } = await supabase
+          .from('sheriff_duels')
+          .select('player1_number, player2_number, player1_vp_delta, player2_vp_delta, status')
+          .eq('session_game_id', game.current_session_game_id)
+          .eq('status', 'RESOLVED');
+        
+        // Build delta map: visa cost + duel delta per player
+        if (choices) {
+          for (const choice of choices) {
+            const existing = sheriffDeltaMap.get(choice.player_number) || 0;
+            sheriffDeltaMap.set(choice.player_number, existing + (choice.victory_points_delta || 0));
+          }
+        }
+        
+        if (duels) {
+          for (const duel of duels) {
+            const existingP1 = sheriffDeltaMap.get(duel.player1_number) || 0;
+            sheriffDeltaMap.set(duel.player1_number, existingP1 + (duel.player1_vp_delta || 0));
+            
+            const existingP2 = sheriffDeltaMap.get(duel.player2_number) || 0;
+            sheriffDeltaMap.set(duel.player2_number, existingP2 + (duel.player2_vp_delta || 0));
+          }
+        }
+      }
+      
       if (players) {
         const scoresMap = new Map(scores?.map(s => [s.game_player_id, s.total_score_value]) || []);
         
@@ -208,6 +244,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         // This is for live estimation during active games ONLY
         // For FORET: only count recompenses from current game (kills/rewards)
         // For RIVIERES: simulate based on current jetons and validated_levels
+        // For SHERIFF: calculate based on pvic_initial + delta percentage
         // NOTE: adventure_scores already contains pvic from previous games, so we should NOT add pvic again
         const calculateCurrentGameScore = (player: any): number => {
           if (game.selected_game_type_code === 'RIVIERES') {
@@ -222,6 +259,13 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             } else {
               return Math.round(jetons);
             }
+          } else if (game.selected_game_type_code === 'SHERIFF') {
+            // For SHERIFF: Calculate PVic delta based on visa costs and duel results
+            // Delta is a percentage (e.g. -20 means lose 20% of initial pvic)
+            const deltaPercent = sheriffDeltaMap.get(player.player_number) || 0;
+            const pvicInitial = player.pvic || 0;
+            // Calculate the delta amount (can be positive or negative)
+            return Math.round(pvicInitial * (deltaPercent / 100));
           } else {
             // For FORET and others: Use only recompenses (current game kills/rewards)
             // pvic is already included in adventure_scores, don't double-count it
@@ -326,6 +370,21 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'infection_round_state', filter: `session_game_id=eq.${game.current_session_game_id}` },
+            () => fetchAdventureScores()
+          )
+          .subscribe();
+      } else if (game.selected_game_type_code === 'SHERIFF') {
+        // SHERIFF: Subscribe to sheriff_player_choices and sheriff_duels for delta updates
+        gameSpecificChannel = supabase
+          .channel(`adventure-sheriff-${game.current_session_game_id}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'sheriff_player_choices', filter: `session_game_id=eq.${game.current_session_game_id}` },
+            () => fetchAdventureScores()
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'sheriff_duels', filter: `session_game_id=eq.${game.current_session_game_id}` },
             () => fetchAdventureScores()
           )
           .subscribe();
