@@ -847,7 +847,164 @@ Deno.serve(async (req) => {
       await supabase.from('session_games').update({ status: 'ENDED', ended_at: new Date().toISOString() }).eq('id', sessionGameId);
       await supabase.from('games').update({ status: 'ENDED', phase: 'ENDED' }).eq('id', gameId);
 
-      // TODO: Calculate final PVic scores
+      // ========================================
+      // CALCULATE FINAL PVIC SCORES
+      // ========================================
+      const pvicUpdates: { player_num: number; pvic_earned: number; breakdown: string[] }[] = [];
+      
+      // Fetch vote accuracy data
+      const { data: allInputs } = await supabase
+        .from('infection_inputs')
+        .select('player_num, vote_suspect_pv_target_num')
+        .eq('session_game_id', sessionGameId);
+      
+      // Count correct PV votes per player
+      const pvPlayerNums = players.filter(p => p.role_code === 'PV').map(p => p.player_number);
+      const voteAccuracy: Record<number, number> = {};
+      for (const input of allInputs || []) {
+        if (input.vote_suspect_pv_target_num && pvPlayerNums.includes(input.vote_suspect_pv_target_num)) {
+          voteAccuracy[input.player_num] = (voteAccuracy[input.player_num] || 0) + 1;
+        }
+      }
+      const maxVoteAccuracy = Math.max(...Object.values(voteAccuracy), 0);
+      const bestVoters = Object.entries(voteAccuracy)
+        .filter(([_, count]) => count === maxVoteAccuracy && maxVoteAccuracy > 0)
+        .map(([num]) => parseInt(num));
+
+      // Fetch AE sabotage count
+      const { data: sabotageEvents } = await supabase
+        .from('game_events')
+        .select('payload')
+        .eq('session_game_id', sessionGameId)
+        .eq('event_type', 'SABOTAGE_SUCCESS');
+      const sabotagesByAE: Record<number, number> = {};
+      for (const evt of sabotageEvents || []) {
+        const aeNum = (evt.payload as any)?.ae_num;
+        if (aeNum) sabotagesByAE[aeNum] = (sabotagesByAE[aeNum] || 0) + 1;
+      }
+
+      // Fetch corruption received by AE
+      const { data: corruptionLogs } = await supabase
+        .from('logs_mj')
+        .select('details')
+        .eq('session_game_id', sessionGameId)
+        .eq('action', 'RESOLVE_ROUND');
+      let corruptionByAE: Record<number, number> = {};
+      for (const log of corruptionLogs || []) {
+        try {
+          const parsed = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+          const corruptionStep = parsed?.find?.((l: any) => l.step === 'STEP_3_CORRUPTION');
+          if (corruptionStep?.details?.pvic_awarded) {
+            for (const [aeNum, pvic] of Object.entries(corruptionStep.details.pvic_awarded)) {
+              corruptionByAE[parseInt(aeNum)] = (corruptionByAE[parseInt(aeNum)] || 0) + (pvic as number);
+            }
+          }
+        } catch {}
+      }
+
+      for (const player of players) {
+        let pvic = 0;
+        const breakdown: string[] = [];
+        const role = player.role_code;
+        const isAlive = player.is_alive && !deaths.includes(player.player_number);
+        const pvDead = winner === 'NON_PV';
+        const sySuccess = roundState.sy_success_count >= roundState.sy_required_success;
+
+        if (role === 'BA') {
+          // BA: 50/30/15 PVic based on how fast PV died
+          if (pvDead) {
+            if (manche <= 2) { pvic += 50; breakdown.push('PV morts en ≤2 manches: +50'); }
+            else if (manche === 3) { pvic += 30; breakdown.push('PV morts en 3 manches: +30'); }
+            else if (manche === 4) { pvic += 15; breakdown.push('PV morts en 4 manches: +15'); }
+          }
+        } else if (role === 'CV') {
+          // CV: 20 if all PV dead, 20 if SY success, 10 if alive at PV death, 10 if best voter
+          if (pvDead) { pvic += 20; breakdown.push('Tous les PV morts: +20'); }
+          if (sySuccess) { pvic += 20; breakdown.push('Mission SY réussie: +20'); }
+          if (pvDead && isAlive) { pvic += 10; breakdown.push('Vivant à la mort des PV: +10'); }
+          if (bestVoters.includes(player.player_number)) {
+            const share = Math.floor(10 / bestVoters.length);
+            pvic += share;
+            breakdown.push(`Meilleurs soupçons (partage ${bestVoters.length}): +${share}`);
+          }
+        } else if (role === 'KK') {
+          // KK: 50/30/15 based on death round, 10 if best voter
+          if (!isAlive) {
+            const deathManche = player.will_die_at_manche || manche;
+            if (deathManche <= 2) { pvic += 50; breakdown.push('Mort en ≤2 manches: +50'); }
+            else if (deathManche === 3) { pvic += 30; breakdown.push('Mort en 3ème manche: +30'); }
+            else if (deathManche === 4) { pvic += 15; breakdown.push('Mort en 4ème manche: +15'); }
+          }
+          if (bestVoters.includes(player.player_number)) {
+            const share = Math.floor(10 / bestVoters.length);
+            pvic += share;
+            breakdown.push(`Meilleurs soupçons (partage ${bestVoters.length}): +${share}`);
+          }
+        } else if (role === 'OC') {
+          // OC: Same as CV
+          if (pvDead) { pvic += 20; breakdown.push('Tous les PV morts: +20'); }
+          if (sySuccess) { pvic += 20; breakdown.push('Mission SY réussie: +20'); }
+          if (pvDead && isAlive) { pvic += 10; breakdown.push('Vivant à la mort des PV: +10'); }
+          if (bestVoters.includes(player.player_number)) {
+            const share = Math.floor(10 / bestVoters.length);
+            pvic += share;
+            breakdown.push(`Meilleurs soupçons (partage ${bestVoters.length}): +${share}`);
+          }
+        } else if (role === 'PV') {
+          // PV: 40 if they win
+          if (winner === 'PV') { pvic += 40; breakdown.push('Victoire PV: +40'); }
+        } else if (role === 'SY') {
+          // SY: 30 if mission success, 20 if PV dead, 10 if alive, 10 if best voter
+          if (sySuccess) { pvic += 30; breakdown.push('Mission SY réussie: +30'); }
+          if (pvDead) { pvic += 20; breakdown.push('Tous les PV morts: +20'); }
+          if (pvDead && isAlive) { pvic += 10; breakdown.push('Vivant à la mort des PV: +10'); }
+          if (bestVoters.includes(player.player_number)) {
+            const share = Math.floor(10 / bestVoters.length);
+            pvic += share;
+            breakdown.push(`Meilleurs soupçons (partage ${bestVoters.length}): +${share}`);
+          }
+        } else if (role === 'AE') {
+          // AE: 10 per sabotage, corruption amount, 10 if best voter
+          const sabotages = sabotagesByAE[player.player_number] || 0;
+          if (sabotages > 0) { pvic += sabotages * 10; breakdown.push(`Sabotages (${sabotages}): +${sabotages * 10}`); }
+          const corruption = corruptionByAE[player.player_number] || 0;
+          if (corruption > 0) { pvic += corruption; breakdown.push(`Corruption reçue: +${corruption}`); }
+          if (bestVoters.includes(player.player_number)) {
+            const share = Math.floor(10 / bestVoters.length);
+            pvic += share;
+            breakdown.push(`Meilleurs soupçons (partage ${bestVoters.length}): +${share}`);
+          }
+        }
+
+        pvicUpdates.push({ player_num: player.player_number, pvic_earned: pvic, breakdown });
+      }
+
+      // Update players with earned PVic
+      for (const update of pvicUpdates) {
+        const player = getPlayerByNum(players, update.player_num);
+        if (player) {
+          await supabase
+            .from('game_players')
+            .update({ pvic: (player.pvic || 0) + update.pvic_earned })
+            .eq('game_id', gameId)
+            .eq('player_number', update.player_num);
+        }
+      }
+
+      addLog('STEP_10_PVIC_CALCULATION', { pvicUpdates, bestVoters, maxVoteAccuracy });
+
+      // Publish GAME_END event with PVic breakdown
+      await supabase.from('game_events').insert({
+        game_id: gameId,
+        session_game_id: sessionGameId,
+        event_type: 'GAME_END',
+        message: `🏆 Partie terminée! Victoire ${winner === 'PV' ? 'Porte Venins' : 'Synthétistes'}`,
+        manche,
+        phase: 'ENDED',
+        visibility: 'PUBLIC',
+        payload: { winner, pvicUpdates },
+      });
+
     } else {
       await supabase.from('session_games').update({ phase: 'RESOLVED' }).eq('id', sessionGameId);
       await supabase.from('games').update({ phase: 'RESOLVED' }).eq('id', gameId);
