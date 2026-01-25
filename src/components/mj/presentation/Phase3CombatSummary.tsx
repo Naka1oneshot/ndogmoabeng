@@ -291,7 +291,7 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
                       {hasDelayedExplosion && (
                         <div className="flex items-center gap-0.5 text-amber-400 mt-0.5">
                           <Zap className="h-2 w-2" />
-                          <span>💥 +{hasDelayedExplosion.damage} (S{hasDelayedExplosion.slot})</span>
+                          <span>💥 +{hasDelayedExplosion.damage}</span>
                         </div>
                       )}
                       {/* Protection used */}
@@ -299,7 +299,6 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
                         <div className="flex items-center gap-0.5 text-blue-400 mt-0.5">
                           <Shield className="h-2 w-2" />
                           <span>{hasProtection.item}</span>
-                          <span className="text-muted-foreground">(S{hasProtection.slot})</span>
                         </div>
                       )}
                     </div>
