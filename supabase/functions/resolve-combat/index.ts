@@ -408,16 +408,55 @@ serve(async (req) => {
     const delayedExplosions: Map<number, { damage: number; slot: number; weapon: string }> = new Map();
     
     // Helper to process pending effects after a player's turn
+    // Now checks for Voile du Gardien protection (unless weapon has ignore_protection)
     const processPendingEffects = (afterPosition: number): string[] => {
       const effectLogs: string[] = [];
       
       for (const effect of pendingEffects) {
         if (effect.remainingTriggers > 0) {
+          // Check if the weapon ignores protection
+          const effectWeapon = itemMap.get(effect.weaponName);
+          const ignoresProtection = effectWeapon?.ignore_protection === true;
+          
+          // Helper to check if a slot is protected by Voile du Gardien
+          const isSlotProtectedByVoile = (slot: number): { protected: boolean; voileOwner: VoileEffect | null } => {
+            if (ignoresProtection) return { protected: false, voileOwner: null };
+            
+            for (const voile of voileEffects) {
+              // Voile blocks effects that trigger AFTER its activation position
+              if (voile.slot === slot && voile.activatedAt < afterPosition) {
+                return { protected: true, voileOwner: voile };
+              }
+            }
+            return { protected: false, voileOwner: null };
+          };
+          
           // DOT_PERSISTENT triggers after every player
           if (effect.type === 'DOT_PERSISTENT') {
             const killedMonsters: string[] = [];
+            const blockedSlots: number[] = [];
             
             for (const slot of effect.targetSlots) {
+              const voileCheck = isSlotProtectedByVoile(slot);
+              if (voileCheck.protected && voileCheck.voileOwner) {
+                // Voile blocks damage - attacker loses tokens, defender gains tokens
+                voilePenalties.push({
+                  playerNum: effect.sourcePlayerNum,
+                  playerName: effect.sourcePlayerName,
+                  tokens: effect.damage,
+                  reason: `Voile du Gardien (${effect.weaponName})`,
+                });
+                const voileOwnerName = players?.find(p => p.player_number === voileCheck.voileOwner!.playerNum)?.display_name || `Joueur ${voileCheck.voileOwner.playerNum}`;
+                voileGains.push({
+                  playerNum: voileCheck.voileOwner.playerNum,
+                  playerName: voileOwnerName,
+                  tokens: effect.damage,
+                });
+                blockedSlots.push(slot);
+                console.log(`[resolve-combat] Voile blocks ${effect.weaponName} DOT on slot ${slot}`);
+                continue;
+              }
+              
               const result = applyDamageToMonster(
                 slot, 
                 effect.damage, 
@@ -430,13 +469,19 @@ serve(async (req) => {
               }
             }
             
-            let logMsg = `🌫️ ${effect.weaponName} de ${effect.sourcePlayerName} inflige ${effect.damage} dégâts sur slot ${effect.targetSlots.join(', ')}`;
-            
-            if (killedMonsters.length > 0) {
-              logMsg += ` — ⚔️ KILL: ${killedMonsters.join(', ')}`;
+            const appliedSlots = effect.targetSlots.filter(s => !blockedSlots.includes(s));
+            if (appliedSlots.length > 0) {
+              let logMsg = `🌫️ ${effect.weaponName} de ${effect.sourcePlayerName} inflige ${effect.damage} dégâts sur slot ${appliedSlots.join(', ')}`;
+              
+              if (killedMonsters.length > 0) {
+                logMsg += ` — ⚔️ KILL: ${killedMonsters.join(', ')}`;
+              }
+              
+              effectLogs.push(logMsg);
             }
-            
-            effectLogs.push(logMsg);
+            if (blockedSlots.length > 0) {
+              effectLogs.push(`🛡️ Voile du Gardien bloque ${effect.weaponName} sur slot ${blockedSlots.join(', ')}`);
+            }
             effect.remainingTriggers--;
           }
           // DOT triggers after each of the next N players
@@ -444,8 +489,28 @@ serve(async (req) => {
             effect.remainingTriggers--;
             
             const killedMonsters: string[] = [];
+            const blockedSlots: number[] = [];
             
             for (const slot of effect.targetSlots) {
+              const voileCheck = isSlotProtectedByVoile(slot);
+              if (voileCheck.protected && voileCheck.voileOwner) {
+                voilePenalties.push({
+                  playerNum: effect.sourcePlayerNum,
+                  playerName: effect.sourcePlayerName,
+                  tokens: effect.damage,
+                  reason: `Voile du Gardien (${effect.weaponName})`,
+                });
+                const voileOwnerName = players?.find(p => p.player_number === voileCheck.voileOwner!.playerNum)?.display_name || `Joueur ${voileCheck.voileOwner.playerNum}`;
+                voileGains.push({
+                  playerNum: voileCheck.voileOwner.playerNum,
+                  playerName: voileOwnerName,
+                  tokens: effect.damage,
+                });
+                blockedSlots.push(slot);
+                console.log(`[resolve-combat] Voile blocks ${effect.weaponName} DOT on slot ${slot}`);
+                continue;
+              }
+              
               const result = applyDamageToMonster(
                 slot, 
                 effect.damage, 
@@ -458,23 +523,49 @@ serve(async (req) => {
               }
             }
             
-            const slotsStr = effect.targetSlots.length === 3 ? 'tous les slots' : `slot ${effect.targetSlots.join(', ')}`;
-            let logMsg = `🔥 ${effect.weaponName} de ${effect.sourcePlayerName} inflige ${effect.damage} dégâts sur ${slotsStr}`;
-            
-            if (killedMonsters.length > 0) {
-              logMsg += ` — ⚔️ KILL: ${killedMonsters.join(', ')}`;
+            const appliedSlots = effect.targetSlots.filter(s => !blockedSlots.includes(s));
+            const slotsStr = appliedSlots.length === 3 ? 'tous les slots' : `slot ${appliedSlots.join(', ')}`;
+            if (appliedSlots.length > 0) {
+              let logMsg = `🔥 ${effect.weaponName} de ${effect.sourcePlayerName} inflige ${effect.damage} dégâts sur ${slotsStr}`;
+              
+              if (killedMonsters.length > 0) {
+                logMsg += ` — ⚔️ KILL: ${killedMonsters.join(', ')}`;
+              }
+              
+              effectLogs.push(logMsg);
             }
-            
-            effectLogs.push(logMsg);
+            if (blockedSlots.length > 0) {
+              effectLogs.push(`🛡️ Voile du Gardien bloque ${effect.weaponName} sur slot ${blockedSlots.join(', ')}`);
+            }
           }
-          // DELAYED triggers only after N players
+          // DELAYED triggers only after N players (e.g., Grenade Frag)
           else if (effect.type === 'DELAYED') {
             effect.remainingTriggers--;
             
             if (effect.remainingTriggers === 0) {
               const killedMonsters: string[] = [];
+              const blockedSlots: number[] = [];
               
               for (const slot of effect.targetSlots) {
+                const voileCheck = isSlotProtectedByVoile(slot);
+                if (voileCheck.protected && voileCheck.voileOwner) {
+                  voilePenalties.push({
+                    playerNum: effect.sourcePlayerNum,
+                    playerName: effect.sourcePlayerName,
+                    tokens: effect.damage,
+                    reason: `Voile du Gardien (${effect.weaponName})`,
+                  });
+                  const voileOwnerName = players?.find(p => p.player_number === voileCheck.voileOwner!.playerNum)?.display_name || `Joueur ${voileCheck.voileOwner.playerNum}`;
+                  voileGains.push({
+                    playerNum: voileCheck.voileOwner.playerNum,
+                    playerName: voileOwnerName,
+                    tokens: effect.damage,
+                  });
+                  blockedSlots.push(slot);
+                  console.log(`[resolve-combat] Voile blocks ${effect.weaponName} delayed explosion on slot ${slot}`);
+                  continue;
+                }
+                
                 const result = applyDamageToMonster(
                   slot, 
                   effect.damage, 
@@ -487,20 +578,26 @@ serve(async (req) => {
                 }
               }
               
-              // Track delayed explosion for public summary
-              delayedExplosions.set(effect.sourcePlayerNum, {
-                damage: effect.damage,
-                slot: effect.targetSlots[0],
-                weapon: effect.weaponName,
-              });
-              
-              let logMsg = `💥 ${effect.weaponName} de ${effect.sourcePlayerName} explose : ${effect.damage} dégâts sur slot ${effect.targetSlots.join(', ')}`;
-              
-              if (killedMonsters.length > 0) {
-                logMsg += ` — ⚔️ KILL: ${killedMonsters.join(', ')}`;
+              // Track delayed explosion for public summary (only if not fully blocked)
+              const appliedSlots = effect.targetSlots.filter(s => !blockedSlots.includes(s));
+              if (appliedSlots.length > 0) {
+                delayedExplosions.set(effect.sourcePlayerNum, {
+                  damage: effect.damage,
+                  slot: appliedSlots[0],
+                  weapon: effect.weaponName,
+                });
+                
+                let logMsg = `💥 ${effect.weaponName} de ${effect.sourcePlayerName} explose : ${effect.damage} dégâts sur slot ${appliedSlots.join(', ')}`;
+                
+                if (killedMonsters.length > 0) {
+                  logMsg += ` — ⚔️ KILL: ${killedMonsters.join(', ')}`;
+                }
+                
+                effectLogs.push(logMsg);
               }
-              
-              effectLogs.push(logMsg);
+              if (blockedSlots.length > 0) {
+                effectLogs.push(`🛡️ Voile du Gardien bloque l'explosion de ${effect.weaponName} sur slot ${blockedSlots.join(', ')}`);
+              }
             }
           }
         }
