@@ -30,7 +30,7 @@ interface TeamRanking {
 
 interface InfectionVictoryPodiumProps {
   players: Player[];
-  winner: 'SY' | 'PV' | null;
+  winner: 'SY' | 'PV' | 'NON_PV' | null;
   onClose: () => void;
 }
 
@@ -80,7 +80,7 @@ function StatsPanel({
 }: { 
   syPlayers: Player[];
   pvPlayers: Player[];
-  winner: 'SY' | 'PV' | null;
+  winner: 'SY' | 'PV' | 'NON_PV' | null;
   showStats: boolean;
   className?: string;
 }) {
@@ -90,10 +90,10 @@ function StatsPanel({
   return (
     <div className={`space-y-4 transition-all duration-1000 ${showStats ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'} ${className}`}>
       {/* SY Stats */}
-      <div className={`bg-[#1E293B] border rounded-xl p-4 ${winner === 'SY' ? 'border-[#2AB3A6]' : 'border-[#2AB3A6]/30'}`}>
+      <div className={`bg-[#1E293B] border rounded-xl p-4 ${(winner === 'SY' || winner === 'NON_PV') ? 'border-[#2AB3A6]' : 'border-[#2AB3A6]/30'}`}>
         <h3 className="text-[#2AB3A6] font-bold text-lg mb-3 flex items-center gap-2">
           <FlaskConical className="h-5 w-5" />
-          Syndicat {winner === 'SY' && '🏆'}
+          Syndicat {(winner === 'SY' || winner === 'NON_PV') && '🏆'}
         </h3>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -269,16 +269,17 @@ export function InfectionVictoryPodium({
   };
   
   const getWinnerInfo = () => {
-    if (winner === 'SY') {
+    // NON_PV means all PV are dead = SY team victory
+    if (winner === 'SY' || winner === 'NON_PV') {
       return {
-        title: 'Victoire du Syndicat !',
-        subtitle: 'Le remède a été trouvé. La population est sauvée.',
+        title: 'Victoire des Synthétistes !',
+        subtitle: 'Tous les Porte-Venin sont morts. La population est sauvée.',
         icon: FlaskConical,
         color: '#2AB3A6',
       };
     } else if (winner === 'PV') {
       return {
-        title: 'Victoire des Porteurs !',
+        title: 'Victoire des Porte-Venin !',
         subtitle: "Le virus s'est propagé. L'humanité est condamnée.",
         icon: Syringe,
         color: '#B00020',

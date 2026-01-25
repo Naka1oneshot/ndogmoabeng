@@ -62,7 +62,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const [winner, setWinner] = useState<'SY' | 'PV' | null>(null);
+  const [winner, setWinner] = useState<'SY' | 'PV' | 'NON_PV' | null>(null);
   const [showVictoryTransition, setShowVictoryTransition] = useState(false);
   const [showVictoryPodium, setShowVictoryPodium] = useState(false);
   
@@ -90,12 +90,15 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const fetchData = useCallback(async () => {
     if (!game.id) return;
     
-    // Fetch latest game state
+    // Fetch latest game state first
     const { data: gameData } = await supabase
       .from('games')
       .select('id, name, status, manche_active, phase, current_session_game_id')
       .eq('id', game.id)
       .single();
+    
+    // Use the fetched session ID, not the potentially stale state value
+    const sessionGameId = gameData?.current_session_game_id || game.current_session_game_id;
     
     if (gameData) {
       // Detect manche change for round start animation
@@ -144,11 +147,11 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
     }
 
     // Fetch round states for timeline and SY progress
-    if (game.current_session_game_id) {
+    if (sessionGameId) {
       const { data: roundData } = await supabase
         .from('infection_round_state')
         .select('id, manche, status, resolved_at, sy_success_count, sy_required_success')
-        .eq('session_game_id', game.current_session_game_id)
+        .eq('session_game_id', sessionGameId)
         .order('manche', { ascending: true });
 
       if (roundData) {
@@ -203,14 +206,15 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       const { data: gameEndEvent } = await supabase
         .from('game_events')
         .select('message, payload')
-        .eq('session_game_id', game.current_session_game_id)
+        .eq('session_game_id', sessionGameId)
         .eq('event_type', 'GAME_END')
         .maybeSingle();
       
       if (gameEndEvent && !winner) {
         const payload = gameEndEvent.payload as { winner?: string } | null;
+        // Winner can be 'SY', 'PV', or 'NON_PV' (all PV dead = SY victory)
         const winnerTeam = payload?.winner || (gameEndEvent.message?.includes('SY') ? 'SY' : 'PV');
-        setWinner(winnerTeam as 'SY' | 'PV');
+        setWinner(winnerTeam as 'SY' | 'PV' | 'NON_PV');
         setShowVictoryTransition(true);
       }
     }
