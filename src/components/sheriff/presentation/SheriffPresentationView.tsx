@@ -7,7 +7,7 @@ import { RefreshCw, X, History, Trophy, Shield, Swords, Users } from 'lucide-rea
 import { getSheriffThemeClasses, SHERIFF_COLORS } from '../SheriffTheme';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { SheriffChoicesResolutionAnimation } from './SheriffChoicesResolutionAnimation';
+import { SheriffVisaCostsSummaryAnimation } from './SheriffVisaCostsSummaryAnimation';
 import { SheriffTeamSortAnimation } from './SheriffTeamSortAnimation';
 import { SheriffDuelStartAnimation } from './SheriffDuelStartAnimation';
 import { SheriffDuelResolutionAnimation } from './SheriffDuelResolutionAnimation';
@@ -370,11 +370,11 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
     <div className="fixed inset-0 bg-gradient-to-b from-[#1A1510] to-[#0F0D08] z-50 overflow-auto">
       {/* Animations */}
       {showChoicesResolution && roundState && (
-        <SheriffChoicesResolutionAnimation
-          initialPool={roundState.common_pool_initial}
-          finalPool={totalPool}
-          initialPvics={totalPvics + choices.reduce((s, c) => s + (c.visa_choice === 'VICTORY_POINTS' ? c.visa_cost_applied : 0), 0)}
-          finalPvics={totalPvics}
+        <SheriffVisaCostsSummaryAnimation
+          players={activePlayers}
+          choices={choices}
+          poolInitial={roundState.common_pool_initial}
+          poolSpent={roundState.common_pool_spent}
           onComplete={handleChoicesResolutionComplete}
         />
       )}
