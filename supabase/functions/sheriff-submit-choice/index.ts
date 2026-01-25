@@ -64,7 +64,10 @@ Deno.serve(async (req) => {
 
     const hasIllegalTokens = tokensEntering > 20;
 
-    // Update player choice
+    // Calculate victory points delta for PVic visa payment (negative = cost)
+    const victoryPointsDelta = visaChoice === 'VICTORY_POINTS' ? -visaCostApplied : 0;
+
+    // Update player choice with immediate PVic delta for real-time display
     const { error: updateError } = await supabase
       .from('sheriff_player_choices')
       .update({
@@ -72,6 +75,7 @@ Deno.serve(async (req) => {
         visa_cost_applied: visaCostApplied,
         tokens_entering: tokensEntering,
         has_illegal_tokens: hasIllegalTokens,
+        victory_points_delta: victoryPointsDelta,
         updated_at: new Date().toISOString(),
       })
       .eq('session_game_id', sessionGameId)
