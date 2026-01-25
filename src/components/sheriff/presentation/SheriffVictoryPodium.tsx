@@ -167,27 +167,24 @@ export function SheriffVictoryPodium({
   const [showRanking, setShowRanking] = useState(false);
   const [showStats, setShowStats] = useState(false);
   
-  // Calculate player stats from choices and duels (PVic deltas)
+  // Calculate player stats from choices (delta is a percentage)
+  // Compute absolute PVic change: PVic Init × delta%
   const playerStats = players.map(player => {
     const pNum = player.player_number;
     if (pNum === null) return { player, totalDelta: 0 };
     
-    // Get visa choice delta
-    const choice = choices.find(c => c.player_number === pNum);
-    const visaDelta = choice?.victory_points_delta || 0;
+    const pvicInit = player.pvic || 0;
     
-    // Get duel deltas
-    const duelDeltas = duels
-      .filter(d => d.status === 'RESOLVED')
-      .reduce((sum, d) => {
-        if (d.player1_number === pNum) return sum + (d.player1_vp_delta || 0);
-        if (d.player2_number === pNum) return sum + (d.player2_vp_delta || 0);
-        return sum;
-      }, 0);
+    // Get cumulative delta percentage from choices (already includes visa + duel results)
+    const choice = choices.find(c => c.player_number === pNum);
+    const deltaPercent = choice?.victory_points_delta || 0;
+    
+    // Calculate absolute delta for stats display
+    const absoluteDelta = Math.round(pvicInit * (deltaPercent / 100));
     
     return {
       player,
-      totalDelta: visaDelta + duelDeltas,
+      totalDelta: absoluteDelta,
     };
   });
   

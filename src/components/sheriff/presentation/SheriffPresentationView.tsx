@@ -281,25 +281,20 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const playersWithChoices = choices.filter(c => c.visa_choice !== null);
   const playersWithoutChoices = activePlayers.filter(p => !choices.find(c => c.player_number === p.player_number && c.visa_choice !== null));
   
-  // Calculate cumulative PVic for a player (base pvic + visa delta + duel deltas)
+  // Calculate cumulative PVic for a player: PVic Act = PVic Init + (PVic Init × delta%)
+  // This matches the MJ Dashboard logic exactly
   const getPlayerCumulativePvic = (playerNum: number): number => {
     const player = activePlayers.find(p => p.player_number === playerNum);
-    const basePvic = player?.pvic || 0;
+    const pvicInit = player?.pvic || 0;
     
-    // Add visa delta from choices
+    // Get cumulative delta percentage from choices (already includes visa + duel results)
     const choice = choices.find(c => c.player_number === playerNum);
-    const visaDelta = choice?.victory_points_delta || 0;
+    const deltaPercent = choice?.victory_points_delta || 0;
     
-    // Add duel deltas from resolved duels
-    const duelDeltas = duels
-      .filter(d => d.status === 'RESOLVED')
-      .reduce((sum, d) => {
-        if (d.player1_number === playerNum) return sum + (d.player1_vp_delta || 0);
-        if (d.player2_number === playerNum) return sum + (d.player2_vp_delta || 0);
-        return sum;
-      }, 0);
+    // Calculate PVic Act = PVic Init + (PVic Init × delta%)
+    const pvicAct = pvicInit + Math.round(pvicInit * (deltaPercent / 100));
     
-    return basePvic + visaDelta + duelDeltas;
+    return pvicAct;
   };
 
   // Team ranking (grouped by mate pairs - player_number <-> mate_num are cross-referenced)
