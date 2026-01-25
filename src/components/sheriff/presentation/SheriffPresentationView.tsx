@@ -281,6 +281,27 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const playersWithChoices = choices.filter(c => c.visa_choice !== null);
   const playersWithoutChoices = activePlayers.filter(p => !choices.find(c => c.player_number === p.player_number && c.visa_choice !== null));
   
+  // Calculate cumulative PVic for a player (base pvic + visa delta + duel deltas)
+  const getPlayerCumulativePvic = (playerNum: number): number => {
+    const player = activePlayers.find(p => p.player_number === playerNum);
+    const basePvic = player?.pvic || 0;
+    
+    // Add visa delta from choices
+    const choice = choices.find(c => c.player_number === playerNum);
+    const visaDelta = choice?.victory_points_delta || 0;
+    
+    // Add duel deltas from resolved duels
+    const duelDeltas = duels
+      .filter(d => d.status === 'RESOLVED')
+      .reduce((sum, d) => {
+        if (d.player1_number === playerNum) return sum + (d.player1_vp_delta || 0);
+        if (d.player2_number === playerNum) return sum + (d.player2_vp_delta || 0);
+        return sum;
+      }, 0);
+    
+    return basePvic + visaDelta + duelDeltas;
+  };
+
   // Team ranking (grouped by mate pairs - player_number <-> mate_num are cross-referenced)
   const teamRanking = (() => {
     const teams: Record<string, { name: string; totalPvic: number; players: Player[] }> = {};
@@ -294,13 +315,13 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
       const teammate = activePlayers.find(t => t.player_number === p.mate_num);
       
       if (teammate && teammate.player_number !== null) {
-        // It's a pair
+        // It's a pair - calculate cumulative PVic including all Sheriff session deltas
         const teamKey = `team-${Math.min(pNum, teammate.player_number)}-${Math.max(pNum, teammate.player_number)}`;
         const sortedPair = [p, teammate].sort((a, b) => (a.player_number || 0) - (b.player_number || 0));
         
         teams[teamKey] = {
           name: sortedPair.map(pl => pl.display_name).join(' & '),
-          totalPvic: (p.pvic || 0) + (teammate.pvic || 0),
+          totalPvic: getPlayerCumulativePvic(pNum) + getPlayerCumulativePvic(teammate.player_number),
           players: sortedPair,
         };
         
@@ -310,7 +331,7 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
         // Solo player (no mate found)
         teams[`solo-${pNum}`] = {
           name: p.display_name,
-          totalPvic: p.pvic || 0,
+          totalPvic: getPlayerCumulativePvic(pNum),
           players: [p],
         };
         processed.add(pNum);
