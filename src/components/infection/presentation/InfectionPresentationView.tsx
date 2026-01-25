@@ -141,43 +141,46 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         const resolvedRounds = roundData.filter(r => r.status === 'RESOLVED');
         const newResolvedCount = resolvedRounds.length;
         
+        // Get the current dead players from DB (source of truth)
+        const currentDeadPlayerNums = new Set(
+          activePlayers.filter(p => p.is_alive === false).map(p => p.player_number!)
+        );
+        
         // Trigger death reveal animation if a new round was just resolved
         if (newResolvedCount > previousResolvedCountRef.current && previousResolvedCountRef.current > 0) {
           const lastResolvedManche = resolvedRounds[resolvedRounds.length - 1]?.manche || 1;
           
-          // Identify newly dead players
-          const currentDeadPlayerNums = new Set(
-            activePlayers.filter(p => p.is_alive === false).map(p => p.player_number!)
-          );
-          
+          // Identify newly dead players by comparing with previous state
           const newlyDeadPlayers = activePlayers.filter(p => 
             p.is_alive === false && 
-            !previousDeadPlayersRef.current.has(p.player_number!)
+            p.player_number !== null &&
+            !previousDeadPlayersRef.current.has(p.player_number)
           );
           
-          // Build death reveal data with avatars
-          const deathRevealData = newlyDeadPlayers.map(p => ({
-            player_number: p.player_number!,
-            display_name: p.display_name,
-            role_code: p.role_code,
-            team_code: p.team_code,
-            avatar_url: p.user_id ? avatarMap.get(p.user_id) || null : null,
-            pvic: p.pvic,
-          }));
+          console.log('[DeathReveal] Previous dead:', Array.from(previousDeadPlayersRef.current));
+          console.log('[DeathReveal] Current dead:', Array.from(currentDeadPlayerNums));
+          console.log('[DeathReveal] Newly dead players:', newlyDeadPlayers.map(p => p.display_name));
           
-          setDeathRevealPlayers(deathRevealData);
-          setDeathRevealManche(lastResolvedManche);
-          setShowDeathReveal(true);
-          
-          // Update tracking
-          previousDeadPlayersRef.current = currentDeadPlayerNums;
-        } else if (previousResolvedCountRef.current === 0) {
-          // Initialize dead players tracking on first load
-          previousDeadPlayersRef.current = new Set(
-            activePlayers.filter(p => p.is_alive === false).map(p => p.player_number!)
-          );
+          // Only show animation if there are newly dead players
+          if (newlyDeadPlayers.length > 0) {
+            // Build death reveal data with avatars
+            const deathRevealData = newlyDeadPlayers.map(p => ({
+              player_number: p.player_number!,
+              display_name: p.display_name,
+              role_code: p.role_code,
+              team_code: p.team_code,
+              avatar_url: p.user_id ? avatarMap.get(p.user_id) || null : null,
+              pvic: p.pvic,
+            }));
+            
+            setDeathRevealPlayers(deathRevealData);
+            setDeathRevealManche(lastResolvedManche);
+            setShowDeathReveal(true);
+          }
         }
         
+        // Always update the tracking refs after processing
+        previousDeadPlayersRef.current = currentDeadPlayerNums;
         previousResolvedCountRef.current = newResolvedCount;
         setRoundStates(roundData as RoundState[]);
       }
