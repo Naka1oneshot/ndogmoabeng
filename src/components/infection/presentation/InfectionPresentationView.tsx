@@ -11,7 +11,7 @@ import { InfectionCampfireCircle } from './InfectionCampfireCircle';
 import { InfectionPatient0Timeline } from './InfectionPatient0Timeline';
 import { InfectionRoleRoster } from './InfectionRoleRoster';
 import { InfectionStatsPanel } from './InfectionStatsPanel';
-import { InfectionRoundAnimation } from './InfectionRoundAnimation';
+import { InfectionDeathRevealAnimation } from './InfectionDeathRevealAnimation';
 import { InfectionSYResearchProgress } from './InfectionSYResearchProgress';
 import { InfectionVictoryPodium } from './InfectionVictoryPodium';
 import { InfectionVictoryTransition } from './InfectionVictoryTransition';
@@ -65,10 +65,21 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const [showVictoryTransition, setShowVictoryTransition] = useState(false);
   const [showVictoryPodium, setShowVictoryPodium] = useState(false);
   
-  // Animation state
-  const [showRoundAnimation, setShowRoundAnimation] = useState(false);
-  const [roundAnimationDeaths, setRoundAnimationDeaths] = useState(0);
+  // Animation state for death reveal
+  const [showDeathReveal, setShowDeathReveal] = useState(false);
+  const [deathRevealPlayers, setDeathRevealPlayers] = useState<Array<{
+    player_number: number;
+    display_name: string;
+    role_code: string | null;
+    team_code: string | null;
+    avatar_url?: string | null;
+    pvic?: number | null;
+  }>>([]);
+  const [deathRevealManche, setDeathRevealManche] = useState(1);
+  
+  // Track resolved manches to detect new resolutions
   const previousResolvedCountRef = useRef<number>(0);
+  const previousDeadPlayersRef = useRef<Set<number>>(new Set());
 
   const fetchData = useCallback(async () => {
     if (!game.id) return;
@@ -92,8 +103,11 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       .is('removed_at', null)
       .order('player_number', { ascending: true });
 
+    let activePlayers: Player[] = [];
+    let avatarMap = new Map<string, string>();
+
     if (playersData) {
-      const activePlayers = playersData.filter(p => !p.is_host && p.player_number !== null) as Player[];
+      activePlayers = playersData.filter(p => !p.is_host && p.player_number !== null) as Player[];
       setPlayers(activePlayers);
 
       // Fetch avatar URLs for players with user_id
@@ -105,7 +119,6 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
           .in('id', userIds);
 
         if (profiles) {
-          const avatarMap = new Map<string, string>();
           profiles.forEach(profile => {
             if (profile.avatar_url) {
               avatarMap.set(profile.id, profile.avatar_url);
@@ -128,25 +141,44 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         const resolvedRounds = roundData.filter(r => r.status === 'RESOLVED');
         const newResolvedCount = resolvedRounds.length;
         
-        // Trigger animation if a new round was just resolved
+        // Trigger death reveal animation if a new round was just resolved
         if (newResolvedCount > previousResolvedCountRef.current && previousResolvedCountRef.current > 0) {
-          // Count deaths in this round
-          const currentManche = game.manche_active || 1;
-          const deathsThisRound = players.filter(p => 
-            p.is_alive === false
-          ).length;
+          const lastResolvedManche = resolvedRounds[resolvedRounds.length - 1]?.manche || 1;
           
-          // Get deaths from last resolved manche
-          const lastResolvedManche = resolvedRounds[resolvedRounds.length - 1]?.manche;
-          if (lastResolvedManche) {
-            // Estimate deaths - for now just check how many are dead at current state
-            // In production, we'd fetch from a dedicated deaths table
-            setRoundAnimationDeaths(Math.max(0, deathsThisRound > 0 ? 1 : 0));
-            setShowRoundAnimation(true);
-          }
+          // Identify newly dead players
+          const currentDeadPlayerNums = new Set(
+            activePlayers.filter(p => p.is_alive === false).map(p => p.player_number!)
+          );
+          
+          const newlyDeadPlayers = activePlayers.filter(p => 
+            p.is_alive === false && 
+            !previousDeadPlayersRef.current.has(p.player_number!)
+          );
+          
+          // Build death reveal data with avatars
+          const deathRevealData = newlyDeadPlayers.map(p => ({
+            player_number: p.player_number!,
+            display_name: p.display_name,
+            role_code: p.role_code,
+            team_code: p.team_code,
+            avatar_url: p.user_id ? avatarMap.get(p.user_id) || null : null,
+            pvic: p.pvic,
+          }));
+          
+          setDeathRevealPlayers(deathRevealData);
+          setDeathRevealManche(lastResolvedManche);
+          setShowDeathReveal(true);
+          
+          // Update tracking
+          previousDeadPlayersRef.current = currentDeadPlayerNums;
+        } else if (previousResolvedCountRef.current === 0) {
+          // Initialize dead players tracking on first load
+          previousDeadPlayersRef.current = new Set(
+            activePlayers.filter(p => p.is_alive === false).map(p => p.player_number!)
+          );
         }
-        previousResolvedCountRef.current = newResolvedCount;
         
+        previousResolvedCountRef.current = newResolvedCount;
         setRoundStates(roundData as RoundState[]);
       }
       
@@ -169,7 +201,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
     setLoading(false);
     setLastUpdate(new Date());
     setIsRefreshing(false);
-  }, [game.id, game.current_session_game_id, game.manche_active, players]);
+  }, [game.id, game.current_session_game_id, game.manche_active, winner]);
 
   // Calculate deaths per round from player data
   useEffect(() => {
@@ -264,11 +296,12 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       className="fixed inset-0 z-50 overflow-hidden"
       style={{ backgroundColor: INFECTION_COLORS.bgPrimary }}
     >
-      {/* Round Resolution Animation */}
-      <InfectionRoundAnimation
-        show={showRoundAnimation}
-        deathCount={roundAnimationDeaths}
-        onComplete={() => setShowRoundAnimation(false)}
+      {/* Death Reveal Animation */}
+      <InfectionDeathRevealAnimation
+        show={showDeathReveal}
+        deadPlayers={deathRevealPlayers}
+        manche={deathRevealManche}
+        onComplete={() => setShowDeathReveal(false)}
       />
 
       {/* Header */}

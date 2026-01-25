@@ -16,6 +16,7 @@ export const INFECTION_COLORS = {
   success: '#2AB3A6',
   successMuted: '#1E8A80',
   warning: '#E6A23C',
+  pvic: '#FFD700', // Gold for PVic display
   
   // Team colors
   teamPV: '#B00020', // Porteurs de Virus - Red
