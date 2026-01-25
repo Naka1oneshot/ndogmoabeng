@@ -566,33 +566,81 @@ Deno.serve(async (req) => {
     }
 
     // 8b: Contamination (spread to neighbors)
-    const contaminators = players.filter(p => 
-      p.is_alive && 
-      !deaths.includes(p.player_number) &&
-      p.will_contaminate_at_manche === manche
-    );
+    // SPECIAL RULE: Patient 0 (infected at manche 1) can contaminate even if dead
+    // They contaminate at manche 2 regardless of death status
+    const contaminators = players.filter(p => {
+      const scheduledToContaminate = p.will_contaminate_at_manche === manche;
+      
+      // Check if this is Patient 0 who died - they still contaminate!
+      const isDeadPatient0 = p.infected_at_manche === 1 && 
+                             p.will_contaminate_at_manche === 2 && 
+                             manche === 2 &&
+                             (!p.is_alive || deaths.includes(p.player_number));
+      
+      // Normal living contaminators OR dead Patient 0
+      if (isDeadPatient0) {
+        return scheduledToContaminate;
+      }
+      
+      return p.is_alive && !deaths.includes(p.player_number) && scheduledToContaminate;
+    });
 
     for (const contaminator of contaminators) {
-      contaminator.is_contagious = true;
-      await supabase.from('game_players').update({ is_contagious: true }).eq('id', contaminator.id);
-
-      // Find neighbors (circular)
-      const allNums = players.filter(p => p.is_alive && !deaths.includes(p.player_number)).map(p => p.player_number).sort((a, b) => a - b);
-      const idx = allNums.indexOf(contaminator.player_number);
+      const contaminatorWasDead = !contaminator.is_alive || deaths.includes(contaminator.player_number);
       
-      const neighbors: number[] = [];
-      if (allNums.length > 1) {
-        const leftIdx = idx === 0 ? allNums.length - 1 : idx - 1;
-        const rightIdx = idx === allNums.length - 1 ? 0 : idx + 1;
-        if (allNums[leftIdx] !== contaminator.player_number) neighbors.push(allNums[leftIdx]);
-        if (allNums[rightIdx] !== contaminator.player_number && allNums[rightIdx] !== allNums[leftIdx]) {
-          neighbors.push(allNums[rightIdx]);
+      if (!contaminatorWasDead) {
+        contaminator.is_contagious = true;
+        await supabase.from('game_players').update({ is_contagious: true }).eq('id', contaminator.id);
+      }
+
+      // Find neighbors (circular) - for dead contaminator, use their original position
+      const aliveNums = players.filter(p => p.is_alive && !deaths.includes(p.player_number)).map(p => p.player_number).sort((a, b) => a - b);
+      
+      let neighbors: number[] = [];
+      
+      if (contaminatorWasDead) {
+        // Dead contaminator: find neighbors among ALL players (original circle position)
+        const allNums = players.map(p => p.player_number).sort((a, b) => a - b);
+        const idx = allNums.indexOf(contaminator.player_number);
+        
+        if (allNums.length > 1) {
+          const leftIdx = idx === 0 ? allNums.length - 1 : idx - 1;
+          const rightIdx = idx === allNums.length - 1 ? 0 : idx + 1;
+          
+          // Only add if the neighbor is still alive
+          const leftNeighbor = allNums[leftIdx];
+          const rightNeighbor = allNums[rightIdx];
+          
+          if (leftNeighbor !== contaminator.player_number && aliveNums.includes(leftNeighbor)) {
+            neighbors.push(leftNeighbor);
+          }
+          if (rightNeighbor !== contaminator.player_number && rightNeighbor !== leftNeighbor && aliveNums.includes(rightNeighbor)) {
+            neighbors.push(rightNeighbor);
+          }
+        }
+        
+        addLog('STEP_8_DEAD_CONTAMINATOR', { 
+          contaminator_num: contaminator.player_number, 
+          reason: 'Patient 0 died but still contaminates',
+          neighbors_found: neighbors
+        });
+      } else {
+        // Living contaminator: find neighbors in current alive circle
+        const idx = aliveNums.indexOf(contaminator.player_number);
+        
+        if (aliveNums.length > 1 && idx !== -1) {
+          const leftIdx = idx === 0 ? aliveNums.length - 1 : idx - 1;
+          const rightIdx = idx === aliveNums.length - 1 ? 0 : idx + 1;
+          if (aliveNums[leftIdx] !== contaminator.player_number) neighbors.push(aliveNums[leftIdx]);
+          if (aliveNums[rightIdx] !== contaminator.player_number && aliveNums[rightIdx] !== aliveNums[leftIdx]) {
+            neighbors.push(aliveNums[rightIdx]);
+          }
         }
       }
 
       for (const neighborNum of neighbors) {
         const neighbor = getPlayerByNum(players, neighborNum);
-        if (neighbor && neighbor.is_alive && !neighbor.is_carrier) {
+        if (neighbor && neighbor.is_alive && !deaths.includes(neighbor.player_number) && !neighbor.is_carrier) {
           neighbor.is_carrier = true;
           neighbor.infected_at_manche = manche;
           neighbor.will_contaminate_at_manche = manche + 1;
@@ -607,6 +655,7 @@ Deno.serve(async (req) => {
 
           addLog('STEP_8_CONTAMINATION', { 
             source: contaminator.player_number, 
+            sourceWasDead: contaminatorWasDead,
             target: neighborNum,
             will_die_at: manche + 2
           });
