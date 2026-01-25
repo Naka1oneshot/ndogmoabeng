@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Swords, Skull, TreePine, Ban, Check, Timer, Bomb, Shield } from 'lucide-react';
+import { Swords, Skull, TreePine, Ban, Check, Timer, Bomb, Shield, Zap } from 'lucide-react';
 import { useGameSounds } from '@/hooks/useGameSounds';
 
 interface Game {
@@ -21,6 +21,7 @@ interface PublicAction {
   minePlaced?: { slot: number; weapon: string };
   mineExplosion?: boolean;
   protectionUsed?: { item: string; slot: number };
+  delayedExplosion?: { damage: number; slot: number; weapon: string };
 }
 
 interface Kill {
@@ -137,6 +138,7 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
               const isMineExplosion = action.mineExplosion;
               const hasMinePlaced = action.minePlaced;
               const hasProtection = action.protectionUsed;
+              const hasDelayedExplosion = action.delayedExplosion;
               
               return (
                 <div 
@@ -144,16 +146,18 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
                   className={`p-2 rounded text-sm flex flex-col gap-1 ${
                     isMineExplosion
                       ? 'bg-orange-500/10 border border-orange-500/30'
-                      : action.cancelled 
-                        ? 'bg-destructive/10 border border-destructive/20' 
-                        : 'bg-secondary/50'
+                      : hasDelayedExplosion
+                        ? 'bg-amber-500/10 border border-amber-500/30'
+                        : action.cancelled 
+                          ? 'bg-destructive/10 border border-destructive/20' 
+                          : 'bg-secondary/50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Badge 
                         variant="outline" 
-                        className={`text-xs ${isMineExplosion ? 'border-orange-500/50 text-orange-400' : ''}`}
+                        className={`text-xs ${isMineExplosion ? 'border-orange-500/50 text-orange-400' : hasDelayedExplosion ? 'border-amber-500/50 text-amber-400' : ''}`}
                       >
                         #{action.position}
                       </Badge>
@@ -188,6 +192,13 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
                       )}
                     </div>
                   </div>
+                  {/* Delayed explosion info */}
+                  {hasDelayedExplosion && (
+                    <div className="flex items-center gap-1 text-xs text-amber-400 pl-6">
+                      <Zap className="h-3 w-3" />
+                      <span>💥 {hasDelayedExplosion.weapon} explose : +{hasDelayedExplosion.damage} dégâts (Slot {hasDelayedExplosion.slot})</span>
+                    </div>
+                  )}
                   {/* Protection used */}
                   {hasProtection && (
                     <div className="flex items-center gap-1 text-xs text-blue-400 pl-6">

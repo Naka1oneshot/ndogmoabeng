@@ -53,6 +53,7 @@ interface PublicAction {
   cancelReason?: string;
   dotDamage?: number;
   minePlaced?: { slot: number; weapon: string }; // Mine placed this round
+  delayedExplosion?: { damage: number; slot: number; weapon: string }; // Delayed explosion triggered
 }
 
 interface Kill {
@@ -403,6 +404,9 @@ serve(async (req) => {
       return { killed: false, monsterName: monster.name || null, damageDealt: damage };
     };
     
+    // Track delayed explosion damage per player
+    const delayedExplosions: Map<number, { damage: number; slot: number; weapon: string }> = new Map();
+    
     // Helper to process pending effects after a player's turn
     const processPendingEffects = (afterPosition: number): string[] => {
       const effectLogs: string[] = [];
@@ -482,6 +486,13 @@ serve(async (req) => {
                   killedMonsters.push(`${result.monsterName} (Slot ${slot})`);
                 }
               }
+              
+              // Track delayed explosion for public summary
+              delayedExplosions.set(effect.sourcePlayerNum, {
+                damage: effect.damage,
+                slot: effect.targetSlots[0],
+                weapon: effect.weaponName,
+              });
               
               let logMsg = `💥 ${effect.weaponName} de ${effect.sourcePlayerName} explose : ${effect.damage} dégâts sur slot ${effect.targetSlots.join(', ')}`;
               
@@ -1281,7 +1292,7 @@ serve(async (req) => {
       }
     }
     
-    // Map player actions with mine placed info and protection usage
+    // Map player actions with mine placed info, protection usage, and delayed explosions
     const playerActionSummaries = publicActions.map(a => {
       // Check if this player placed a mine
       const minePlacedByPlayer = pendingEffects.find(
@@ -1294,15 +1305,23 @@ serve(async (req) => {
         ? { item: mjAction.protection, slot: mjAction.slot_protection } 
         : undefined;
       
+      // Check if this player had a delayed explosion trigger (e.g., Grenade Frag)
+      const delayedExplosion = delayedExplosions.get(a.num_joueur);
+      
+      // Calculate total damage including delayed explosion
+      const baseDamage = a.cancelled ? 0 : a.totalDamage;
+      const delayedDamage = delayedExplosion?.damage || 0;
+      
       return {
         position: a.position,
         nom: a.nom,
         weapons: a.weapons,
-        totalDamage: a.cancelled ? 0 : a.totalDamage,
+        totalDamage: baseDamage + delayedDamage,
         cancelled: a.cancelled,
         cancelReason: a.cancelReason,
         minePlaced: minePlacedByPlayer ? { slot: minePlacedByPlayer.targetSlots[0], weapon: minePlacedByPlayer.weaponName } : undefined,
         protectionUsed,
+        delayedExplosion: delayedExplosion ? { damage: delayedExplosion.damage, slot: delayedExplosion.slot, weapon: delayedExplosion.weapon } : undefined,
       };
     });
     

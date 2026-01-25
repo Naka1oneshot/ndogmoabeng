@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Skull, Swords, Target, Loader2, Timer, Bomb, Shield } from 'lucide-react';
+import { Trophy, Skull, Swords, Target, Loader2, Timer, Bomb, Shield, Zap } from 'lucide-react';
 
 interface Kill {
   killerName: string;
@@ -22,6 +22,7 @@ interface PublicSummaryEntry {
   minePlaced?: { slot: number; weapon: string };
   mineExplosion?: boolean;
   protectionUsed?: { item: string; slot: number };
+  delayedExplosion?: { damage: number; slot: number; weapon: string };
 }
 
 interface CombatResult {
@@ -247,6 +248,7 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
                   const isMineExplosion = entry.mineExplosion;
                   const hasMinePlaced = entry.minePlaced;
                   const hasProtection = entry.protectionUsed;
+                  const hasDelayedExplosion = entry.delayedExplosion;
                   
                   return (
                     <div 
@@ -254,12 +256,14 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
                       className={`text-[7px] md:text-[8px] rounded p-0.5 md:p-1 ${
                         isMineExplosion 
                           ? 'bg-orange-500/20 border border-orange-500/30' 
-                          : 'bg-secondary/30'
+                          : hasDelayedExplosion
+                            ? 'bg-amber-500/20 border border-amber-500/30'
+                            : 'bg-secondary/30'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1">
-                          <Badge variant="outline" className={`text-[6px] px-0.5 py-0 ${isMineExplosion ? 'border-orange-500/50 text-orange-400' : ''}`}>
+                          <Badge variant="outline" className={`text-[6px] px-0.5 py-0 ${isMineExplosion ? 'border-orange-500/50 text-orange-400' : hasDelayedExplosion ? 'border-amber-500/50 text-amber-400' : ''}`}>
                             #{entry.position}
                           </Badge>
                           <span className="font-medium truncate max-w-[50px]">{entry.nom}</span>
@@ -281,6 +285,13 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
                       {entry.weapons && entry.weapons.length > 0 && (
                         <div className="text-muted-foreground mt-0.5">
                           {entry.weapons.join(', ')}
+                        </div>
+                      )}
+                      {/* Delayed explosion info */}
+                      {hasDelayedExplosion && (
+                        <div className="flex items-center gap-0.5 text-amber-400 mt-0.5">
+                          <Zap className="h-2 w-2" />
+                          <span>💥 +{hasDelayedExplosion.damage} (S{hasDelayedExplosion.slot})</span>
                         </div>
                       )}
                       {/* Protection used */}
