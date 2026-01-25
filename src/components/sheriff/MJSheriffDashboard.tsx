@@ -1269,7 +1269,7 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                     <tr className="border-b border-[#D4AF37]/20 text-[#9CA3AF]">
                       <th className="text-left py-2">#</th>
                       <th className="text-left py-2">Nom</th>
-                      <th className="text-left py-2">Clan</th>
+                      <th className="text-left py-2">Visa</th>
                       <th className="text-left py-2">Mate</th>
                       <th className="text-right py-2">Jetons</th>
                       <th className="text-right py-2">PVic Init</th>
@@ -1281,7 +1281,16 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                     {activePlayers.map(player => {
                       const choice = getPlayerChoice(player.player_number!);
                       const pvicInitial = choice?.pvic_initial ?? 0;
-                      const pvDelta = choice?.victory_points_delta ?? 0;
+                      // Calculate full delta including duels
+                      const visaDelta = choice?.victory_points_delta ?? 0;
+                      const duelDeltas = duels
+                        .filter(d => d.status === 'RESOLVED')
+                        .reduce((sum, d) => {
+                          if (d.player1_number === player.player_number) return sum + (d.player1_vp_delta || 0);
+                          if (d.player2_number === player.player_number) return sum + (d.player2_vp_delta || 0);
+                          return sum;
+                        }, 0);
+                      const pvDelta = visaDelta + duelDeltas;
                       const pvicActuel = pvicInitial + pvDelta;
                       return (
                         <tr key={player.id} className="border-b border-[#D4AF37]/10">
@@ -1292,7 +1301,15 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                               {player.display_name}
                             </div>
                           </td>
-                          <td className="py-2 text-[#9CA3AF]">{player.clan || '-'}</td>
+                          <td className="py-2">
+                            {choice?.visa_choice ? (
+                              <Badge variant="outline" className={`text-xs ${choice.visa_choice === 'VICTORY_POINTS' ? 'border-amber-500 text-amber-400' : 'border-green-500 text-green-400'}`}>
+                                {choice.visa_choice === 'VICTORY_POINTS' ? '⭐ PVic' : '💰 Pool'}
+                              </Badge>
+                            ) : (
+                              <span className="text-[#9CA3AF]">-</span>
+                            )}
+                          </td>
                           <td className="py-2 text-[#9CA3AF]">{player.mate_num || '-'}</td>
                           <td className="py-2 text-right text-[#D4AF37]">{player.jetons}💎</td>
                           <td className="py-2 text-right text-amber-400">{pvicInitial}🏆</td>
@@ -1412,10 +1429,10 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                       <span className="font-bold text-[#D4AF37] w-6">{player.player_number}</span>
                       <span>{player.display_name}</span>
                     </div>
-                    {choice ? (
+                    {choice?.visa_choice ? (
                       <div className="flex gap-2">
-                        <Badge className={theme.badge}>
-                          {choice.visa_choice === 'VICTORY_POINTS' ? '⭐ PV' : '💰 Cagnotte'}
+                        <Badge variant="outline" className={`text-xs ${choice.visa_choice === 'VICTORY_POINTS' ? 'border-amber-500 text-amber-400' : 'border-green-500 text-green-400'}`}>
+                          {choice.visa_choice === 'VICTORY_POINTS' ? '⭐ PVic' : '💰 Pool'}
                         </Badge>
                         <Badge className={choice.has_illegal_tokens ? theme.badgeIllegal : theme.badgeLegal}>
                           {choice.tokens_entering}💎 {choice.has_illegal_tokens && '(illégal)'}

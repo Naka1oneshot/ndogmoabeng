@@ -204,11 +204,15 @@ Deno.serve(async (req) => {
 
     if (updateDuelError) throw updateDuelError;
 
-    // Update player choices with cumulative VP delta and final tokens
+    // Update player choices with cumulative VP delta (visa + duels) and final tokens
+    // This accumulates duel results into victory_points_delta for real-time tracking
+    const newP1Delta = (p1Choice.victory_points_delta || 0) + result.player1VpDelta;
+    const newP2Delta = (p2Choice.victory_points_delta || 0) + result.player2VpDelta;
+
     await supabase
       .from('sheriff_player_choices')
       .update({
-        victory_points_delta: (p1Choice.victory_points_delta || 0) + result.player1VpDelta,
+        victory_points_delta: newP1Delta,
         final_tokens: result.player1TokensLost > 0 ? 20 : p1Choice.tokens_entering,
       })
       .eq('id', p1Choice.id);
@@ -216,7 +220,7 @@ Deno.serve(async (req) => {
     await supabase
       .from('sheriff_player_choices')
       .update({
-        victory_points_delta: (p2Choice.victory_points_delta || 0) + result.player2VpDelta,
+        victory_points_delta: newP2Delta,
         final_tokens: result.player2TokensLost > 0 ? 20 : p2Choice.tokens_entering,
       })
       .eq('id', p2Choice.id);
