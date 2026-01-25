@@ -946,30 +946,54 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                   La partie est terminée. Tous les Porte-Venin sont morts ou les Synthétistes ont trouvé l'antidote.
                 </p>
                 
-                {/* Quick Rankings */}
+                {/* Full Rankings */}
                 <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-[#D4AF37]">Top 3</h3>
-                  {activePlayers
-                    .filter(p => p.player_number !== null)
-                    .sort((a, b) => (b.pvic || 0) - (a.pvic || 0))
-                    .slice(0, 3)
-                    .map((p, idx) => {
-                      const roleInfo = p.role_code ? INFECTION_ROLE_LABELS[p.role_code] : null;
-                      return (
-                        <div key={p.id} className="flex items-center justify-between p-2 bg-[#1A2235] rounded">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-bold text-[#D4AF37]">#{idx + 1}</span>
-                            <span>{p.display_name}</span>
-                            {roleInfo && (
-                              <Badge style={{ backgroundColor: `${roleInfo.color}20`, color: roleInfo.color }}>
-                                {roleInfo.name}
-                              </Badge>
-                            )}
+                  <h3 className="text-sm font-semibold text-[#D4AF37]">Classement Complet</h3>
+                  <div className="max-h-[400px] overflow-y-auto space-y-1">
+                    {activePlayers
+                      .filter(p => p.player_number !== null)
+                      .sort((a, b) => (b.pvic || 0) - (a.pvic || 0))
+                      .map((p, idx) => {
+                        const roleInfo = p.role_code ? INFECTION_ROLE_LABELS[p.role_code] : null;
+                        const isTop3 = idx < 3;
+                        return (
+                          <div 
+                            key={p.id} 
+                            className={`flex items-center justify-between p-2 rounded ${
+                              isTop3 ? 'bg-[#1A2235]' : 'bg-[#121A2B]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`font-mono ${
+                                idx === 0 ? 'text-lg font-bold text-yellow-400' :
+                                idx === 1 ? 'text-lg font-bold text-gray-300' :
+                                idx === 2 ? 'text-lg font-bold text-amber-600' :
+                                'text-sm text-[#6B7280]'
+                              }`}>
+                                #{idx + 1}
+                              </span>
+                              <span className={p.is_alive === false ? 'line-through text-[#6B7280]' : ''}>
+                                {p.display_name}
+                              </span>
+                              {roleInfo && (
+                                <Badge 
+                                  className="text-xs"
+                                  style={{ backgroundColor: `${roleInfo.color}20`, color: roleInfo.color }}
+                                >
+                                  {roleInfo.short}
+                                </Badge>
+                              )}
+                              {p.is_alive === false && (
+                                <Skull className="h-3 w-3 text-[#B00020]" />
+                              )}
+                            </div>
+                            <span className={`font-bold ${isTop3 ? 'text-[#2AB3A6]' : 'text-[#6B7280]'}`}>
+                              {p.pvic || 0} PVic
+                            </span>
                           </div>
-                          <span className="font-bold text-[#2AB3A6]">{p.pvic || 0} PVic</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                  </div>
                 </div>
                 
                 <Button 
