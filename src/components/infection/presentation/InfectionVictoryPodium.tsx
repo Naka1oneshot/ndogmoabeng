@@ -176,21 +176,40 @@ export function InfectionVictoryPodium({
   const [showRanking, setShowRanking] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
-  const [loadingScores, setLoadingScores] = useState(gameMode === 'ADVENTURE');
+  const [loadingScores, setLoadingScores] = useState(true);
   
   // Determine if this is a team game (any player has a mate_num)
   const isTeamGame = players.some(p => p.mate_num !== null);
   
+  // Debug log
+  useEffect(() => {
+    console.log('[InfectionVictoryPodium] Received players:', players.length, 'isTeamGame:', isTeamGame, 'gameMode:', gameMode);
+    console.log('[InfectionVictoryPodium] Players data:', players.map(p => ({ name: p.display_name, pvic: p.pvic, role: p.role_code, team: p.team_code })));
+  }, [players, isTeamGame, gameMode]);
+  
   // Fetch adventure cumulative scores if in adventure mode
   useEffect(() => {
     const buildRanking = async () => {
+      // Filter out host and ensure players have player_number
+      const validPlayers = players.filter(p => p.player_number !== null);
+      console.log('[InfectionVictoryPodium] Valid players for ranking:', validPlayers.length);
+      
+      if (validPlayers.length === 0) {
+        console.log('[InfectionVictoryPodium] No valid players, setting empty ranking');
+        setRanking([]);
+        setLoadingScores(false);
+        return;
+      }
+      
       if (gameMode === 'ADVENTURE' && isTeamGame) {
         // Fetch cumulative scores from adventure_scores
-        const playerIds = players.map(p => p.id);
-        const { data: adventureScores } = await supabase
+        const playerIds = validPlayers.map(p => p.id);
+        const { data: adventureScores, error } = await supabase
           .from('adventure_scores')
           .select('game_player_id, total_score_value')
           .in('game_player_id', playerIds);
+        
+        if (error) console.error('[InfectionVictoryPodium] Adventure scores error:', error);
         
         const scoreMap = new Map<string, number>();
         adventureScores?.forEach(s => {
@@ -199,7 +218,7 @@ export function InfectionVictoryPodium({
         
         // Build team ranking with cumulative scores
         const teamMap = new Map<number, Player[]>();
-        players.forEach(p => {
+        validPlayers.forEach(p => {
           if (p.player_number === null || p.mate_num === null) return;
           const teamKey = Math.min(p.player_number, p.mate_num);
           if (!teamMap.has(teamKey)) {
@@ -223,7 +242,7 @@ export function InfectionVictoryPodium({
       } else if (isTeamGame) {
         // Single game with teams
         const teamMap = new Map<number, Player[]>();
-        players.forEach(p => {
+        validPlayers.forEach(p => {
           if (p.player_number === null || p.mate_num === null) return;
           const teamKey = Math.min(p.player_number, p.mate_num);
           if (!teamMap.has(teamKey)) {
@@ -241,9 +260,9 @@ export function InfectionVictoryPodium({
         
         setRanking(teams.sort((a, b) => b.totalPvic - a.totalPvic));
       } else {
-        // Individual ranking (no teams)
-        const individuals: RankingEntry[] = players
-          .filter(p => p.player_number !== null)
+        // Individual ranking (no teams) - most common for bots
+        console.log('[InfectionVictoryPodium] Building individual ranking from', validPlayers.length, 'players');
+        const individuals: RankingEntry[] = validPlayers
           .map(p => ({
             name: p.display_name,
             totalPvic: p.pvic || 0,
@@ -252,12 +271,17 @@ export function InfectionVictoryPodium({
           }))
           .sort((a, b) => b.totalPvic - a.totalPvic);
         
+        console.log('[InfectionVictoryPodium] Individual ranking:', individuals.map(i => ({ name: i.name, pvic: i.totalPvic })));
         setRanking(individuals);
       }
       setLoadingScores(false);
     };
     
-    buildRanking();
+    if (players.length > 0) {
+      buildRanking();
+    } else {
+      setLoadingScores(false);
+    }
   }, [players, gameMode, gameId, isTeamGame]);
   
   // Separate players by team
@@ -514,86 +538,97 @@ export function InfectionVictoryPodium({
           )}
         </div>
         
-        {/* Role Reveal Section */}
+        {/* Full Ranking - Now ABOVE role reveal */}
         <div className={`bg-[#1E293B] border border-[#475569] rounded-xl p-4 mb-6 transition-all duration-1000 ${showRanking ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <h3 className="font-bold text-lg mb-4 flex items-center gap-2" style={{ color: INFECTION_COLORS.accent }}>
-            <Skull className="h-5 w-5" />
-            Révélation des Rôles
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-            {players.sort((a, b) => (a.player_number || 0) - (b.player_number || 0)).map(p => {
-              const roleInfo = p.role_code ? INFECTION_ROLE_LABELS[p.role_code] : null;
-              const isWinner = 
-                (winner === 'SY' && p.team_code === 'SY') || 
-                (winner === 'PV' && p.team_code === 'PV') ||
-                (winner === 'CV' && (p.team_code === 'CITOYEN' || p.team_code === 'NEUTRE'));
-              
-              return (
-                <div 
-                  key={p.id} 
-                  className={`p-2 rounded-lg border ${isWinner ? 'border-[#D4AF37]/50 bg-[#D4AF37]/10' : 'border-[#475569] bg-[#0F172A]'}`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[#D4AF37] font-mono text-sm">#{p.player_number}</span>
-                    {p.is_alive === false && <Skull className="h-3 w-3 text-[#B00020]" />}
-                    {isWinner && <Trophy className="h-3 w-3 text-[#D4AF37]" />}
-                  </div>
-                  <div className={`text-sm font-medium truncate ${p.is_alive === false ? 'line-through text-[#6B7280]' : 'text-white'}`}>
-                    {p.display_name}
-                  </div>
-                  {roleInfo && (
-                    <Badge 
-                      variant="outline"
-                      className="mt-1 text-xs"
-                      style={{ borderColor: roleInfo.color, color: roleInfo.color }}
-                    >
-                      {roleInfo.short}
-                    </Badge>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        
-        {/* Full Ranking */}
-        <div className={`bg-[#1E293B] border border-[#475569] rounded-xl p-4 transition-all duration-1000 ${showRanking ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2" style={{ color: INFECTION_COLORS.accent }}>
             <Trophy className="h-5 w-5" />
             {isTeamGame ? 'Classement par Équipe' : 'Classement Individuel'}
             {gameMode === 'ADVENTURE' && <Badge variant="outline" className="ml-2 text-xs border-[#D4AF37] text-[#D4AF37]">Cumul Aventure</Badge>}
           </h3>
-          <div className="space-y-2">
-            {ranking.map((entry, idx) => (
-              <div
-                key={entry.key}
-                className={`flex items-center justify-between p-3 rounded-lg ${idx < 3 ? 'bg-[#D4AF37]/10 border border-[#D4AF37]/30' : 'bg-[#0F172A]'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`w-8 text-center font-bold ${idx === 0 ? 'text-yellow-400 text-xl' : idx === 1 ? 'text-gray-300 text-lg' : idx === 2 ? 'text-amber-600 text-lg' : 'text-[#9CA3AF]'}`}>
-                    #{idx + 1}
-                  </span>
-                  <div className="flex gap-1">
-                    {entry.players.slice(0, 3).map(p => (
-                      p.avatar_url ? (
-                        <img key={p.id} src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover border border-[#D4AF37]/30" />
-                      ) : (
-                        <div key={p.id} className="h-8 w-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center text-xs font-bold text-[#D4AF37]">
-                          {p.player_number}
-                        </div>
-                      )
-                    ))}
+          {ranking.length > 0 ? (
+            <div className="space-y-2">
+              {ranking.map((entry, idx) => (
+                <div
+                  key={entry.key}
+                  className={`flex items-center justify-between p-3 rounded-lg ${idx < 3 ? 'bg-[#D4AF37]/10 border border-[#D4AF37]/30' : 'bg-[#0F172A]'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`w-8 text-center font-bold ${idx === 0 ? 'text-yellow-400 text-xl' : idx === 1 ? 'text-gray-300 text-lg' : idx === 2 ? 'text-amber-600 text-lg' : 'text-[#9CA3AF]'}`}>
+                      #{idx + 1}
+                    </span>
+                    <div className="flex gap-1">
+                      {entry.players.slice(0, 3).map(p => (
+                        p.avatar_url ? (
+                          <img key={p.id} src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover border border-[#D4AF37]/30" />
+                        ) : (
+                          <div key={p.id} className="h-8 w-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center text-xs font-bold text-[#D4AF37]">
+                            {p.player_number}
+                          </div>
+                        )
+                      ))}
+                    </div>
+                    <span className="font-medium text-white truncate max-w-[200px]">
+                      <TeamNameWithTooltip name={entry.name} />
+                    </span>
                   </div>
-                  <span className="font-medium text-white truncate max-w-[200px]">
-                    <TeamNameWithTooltip name={entry.name} />
+                  <span className={`font-bold whitespace-nowrap ${idx < 3 ? 'text-[#D4AF37] text-lg' : 'text-[#9CA3AF]'}`}>
+                    {entry.totalPvic} PVic
                   </span>
                 </div>
-                <span className={`font-bold whitespace-nowrap ${idx < 3 ? 'text-[#D4AF37] text-lg' : 'text-[#9CA3AF]'}`}>
-                  {entry.totalPvic} PVic
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[#9CA3AF] text-center py-4">Aucune donnée de classement disponible</p>
+          )}
+        </div>
+
+        {/* Role Reveal Section - Now BELOW ranking */}
+        <div className={`bg-[#1E293B] border border-[#475569] rounded-xl p-4 mb-6 transition-all duration-1000 ${showRanking ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2" style={{ color: INFECTION_COLORS.accent }}>
+            <Skull className="h-5 w-5" />
+            Révélation des Rôles
+          </h3>
+          {players.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {players.filter(p => p.player_number !== null).sort((a, b) => (a.player_number || 0) - (b.player_number || 0)).map(p => {
+                const roleInfo = p.role_code ? INFECTION_ROLE_LABELS[p.role_code] : null;
+                const isWinner = 
+                  (winner === 'SY' && p.team_code === 'SY') || 
+                  (winner === 'PV' && p.team_code === 'PV') ||
+                  (winner === 'CV' && (p.team_code === 'CITOYEN' || p.team_code === 'NEUTRE'));
+                
+                return (
+                  <div 
+                    key={p.id} 
+                    className={`p-2 rounded-lg border ${isWinner ? 'border-[#D4AF37]/50 bg-[#D4AF37]/10' : 'border-[#475569] bg-[#0F172A]'}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[#D4AF37] font-mono text-sm">#{p.player_number}</span>
+                      {p.is_alive === false && <Skull className="h-3 w-3 text-[#B00020]" />}
+                      {isWinner && <Trophy className="h-3 w-3 text-[#D4AF37]" />}
+                    </div>
+                    <div className={`text-sm font-medium truncate ${p.is_alive === false ? 'line-through text-[#6B7280]' : 'text-white'}`}>
+                      {p.display_name}
+                    </div>
+                    {roleInfo && (
+                      <Badge 
+                        variant="outline"
+                        className="mt-1 text-xs"
+                        style={{ borderColor: roleInfo.color, color: roleInfo.color }}
+                      >
+                        {roleInfo.short}
+                      </Badge>
+                    )}
+                    <div className="mt-1 text-xs text-[#9CA3AF]">
+                      {p.pvic || 0} PVic
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[#9CA3AF] text-center py-4">Aucun joueur disponible</p>
+          )}
         </div>
         
         {/* Mobile Stats - shown below ranking */}

@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Skull, X } from 'lucide-react';
+import { RefreshCw, Skull, X, Trophy } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS } from '../InfectionTheme';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
@@ -307,6 +307,24 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       ...p,
       avatar_url: p.user_id ? avatarUrls.get(p.user_id) || null : null,
     }));
+    
+    console.log('[InfectionPresentationView] Showing podium with players:', playersWithAvatars.length);
+    console.log('[InfectionPresentationView] Player data:', playersWithAvatars.map(p => ({ name: p.display_name, pvic: p.pvic, role: p.role_code })));
+    
+    // If players are not loaded yet, show loading
+    if (playersWithAvatars.length === 0) {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: INFECTION_COLORS.bgPrimary }}>
+          <div className="text-center">
+            <Trophy className="h-16 w-16 mx-auto mb-4 animate-pulse" style={{ color: INFECTION_COLORS.accent }} />
+            <p style={{ color: INFECTION_COLORS.textSecondary }}>Chargement des données...</p>
+            <Button variant="outline" onClick={fetchData} className="mt-4">
+              <RefreshCw className="h-4 w-4 mr-2" /> Actualiser
+            </Button>
+          </div>
+        </div>
+      );
+    }
     
     return (
       <InfectionVictoryPodium
