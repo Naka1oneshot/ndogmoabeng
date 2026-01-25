@@ -126,42 +126,43 @@ export const GAME_RULES: Record<string, GameRules> = {
     objective: 'Un virus mystérieux se propage dans le village. Les équipes s\'affrontent dans l\'ombre pour sauver ou condamner Ndogmoabeng.',
     setup: [
       'Les rôles sont distribués secrètement à chaque joueur.',
-      'Le Patient 0 est désigné et commence à propager le virus.',
+      'Le Patient 0 (Porte Venin) désigne sa cible à la première manche (obligatoire).',
       'Personne ne connaît l\'identité des autres (sauf exceptions de rôle).',
     ],
     phases: [
       {
         name: 'Phase d\'action',
-        description: 'Chaque joueur effectue son action de rôle : tir, recherche, vaccination, sabotage... Les actions sont secrètes et résolues simultanément.'
+        description: 'Chaque joueur effectue son action de rôle : tir, recherche, vaccination, sabotage, corruption... Les actions sont secrètes et résolues simultanément.'
       },
       {
         name: 'Phase de vote',
-        description: 'Les joueurs votent pour désigner un suspect à tester ou éliminer.'
+        description: 'Les joueurs votent pour désigner un suspect qu\'ils pensent être Porte Venin. Impact sur les jetons en fin de partie.'
       },
       {
         name: 'Résolution',
-        description: 'Le MJ révèle les résultats : morts, infections, guérisons. Le virus continue sa propagation.'
+        description: 'Le MJ révèle les résultats : morts, infections, guérisons. Le virus continue sa propagation aux voisins vivants.'
       }
     ],
     roles: [
-      { name: 'Porteur Sain (PS)', team: 'Porte-Venin', ability: 'Patient 0 - Désigne les cibles à infecter chaque manche.' },
-      { name: 'Porte-Venin (PV)', team: 'Porte-Venin', ability: 'Peut tirer sur un joueur et voter pour désigner le suspect.' },
-      { name: 'Bras Armé (BA)', team: 'Synthétistes', ability: 'Peut éliminer un joueur chaque manche. Puissant mais visible.' },
-      { name: 'Œil du Crépuscule (OC)', team: 'Synthétistes', ability: 'Peut découvrir le rôle d\'un joueur chaque manche.' },
-      { name: 'Synthétiste (SY)', team: 'Synthétistes', ability: 'Recherche l\'antidote. Plusieurs succès = victoire.' },
-      { name: 'Agent Ezkar (AE)', team: 'Neutre', ability: 'Doit identifier le Bras Armé. Peut saboter les tirs si réussi.' },
-      { name: 'Sans Cercle (SC)', team: 'Citoyen', ability: 'Simple citoyen sans pouvoir spécial. Vote et survit.' },
+      { name: 'Porte Venins (PV)', team: 'Porte-Venin', ability: '1 dose de venin (obligatoire manche 1), 1 antidote, 1 balle pour toute la partie. Victoire: 40 PVic si tous les autres meurent.' },
+      { name: 'Bras Armé (BA)', team: 'Synthétistes', ability: '1 balle par manche. Victoire: 50/30/15 PVic selon la rapidité d\'élimination des PV.' },
+      { name: 'Synthétistes (SY)', team: 'Synthétistes', ability: 'Crée l\'antidote en recherchant 2-3 fois sur le joueur avec anticorps. Choix unanime requis. Victoire: 30 PVic si mission réussie.' },
+      { name: 'Œil du Crépuscule (OC)', team: 'Synthétistes', ability: '1 boule de cristal par manche pour découvrir un rôle. Victoire: 20 PVic si PV meurent ou mission SY réussie.' },
+      { name: 'Agent de l\'État (AE)', team: 'Neutre', ability: 'Peut saboter l\'arme du BA. Corrompu par citoyens (10 jetons min) ou PV (15 jetons min). Victoire: 10 PVic par sabotage + corruption.' },
+      { name: 'Citoyen du Village (CV)', team: 'Citoyen', ability: 'Vote et peut corrompre l\'AE. Victoire: 20+20+10 PVic selon conditions.' },
+      { name: 'Le Sans Cercle (KK)', team: 'Citoyen', ability: 'Même rôle que CV. Victoire: 50/30/15 PVic selon la manche de mort.' },
     ],
     winConditions: [
-      { team: 'Synthétistes', condition: 'Trouver l\'antidote avant que le virus ne tue tout le monde.' },
-      { team: 'Porte-Venin', condition: 'Propager le virus et éliminer assez de joueurs sains.' },
-      { team: 'Agent Ezkar', condition: 'Identifier correctement le Bras Armé pour gagner.' }
+      { team: 'Synthétistes (SY)', condition: 'Trouver l\'antidote: 2-3 recherches unanimes sur le joueur avec anticorps.' },
+      { team: 'Porte Venins (PV)', condition: 'Éliminer tous les joueurs non-PV (sauf immunisés par antidote/anticorps).' },
+      { team: 'Agent de l\'État (AE)', condition: 'Cumul: 10 PVic par sabotage + somme corruption + bonus soupçons.' }
     ],
     tips: [
-      'Observez les votes et les morts pour déduire les rôles.',
-      'La communication est clé - mais attention aux mensonges.',
-      'Le Patient 0 peut stratégiquement choisir ses cibles.',
-      'La corruption peut changer le cours de la partie.',
+      'Le Patient 0 DOIT désigner une cible à la manche 1.',
+      'L\'antidote nécessite 2-3 recherches SY unanimes sur le bon joueur.',
+      'La corruption de l\'AE: 10 jetons min (citoyens) ou 15 jetons min (PV).',
+      'Le Sans Cercle (KK) gagne plus de PVic s\'il meurt tôt.',
+      'Les votes impactent les jetons en fin de partie (bonus meilleurs soupçons).',
     ]
   }
 };

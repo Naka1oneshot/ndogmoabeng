@@ -33,14 +33,111 @@ export const INFECTION_COLORS = {
   borderLight: '#4A5568',
 } as const;
 
-export const INFECTION_ROLE_LABELS: Record<string, { name: string; short: string; team: string; color: string }> = {
-  BA: { name: 'Bras Armé', short: 'BA', team: 'PV', color: INFECTION_COLORS.teamPV },
-  PV: { name: 'Porte Venin', short: 'PV', team: 'PV', color: INFECTION_COLORS.teamPV },
-  SY: { name: 'Synthétiste', short: 'SY', team: 'SY', color: INFECTION_COLORS.teamSY },
-  AE: { name: "Agent de l'État", short: 'AE', team: 'NEUTRE', color: INFECTION_COLORS.teamNeutre },
-  OC: { name: 'Œil du Crépuscule', short: 'OC', team: 'NEUTRE', color: INFECTION_COLORS.teamNeutre },
-  KK: { name: 'Sans Cercle', short: 'KK', team: 'CITOYEN', color: INFECTION_COLORS.teamCitoyen },
-  CV: { name: 'Citoyen', short: 'CV', team: 'CITOYEN', color: INFECTION_COLORS.teamCitoyen },
+// Role configuration with victory conditions from rules document
+export interface InfectionRoleConfig {
+  name: string;
+  short: string;
+  team: string;
+  color: string;
+  description: string;
+  startingInventory: string[];
+  victoryConditions: { condition: string; pvic: number }[];
+}
+
+export const INFECTION_ROLE_LABELS: Record<string, InfectionRoleConfig> = {
+  BA: { 
+    name: 'Bras Armé', 
+    short: 'BA', 
+    team: 'SY', 
+    color: INFECTION_COLORS.teamSY,
+    description: '1 Balle par manche (facultatif). Peut corrompre l\'agent de l\'état.',
+    startingInventory: ['1 arme sans balle', '1 balle reçue à chaque manche (max 1)'],
+    victoryConditions: [
+      { condition: 'PV meurent en 2 manches', pvic: 50 },
+      { condition: 'PV meurent en 3 manches', pvic: 30 },
+      { condition: 'PV meurent en 4 manches', pvic: 15 },
+    ]
+  },
+  CV: { 
+    name: 'Citoyen du Village', 
+    short: 'CV', 
+    team: 'CITOYEN', 
+    color: INFECTION_COLORS.teamCitoyen,
+    description: 'Peut corrompre l\'agent de l\'état. Vote pour désigner les porte-venins.',
+    startingInventory: [],
+    victoryConditions: [
+      { condition: 'Tous les PV meurent', pvic: 20 },
+      { condition: 'Mission SY réussie', pvic: 20 },
+      { condition: 'Vivant à la mort des PV', pvic: 10 },
+      { condition: 'Meilleurs soupçons (partage)', pvic: 10 },
+    ]
+  },
+  KK: { 
+    name: 'Le Sans Cercle', 
+    short: 'KK', 
+    team: 'CITOYEN', 
+    color: INFECTION_COLORS.teamCitoyen,
+    description: 'Peut corrompre l\'agent de l\'état. Vote pour désigner les porte-venins.',
+    startingInventory: [],
+    victoryConditions: [
+      { condition: 'Meurt durant les 2 premières manches', pvic: 50 },
+      { condition: 'Meurt durant la 3ème manche', pvic: 30 },
+      { condition: 'Meurt durant la 4ème manche', pvic: 15 },
+      { condition: 'Meilleurs soupçons (partage)', pvic: 10 },
+    ]
+  },
+  OC: { 
+    name: 'Œil du Crépuscule', 
+    short: 'OC', 
+    team: 'SY', 
+    color: INFECTION_COLORS.teamSY,
+    description: '1 fois par manche, découvre le rôle d\'un joueur. Peut corrompre l\'agent.',
+    startingInventory: ['1 boule de cristal par manche (max 1)'],
+    victoryConditions: [
+      { condition: 'Tous les PV meurent', pvic: 20 },
+      { condition: 'Mission SY réussie', pvic: 20 },
+      { condition: 'Vivant à la mort des PV', pvic: 10 },
+      { condition: 'Meilleurs soupçons (partage)', pvic: 10 },
+    ]
+  },
+  PV: { 
+    name: 'Porte Venins', 
+    short: 'PV', 
+    team: 'PV', 
+    color: INFECTION_COLORS.teamPV,
+    description: '1 Dose de venin (obligatoire manche 1). 1 Antidote. 1 Balle pour toute la partie.',
+    startingInventory: ['1 dose de venin (obligatoire manche 1)', '1 antidote', '1 balle'],
+    victoryConditions: [
+      { condition: 'Tuent tous les autres (sauf immunisés)', pvic: 40 },
+    ]
+  },
+  SY: { 
+    name: 'Synthétistes', 
+    short: 'SY', 
+    team: 'SY', 
+    color: INFECTION_COLORS.teamSY,
+    description: 'Crée un antidote en recherchant 2-3 fois sur le joueur avec anticorps. Choix unanime requis.',
+    startingInventory: [],
+    victoryConditions: [
+      { condition: 'Mission SY réussie', pvic: 30 },
+      { condition: 'Tous les PV meurent', pvic: 20 },
+      { condition: 'Vivant à la mort des PV', pvic: 10 },
+      { condition: 'Meilleurs soupçons (partage)', pvic: 10 },
+    ]
+  },
+  AE: { 
+    name: 'Agent de l\'État', 
+    short: 'AE', 
+    team: 'NEUTRE', 
+    color: INFECTION_COLORS.teamNeutre,
+    description: 'Peut saboter l\'arme du BA. Corrompu par citoyens (10 jetons) ou PV (15 jetons).',
+    startingInventory: [],
+    victoryConditions: [
+      { condition: 'Par arme sabotée', pvic: 10 },
+      { condition: 'Somme corruption reçue', pvic: 0 }, // Variable
+      { condition: 'Meilleurs soupçons (partage)', pvic: 10 },
+    ]
+  },
 };
 
 export const INFECTION_TEAM_LABELS: Record<string, { name: string; color: string }> = {
