@@ -16,13 +16,19 @@ interface DuelResult {
   };
 }
 
+// Calculate VP impact based on tokens beyond 20 (1% to 10%)
+function calculateImpactPercent(tokensEntering: number): number {
+  const extraTokens = Math.max(0, (tokensEntering || 20) - 20);
+  return Math.min(extraTokens, 10); // 0% to 10% max
+}
+
 function calculateDuelOutcome(
   p1Searches: boolean,
   p2Searches: boolean,
   p1HasIllegal: boolean,
   p2HasIllegal: boolean,
-  p1IllegalCount: number,
-  p2IllegalCount: number
+  p1TokensEntering: number,
+  p2TokensEntering: number
 ): DuelResult {
   let p1VpDelta = 0;
   let p2VpDelta = 0;
@@ -31,28 +37,33 @@ function calculateDuelOutcome(
   let p1Summary = '';
   let p2Summary = '';
 
+  // Calculate impact based on tokens beyond 20
+  const p1Impact = calculateImpactPercent(p1TokensEntering);
+  const p2Impact = calculateImpactPercent(p2TokensEntering);
+
   // Player 1 searches Player 2
   if (p1Searches) {
     if (p2HasIllegal) {
       // P1 found illegal tokens on P2
-      p1VpDelta += p2IllegalCount; // Gain X% PV
-      p2VpDelta -= p2IllegalCount; // Lose X% PV
-      p2TokensLost = p2IllegalCount; // Lose illegal tokens
-      p1Summary = `Fouille réussie ! +${p2IllegalCount}% PV`;
-      p2Summary = `Pris en flagrant délit ! -${p2IllegalCount}% PV, -${p2IllegalCount} jetons`;
+      p1VpDelta += p2Impact; // Gain X% PV based on P2's token count
+      p2VpDelta -= p2Impact; // Lose X% PV
+      p2TokensLost = p2Impact; // Lose illegal tokens
+      p1Summary = `Fouille réussie ! +${p2Impact}% PV`;
+      p2Summary = `Pris en flagrant délit ! -${p2Impact}% PV, -${p2Impact} jetons`;
     } else {
-      // P1 searched but P2 was legal
-      p1VpDelta -= 10; // Lose 10% PV for false accusation
-      p1Summary = `Fouille d'un voyageur légal. -10% PV`;
+      // P1 searched but P2 was legal - penalty based on P1's own risk level
+      const falsePenalty = Math.max(p1Impact, 1); // Min 1% penalty for false search
+      p1VpDelta -= falsePenalty;
+      p1Summary = `Fouille d'un voyageur légal. -${falsePenalty}% PV`;
       p2Summary = `Vous étiez légal. Pas de pénalité.`;
     }
   } else {
     // P1 didn't search P2
     if (p2HasIllegal) {
       // P2 passed with illegal tokens
-      p2VpDelta += p2IllegalCount; // Gain X% PV for successful smuggling
+      p2VpDelta += p2Impact; // Gain X% PV for successful smuggling
       p1Summary = `Vous avez laissé passer un contrebandier !`;
-      p2Summary = `Passage réussi avec contrebande ! +${p2IllegalCount}% PV`;
+      p2Summary = `Passage réussi avec contrebande ! +${p2Impact}% PV`;
     } else {
       p1Summary = `Vous avez laissé passer.`;
       p2Summary = `Passage sans encombre.`;
@@ -63,24 +74,25 @@ function calculateDuelOutcome(
   if (p2Searches) {
     if (p1HasIllegal) {
       // P2 found illegal tokens on P1
-      p2VpDelta += p1IllegalCount;
-      p1VpDelta -= p1IllegalCount;
-      p1TokensLost = p1IllegalCount;
-      p2Summary += ` | Fouille réussie ! +${p1IllegalCount}% PV`;
-      p1Summary += ` | Pris en flagrant délit ! -${p1IllegalCount}% PV, -${p1IllegalCount} jetons`;
+      p2VpDelta += p1Impact;
+      p1VpDelta -= p1Impact;
+      p1TokensLost = p1Impact;
+      p2Summary += ` | Fouille réussie ! +${p1Impact}% PV`;
+      p1Summary += ` | Pris en flagrant délit ! -${p1Impact}% PV, -${p1Impact} jetons`;
     } else {
       // P2 searched but P1 was legal
-      p2VpDelta -= 10;
-      p2Summary += ` | Fouille d'un voyageur légal. -10% PV`;
+      const falsePenalty = Math.max(p2Impact, 1);
+      p2VpDelta -= falsePenalty;
+      p2Summary += ` | Fouille d'un voyageur légal. -${falsePenalty}% PV`;
       p1Summary += ` | Vous étiez légal. Pas de pénalité.`;
     }
   } else {
     // P2 didn't search P1
     if (p1HasIllegal) {
       // P1 passed with illegal tokens
-      p1VpDelta += p1IllegalCount;
+      p1VpDelta += p1Impact;
       p2Summary += ` | Vous avez laissé passer un contrebandier !`;
-      p1Summary += ` | Passage réussi avec contrebande ! +${p1IllegalCount}% PV`;
+      p1Summary += ` | Passage réussi avec contrebande ! +${p1Impact}% PV`;
     } else {
       p2Summary += ` | Vous avez laissé passer.`;
       p1Summary += ` | Passage sans encombre.`;
@@ -166,17 +178,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Calculate duel outcome
-    const p1IllegalCount = p1Choice.has_illegal_tokens ? 10 : 0;
-    const p2IllegalCount = p2Choice.has_illegal_tokens ? 10 : 0;
-
+    // Calculate duel outcome - impact based on tokens beyond 20
     const result = calculateDuelOutcome(
       duel.player1_searches,
       duel.player2_searches,
       p1Choice.has_illegal_tokens,
       p2Choice.has_illegal_tokens,
-      p1IllegalCount,
-      p2IllegalCount
+      p1Choice.tokens_entering || 20,
+      p2Choice.tokens_entering || 20
     );
 
     // Update duel with results
