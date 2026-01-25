@@ -59,6 +59,7 @@ import { MyRegistrationsSection } from '@/components/profile/MyRegistrationsSect
 import { ChangePasswordSection } from '@/components/profile/ChangePasswordSection';
 import { LoginHistorySection } from '@/components/profile/LoginHistorySection';
 import { SessionManagementSection } from '@/components/profile/SessionManagementSection';
+import { ActiveGamesSection } from '@/components/profile/ActiveGamesSection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -447,6 +448,9 @@ export default function Profile() {
             )}
           </CardContent>
         </Card>
+
+        {/* Active Games with Reconnection Links */}
+        <ActiveGamesSection />
 
         {/* Game History Section */}
         <GameHistorySection />

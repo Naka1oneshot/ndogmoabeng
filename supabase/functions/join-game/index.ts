@@ -311,7 +311,7 @@ serve(async (req) => {
     // Priority 3: Try to find existing player by normalized name
     const { data: allPlayers } = await supabase
       .from("game_players")
-      .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan, device_id, clan_locked, clan_token_used")
+      .select("id, status, player_number, player_token, display_name, removed_reason, jetons, recompenses, clan, device_id, clan_locked, clan_token_used, user_id")
       .eq("game_id", game.id);
 
     const matchingPlayerByName = (allPlayers || []).find(
@@ -379,6 +379,29 @@ serve(async (req) => {
             .eq("id", matchingPlayerByName.id);
 
           console.log("Reactivated LEFT player by name:", matchingPlayerByName.display_name, "as #", playerNumber);
+
+          // If player has a user account, store the reconnect link
+          if (matchingPlayerByName.user_id) {
+            const publicBaseUrl = 'https://ndogmoabeng.com';
+            const reconnectUrl = `${publicBaseUrl}/player/${game.id}?token=${newToken}`;
+            
+            const { error: linkError } = await supabase
+              .from("player_reconnect_links")
+              .upsert({
+                user_id: matchingPlayerByName.user_id,
+                game_id: game.id,
+                game_player_id: matchingPlayerByName.id,
+                reconnect_url: reconnectUrl,
+                player_token: newToken,
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id,game_id'
+              });
+
+            if (linkError) {
+              console.error("Error storing reconnect link:", linkError);
+            }
+          }
 
           return new Response(
             JSON.stringify({
@@ -495,6 +518,31 @@ serve(async (req) => {
 
       console.log("Player reactivated:", displayName, "as player #", playerNumber);
 
+      // If player has a user account, store the reconnect link
+      if (userId) {
+        const publicBaseUrl = 'https://ndogmoabeng.com';
+        const reconnectUrl = `${publicBaseUrl}/player/${game.id}?token=${newToken}`;
+        
+        const { error: linkError } = await supabase
+          .from("player_reconnect_links")
+          .upsert({
+            user_id: userId,
+            game_id: game.id,
+            game_player_id: existingPlayer.id,
+            reconnect_url: reconnectUrl,
+            player_token: newToken,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,game_id'
+          });
+
+        if (linkError) {
+          console.error("Error storing reconnect link:", linkError);
+        } else {
+          console.log("Reconnect link stored for reactivated user:", userId);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -605,6 +653,32 @@ serve(async (req) => {
     }
 
     console.log("New player joined:", displayName, "as player #", playerNumber, "device:", deviceId, "clan:", effectiveClan, "clanLocked:", shouldLockClan, "clanTokenUsed:", clanTokenUsed);
+
+    // If player has a user account, store the reconnect link
+    if (userId) {
+      const publicBaseUrl = 'https://ndogmoabeng.com';
+      const reconnectUrl = `${publicBaseUrl}/player/${game.id}?token=${playerToken}`;
+      
+      const { error: linkError } = await supabase
+        .from("player_reconnect_links")
+        .upsert({
+          user_id: userId,
+          game_id: game.id,
+          game_player_id: newPlayer.id,
+          reconnect_url: reconnectUrl,
+          player_token: playerToken,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,game_id'
+        });
+
+      if (linkError) {
+        console.error("Error storing reconnect link:", linkError);
+        // Don't fail the join, just log the error
+      } else {
+        console.log("Reconnect link stored for user:", userId);
+      }
+    }
 
     return new Response(
       JSON.stringify({

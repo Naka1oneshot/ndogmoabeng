@@ -63,10 +63,10 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get the player
+    // Get the player with user_id
     const { data: player, error: playerError } = await supabase
       .from("game_players")
-      .select("id, game_id")
+      .select("id, game_id, user_id, display_name")
       .eq("id", playerId)
       .single();
 
@@ -108,6 +108,10 @@ serve(async (req) => {
 
     // Generate new token
     const newToken = generatePlayerToken();
+    
+    // Build the reconnect URL
+    const publicBaseUrl = 'https://ndogmoabeng.com';
+    const reconnectUrl = `${publicBaseUrl}/player/${player.game_id}?token=${newToken}`;
 
     // Update the player's token
     const { error: updateError } = await supabase
@@ -123,12 +127,38 @@ serve(async (req) => {
       );
     }
 
+    // If player has a user account, store the reconnect link
+    if (player.user_id) {
+      console.log("[reset-player-token] Player has user account, storing reconnect link for user:", player.user_id);
+      
+      const { error: linkError } = await supabase
+        .from("player_reconnect_links")
+        .upsert({
+          user_id: player.user_id,
+          game_id: player.game_id,
+          game_player_id: player.id,
+          reconnect_url: reconnectUrl,
+          player_token: newToken,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,game_id'
+        });
+
+      if (linkError) {
+        console.error("[reset-player-token] Error storing reconnect link:", linkError);
+        // Don't fail the whole operation, just log the error
+      } else {
+        console.log("[reset-player-token] Reconnect link stored successfully");
+      }
+    }
+
     console.log("[reset-player-token] Success - new token generated for player:", playerId);
 
     return new Response(
       JSON.stringify({
         success: true,
         newToken: newToken,
+        reconnectUrl: reconnectUrl,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

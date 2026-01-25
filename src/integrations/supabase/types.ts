@@ -2131,6 +2131,54 @@ export type Database = {
           },
         ]
       }
+      player_reconnect_links: {
+        Row: {
+          created_at: string
+          game_id: string
+          game_player_id: string
+          id: string
+          player_token: string
+          reconnect_url: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          game_player_id: string
+          id?: string
+          player_token: string
+          reconnect_url: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          game_player_id?: string
+          id?: string
+          player_token?: string
+          reconnect_url?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_reconnect_links_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_reconnect_links_game_player_id_fkey"
+            columns: ["game_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       positions_finales: {
         Row: {
           attaque1: string | null
