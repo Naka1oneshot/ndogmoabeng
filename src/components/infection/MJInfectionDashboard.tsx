@@ -28,6 +28,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
+import { PvicBreakdownTooltip } from '@/components/common/PvicBreakdownTooltip';
 
 interface Game {
   id: string;
@@ -988,7 +989,15 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                               )}
                             </div>
                             <span className={`font-bold ${isTop3 ? 'text-[#2AB3A6]' : 'text-[#6B7280]'}`}>
-                              {p.pvic || 0} PVic
+                              {game.mode === 'adventure' ? (
+                                <PvicBreakdownTooltip 
+                                  playerId={p.id} 
+                                  gameId={game.id} 
+                                  totalPvic={p.pvic || 0} 
+                                />
+                              ) : (
+                                <>{p.pvic || 0} PVic</>
+                              )}
                             </span>
                           </div>
                         );
