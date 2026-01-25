@@ -12,6 +12,7 @@ import { InfectionPatient0Timeline } from './InfectionPatient0Timeline';
 import { InfectionRoleRoster } from './InfectionRoleRoster';
 import { InfectionStatsPanel } from './InfectionStatsPanel';
 import { InfectionDeathRevealAnimation } from './InfectionDeathRevealAnimation';
+import { InfectionRoundStartAnimation } from './InfectionRoundStartAnimation';
 import { InfectionSYResearchProgress } from './InfectionSYResearchProgress';
 import { InfectionVictoryPodium } from './InfectionVictoryPodium';
 import { InfectionVictoryTransition } from './InfectionVictoryTransition';
@@ -77,9 +78,14 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   }>>([]);
   const [deathRevealManche, setDeathRevealManche] = useState(1);
   
+  // Animation state for round start
+  const [showRoundStartAnimation, setShowRoundStartAnimation] = useState(false);
+  const [roundStartManche, setRoundStartManche] = useState(1);
+  
   // Track resolved manches to detect new resolutions
   const previousResolvedCountRef = useRef<number>(0);
   const previousDeadPlayersRef = useRef<Set<number>>(new Set());
+  const previousMancheRef = useRef<number | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!game.id) return;
@@ -92,6 +98,14 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       .single();
     
     if (gameData) {
+      // Detect manche change for round start animation
+      if (previousMancheRef.current !== null && 
+          gameData.manche_active !== null && 
+          gameData.manche_active > previousMancheRef.current) {
+        setRoundStartManche(gameData.manche_active);
+        setShowRoundStartAnimation(true);
+      }
+      previousMancheRef.current = gameData.manche_active;
       setGame(gameData);
     }
 
@@ -299,6 +313,13 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       className="fixed inset-0 z-50 overflow-hidden"
       style={{ backgroundColor: INFECTION_COLORS.bgPrimary }}
     >
+      {/* Round Start Animation */}
+      <InfectionRoundStartAnimation
+        show={showRoundStartAnimation}
+        manche={roundStartManche}
+        onComplete={() => setShowRoundStartAnimation(false)}
+      />
+
       {/* Death Reveal Animation */}
       <InfectionDeathRevealAnimation
         show={showDeathReveal}
