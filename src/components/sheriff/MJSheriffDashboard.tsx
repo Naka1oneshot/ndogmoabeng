@@ -779,6 +779,7 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                       <th className="text-left py-2">Clan</th>
                       <th className="text-left py-2">Mate</th>
                       <th className="text-right py-2">Jetons</th>
+                      <th className="text-right py-2">PVic</th>
                       <th className="text-right py-2">Actions</th>
                     </tr>
                   </thead>
@@ -876,6 +877,7 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                               <td className="py-2 text-[#9CA3AF]">{player.clan || '-'}</td>
                               <td className="py-2 text-[#9CA3AF]">{player.mate_num || '-'}</td>
                               <td className="py-2 text-right text-[#D4AF37]">{player.jetons}💎</td>
+                              <td className="py-2 text-right text-amber-400">{player.pvic ?? 0}🏆</td>
                               <td className="py-2 text-right">
                                 <div className="flex justify-end gap-1">
                                   <Button size="icon" variant="ghost" onClick={() => startEditing(player)}>
