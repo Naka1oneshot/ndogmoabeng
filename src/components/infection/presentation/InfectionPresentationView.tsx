@@ -13,6 +13,7 @@ import { InfectionRoleRoster } from './InfectionRoleRoster';
 import { InfectionStatsPanel } from './InfectionStatsPanel';
 import { InfectionRoundAnimation } from './InfectionRoundAnimation';
 import { InfectionSYResearchProgress } from './InfectionSYResearchProgress';
+import { InfectionVictoryPodium } from './InfectionVictoryPodium';
 
 interface Game {
   id: string;
@@ -32,6 +33,8 @@ interface Player {
   role_code: string | null;
   team_code: string | null;
   user_id: string | null;
+  pvic: number | null;
+  mate_num: number | null;
 }
 
 interface RoundState {
@@ -57,6 +60,8 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [winner, setWinner] = useState<'SY' | 'PV' | null>(null);
+  const [showVictoryPodium, setShowVictoryPodium] = useState(false);
   
   // Animation state
   const [showRoundAnimation, setShowRoundAnimation] = useState(false);
@@ -80,7 +85,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
     // Fetch players (exclude host)
     const { data: playersData } = await supabase
       .from('game_players')
-      .select('id, display_name, player_number, is_alive, is_host, role_code, team_code, user_id')
+      .select('id, display_name, player_number, is_alive, is_host, role_code, team_code, user_id, pvic, mate_num')
       .eq('game_id', game.id)
       .is('removed_at', null)
       .order('player_number', { ascending: true });
@@ -141,6 +146,21 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         previousResolvedCountRef.current = newResolvedCount;
         
         setRoundStates(roundData as RoundState[]);
+      }
+      
+      // Check for GAME_END event to get winner
+      const { data: gameEndEvent } = await supabase
+        .from('game_events')
+        .select('message, payload')
+        .eq('session_game_id', game.current_session_game_id)
+        .eq('event_type', 'GAME_END')
+        .maybeSingle();
+      
+      if (gameEndEvent) {
+        const payload = gameEndEvent.payload as { winner?: string } | null;
+        const winnerTeam = payload?.winner || (gameEndEvent.message?.includes('SY') ? 'SY' : 'PV');
+        setWinner(winnerTeam as 'SY' | 'PV');
+        setShowVictoryPodium(true);
       }
     }
 
@@ -207,19 +227,20 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
     );
   }
 
-  // Check if game ended
-  if (game.status === 'ENDED') {
+  // Show victory podium when game ends
+  if (showVictoryPodium && winner) {
+    // Add avatar URLs to players for podium
+    const playersWithAvatars = players.map(p => ({
+      ...p,
+      avatar_url: p.user_id ? avatarUrls.get(p.user_id) || null : null,
+    }));
+    
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: INFECTION_COLORS.bgPrimary }}>
-        <div className="text-center">
-          <Skull className="h-24 w-24 mx-auto mb-4" style={{ color: INFECTION_COLORS.danger }} />
-          <h1 className="text-4xl font-bold mb-2" style={{ color: INFECTION_COLORS.textPrimary }}>Partie Terminée</h1>
-          <p style={{ color: INFECTION_COLORS.textSecondary }}>La partie est terminée</p>
-          <Button onClick={onClose} className="mt-6" style={{ backgroundColor: INFECTION_COLORS.accent, color: INFECTION_COLORS.bgPrimary }}>
-            Fermer
-          </Button>
-        </div>
-      </div>
+      <InfectionVictoryPodium
+        players={playersWithAvatars}
+        winner={winner}
+        onClose={onClose}
+      />
     );
   }
 
