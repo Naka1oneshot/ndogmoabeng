@@ -798,15 +798,7 @@ function DuelsPhaseDisplay({
           </h4>
           <div className="space-y-2">
             {teamRanking.slice(0, 10).map((team, idx) => (
-              <div key={team.name} className="flex items-center justify-between p-2 rounded bg-[#1A1510]">
-                <div className="flex items-center gap-2">
-                  <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-amber-600' : 'text-[#9CA3AF]'}`}>
-                    #{idx + 1}
-                  </span>
-                  <span className="text-sm truncate max-w-[120px]">{team.name}</span>
-                </div>
-                <span className="text-[#D4AF37] font-bold">{team.totalPvic}</span>
-              </div>
+              <TeamRankingRow key={team.name} team={team} idx={idx} />
             ))}
           </div>
         </div>
@@ -822,7 +814,8 @@ function TeamRankingRow({ team, idx }: { team: { name: string; totalPvic: number
   
   const rankColor = idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-amber-600' : 'text-[#9CA3AF]';
   
-  const content = (
+  // Mobile: truncate names, PC: show full names
+  const mobileContent = (
     <div className="flex items-center justify-between p-2 rounded bg-[#1A1510]">
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <span className={`font-bold shrink-0 ${rankColor}`}>
@@ -834,11 +827,23 @@ function TeamRankingRow({ team, idx }: { team: { name: string; totalPvic: number
     </div>
   );
   
+  const desktopContent = (
+    <div className="flex items-center justify-between p-2 rounded bg-[#1A1510]">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <span className={`font-bold shrink-0 ${rankColor}`}>
+          #{idx + 1}
+        </span>
+        <span className="text-sm whitespace-nowrap">{team.name}</span>
+      </div>
+      <span className="text-[#D4AF37] font-bold shrink-0 ml-2">{team.totalPvic}</span>
+    </div>
+  );
+  
   if (isMobile) {
     return (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <div className="cursor-pointer">{content}</div>
+          <div className="cursor-pointer">{mobileContent}</div>
         </PopoverTrigger>
         <PopoverContent className="bg-[#2A2215] border-[#D4AF37]/30 text-white p-3 max-w-xs">
           <div className="text-sm font-medium break-words">{team.name}</div>
@@ -848,14 +853,27 @@ function TeamRankingRow({ team, idx }: { team: { name: string; totalPvic: number
     );
   }
   
+  // Desktop: full names + tooltip with player details
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div>{content}</div>
+          <div className="cursor-pointer">{desktopContent}</div>
         </TooltipTrigger>
-        <TooltipContent className="bg-[#2A2215] border-[#D4AF37]/30 text-white max-w-xs">
-          <p className="break-words">{team.name}</p>
+        <TooltipContent className="bg-[#2A2215] border-[#D4AF37]/30 text-white max-w-sm p-3">
+          <div className="font-medium text-[#D4AF37] mb-2">{team.name}</div>
+          <div className="space-y-1">
+            {team.players.map(p => (
+              <div key={p.id} className="flex items-center gap-2 text-sm">
+                <span className="text-[#9CA3AF]">#{p.player_number}</span>
+                <span>{p.display_name}</span>
+                <span className="text-[#D4AF37] ml-auto">{p.pvic || 0} PV</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 pt-2 border-t border-[#D4AF37]/20 text-[#D4AF37] font-bold">
+            Total: {team.totalPvic} PV
+          </div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
