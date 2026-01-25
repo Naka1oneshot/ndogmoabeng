@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Player {
   id: string;
@@ -27,9 +27,15 @@ export function SheriffTeamSortAnimation({
 }: SheriffTeamSortAnimationProps) {
   const [phase, setPhase] = useState<'shuffling' | 'sorting' | 'done'>('shuffling');
   const [shuffledPositions, setShuffledPositions] = useState<Record<number, 'pool' | 'pvic' | 'center'>>({});
+  const onCompleteRef = useRef(onComplete);
   
   const poolPlayers = choices.filter(c => c.visa_choice === 'COMMON_POOL');
   const pvicPlayers = choices.filter(c => c.visa_choice === 'VICTORY_POINTS');
+  
+  // Keep ref updated
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
   
   useEffect(() => {
     // Initialize all players in center
@@ -65,17 +71,20 @@ export function SheriffTeamSortAnimation({
           finalPositions[c.player_number] = c.visa_choice === 'COMMON_POOL' ? 'pool' : 'pvic';
         });
         setShuffledPositions(finalPositions);
-        
-        // Complete after showing final sort
-        setTimeout(() => {
-          setPhase('done');
-          setTimeout(onComplete, 500);
-        }, 2000);
       }
     }, shuffleInterval);
     
-    return () => clearInterval(shuffleTimer);
-  }, [choices, onComplete]);
+    // Complete after final sort display
+    const completeTimer = setTimeout(() => {
+      setPhase('done');
+      onCompleteRef.current();
+    }, shuffleDuration + 2500);
+    
+    return () => {
+      clearInterval(shuffleTimer);
+      clearTimeout(completeTimer);
+    };
+  }, [choices.length]); // Only depend on choices length to prevent re-runs
   
   const renderPlayer = (choice: PlayerChoice) => {
     const player = getPlayer(choice.player_number);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,11 @@ import {
 } from 'lucide-react';
 import { getSheriffThemeClasses, VISA_OPTIONS, TOKEN_OPTIONS, SHERIFF_COLORS } from './SheriffTheme';
 import { toast } from 'sonner';
+import { 
+  SheriffPhaseChangeAnimation, 
+  SheriffDuelStartPlayerAnimation, 
+  SheriffDuelResultPlayerAnimation 
+} from './SheriffPlayerAnimations';
 
 interface Game {
   id: string;
@@ -81,6 +86,24 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
   // Duel decision state
   const [duelDecision, setDuelDecision] = useState<boolean | null>(null);
   const [submittingDuel, setSubmittingDuel] = useState(false);
+  
+  // Animation states
+  const [showPhaseAnimation, setShowPhaseAnimation] = useState(false);
+  const [animationPhase, setAnimationPhase] = useState<'CHOICES' | 'DUELS' | 'COMPLETE'>('CHOICES');
+  const [showDuelStartAnimation, setShowDuelStartAnimation] = useState(false);
+  const [showDuelResultAnimation, setShowDuelResultAnimation] = useState(false);
+  const [duelAnimationData, setDuelAnimationData] = useState<{
+    opponentName: string;
+    duelOrder: number;
+    vpDelta: number;
+    opponentSearched: boolean;
+  } | null>(null);
+  
+  // Previous state refs for animation detection
+  const prevPhaseRef = useRef<string | null>(null);
+  const prevMyActiveDuelRef = useRef<string | null>(null);
+  const prevMyDuelStatusRef = useRef<string | null>(null);
+  const initialLoadDoneRef = useRef(false);
 
   useEffect(() => {
     fetchData();
@@ -203,10 +226,10 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
     }
   };
 
-  const getPlayerName = (num: number) => {
+  const getPlayerName = useCallback((num: number) => {
     const p = allPlayers.find(pl => pl.player_number === num);
     return p?.display_name || `Joueur ${num}`;
-  };
+  }, [allPlayers]);
 
   const myActiveDuel = duels.find(d => 
     d.status === 'ACTIVE' && 
@@ -223,6 +246,75 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
     (amPlayer1 && myActiveDuel.player1_searches !== null) ||
     (!amPlayer1 && myActiveDuel.player2_searches !== null)
   );
+
+  // Animation detection effects
+  useEffect(() => {
+    if (!roundState) return;
+    
+    // Skip animations on initial load
+    if (!initialLoadDoneRef.current) {
+      initialLoadDoneRef.current = true;
+      prevPhaseRef.current = roundState.phase;
+      return;
+    }
+    
+    // Phase change detection
+    if (prevPhaseRef.current !== roundState.phase) {
+      const newPhase = roundState.phase as 'CHOICES' | 'DUELS' | 'COMPLETE';
+      setAnimationPhase(newPhase);
+      setShowPhaseAnimation(true);
+      prevPhaseRef.current = roundState.phase;
+    }
+  }, [roundState?.phase]);
+  
+  // Duel animations
+  useEffect(() => {
+    if (!roundState || roundState.phase !== 'DUELS') return;
+    
+    // My new active duel detection
+    if (myActiveDuel) {
+      const duelId = myActiveDuel.id;
+      const prevDuelId = prevMyActiveDuelRef.current;
+      
+      // New duel started for me
+      if (prevDuelId !== duelId) {
+        const opponentNum = amPlayer1 ? myActiveDuel.player2_number : myActiveDuel.player1_number;
+        setDuelAnimationData({
+          opponentName: getPlayerName(opponentNum),
+          duelOrder: myActiveDuel.duel_order,
+          vpDelta: 0,
+          opponentSearched: false,
+        });
+        setShowDuelStartAnimation(true);
+        prevMyActiveDuelRef.current = duelId;
+        prevMyDuelStatusRef.current = 'ACTIVE';
+      }
+    }
+    
+    // My duel just resolved
+    const justResolvedMyDuel = duels.find(d => 
+      d.status === 'RESOLVED' && 
+      d.id === prevMyActiveDuelRef.current &&
+      prevMyDuelStatusRef.current === 'ACTIVE' &&
+      (d.player1_number === player.player_number || d.player2_number === player.player_number)
+    );
+    
+    if (justResolvedMyDuel) {
+      const isP1 = justResolvedMyDuel.player1_number === player.player_number;
+      const opponentNum = isP1 ? justResolvedMyDuel.player2_number : justResolvedMyDuel.player1_number;
+      const myVpDelta = isP1 ? justResolvedMyDuel.player1_vp_delta : justResolvedMyDuel.player2_vp_delta;
+      const opponentSearched = isP1 ? justResolvedMyDuel.player2_searches : justResolvedMyDuel.player1_searches;
+      
+      setDuelAnimationData({
+        opponentName: getPlayerName(opponentNum),
+        duelOrder: justResolvedMyDuel.duel_order,
+        vpDelta: myVpDelta,
+        opponentSearched: opponentSearched ?? false,
+      });
+      setShowDuelResultAnimation(true);
+      prevMyDuelStatusRef.current = 'RESOLVED';
+    }
+  }, [duels, roundState?.phase, myActiveDuel, amPlayer1, player.player_number, getPlayerName]);
 
   // Lobby
   if (game.status === 'LOBBY') {
@@ -300,6 +392,32 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
 
   return (
     <div className={`${theme.container} flex flex-col min-h-screen`}>
+      {/* Animations */}
+      {showPhaseAnimation && (
+        <SheriffPhaseChangeAnimation
+          phase={animationPhase}
+          onComplete={() => setShowPhaseAnimation(false)}
+        />
+      )}
+      
+      {showDuelStartAnimation && duelAnimationData && (
+        <SheriffDuelStartPlayerAnimation
+          opponentName={duelAnimationData.opponentName}
+          duelOrder={duelAnimationData.duelOrder}
+          onComplete={() => setShowDuelStartAnimation(false)}
+        />
+      )}
+      
+      {showDuelResultAnimation && duelAnimationData && (
+        <SheriffDuelResultPlayerAnimation
+          won={duelAnimationData.vpDelta >= 0}
+          vpDelta={duelAnimationData.vpDelta}
+          opponentName={duelAnimationData.opponentName}
+          opponentSearched={duelAnimationData.opponentSearched}
+          onComplete={() => setShowDuelResultAnimation(false)}
+        />
+      )}
+      
       {/* Header */}
       <div className={`${theme.header} p-4`}>
         <div className="flex items-center justify-between">

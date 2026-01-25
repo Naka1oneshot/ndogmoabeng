@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Swords } from 'lucide-react';
 
 interface Player {
@@ -23,19 +23,35 @@ export function SheriffDuelStartAnimation({
   onComplete,
 }: SheriffDuelStartAnimationProps) {
   const [phase, setPhase] = useState<'flying' | 'collision' | 'done'>('flying');
+  const onCompleteRef = useRef(onComplete);
+  
+  // Keep ref updated
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
   
   useEffect(() => {
     // Flying phase
-    setTimeout(() => {
+    const flyingTimer = setTimeout(() => {
       setPhase('collision');
     }, 1500);
     
-    // Collision impact
-    setTimeout(() => {
+    // Collision impact then done
+    const collisionTimer = setTimeout(() => {
       setPhase('done');
-      setTimeout(onComplete, 500);
     }, 2500);
-  }, [onComplete]);
+    
+    // Complete callback
+    const completeTimer = setTimeout(() => {
+      onCompleteRef.current();
+    }, 3000);
+    
+    return () => {
+      clearTimeout(flyingTimer);
+      clearTimeout(collisionTimer);
+      clearTimeout(completeTimer);
+    };
+  }, []); // Empty deps - run once on mount
   
   const renderPlayerAvatar = (player: Player | undefined, side: 'left' | 'right') => {
     const flyClass = phase === 'flying' 
