@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Swords, Skull, TreePine, Ban, Check, Timer, Bomb } from 'lucide-react';
+import { Swords, Skull, TreePine, Ban, Check, Timer, Bomb, Shield } from 'lucide-react';
 import { useGameSounds } from '@/hooks/useGameSounds';
 
 interface Game {
@@ -20,6 +20,7 @@ interface PublicAction {
   cancelReason?: string;
   minePlaced?: { slot: number; weapon: string };
   mineExplosion?: boolean;
+  protectionUsed?: { item: string; slot: number };
 }
 
 interface Kill {
@@ -135,11 +136,12 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
             {public_summary.map((action, idx) => {
               const isMineExplosion = action.mineExplosion;
               const hasMinePlaced = action.minePlaced;
+              const hasProtection = action.protectionUsed;
               
               return (
                 <div 
                   key={idx} 
-                  className={`p-2 rounded text-sm flex items-center justify-between ${
+                  className={`p-2 rounded text-sm flex flex-col gap-1 ${
                     isMineExplosion
                       ? 'bg-orange-500/10 border border-orange-500/30'
                       : action.cancelled 
@@ -147,43 +149,53 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
                         : 'bg-secondary/50'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs ${isMineExplosion ? 'border-orange-500/50 text-orange-400' : ''}`}
-                    >
-                      #{action.position}
-                    </Badge>
-                    <span className="font-medium">{action.nom}</span>
-                    {action.weapons.length > 0 && (
-                      <span className="text-muted-foreground text-xs">
-                        ({action.weapons.join(' + ')})
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${isMineExplosion ? 'border-orange-500/50 text-orange-400' : ''}`}
+                      >
+                        #{action.position}
+                      </Badge>
+                      <span className="font-medium">{action.nom}</span>
+                      {action.weapons.length > 0 && (
+                        <span className="text-muted-foreground text-xs">
+                          ({action.weapons.join(' + ')})
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isMineExplosion ? (
+                        <span className="text-orange-400 text-xs flex items-center gap-1">
+                          <Bomb className="h-3 w-3" />
+                          {action.totalDamage} dégâts
+                        </span>
+                      ) : hasMinePlaced ? (
+                        <span className="text-amber-400 text-xs flex items-center gap-1">
+                          <Timer className="h-3 w-3" />
+                          Posée
+                        </span>
+                      ) : action.cancelled ? (
+                        <span className="text-destructive text-xs flex items-center gap-1">
+                          <Ban className="h-3 w-3" />
+                          {action.cancelReason || 'Annulée'}
+                        </span>
+                      ) : (
+                        <span className="text-green-500 text-xs flex items-center gap-1">
+                          <Check className="h-3 w-3" />
+                          {action.totalDamage} dégâts
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {isMineExplosion ? (
-                      <span className="text-orange-400 text-xs flex items-center gap-1">
-                        <Bomb className="h-3 w-3" />
-                        {action.totalDamage} dégâts
-                      </span>
-                    ) : hasMinePlaced ? (
-                      <span className="text-amber-400 text-xs flex items-center gap-1">
-                        <Timer className="h-3 w-3" />
-                        Posée
-                      </span>
-                    ) : action.cancelled ? (
-                      <span className="text-destructive text-xs flex items-center gap-1">
-                        <Ban className="h-3 w-3" />
-                        {action.cancelReason || 'Annulée'}
-                      </span>
-                    ) : (
-                      <span className="text-green-500 text-xs flex items-center gap-1">
-                        <Check className="h-3 w-3" />
-                        {action.totalDamage} dégâts
-                      </span>
-                    )}
-                  </div>
+                  {/* Protection used */}
+                  {hasProtection && (
+                    <div className="flex items-center gap-1 text-xs text-blue-400 pl-6">
+                      <Shield className="h-3 w-3" />
+                      <span>{hasProtection.item}</span>
+                      <span className="text-muted-foreground">(Slot {hasProtection.slot})</span>
+                    </div>
+                  )}
                 </div>
               );
             })}

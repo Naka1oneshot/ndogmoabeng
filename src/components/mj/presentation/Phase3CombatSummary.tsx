@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Skull, Swords, Target, Loader2, Timer, Bomb } from 'lucide-react';
+import { Trophy, Skull, Swords, Target, Loader2, Timer, Bomb, Shield } from 'lucide-react';
 
 interface Kill {
   killerName: string;
@@ -21,6 +21,7 @@ interface PublicSummaryEntry {
   cancelled?: boolean;
   minePlaced?: { slot: number; weapon: string };
   mineExplosion?: boolean;
+  protectionUsed?: { item: string; slot: number };
 }
 
 interface CombatResult {
@@ -245,6 +246,7 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
                 {activeEntries.map((entry, idx) => {
                   const isMineExplosion = entry.mineExplosion;
                   const hasMinePlaced = entry.minePlaced;
+                  const hasProtection = entry.protectionUsed;
                   
                   return (
                     <div 
@@ -279,6 +281,14 @@ export function Phase3CombatSummary({ gameId, sessionGameId, currentManche }: Ph
                       {entry.weapons && entry.weapons.length > 0 && (
                         <div className="text-muted-foreground mt-0.5">
                           {entry.weapons.join(', ')}
+                        </div>
+                      )}
+                      {/* Protection used */}
+                      {hasProtection && (
+                        <div className="flex items-center gap-0.5 text-blue-400 mt-0.5">
+                          <Shield className="h-2 w-2" />
+                          <span>{hasProtection.item}</span>
+                          <span className="text-muted-foreground">(S{hasProtection.slot})</span>
                         </div>
                       )}
                     </div>
