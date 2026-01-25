@@ -1342,73 +1342,139 @@ serve(async (req) => {
 
     // Check if game should end (all monsters dead)
     if (allMonstersDead) {
-      console.log('[resolve-combat] All monsters are dead! Ending game...');
+      console.log('[resolve-combat] All monsters are dead!');
       
-      // Find winner (player with highest score = jetons + recompenses)
-      const sortedPlayers = [...(players || [])].sort((a, b) => {
-        const scoreA = (a.jetons || 0) + (a.recompenses || 0);
-        const scoreB = (b.jetons || 0) + (b.recompenses || 0);
-        return scoreB - scoreA;
-      });
-      const winnerUserId = sortedPlayers[0]?.user_id || null;
+      // Check if this is an Adventure mode - if so, DON'T end the entire game
+      // Just mark the Forêt session as complete and let the MJ proceed to the next game
+      const isAdventureMode = game.mode === 'ADVENTURE';
       
-      // End the game
-      const { error: endGameError } = await supabase
-        .from('games')
-        .update({ 
-          status: 'ENDED', 
-          phase: 'FINISHED',
-          phase_locked: true,
-          winner_declared: true
-        })
-        .eq('id', gameId);
+      if (isAdventureMode) {
+        console.log('[resolve-combat] Adventure mode detected - marking Forêt session as complete, NOT ending adventure');
+        
+        // In Adventure mode, just transition to a "session complete" state
+        // Don't set status to ENDED or winner_declared = true
+        const { error: sessionEndError } = await supabase
+          .from('games')
+          .update({ 
+            phase: 'SESSION_COMPLETE',
+            phase_locked: true
+          })
+          .eq('id', gameId);
 
-      if (endGameError) {
-        console.error('[resolve-combat] Error ending game:', endGameError);
-      }
-      
-      // Update player profile statistics
-      try {
-        const { error: statsError } = await supabase.rpc('update_player_stats_on_game_end', {
-          p_game_id: gameId,
-          p_winner_user_id: winnerUserId
-        });
-        if (statsError) {
-          console.error('[resolve-combat] Error updating player stats:', statsError);
-        } else {
-          console.log('[resolve-combat] Player stats updated successfully');
+        if (sessionEndError) {
+          console.error('[resolve-combat] Error marking session as complete:', sessionEndError);
         }
-      } catch (statsErr) {
-        console.error('[resolve-combat] Exception updating player stats:', statsErr);
+        
+        // Mark the current session_game as ended
+        if (sessionGameId) {
+          await supabase
+            .from('session_games')
+            .update({ 
+              status: 'ENDED',
+              ended_at: new Date().toISOString()
+            })
+            .eq('id', sessionGameId);
+        }
+        
+        // Insert session complete events (not game end)
+        await Promise.all([
+          supabase.from('session_events').insert({
+            game_id: gameId,
+            audience: 'ALL',
+            type: 'SESSION_COMPLETE',
+            message: '🌲 La forêt de Ndogmoabeng a été nettoyée ! L\'aventure continue...',
+            payload: { 
+              type: 'SESSION_COMPLETE',
+              reason: 'ALL_MONSTERS_DEAD',
+              forestState,
+              gameTypeCode: 'FORET',
+              isAdventure: true,
+            },
+          }),
+          supabase.from('logs_joueurs').insert({
+            game_id: gameId,
+            session_game_id: sessionGameId,
+            manche: manche,
+            type: 'FIN_SESSION',
+            message: '🌲 Session Forêt terminée ! Tous les monstres ont été vaincus. Préparez-vous pour la prochaine étape de l\'aventure.',
+          }),
+          supabase.from('logs_mj').insert({
+            game_id: gameId,
+            manche: manche,
+            action: 'SESSION_TERMINEE',
+            details: 'Session Forêt terminée. Tous les monstres ont été éliminés. Le MJ peut maintenant passer au jeu suivant de l\'aventure.',
+          }),
+        ]);
+      } else {
+        // Single game mode - end the entire game
+        console.log('[resolve-combat] Single game mode - ending game...');
+        
+        // Find winner (player with highest score = jetons + recompenses)
+        const sortedPlayers = [...(players || [])].sort((a, b) => {
+          const scoreA = (a.jetons || 0) + (a.recompenses || 0);
+          const scoreB = (b.jetons || 0) + (b.recompenses || 0);
+          return scoreB - scoreA;
+        });
+        const winnerUserId = sortedPlayers[0]?.user_id || null;
+        
+        // End the game
+        const { error: endGameError } = await supabase
+          .from('games')
+          .update({ 
+            status: 'ENDED', 
+            phase: 'FINISHED',
+            phase_locked: true,
+            winner_declared: true
+          })
+          .eq('id', gameId);
+
+        if (endGameError) {
+          console.error('[resolve-combat] Error ending game:', endGameError);
+        }
+        
+        // Update player profile statistics
+        try {
+          const { error: statsError } = await supabase.rpc('update_player_stats_on_game_end', {
+            p_game_id: gameId,
+            p_winner_user_id: winnerUserId
+          });
+          if (statsError) {
+            console.error('[resolve-combat] Error updating player stats:', statsError);
+          } else {
+            console.log('[resolve-combat] Player stats updated successfully');
+          }
+        } catch (statsErr) {
+          console.error('[resolve-combat] Exception updating player stats:', statsErr);
+        }
+        
+        // Insert game ended events
+        await Promise.all([
+          supabase.from('session_events').insert({
+            game_id: gameId,
+            audience: 'ALL',
+            type: 'GAME_END',
+            message: '🏆 VICTOIRE ! Tous les monstres ont été vaincus !',
+            payload: { 
+              type: 'GAME_ENDED',
+              reason: 'ALL_MONSTERS_DEAD',
+              forestState,
+            },
+          }),
+          supabase.from('logs_joueurs').insert({
+            game_id: gameId,
+            session_game_id: sessionGameId,
+            manche: manche,
+            type: 'FIN_PARTIE',
+            message: '🏆 VICTOIRE ! La forêt de Ndogmoabeng a été conquise ! Tous les monstres ont été vaincus.',
+          }),
+          supabase.from('logs_mj').insert({
+            game_id: gameId,
+            manche: manche,
+            action: 'PARTIE_TERMINEE',
+            details: 'Tous les monstres ont été éliminés. La partie est terminée automatiquement.',
+          }),
+        ]);
       }
-      
-      // Insert game ended events
-      await Promise.all([
-        supabase.from('session_events').insert({
-          game_id: gameId,
-          audience: 'ALL',
-          type: 'GAME_END',
-          message: '🏆 VICTOIRE ! Tous les monstres ont été vaincus !',
-          payload: { 
-            type: 'GAME_ENDED',
-            reason: 'ALL_MONSTERS_DEAD',
-            forestState,
-          },
-        }),
-        supabase.from('logs_joueurs').insert({
-          game_id: gameId,
-          session_game_id: sessionGameId,
-          manche: manche,
-          type: 'FIN_PARTIE',
-          message: '🏆 VICTOIRE ! La forêt de Ndogmoabeng a été conquise ! Tous les monstres ont été vaincus.',
-        }),
-        supabase.from('logs_mj').insert({
-          game_id: gameId,
-          manche: manche,
-          action: 'PARTIE_TERMINEE',
-          details: 'Tous les monstres ont été éliminés. La partie est terminée automatiquement.',
-        }),
-      ]);
     } else {
       // Normal transition to Phase 3
       const { error: phaseError } = await supabase

@@ -586,9 +586,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   
   // Game is ended when:
   // 1. Global status is ENDED/FINISHED OR phase is FINISHED (for single games)
-  // 2. OR in Adventure mode for Forêt: all monsters are dead (show intermediate podium)
+  // 2. OR phase is SESSION_COMPLETE (adventure mode - session finished but adventure continues)
+  // 3. OR in Adventure mode for Forêt: all monsters are dead (show intermediate podium)
   const isGameEndedGlobal = gameStatus === 'ENDED' || gameStatus === 'FINISHED' || gamePhase === 'FINISHED';
-  const isForetSessionComplete = isAdventureMode && allMonstersDead && !isShopPhase && gamePhase !== 'PHASE1_MISES';
+  const isSessionComplete = gamePhase === 'SESSION_COMPLETE';
+  const isForetSessionComplete = isAdventureMode && (isSessionComplete || (allMonstersDead && !isShopPhase && gamePhase !== 'PHASE1_MISES'));
   const isGameEnded = isGameEndedGlobal || isForetSessionComplete;
   
   // Build team/player rankings for victory screen with detailed stats
