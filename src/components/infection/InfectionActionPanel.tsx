@@ -53,13 +53,22 @@ export function InfectionActionPanel({
   const [hasShotThisRound, setHasShotThisRound] = useState(false);
   const [hasUsedBullet, setHasUsedBullet] = useState(false);
   const [bulletCount, setBulletCount] = useState(0);
+  const [alreadyResearchedTargets, setAlreadyResearchedTargets] = useState<number[]>([]);
 
   const alivePlayers = allPlayers.filter(p => p.is_alive !== false && p.player_number !== player.player_number);
+  
+  // For SY: filter out already researched targets
+  const availableResearchTargets = player.role_code === 'SY' 
+    ? alivePlayers.filter(p => !alreadyResearchedTargets.includes(p.player_number!))
+    : alivePlayers;
 
   useEffect(() => {
     loadCurrentInputs();
     loadInventoryState();
-  }, [sessionGameId, manche, player.id]);
+    if (player.role_code === 'SY') {
+      loadPreviousResearches();
+    }
+  }, [sessionGameId, manche, player.id, player.role_code]);
 
   const loadCurrentInputs = async () => {
     const { data } = await supabase
@@ -113,6 +122,24 @@ export function InfectionActionPanel({
         .eq('session_game_id', sessionGameId)
         .eq('shooter_num', player.player_number);
       setHasUsedBullet(allShots && allShots.length > 0);
+    }
+  };
+
+  const loadPreviousResearches = async () => {
+    // Load all previous research targets for this SY player (from previous manches only)
+    const { data: previousInputs } = await supabase
+      .from('infection_inputs')
+      .select('sy_research_target_num')
+      .eq('session_game_id', sessionGameId)
+      .eq('player_id', player.id)
+      .not('sy_research_target_num', 'is', null)
+      .lt('manche', manche);
+
+    if (previousInputs) {
+      const targets = previousInputs
+        .map(input => input.sy_research_target_num)
+        .filter((num): num is number => num !== null);
+      setAlreadyResearchedTargets(targets);
     }
   };
 
@@ -309,26 +336,35 @@ export function InfectionActionPanel({
           </h3>
           <p className="text-sm text-[#6B7280] mb-3">
             Tous les SY doivent choisir la même cible pour réussir.
+            {alreadyResearchedTargets.length > 0 && (
+              <span className="block mt-1 text-[#D4AF37]">
+                ⚠️ {alreadyResearchedTargets.length} joueur(s) déjà testé(s) (non disponibles)
+              </span>
+            )}
           </p>
-          <Select 
-            value={inputs.sy_research_target_num?.toString() || ''} 
-            onValueChange={(v) => {
-              setInputs(prev => ({ ...prev, sy_research_target_num: parseInt(v) }));
-              submitAction('SY_RESEARCH', parseInt(v));
-            }}
-            disabled={loading}
-          >
-            <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
-              <SelectValue placeholder="Tester qui..." />
-            </SelectTrigger>
-            <SelectContent>
-              {alivePlayers.map((p) => (
-                <SelectItem key={p.player_number} value={String(p.player_number)}>
-                  #{p.player_number} - {p.display_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {availableResearchTargets.length === 0 ? (
+            <p className="text-[#D4AF37]">Tous les joueurs vivants ont déjà été testés.</p>
+          ) : (
+            <Select 
+              value={inputs.sy_research_target_num?.toString() || ''} 
+              onValueChange={(v) => {
+                setInputs(prev => ({ ...prev, sy_research_target_num: parseInt(v) }));
+                submitAction('SY_RESEARCH', parseInt(v));
+              }}
+              disabled={loading}
+            >
+              <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
+                <SelectValue placeholder="Tester qui..." />
+              </SelectTrigger>
+              <SelectContent>
+                {availableResearchTargets.map((p) => (
+                  <SelectItem key={p.player_number} value={String(p.player_number)}>
+                    #{p.player_number} - {p.display_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       )}
 

@@ -80,6 +80,37 @@ Deno.serve(async (req) => {
 
       case 'SY_RESEARCH':
         if (player.role_code !== 'SY') throw new Error('Only SY can submit research target');
+        
+        // Check if this target was already researched in a previous manche
+        if (targetNum) {
+          const { data: previousResearches, error: prevResearchError } = await supabase
+            .from('infection_inputs')
+            .select('manche, sy_research_target_num')
+            .eq('session_game_id', sessionGameId)
+            .eq('player_id', playerId)
+            .not('sy_research_target_num', 'is', null)
+            .lt('manche', manche);
+          
+          if (prevResearchError) {
+            console.error('[infection-submit-action] Error checking previous researches:', prevResearchError);
+          }
+          
+          const alreadyResearchedTargets = new Set(
+            (previousResearches || []).map(r => r.sy_research_target_num)
+          );
+          
+          if (alreadyResearchedTargets.has(targetNum)) {
+            const targetPlayer = await supabase
+              .from('game_players')
+              .select('display_name')
+              .eq('game_id', gameId)
+              .eq('player_number', targetNum)
+              .single();
+            
+            throw new Error(`Vous avez déjà fait une recherche sur ${targetPlayer.data?.display_name || `Joueur ${targetNum}`}. Choisissez une nouvelle cible.`);
+          }
+        }
+        
         updateFields.sy_research_target_num = targetNum;
         break;
 
