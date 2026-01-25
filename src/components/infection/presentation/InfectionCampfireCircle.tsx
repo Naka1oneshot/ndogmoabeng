@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skull } from 'lucide-react';
 import { INFECTION_COLORS } from '../InfectionTheme';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
+import { PlayerNameTooltip } from '@/components/mj/presentation/PlayerNameTooltip';
 
 interface Player {
   id: string;
@@ -174,13 +175,15 @@ export function InfectionCampfireCircle({ players, avatarUrls, isMobile }: Infec
               </div>
             </div>
 
-            {/* Player name - NO SECRET INFO */}
-            <span 
-              className={`${nameSize} font-medium text-center max-w-16 truncate`}
-              style={{ color: isDead ? INFECTION_COLORS.textMuted : INFECTION_COLORS.textPrimary }}
-            >
-              {player.display_name}
-            </span>
+            {/* Player name - with tooltip for full name */}
+            <PlayerNameTooltip fullName={player.display_name}>
+              <span 
+                className={`${nameSize} font-medium text-center max-w-16 truncate`}
+                style={{ color: isDead ? INFECTION_COLORS.textMuted : INFECTION_COLORS.textPrimary }}
+              >
+                {player.display_name}
+              </span>
+            </PlayerNameTooltip>
           </div>
         );
       })}
