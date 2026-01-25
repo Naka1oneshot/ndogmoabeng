@@ -242,12 +242,15 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
               return Math.round(jetons);
             }
           } else if (game.selected_game_type_code === 'SHERIFF') {
-            // For SHERIFF: Calculate PVic delta based on visa costs and duel results
-            // Delta is a percentage (e.g. -20 means lose 20% of initial pvic)
+            // For SHERIFF: Calculate PVic Act = PVic Init + (PVic Init × delta%)
+            // This matches the player table logic exactly
             const deltaPercent = sheriffDeltaMap.get(player.player_number) || 0;
             const pvicInitial = player.pvic || 0;
-            // Calculate the delta amount (can be positive or negative)
-            return Math.round(pvicInitial * (deltaPercent / 100));
+            const pvicAct = pvicInitial + Math.round(pvicInitial * (deltaPercent / 100));
+            // Return PVic Act as the "current game score" (replaces adventure score for Sheriff)
+            // Since adventure_scores already has previous games, we return pvicAct here
+            // and the caller should NOT add adventure_scores for SHERIFF
+            return pvicAct;
           } else {
             // For FORET and others: Use only recompenses (current game kills/rewards)
             // pvic is already included in adventure_scores, don't double-count it
@@ -258,12 +261,18 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         // Processed players (to avoid counting twice)
         const processedPlayers = new Set<number>();
         
+        // For SHERIFF, calculateCurrentGameScore returns PVic Act directly (includes history)
+        // For other games, we add adventureScore + currentGameScore
+        const isSheriff = game.selected_game_type_code === 'SHERIFF';
+        
         for (const player of players) {
           if (processedPlayers.has(player.player_number!)) continue;
           
           const adventureScore = scoresMap.get(player.id) || 0;
           const currentGameScore = calculateCurrentGameScore(player);
-          let totalScore = adventureScore + currentGameScore;
+          // For SHERIFF: currentGameScore IS the PVic Act, don't add adventureScore
+          // For other games: add adventureScore + currentGameScore
+          let totalScore = isSheriff ? currentGameScore : (adventureScore + currentGameScore);
           const playerNames: string[] = [player.display_name];
           const playerIds: string[] = [player.id];
           
@@ -275,7 +284,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             if (!processedPlayers.has(mate.player_number!)) {
               const mateAdventureScore = scoresMap.get(mate.id) || 0;
               const mateCurrentScore = calculateCurrentGameScore(mate);
-              totalScore += mateAdventureScore + mateCurrentScore;
+              // Same logic for mate
+              totalScore += isSheriff ? mateCurrentScore : (mateAdventureScore + mateCurrentScore);
               playerNames.push(mate.display_name);
               playerIds.push(mate.id);
               processedPlayers.add(mate.player_number!);
