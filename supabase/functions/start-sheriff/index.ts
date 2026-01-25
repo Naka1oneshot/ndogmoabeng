@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { gameId, sessionGameId, initialPool, poolCostPerPlayer, poolFloorPercent } = await req.json();
+    const { gameId, sessionGameId, initialPool, poolCostPerPlayer, poolFloorPercent, visaPvicPercent, duelMaxImpact } = await req.json();
 
     if (!gameId || !sessionGameId) {
       return new Response(
@@ -24,6 +24,8 @@ Deno.serve(async (req) => {
     const commonPoolInitial = typeof initialPool === 'number' && initialPool >= 0 ? initialPool : 100;
     const costPerPlayer = typeof poolCostPerPlayer === 'number' && poolCostPerPlayer > 0 ? poolCostPerPlayer : 10;
     const floorPercent = typeof poolFloorPercent === 'number' && poolFloorPercent >= 0 ? poolFloorPercent : 40;
+    const pvicPercent = typeof visaPvicPercent === 'number' && visaPvicPercent > 0 ? visaPvicPercent : 20;
+    const maxDuelImpact = typeof duelMaxImpact === 'number' && duelMaxImpact > 0 ? duelMaxImpact : 10;
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -53,6 +55,8 @@ Deno.serve(async (req) => {
     const poolConfig = {
       cost_per_player: costPerPlayer,
       floor_percent: floorPercent,
+      visa_pvic_percent: pvicPercent,
+      duel_max_impact: maxDuelImpact,
     };
     
     const { error: stateError } = await supabase

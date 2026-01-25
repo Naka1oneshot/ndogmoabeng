@@ -147,6 +147,8 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   const [initialPool, setInitialPool] = useState(100);
   const [poolCostPerPlayer, setPoolCostPerPlayer] = useState(10);
   const [poolFloorPercent, setPoolFloorPercent] = useState(40);
+  const [visaPvicPercent, setVisaPvicPercent] = useState(20);
+  const [duelMaxImpact, setDuelMaxImpact] = useState(10);
   
   // Bot decisions state
   const [generatingBotChoices, setGeneratingBotChoices] = useState(false);
@@ -160,6 +162,7 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   const [editingPool, setEditingPool] = useState(false);
   const [newPoolAmount, setNewPoolAmount] = useState(0);
   const [savingPool, setSavingPool] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const getPresenceBadge = (lastSeen: string | null) => {
     if (!lastSeen) return { color: 'bg-red-500', textColor: 'text-red-500', label: 'Déconnecté' };
@@ -243,6 +246,18 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
 
       if (stateData) {
         setRoundState(stateData as unknown as RoundState);
+        // Restore game settings from bot_config
+        const config = (stateData as any).bot_config as { 
+          cost_per_player?: number; 
+          floor_percent?: number;
+          visa_pvic_percent?: number;
+          duel_max_impact?: number;
+        } || {};
+        if (config.cost_per_player) setPoolCostPerPlayer(config.cost_per_player);
+        if (config.floor_percent !== undefined) setPoolFloorPercent(config.floor_percent);
+        if (config.visa_pvic_percent) setVisaPvicPercent(config.visa_pvic_percent);
+        if (config.duel_max_impact) setDuelMaxImpact(config.duel_max_impact);
+        setInitialPool(stateData.common_pool_initial || 100);
       }
     }
 
@@ -270,6 +285,8 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
           initialPool: initialPool,
           poolCostPerPlayer: poolCostPerPlayer,
           poolFloorPercent: poolFloorPercent,
+          visaPvicPercent: visaPvicPercent,
+          duelMaxImpact: duelMaxImpact,
         },
       });
 
@@ -696,6 +713,35 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
     setNewPoolAmount(0);
   };
 
+  const handleUpdateGameSettings = async () => {
+    if (!game.current_session_game_id || !roundState) return;
+    setSavingSettings(true);
+    
+    try {
+      const newConfig = {
+        cost_per_player: poolCostPerPlayer,
+        floor_percent: poolFloorPercent,
+        visa_pvic_percent: visaPvicPercent,
+        duel_max_impact: duelMaxImpact,
+      };
+      
+      const { error } = await supabase
+        .from('sheriff_round_state')
+        .update({ bot_config: newConfig })
+        .eq('session_game_id', game.current_session_game_id);
+      
+      if (error) throw error;
+      
+      toast.success('Paramètres mis à jour');
+      fetchData();
+    } catch (err: any) {
+      console.error('[MJ] update settings error:', err);
+      toast.error('Erreur lors de la mise à jour');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   const activePlayers = players.filter(p => p.status === 'ACTIVE' && !p.is_host && p.player_number !== null);
   const kickedPlayers = players.filter(p => p.status === 'REMOVED');
   const botPlayers = activePlayers.filter(p => p.is_bot);
@@ -803,7 +849,37 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                   />
                 </div>
               </div>
-              <p className="text-xs text-[#9CA3AF]/70">La cagnotte ne descendra pas en dessous de {Math.round(initialPool * poolFloorPercent / 100)}€</p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-[#9CA3AF] block mb-1">Coût visa PVic (%)</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={visaPvicPercent}
+                    onChange={(e) => setVisaPvicPercent(Math.max(1, Math.min(100, parseInt(e.target.value) || 20)))}
+                    className={`w-full text-center ${theme.input}`}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-[#9CA3AF] block mb-1">Impact max duel (%)</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={duelMaxImpact}
+                    onChange={(e) => setDuelMaxImpact(Math.max(1, Math.min(50, parseInt(e.target.value) || 10)))}
+                    className={`w-full text-center ${theme.input}`}
+                  />
+                </div>
+              </div>
+              
+              <p className="text-xs text-[#9CA3AF]/70">
+                Cagnotte plancher: {Math.round(initialPool * poolFloorPercent / 100)}€ • 
+                Visa PVic: -{visaPvicPercent}% • 
+                Duel: ±{duelMaxImpact}% max
+              </p>
             </div>
             
             <Button 
@@ -1273,8 +1349,77 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                   )}
                 </div>
                 
+                {/* Separator */}
+                <div className="border-t border-[#D4AF37]/20 pt-3 mt-3">
+                  <h4 className="text-xs text-[#9CA3AF] mb-3">📊 Impact des Choix</h4>
+                  
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="text-xs text-[#9CA3AF] block mb-1">Coût visa cagnotte (€)</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={poolCostPerPlayer}
+                        onChange={(e) => setPoolCostPerPlayer(Math.max(1, parseInt(e.target.value) || 10))}
+                        className={`w-full h-8 text-center ${theme.input}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-[#9CA3AF] block mb-1">Plancher cagnotte (%)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={poolFloorPercent}
+                        onChange={(e) => setPoolFloorPercent(Math.max(0, Math.min(100, parseInt(e.target.value) || 40)))}
+                        className={`w-full h-8 text-center ${theme.input}`}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="text-xs text-[#9CA3AF] block mb-1">Coût visa PVic (%)</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={visaPvicPercent}
+                        onChange={(e) => setVisaPvicPercent(Math.max(1, Math.min(100, parseInt(e.target.value) || 20)))}
+                        className={`w-full h-8 text-center ${theme.input}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-[#9CA3AF] block mb-1">Impact max duel (%)</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={duelMaxImpact}
+                        onChange={(e) => setDuelMaxImpact(Math.max(1, Math.min(50, parseInt(e.target.value) || 10)))}
+                        className={`w-full h-8 text-center ${theme.input}`}
+                      />
+                    </div>
+                  </div>
+                  
+                  <Button
+                    size="sm"
+                    onClick={handleUpdateGameSettings}
+                    disabled={savingSettings}
+                    className="w-full h-8 bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
+                  >
+                    {savingSettings ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-1" />
+                    )}
+                    Sauvegarder les paramètres
+                  </Button>
+                </div>
+                
                 {/* PVic Init Button */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between border-t border-[#D4AF37]/20 pt-3 mt-3">
                   <span className="text-sm text-[#9CA3AF]">🏆 PVic Initial</span>
                   <Button
                     size="sm"
