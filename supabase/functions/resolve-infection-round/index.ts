@@ -793,8 +793,10 @@ Deno.serve(async (req) => {
       winner = 'NON_PV';
       publicEvents.push(`🎉 VICTOIRE NON-PV! Tous les PV sont éliminés!`);
     }
-    // All non-PV dead (excluding immune)?
-    else if (remainingNonPV.filter(p => !p.immune_permanent).length === 0) {
+    // All non-PV dead (excluding immune and those with antibodies who can't die)?
+    // Players with has_antibodies are "healthy carriers" who will never die from virus
+    // So if all remaining non-PV either have immune_permanent OR has_antibodies, PV wins
+    else if (remainingNonPV.filter(p => !p.immune_permanent && !p.has_antibodies).length === 0) {
       gameEnded = true;
       winner = 'PV';
       publicEvents.push(`🦠 VICTOIRE PV! Le virus a triomphé!`);
