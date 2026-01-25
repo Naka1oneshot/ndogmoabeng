@@ -24,6 +24,8 @@ interface Game {
   manche_active: number | null;
   phase: string;
   current_session_game_id: string | null;
+  mode?: string;
+  adventure_id?: string | null;
 }
 
 interface Player {
@@ -93,7 +95,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
     // Fetch latest game state first
     const { data: gameData } = await supabase
       .from('games')
-      .select('id, name, status, manche_active, phase, current_session_game_id')
+      .select('id, name, status, manche_active, phase, current_session_game_id, mode, adventure_id')
       .eq('id', game.id)
       .single();
     
@@ -310,6 +312,8 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       <InfectionVictoryPodium
         players={playersWithAvatars}
         winner={winner}
+        gameMode={game.mode || 'SINGLE_GAME'}
+        gameId={game.id}
         onClose={onClose}
       />
     );
