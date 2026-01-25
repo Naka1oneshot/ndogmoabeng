@@ -87,7 +87,7 @@ interface CombatDataDetails {
   berserkerPenalties: Array<{ playerNum: number; tokens: number }>;
   voilePenalties: Array<{ playerNum: number; playerName: string; tokens: number; reason: string }>;
   amuletteEffects: Array<{ playerNum: number; multiplier: number }>;
-  mineEffects: string[];
+  mineEffects: Array<{ slot: number; player: number } | string>;
   dotEffects: string[];
 }
 
@@ -619,7 +619,9 @@ export function CombatLogsDetailedPanel({
                   key={idx}
                   className="p-2 rounded bg-orange-500/10 border border-orange-500/20 text-sm"
                 >
-                  {effect}
+                  {typeof effect === 'string' 
+                    ? effect 
+                    : `Mine posée sur Slot ${effect.slot} par Joueur #${effect.player}`}
                 </div>
               ))}
             </div>
