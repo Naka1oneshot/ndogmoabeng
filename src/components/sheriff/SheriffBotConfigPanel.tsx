@@ -13,6 +13,11 @@ export interface SheriffBotConfig {
   search_chance: number;          // % base chance to search opponent (default 35)
   search_if_suspicious: number;   // % chance to search if opponent seems suspicious (default 60)
   auto_mode: boolean;             // Automatically execute bot decisions when phase changes
+  // Duel outcome config
+  duel_gain_per_illegal_found: number;   // % PVic gain per illegal token found (default 10)
+  duel_loss_search_no_illegal: number;   // % PVic loss if search finds 0 illegal (default 50)
+  duel_gain_per_illegal_passed: number;  // % PVic gain per illegal token passed unsearched (default 10)
+  duel_loss_per_illegal_caught: number;  // % PVic loss per illegal token when caught (default 10)
 }
 
 export const DEFAULT_SHERIFF_BOT_CONFIG: SheriffBotConfig = {
@@ -21,6 +26,11 @@ export const DEFAULT_SHERIFF_BOT_CONFIG: SheriffBotConfig = {
   search_chance: 35,
   search_if_suspicious: 60,
   auto_mode: false,
+  // Duel outcome defaults
+  duel_gain_per_illegal_found: 10,
+  duel_loss_search_no_illegal: 50,
+  duel_gain_per_illegal_passed: 10,
+  duel_loss_per_illegal_caught: 10,
 };
 
 interface SheriffBotConfigPanelProps {
@@ -259,6 +269,87 @@ export function SheriffBotConfigPanel({
         />
         <p className="text-xs text-muted-foreground">
           Probabilité que le bot fouille si l'adversaire semble suspect (comportement à risque)
+        </p>
+      </div>
+
+      {/* Separator for duel outcome settings */}
+      <div className="border-t border-[#D4AF37]/30 pt-4 mt-4">
+        <h4 className="text-sm font-semibold text-[#D4AF37] mb-3">⚔️ Paramètres des Duels</h4>
+      </div>
+
+      {/* Gain per illegal token found */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">🔍✅ Gain par jeton illégal trouvé</span>
+          <Badge variant="outline" className="text-green-500">{config.duel_gain_per_illegal_found}%</Badge>
+        </div>
+        <Slider
+          value={[config.duel_gain_per_illegal_found]}
+          onValueChange={([val]) => updateConfig('duel_gain_per_illegal_found', val)}
+          min={0}
+          max={20}
+          step={1}
+          className="w-full"
+        />
+        <p className="text-xs text-muted-foreground">
+          % de gain PVic par jeton illégal trouvé (10 jetons × 10% = 100% gain)
+        </p>
+      </div>
+
+      {/* Loss when search finds nothing */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">🔍❌ Perte si fouille légal</span>
+          <Badge variant="outline" className="text-red-500">{config.duel_loss_search_no_illegal}%</Badge>
+        </div>
+        <Slider
+          value={[config.duel_loss_search_no_illegal]}
+          onValueChange={([val]) => updateConfig('duel_loss_search_no_illegal', val)}
+          min={0}
+          max={100}
+          step={5}
+          className="w-full"
+        />
+        <p className="text-xs text-muted-foreground">
+          % de perte PVic si vous fouillez quelqu'un avec 0 jeton illégal
+        </p>
+      </div>
+
+      {/* Gain per illegal token passed */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">👋✅ Gain par jeton illégal passé</span>
+          <Badge variant="outline" className="text-green-500">{config.duel_gain_per_illegal_passed}%</Badge>
+        </div>
+        <Slider
+          value={[config.duel_gain_per_illegal_passed]}
+          onValueChange={([val]) => updateConfig('duel_gain_per_illegal_passed', val)}
+          min={0}
+          max={20}
+          step={1}
+          className="w-full"
+        />
+        <p className="text-xs text-muted-foreground">
+          % de gain PVic par jeton illégal passé sans fouille (10 jetons × 10% = 100% gain)
+        </p>
+      </div>
+
+      {/* Loss per illegal token caught */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">🔍💀 Perte par jeton illégal attrapé</span>
+          <Badge variant="outline" className="text-red-500">{config.duel_loss_per_illegal_caught}%</Badge>
+        </div>
+        <Slider
+          value={[config.duel_loss_per_illegal_caught]}
+          onValueChange={([val]) => updateConfig('duel_loss_per_illegal_caught', val)}
+          min={0}
+          max={20}
+          step={1}
+          className="w-full"
+        />
+        <p className="text-xs text-muted-foreground">
+          % de perte PVic par jeton illégal trouvé dans votre portefeuille (10 jetons × 10% = 100% perte)
         </p>
       </div>
 
