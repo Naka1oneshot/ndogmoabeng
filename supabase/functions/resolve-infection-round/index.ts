@@ -499,12 +499,19 @@ Deno.serve(async (req) => {
 
       // Check if target is carrier
       if (targetPlayer.is_carrier) {
-        // Success! Target becomes permanently immune
+        // Success! Target becomes permanently immune to DEATH but remains a carrier
+        // They will continue to contaminate others like a healthy carrier
         targetPlayer.immune_permanent = true;
-        await supabase.from('game_players').update({ immune_permanent: true }).eq('id', targetPlayer.id);
+        targetPlayer.will_die_at_manche = null; // Cancel scheduled death
         
-        privateMessages.push({ player_num: player.player_number, message: `💉 Antidote réussi! ${targetPlayer.display_name} est maintenant immunisé(e).` });
-        addLog('STEP_4_ANTIDOTE', { user: player.player_number, target: antidoteTarget, success: true });
+        await supabase.from('game_players').update({ 
+          immune_permanent: true,
+          will_die_at_manche: null 
+        }).eq('id', targetPlayer.id);
+        
+        privateMessages.push({ player_num: player.player_number, message: `💉 Antidote réussi! ${targetPlayer.display_name} est maintenant immunisé(e) contre la mort mais reste porteur.` });
+        privateMessages.push({ player_num: targetPlayer.player_number, message: `💉 Tu as reçu l'antidote! Tu es immunisé(e) contre la mort de l'infection mais tu continues de contaminer.` });
+        addLog('STEP_4_ANTIDOTE', { user: player.player_number, target: antidoteTarget, success: true, willDieCancelled: true });
       } else {
         privateMessages.push({ player_num: player.player_number, message: `💉 Antidote échoué. ${targetPlayer.display_name} n'était pas porteur.` });
         addLog('STEP_4_ANTIDOTE', { user: player.player_number, target: antidoteTarget, success: false });
