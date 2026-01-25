@@ -617,51 +617,61 @@ Deno.serve(async (req) => {
       const contaminatorIdx = allNums.indexOf(contaminator.player_number);
       const targets: number[] = [];
       
-      // Check IMMEDIATE left neighbor (only offset 1)
-      // Rule: If immediate neighbor is already carrier -> STOP, don't look further
-      const leftIdx = (contaminatorIdx - 1 + allNums.length) % allNums.length;
-      const leftNum = allNums[leftIdx];
-      const leftNeighbor = getPlayerByNum(players, leftNum);
+      // Helper to find FIRST LIVING neighbor in a direction (skip dead players)
+      const findFirstLivingNeighbor = (startIdx: number, direction: 'left' | 'right'): { num: number; player: Player } | null => {
+        const step = direction === 'left' ? -1 : 1;
+        for (let offset = 1; offset < allNums.length; offset++) {
+          const idx = (startIdx + step * offset + allNums.length) % allNums.length;
+          const num = allNums[idx];
+          const player = getPlayerByNum(players, num);
+          // Skip if dead or will die this round
+          if (player && player.is_alive && !deaths.includes(player.player_number)) {
+            return { num, player };
+          }
+        }
+        return null;
+      };
       
-      if (leftNeighbor) {
-        // If immediate left neighbor was EVER a carrier (is_carrier=true), don't spread left
+      // Check LEFT: Find first LIVING neighbor, then check if carrier
+      const leftResult = findFirstLivingNeighbor(contaminatorIdx, 'left');
+      
+      if (leftResult) {
+        const { num: leftNum, player: leftNeighbor } = leftResult;
+        // If first living left neighbor was EVER a carrier -> STOP, don't spread left
         if (leftNeighbor.is_carrier || newlyInfectedThisRound.includes(leftNum)) {
           addLog('STEP_8_LEFT_BLOCKED', { 
             contaminator: contaminator.player_number, 
-            left_neighbor: leftNum, 
+            first_living_left: leftNum, 
             reason: 'Already carrier' 
           });
-        } else if (leftNeighbor.is_alive && 
-                   !deaths.includes(leftNeighbor.player_number) && 
-                   !leftNeighbor.immune_permanent &&
+        } else if (!leftNeighbor.immune_permanent &&
                    newInfectionsThisRound < MAX_NEW_INFECTIONS_PER_ROUND) {
-          // Valid target: alive, not carrier, not immune
+          // Valid target: first living neighbor, not carrier, not immune
           targets.push(leftNum);
         }
       }
       
-      // Check IMMEDIATE right neighbor (only offset 1)
-      // Rule: If immediate neighbor is already carrier -> STOP, don't look further
-      const rightIdx = (contaminatorIdx + 1) % allNums.length;
-      const rightNum = allNums[rightIdx];
-      const rightNeighbor = getPlayerByNum(players, rightNum);
+      // Check RIGHT: Find first LIVING neighbor, then check if carrier
+      const rightResult = findFirstLivingNeighbor(contaminatorIdx, 'right');
       
-      if (rightNeighbor && rightNum !== leftNum) { // Avoid duplicate in 2-player edge case
-        // If immediate right neighbor was EVER a carrier (is_carrier=true), don't spread right
+      if (rightResult && (!leftResult || rightResult.num !== leftResult.num)) { // Avoid duplicate
+        const { num: rightNum, player: rightNeighbor } = rightResult;
+        // If first living right neighbor was EVER a carrier -> STOP, don't spread right
         if (rightNeighbor.is_carrier || newlyInfectedThisRound.includes(rightNum)) {
           addLog('STEP_8_RIGHT_BLOCKED', { 
             contaminator: contaminator.player_number, 
-            right_neighbor: rightNum, 
+            first_living_right: rightNum, 
             reason: 'Already carrier' 
           });
-        } else if (rightNeighbor.is_alive && 
-                   !deaths.includes(rightNeighbor.player_number) && 
-                   !rightNeighbor.immune_permanent &&
+        } else if (!rightNeighbor.immune_permanent &&
                    newInfectionsThisRound + targets.length < MAX_NEW_INFECTIONS_PER_ROUND) {
-          // Valid target: alive, not carrier, not immune
+          // Valid target: first living neighbor, not carrier, not immune
           targets.push(rightNum);
         }
       }
+      
+      const leftNum = leftResult?.num ?? null;
+      const rightNum = rightResult?.num ?? null;
 
       addLog('STEP_8_CONTAMINATOR', { 
         contaminator_num: contaminator.player_number, 
