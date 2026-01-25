@@ -12,6 +12,7 @@ interface Game {
   manche_active: number;
   phase: string;
   phase_locked: boolean;
+  current_session_game_id?: string | null;
 }
 
 interface Player {
@@ -130,10 +131,17 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
 
   // Fetch monster slots from game_state_monsters to know which slots have monsters
   const fetchMonsterSlots = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('game_state_monsters')
       .select('battlefield_slot, status')
       .eq('game_id', game.id);
+    
+    // Filter by session_game_id if available
+    if (game.current_session_game_id) {
+      query = query.eq('session_game_id', game.current_session_game_id);
+    }
+
+    const { data } = await query;
 
     if (data) {
       setMonsterSlots(data);
@@ -168,14 +176,21 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [game.id, game.manche_active]);
+  }, [game.id, game.manche_active, game.current_session_game_id]);
 
   const fetchInventory = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('inventory')
       .select('objet, quantite, disponible, dispo_attaque')
       .eq('game_id', game.id)
       .eq('owner_num', player.playerNumber);
+    
+    // Filter by session_game_id if available to avoid duplicates from previous sessions
+    if (game.current_session_game_id) {
+      query = query.eq('session_game_id', game.current_session_game_id);
+    }
+
+    const { data } = await query;
 
     if (data) {
       setInventory(data);
@@ -193,13 +208,19 @@ export function CombatPanel({ game, player, className }: CombatPanelProps) {
   };
 
   const fetchCurrentAction = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('actions')
       .select('*')
       .eq('game_id', game.id)
       .eq('manche', game.manche_active)
-      .eq('num_joueur', player.playerNumber)
-      .maybeSingle();
+      .eq('num_joueur', player.playerNumber);
+    
+    // Filter by session_game_id if available
+    if (game.current_session_game_id) {
+      query = query.eq('session_game_id', game.current_session_game_id);
+    }
+
+    const { data } = await query.maybeSingle();
 
     if (data) {
       setCurrentAction(data);
