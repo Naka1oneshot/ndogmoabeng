@@ -27,6 +27,14 @@ export function InfectionSYResearchProgress({
     const sortedRounds = [...roundStates].sort((a, b) => b.manche - a.manche);
     const currentRound = sortedRounds[0];
 
+    console.log('[SY Progress] All rounds:', roundStates.map(r => ({ 
+      manche: r.manche, 
+      sy_success_count: r.sy_success_count,
+      sy_required_success: r.sy_required_success,
+      status: r.status 
+    })));
+    console.log('[SY Progress] Current round:', currentRound);
+
     const current = currentRound?.sy_success_count ?? 0;
     const required = currentRound?.sy_required_success ?? 2;
     const percentage = required > 0 ? Math.min((current / required) * 100, 100) : 0;
