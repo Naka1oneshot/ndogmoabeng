@@ -175,15 +175,24 @@ export function InfectionCampfireCircle({ players, avatarUrls, isMobile }: Infec
               </div>
             </div>
 
-            {/* Player name - with tooltip for full name */}
-            <PlayerNameTooltip fullName={player.display_name}>
+            {/* Player name - full on PC, truncated with tooltip on mobile */}
+            {isMobile ? (
+              <PlayerNameTooltip fullName={player.display_name}>
+                <span 
+                  className={`${nameSize} font-medium text-center max-w-16 truncate`}
+                  style={{ color: isDead ? INFECTION_COLORS.textMuted : INFECTION_COLORS.textPrimary }}
+                >
+                  {player.display_name}
+                </span>
+              </PlayerNameTooltip>
+            ) : (
               <span 
-                className={`${nameSize} font-medium text-center max-w-16 truncate`}
+                className={`${nameSize} font-medium text-center whitespace-nowrap`}
                 style={{ color: isDead ? INFECTION_COLORS.textMuted : INFECTION_COLORS.textPrimary }}
               >
                 {player.display_name}
               </span>
-            </PlayerNameTooltip>
+            )}
           </div>
         );
       })}
