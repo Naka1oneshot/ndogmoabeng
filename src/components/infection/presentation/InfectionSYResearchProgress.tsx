@@ -24,31 +24,25 @@ export function InfectionSYResearchProgress({
   // Calculate total SY progress across all rounds
   const syProgress = useMemo(() => {
     let totalSuccesses = 0;
-    let requiredSuccesses = 0;
+    let requiredPerRound = 2; // Default
 
     roundStates.forEach((round) => {
       if (round.sy_success_count !== null) {
         totalSuccesses += round.sy_success_count;
       }
       if (round.sy_required_success !== null) {
-        // Use the first round's requirement as the target per round
-        requiredSuccesses = round.sy_required_success;
+        requiredPerRound = round.sy_required_success;
       }
     });
 
-    // The goal is to accumulate enough successes
-    // Typically, SY needs X successes per round across all rounds
-    // For now, show cumulative progress
-    const resolvedRounds = roundStates.filter(r => r.status === 'RESOLVED').length;
-    const targetTotal = requiredSuccesses * Math.max(resolvedRounds, 1);
-    const percentage = targetTotal > 0 ? Math.min((totalSuccesses / targetTotal) * 100, 100) : 0;
+    // Show progress against the per-round requirement (not multiplied by rounds)
+    const percentage = requiredPerRound > 0 ? Math.min((totalSuccesses / requiredPerRound) * 100, 100) : 0;
 
     return {
       current: totalSuccesses,
-      required: requiredSuccesses,
-      resolvedRounds,
+      requiredPerRound,
       percentage,
-      isComplete: totalSuccesses >= targetTotal && resolvedRounds > 0
+      isComplete: totalSuccesses >= requiredPerRound
     };
   }, [roundStates]);
 
@@ -86,7 +80,7 @@ export function InfectionSYResearchProgress({
               color: INFECTION_COLORS.bgPrimary
             }}
           >
-            {syProgress.current}/{syProgress.required * Math.max(syProgress.resolvedRounds, 1)}
+            {syProgress.current}/{syProgress.requiredPerRound}
           </Badge>
         </div>
       </div>
@@ -147,12 +141,11 @@ export function InfectionSYResearchProgress({
               {syProgress.current}
             </span>
             <span style={{ color: INFECTION_COLORS.textMuted }}>
-              /{syProgress.required * Math.max(syProgress.resolvedRounds, 1)} succès
+              /{syProgress.requiredPerRound} succès requis
             </span>
           </div>
         </div>
       </div>
-
       {/* Progress bar */}
       <div className="relative">
         <div 
@@ -167,31 +160,11 @@ export function InfectionSYResearchProgress({
             }}
           />
         </div>
-        
-        {/* Markers for each round requirement */}
-        <div className="absolute top-0 left-0 right-0 h-3 flex">
-          {Array.from({ length: Math.max(syProgress.resolvedRounds, 1) }).map((_, idx) => {
-            const position = ((idx + 1) / Math.max(syProgress.resolvedRounds, 1)) * 100;
-            return (
-              <div
-                key={idx}
-                className="absolute top-0 bottom-0 w-0.5"
-                style={{ 
-                  left: `${position}%`,
-                  backgroundColor: INFECTION_COLORS.bgPrimary,
-                  opacity: 0.5
-                }}
-              />
-            );
-          })}
-        </div>
       </div>
 
       {/* Round breakdown */}
       <div className="mt-2 flex items-center gap-4 text-xs" style={{ color: INFECTION_COLORS.textMuted }}>
-        <span>Objectif par manche: {syProgress.required} succès</span>
-        <span>•</span>
-        <span>Manches résolues: {syProgress.resolvedRounds}</span>
+        <span>Objectif: {syProgress.requiredPerRound} succès cumulés</span>
       </div>
     </div>
   );
