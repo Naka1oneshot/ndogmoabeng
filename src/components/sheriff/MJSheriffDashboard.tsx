@@ -1478,6 +1478,8 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                     players={players}
                     poolInitial={roundState.common_pool_initial}
                     poolSpent={roundState.common_pool_spent}
+                    poolFloorPercent={poolFloorPercent}
+                    costPerPlayer={poolCostPerPlayer}
                   />
                 </CollapsibleContent>
               </div>
