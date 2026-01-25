@@ -320,68 +320,68 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete, 
           
           {/* Other rankings */}
           {others.length > 0 && (
-            <div className={`w-full max-w-lg px-2 lg:px-4 transition-all duration-1000 ${animationStep >= 6 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              <div className="card-gradient rounded-lg border border-border p-3 lg:p-4">
-                <h3 className="text-xs lg:text-sm font-semibold text-muted-foreground mb-2 lg:mb-3 text-center uppercase tracking-wide">
+            <div className={`w-full max-w-lg lg:max-w-2xl px-2 lg:px-4 transition-all duration-1000 ${animationStep >= 6 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+              <div className="card-gradient rounded-lg border border-border p-3 lg:p-5">
+                <h3 className="text-xs lg:text-sm font-semibold text-muted-foreground mb-2 lg:mb-4 text-center uppercase tracking-wide">
                   Classement complet
                 </h3>
-                <div className="space-y-1.5 lg:space-y-2 max-h-40 lg:max-h-48 overflow-y-auto">
+                <div className="space-y-1.5 lg:space-y-2.5 max-h-40 lg:max-h-[320px] overflow-y-auto">
                   {others.map((player, index) => (
                     <div 
                       key={player.player_numbers.join('-')}
-                      className="flex items-center gap-2 lg:gap-3 p-1.5 lg:p-2 rounded bg-secondary/50"
+                      className="flex items-center gap-2 lg:gap-3 p-1.5 lg:p-2.5 rounded bg-secondary/50"
                     >
-                      <span className="w-6 lg:w-8 text-center font-bold text-muted-foreground text-xs lg:text-sm">
+                      <span className="w-6 lg:w-10 text-center font-bold text-muted-foreground text-xs lg:text-base">
                         #{index + 4}
                       </span>
                       {player.isTeam ? (
                         <div className="flex -space-x-1.5 lg:-space-x-2">
                           {player.avatar_urls.map((url, idx) => (
-                            <Avatar key={idx} className="h-5 w-5 lg:h-6 lg:w-6 border border-background lg:border-2">
+                            <Avatar key={idx} className="h-5 w-5 lg:h-8 lg:w-8 border border-background lg:border-2">
                               {url ? (
                                 <AvatarImage src={url} alt={player.display_name} />
                               ) : null}
-                              <AvatarFallback className="text-[8px] lg:text-[10px]">
+                              <AvatarFallback className="text-[8px] lg:text-xs">
                                 {player.display_name.split(' & ')[idx]?.slice(0, 1).toUpperCase() || '?'}
                               </AvatarFallback>
                             </Avatar>
                           ))}
                         </div>
                       ) : (
-                        <Avatar className="h-6 w-6 lg:h-8 lg:w-8">
+                        <Avatar className="h-6 w-6 lg:h-10 lg:w-10">
                           {player.avatar_urls[0] ? (
                             <AvatarImage src={player.avatar_urls[0]} alt={player.display_name} />
                           ) : null}
-                          <AvatarFallback className="text-[10px] lg:text-xs">
+                          <AvatarFallback className="text-[10px] lg:text-sm">
                             {player.display_name.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                       )}
-                      <span className={`flex-1 font-medium text-xs lg:text-sm ${player.isTeam ? 'text-[10px] lg:text-sm' : ''}`}>
+                      <span className={`flex-1 font-medium text-xs lg:text-base ${player.isTeam ? 'text-[10px] lg:text-sm' : ''}`}>
                         {player.display_name}
                         {!player.isTeam && gameStats?.hasTeams && (
-                          <Badge variant="secondary" className="ml-1 text-[7px] lg:text-[9px] px-0.5 lg:px-1 py-0 bg-blue-600/80 text-white border-blue-500">
+                          <Badge variant="secondary" className="ml-1 text-[7px] lg:text-[10px] px-0.5 lg:px-1.5 py-0 bg-blue-600/80 text-white border-blue-500">
                             x2
                           </Badge>
                         )}
                       </span>
-                      <div className="hidden sm:flex items-center gap-1.5 lg:gap-2 text-[10px] lg:text-xs text-muted-foreground">
-                        <div className="flex items-center gap-0.5" title="Jetons (÷3)">
-                          <Coins className="h-2.5 w-2.5 lg:h-3 lg:w-3 text-primary" />
+                      <div className="hidden sm:flex items-center gap-1.5 lg:gap-3 text-[10px] lg:text-sm text-muted-foreground">
+                        <div className="flex items-center gap-0.5 lg:gap-1" title="Jetons (÷3)">
+                          <Coins className="h-2.5 w-2.5 lg:h-4 lg:w-4 text-primary" />
                           <span>{player.jetons}</span>
                         </div>
-                        <div className="flex items-center gap-0.5" title="Récompenses">
-                          <Gift className="h-2.5 w-2.5 lg:h-3 lg:w-3 text-green-500" />
+                        <div className="flex items-center gap-0.5 lg:gap-1" title="Récompenses">
+                          <Gift className="h-2.5 w-2.5 lg:h-4 lg:w-4 text-green-500" />
                           <span>{player.recompenses}</span>
                         </div>
                         {player.kills > 0 && (
-                          <div className="flex items-center gap-0.5" title="Kills">
-                            <Skull className="h-2.5 w-2.5 lg:h-3 lg:w-3 text-red-500" />
+                          <div className="flex items-center gap-0.5 lg:gap-1" title="Kills">
+                            <Skull className="h-2.5 w-2.5 lg:h-4 lg:w-4 text-red-500" />
                             <span>{player.kills}</span>
                           </div>
                         )}
                       </div>
-                      <Badge variant="outline" className="text-[10px] lg:text-xs ml-1 lg:ml-2">
+                      <Badge variant="outline" className="text-[10px] lg:text-sm ml-1 lg:ml-2 px-1.5 lg:px-3">
                         {player.total_score.toFixed(1)} pts
                       </Badge>
                     </div>
