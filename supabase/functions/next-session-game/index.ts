@@ -674,7 +674,7 @@ serve(async (req) => {
             .eq("owner_num", player.player_number);
         }
         
-        // Create sheriff_player_choices for each player
+        // Create sheriff_player_choices for each player with pvic_initial snapshot
         const choicesInsert = players.map(p => ({
           game_id: gameId,
           session_game_id: newSessionGameId,
@@ -683,6 +683,7 @@ serve(async (req) => {
           visa_choice: null,
           tokens_entering: null,
           has_illegal_tokens: false,
+          pvic_initial: p.pvic ?? 0, // Capture PVic at start of Sheriff game
         }));
         
         const { error: choicesError } = await supabase
