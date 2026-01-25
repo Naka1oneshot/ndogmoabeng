@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Loader2, Anchor, Ship, Trophy, MessageSquare, CheckCircle, AlertTriangle, Waves } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -15,6 +14,12 @@ import {
   getKeryndesDisplay 
 } from './RivieresTheme';
 import { calculateDangerRange, formatDangerRangeDisplay } from '@/lib/rivieresDangerCalculator';
+import {
+  RivieresLockPlayerAnimation,
+  RivieresResolvePlayerAnimation,
+  RivieresPlayerSortPlayerAnimation,
+  RivieresMancheChangeAnimation,
+} from './RivieresPlayerAnimations';
 
 interface RiverSessionState {
   id: string;
@@ -39,6 +44,15 @@ interface RiverDecision {
   mise_demandee: number;
   keryndes_choice: string;
   status: string;
+}
+
+interface RiverLevelHistory {
+  id: string;
+  manche: number;
+  niveau: number;
+  outcome: 'SUCCESS' | 'FAIL';
+  danger_effectif: number;
+  total_mises: number;
 }
 
 interface PlayerRivieresDashboardProps {
@@ -73,6 +87,34 @@ export function PlayerRivieresDashboard({
   const [submitting, setSubmitting] = useState(false);
   const [showStartAnimation, setShowStartAnimation] = useState(false);
   const [previousGameStatus, setPreviousGameStatus] = useState<string | undefined>(undefined);
+
+  // Animation states
+  const [showLockAnimation, setShowLockAnimation] = useState(false);
+  const [showResolveAnimation, setShowResolveAnimation] = useState(false);
+  const [showPlayerSortAnimation, setShowPlayerSortAnimation] = useState(false);
+  const [showMancheAnimation, setShowMancheAnimation] = useState(false);
+  const [resolveData, setResolveData] = useState<{
+    danger: number;
+    totalMises: number;
+    outcome: 'SUCCESS' | 'FAIL';
+    niveau: number;
+    manche: number;
+  } | null>(null);
+  const [playerSortData, setPlayerSortData] = useState<{
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+    decision: 'RESTE' | 'DESCENDS';
+  }[]>([]);
+  const [animationManche, setAnimationManche] = useState(1);
+
+  // Animation tracking refs
+  const prevDecisionStatusRef = useRef<string | null>(null);
+  const prevLevelHistoryCountRef = useRef<number>(0);
+  const prevMancheRef = useRef<number | null>(null);
+  const lockAnimationTriggeredRef = useRef(false);
+  const resolveAnimationTriggeredRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
 
   // Form state
   const [decision, setDecision] = useState<'RESTE' | 'DESCENDS'>('RESTE');
@@ -218,12 +260,104 @@ export function PlayerRivieresDashboard({
           }
         })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'river_level_history', filter: `session_game_id=eq.${sessionGameId}` },
-        () => {
-          // Level resolved - refetch player stats and decision
+        async (payload) => {
+          // Level resolved - trigger resolve animation and refetch
+          const newLevel = payload.new as RiverLevelHistory;
+          if (newLevel && !resolveAnimationTriggeredRef.current) {
+            resolveAnimationTriggeredRef.current = true;
+            
+            // Fetch player sort data for animation
+            const { data: decisionsData } = await supabase
+              .from('river_decisions')
+              .select('player_id, player_num, decision')
+              .eq('session_game_id', sessionGameId)
+              .eq('manche', newLevel.manche)
+              .eq('niveau', newLevel.niveau)
+              .eq('status', 'LOCKED');
+              
+            const { data: playersData } = await supabase
+              .from('game_players')
+              .select('id, display_name, user_id')
+              .eq('game_id', gameId)
+              .eq('status', 'ACTIVE')
+              .eq('is_host', false);
+              
+            // Get avatars
+            const userIds = (playersData || []).filter(p => p.user_id).map(p => p.user_id);
+            let avatarMap = new Map<string, string>();
+            if (userIds.length > 0) {
+              const { data: profilesData } = await supabase
+                .from('profiles')
+                .select('user_id, avatar_url')
+                .in('user_id', userIds);
+              if (profilesData) {
+                avatarMap = new Map(profilesData.map(p => [p.user_id, p.avatar_url]));
+              }
+            }
+            
+            const sortData = (decisionsData || []).map(d => {
+              const player = (playersData || []).find(p => p.id === d.player_id);
+              return {
+                id: d.player_id,
+                display_name: player?.display_name ?? `Joueur ${d.player_num}`,
+                avatar_url: player?.user_id ? (avatarMap.get(player.user_id) || null) : null,
+                decision: d.decision as 'RESTE' | 'DESCENDS',
+              };
+            });
+            
+            setResolveData({
+              danger: newLevel.danger_effectif,
+              totalMises: newLevel.total_mises,
+              outcome: newLevel.outcome as 'SUCCESS' | 'FAIL',
+              niveau: newLevel.niveau,
+              manche: newLevel.manche,
+            });
+            setPlayerSortData(sortData);
+            setShowResolveAnimation(true);
+          }
           fetchData();
         })
       .subscribe();
   };
+
+  // Detect lock animation (when own decision goes from DRAFT to LOCKED)
+  useEffect(() => {
+    if (!initialLoadDoneRef.current) {
+      // Skip animation on initial load
+      if (currentDecision) {
+        prevDecisionStatusRef.current = currentDecision.status;
+        initialLoadDoneRef.current = true;
+      }
+      return;
+    }
+
+    if (currentDecision?.status === 'LOCKED' && prevDecisionStatusRef.current === 'DRAFT' && !lockAnimationTriggeredRef.current) {
+      lockAnimationTriggeredRef.current = true;
+      setShowLockAnimation(true);
+    }
+    
+    prevDecisionStatusRef.current = currentDecision?.status ?? null;
+  }, [currentDecision?.status]);
+
+  // Detect manche change
+  useEffect(() => {
+    if (!state) return;
+    
+    if (prevMancheRef.current !== null && state.manche_active !== prevMancheRef.current && state.manche_active > 1) {
+      setAnimationManche(state.manche_active);
+      setShowMancheAnimation(true);
+    }
+    
+    prevMancheRef.current = state.manche_active;
+  }, [state?.manche_active]);
+
+  // Reset animation triggers on level change
+  useEffect(() => {
+    if (!state) return;
+    const levelKey = `${state.manche_active}-${state.niveau_active}`;
+    lockAnimationTriggeredRef.current = false;
+    resolveAnimationTriggeredRef.current = false;
+  }, [state?.manche_active, state?.niveau_active]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -367,8 +501,59 @@ export function PlayerRivieresDashboard({
                     (!currentDecision || currentDecision.status === 'DRAFT');
   const isLocked = currentDecision?.status === 'LOCKED';
 
+  // Animation handlers
+  const handleLockComplete = () => {
+    setShowLockAnimation(false);
+  };
+
+  const handleResolveComplete = () => {
+    setShowResolveAnimation(false);
+    // Show player sort after resolve
+    if (playerSortData.length > 0) {
+      setShowPlayerSortAnimation(true);
+    }
+  };
+
+  const handlePlayerSortComplete = () => {
+    setShowPlayerSortAnimation(false);
+  };
+
+  const handleMancheComplete = () => {
+    setShowMancheAnimation(false);
+  };
+
   return (
     <div className="space-y-4 pb-6">
+      {/* Animation Overlays */}
+      {showLockAnimation && (
+        <RivieresLockPlayerAnimation onComplete={handleLockComplete} />
+      )}
+      
+      {showResolveAnimation && resolveData && (
+        <RivieresResolvePlayerAnimation
+          danger={resolveData.danger}
+          totalMises={resolveData.totalMises}
+          outcome={resolveData.outcome}
+          niveau={resolveData.niveau}
+          manche={resolveData.manche}
+          onComplete={handleResolveComplete}
+        />
+      )}
+      
+      {showPlayerSortAnimation && playerSortData.length > 0 && (
+        <RivieresPlayerSortPlayerAnimation
+          players={playerSortData}
+          onComplete={handlePlayerSortComplete}
+        />
+      )}
+      
+      {showMancheAnimation && (
+        <RivieresMancheChangeAnimation
+          manche={animationManche}
+          onComplete={handleMancheComplete}
+        />
+      )}
+
       {/* Status bar */}
       <div className="grid grid-cols-4 gap-2">
         <div className={`${rivieresCardStyle} p-3 text-center`}>
