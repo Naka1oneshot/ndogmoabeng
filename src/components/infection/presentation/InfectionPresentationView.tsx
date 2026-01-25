@@ -68,6 +68,9 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const [showVictoryTransition, setShowVictoryTransition] = useState(false);
   const [showVictoryPodium, setShowVictoryPodium] = useState(false);
   
+  // Track if we already checked game end on mount (to skip transition for ended games)
+  const hasCheckedGameEnd = useRef(false);
+  
   // Animation state for death reveal
   const [showDeathReveal, setShowDeathReveal] = useState(false);
   const [deathRevealPlayers, setDeathRevealPlayers] = useState<Array<{
@@ -212,8 +215,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         .eq('event_type', 'GAME_END')
         .maybeSingle();
       
-      if (gameEndEvent && !winner && activePlayers.length > 0) {
-        // Only trigger victory sequence once we have players loaded
+      if (gameEndEvent && activePlayers.length > 0) {
         const payload = gameEndEvent.payload as { winner?: string } | null;
         const rawWinner = payload?.winner;
         
@@ -234,9 +236,24 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         }
         
         console.log('[InfectionPresentation] Mapped winner:', mappedWinner);
-        setWinner(mappedWinner);
-        setShowVictoryTransition(true);
-      } else if (gameEndEvent && !winner && activePlayers.length === 0) {
+        
+        // Only trigger if winner not already set
+        if (!winner) {
+          setWinner(mappedWinner);
+          
+          // If game is already ended when we open presentation, skip transition and show podium directly
+          if (!hasCheckedGameEnd.current && (gameData?.status === 'ENDED' || gameData?.phase === 'ENDED')) {
+            console.log('[InfectionPresentation] Game already ended, showing podium directly');
+            hasCheckedGameEnd.current = true;
+            setShowVictoryPodium(true);
+          } else if (!hasCheckedGameEnd.current) {
+            // Game just ended while we were watching - show transition
+            console.log('[InfectionPresentation] Game just ended, showing transition animation');
+            hasCheckedGameEnd.current = true;
+            setShowVictoryTransition(true);
+          }
+        }
+      } else if (gameEndEvent && activePlayers.length === 0) {
         console.log('[InfectionPresentation] GAME_END detected but waiting for players to load...');
       }
     }
