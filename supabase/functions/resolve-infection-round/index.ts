@@ -580,14 +580,17 @@ Deno.serve(async (req) => {
     // Each contaminator checks ONLY their immediate neighbors (left and right)
     // If immediate neighbor is already a carrier -> NO spread in that direction
     // SPECIAL RULE: Dead contaminators still contaminate their neighbors
-    const contaminators = players.filter(p => {
-      const scheduledToContaminate = p.will_contaminate_at_manche === manche;
-      
-      // Exception: immune_permanent players don't spread
-      if (p.immune_permanent) return false;
-      
-      return scheduledToContaminate;
-    });
+    // Get contaminators sorted by player_number to ensure consistent order
+    const contaminators = players
+      .filter(p => {
+        const scheduledToContaminate = p.will_contaminate_at_manche === manche;
+        
+        // Exception: immune_permanent players don't spread
+        if (p.immune_permanent) return false;
+        
+        return scheduledToContaminate;
+      })
+      .sort((a, b) => a.player_number - b.player_number);
 
     // Get original circle order (all players sorted by number)
     const allPlayersSorted = [...players].sort((a, b) => a.player_number - b.player_number);
@@ -670,6 +673,12 @@ Deno.serve(async (req) => {
           // Valid target: first living neighbor, not carrier, not immune
           targets.push(rightNum);
         }
+      } else if (rightResult && leftResult && rightResult.num === leftResult.num) {
+        // Edge case: Only one living player left, already checked on left side
+        addLog('STEP_8_RIGHT_SAME_AS_LEFT', { 
+          contaminator: contaminator.player_number, 
+          only_neighbor: rightResult.num 
+        });
       }
       
       const leftNum = leftResult?.num ?? null;
