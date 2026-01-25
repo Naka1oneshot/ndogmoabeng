@@ -30,7 +30,7 @@ interface TeamRanking {
 
 interface InfectionVictoryPodiumProps {
   players: Player[];
-  winner: 'SY' | 'PV' | 'NON_PV' | null;
+  winner: 'SY' | 'PV' | 'CV' | null;
   onClose: () => void;
 }
 
@@ -74,26 +74,51 @@ function TeamNameWithTooltip({ name, className }: { name: string; className?: st
 function StatsPanel({ 
   syPlayers,
   pvPlayers,
+  cvPlayers,
   winner,
   showStats,
   className = ""
 }: { 
   syPlayers: Player[];
   pvPlayers: Player[];
-  winner: 'SY' | 'PV' | 'NON_PV' | null;
+  cvPlayers: Player[];
+  winner: 'SY' | 'PV' | 'CV' | null;
   showStats: boolean;
   className?: string;
 }) {
   const syAlive = syPlayers.filter(p => p.is_alive !== false);
   const pvAlive = pvPlayers.filter(p => p.is_alive !== false);
+  const cvAlive = cvPlayers.filter(p => p.is_alive !== false);
   
   return (
     <div className={`space-y-4 transition-all duration-1000 ${showStats ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'} ${className}`}>
+      {/* CV Stats */}
+      <div className={`bg-[#1E293B] border rounded-xl p-4 ${winner === 'CV' ? 'border-[#60A5FA]' : 'border-[#60A5FA]/30'}`}>
+        <h3 className="text-[#60A5FA] font-bold text-lg mb-3 flex items-center gap-2">
+          <Trophy className="h-5 w-5" />
+          Citoyens {winner === 'CV' && '🏆'}
+        </h3>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#9CA3AF]">Membres</span>
+            <span className="text-white font-medium">{cvPlayers.length}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#9CA3AF]">Survivants</span>
+            <span className="text-[#60A5FA] font-medium">{cvAlive.length}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#9CA3AF]">PVic total</span>
+            <span className="text-white font-bold">{cvPlayers.reduce((s, p) => s + (p.pvic || 0), 0)}</span>
+          </div>
+        </div>
+      </div>
+
       {/* SY Stats */}
-      <div className={`bg-[#1E293B] border rounded-xl p-4 ${(winner === 'SY' || winner === 'NON_PV') ? 'border-[#2AB3A6]' : 'border-[#2AB3A6]/30'}`}>
+      <div className={`bg-[#1E293B] border rounded-xl p-4 ${winner === 'SY' ? 'border-[#2AB3A6]' : 'border-[#2AB3A6]/30'}`}>
         <h3 className="text-[#2AB3A6] font-bold text-lg mb-3 flex items-center gap-2">
           <FlaskConical className="h-5 w-5" />
-          Syndicat {(winner === 'SY' || winner === 'NON_PV') && '🏆'}
+          Synthétistes {winner === 'SY' && '🏆'}
         </h3>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -115,7 +140,7 @@ function StatsPanel({
       <div className={`bg-[#1E293B] border rounded-xl p-4 ${winner === 'PV' ? 'border-[#B00020]' : 'border-[#B00020]/30'}`}>
         <h3 className="text-[#B00020] font-bold text-lg mb-3 flex items-center gap-2">
           <Syringe className="h-5 w-5" />
-          Porteurs {winner === 'PV' && '🏆'}
+          Porte-Venin {winner === 'PV' && '🏆'}
         </h3>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -146,25 +171,43 @@ export function InfectionVictoryPodium({
   const [showRanking, setShowRanking] = useState(false);
   const [showStats, setShowStats] = useState(false);
   
-  // Build team ranking based on mate_num
+  // Build team ranking based on mate_num, fallback to individual if no mates
   const teamRanking: TeamRanking[] = (() => {
     const teamMap = new Map<number, Player[]>();
+    const soloPlayers: Player[] = [];
     
     players.forEach(p => {
-      if (p.mate_num === null || p.player_number === null) return;
+      if (p.player_number === null) return;
       
-      const teamKey = Math.min(p.player_number, p.mate_num);
-      if (!teamMap.has(teamKey)) {
-        teamMap.set(teamKey, []);
+      if (p.mate_num === null) {
+        // No mate - add as solo player
+        soloPlayers.push(p);
+      } else {
+        const teamKey = Math.min(p.player_number, p.mate_num);
+        if (!teamMap.has(teamKey)) {
+          teamMap.set(teamKey, []);
+        }
+        teamMap.get(teamKey)!.push(p);
       }
-      teamMap.get(teamKey)!.push(p);
     });
     
     const teams: TeamRanking[] = [];
+    
+    // Add teams (pairs)
     teamMap.forEach((teamPlayers, mateNum) => {
       const name = teamPlayers.map(p => p.display_name).join(' & ');
       const totalPvic = teamPlayers.reduce((sum, p) => sum + (p.pvic || 0), 0);
       teams.push({ name, totalPvic, players: teamPlayers, mate_num: mateNum });
+    });
+    
+    // Add solo players as individual "teams"
+    soloPlayers.forEach(p => {
+      teams.push({ 
+        name: p.display_name, 
+        totalPvic: p.pvic || 0, 
+        players: [p], 
+        mate_num: p.player_number! 
+      });
     });
     
     return teams.sort((a, b) => b.totalPvic - a.totalPvic);
@@ -173,6 +216,7 @@ export function InfectionVictoryPodium({
   // Separate players by team
   const syPlayers = players.filter(p => p.team_code === 'SY');
   const pvPlayers = players.filter(p => p.team_code === 'PV');
+  const cvPlayers = players.filter(p => p.team_code === 'CITOYEN' || p.team_code === 'NEUTRE');
   
   // Confetti burst function
   const fireConfetti = useCallback(() => {
@@ -269,13 +313,19 @@ export function InfectionVictoryPodium({
   };
   
   const getWinnerInfo = () => {
-    // NON_PV means all PV are dead = SY team victory
-    if (winner === 'SY' || winner === 'NON_PV') {
+    if (winner === 'SY') {
       return {
         title: 'Victoire des Synthétistes !',
-        subtitle: 'Tous les Porte-Venin sont morts. La population est sauvée.',
+        subtitle: "L'antidote a été trouvé ! La population est sauvée.",
         icon: FlaskConical,
         color: '#2AB3A6',
+      };
+    } else if (winner === 'CV') {
+      return {
+        title: 'Victoire des Citoyens du Village !',
+        subtitle: 'Tous les Porte-Venin ont été éliminés. Le village est sauf.',
+        icon: Trophy,
+        color: '#60A5FA',
       };
     } else if (winner === 'PV') {
       return {
@@ -316,7 +366,7 @@ export function InfectionVictoryPodium({
       
       {/* Desktop Stats - Fixed on right edge */}
       <div className="hidden lg:block fixed right-4 top-24 w-72 z-30">
-        <StatsPanel syPlayers={syPlayers} pvPlayers={pvPlayers} winner={winner} showStats={showStats} />
+        <StatsPanel syPlayers={syPlayers} pvPlayers={pvPlayers} cvPlayers={cvPlayers} winner={winner} showStats={showStats} />
       </div>
       
       <div className="p-4 lg:pr-80 max-w-5xl mx-auto">
@@ -414,7 +464,10 @@ export function InfectionVictoryPodium({
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {players.sort((a, b) => (a.player_number || 0) - (b.player_number || 0)).map(p => {
               const roleInfo = p.role_code ? INFECTION_ROLE_LABELS[p.role_code] : null;
-              const isWinner = (winner === 'SY' && p.team_code === 'SY') || (winner === 'PV' && p.team_code === 'PV');
+              const isWinner = 
+                (winner === 'SY' && p.team_code === 'SY') || 
+                (winner === 'PV' && p.team_code === 'PV') ||
+                (winner === 'CV' && (p.team_code === 'CITOYEN' || p.team_code === 'NEUTRE'));
               
               return (
                 <div 
@@ -485,7 +538,7 @@ export function InfectionVictoryPodium({
         
         {/* Mobile Stats - shown below ranking */}
         <div className="lg:hidden mt-6">
-          <StatsPanel syPlayers={syPlayers} pvPlayers={pvPlayers} winner={winner} showStats={showStats} />
+          <StatsPanel syPlayers={syPlayers} pvPlayers={pvPlayers} cvPlayers={cvPlayers} winner={winner} showStats={showStats} />
         </div>
       </div>
     </div>

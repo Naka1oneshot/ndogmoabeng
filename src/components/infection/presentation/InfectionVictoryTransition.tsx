@@ -3,7 +3,7 @@ import { Skull, Syringe, Trophy, Sparkles } from 'lucide-react';
 import { INFECTION_COLORS } from '../InfectionTheme';
 
 interface InfectionVictoryTransitionProps {
-  winner: 'SY' | 'PV' | 'NON_PV';
+  winner: 'SY' | 'PV' | 'CV';
   onComplete: () => void;
 }
 
@@ -54,11 +54,30 @@ export function InfectionVictoryTransition({ winner, onComplete }: InfectionVict
     return () => clearTimeout(timer);
   }, [phase, countdown, onComplete]);
 
-  // NON_PV means SY team won (all PV are dead)
-  const isSYVictory = winner === 'SY' || winner === 'NON_PV';
-  const winnerColor = isSYVictory ? INFECTION_COLORS.teamSY : INFECTION_COLORS.accent;
-  const winnerLabel = isSYVictory ? 'Les Synthétistes' : 'Les Porte-Venin';
-  const WinnerIcon = isSYVictory ? Syringe : Skull;
+  // Determine winner display
+  const getWinnerDisplay = () => {
+    if (winner === 'SY') {
+      return {
+        color: INFECTION_COLORS.teamSY,
+        label: 'Les Synthétistes',
+        Icon: Syringe,
+      };
+    } else if (winner === 'CV') {
+      return {
+        color: '#60A5FA', // Blue for citizens
+        label: 'Les Citoyens du Village',
+        Icon: Trophy,
+      };
+    } else {
+      return {
+        color: INFECTION_COLORS.accent,
+        label: 'Les Porte-Venin',
+        Icon: Skull,
+      };
+    }
+  };
+  
+  const { color: winnerColor, label: winnerLabel, Icon: WinnerIcon } = getWinnerDisplay();
 
   return (
     <div 
