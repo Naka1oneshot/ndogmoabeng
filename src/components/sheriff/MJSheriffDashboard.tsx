@@ -22,8 +22,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 import { SheriffBotConfigPanel, SheriffBotConfig } from './SheriffBotConfigPanel';
 import { SheriffBotHistoryPanel } from './SheriffBotHistoryPanel';
+import { SheriffPoolHistoryPanel } from './SheriffPoolHistoryPanel';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { History } from 'lucide-react';
+import { History, Wallet } from 'lucide-react';
 
 interface Game {
   id: string;
@@ -1136,7 +1137,31 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
             </div>
           </div>
 
-          {/* Bot Config Panel */}
+          {/* Pool Transaction History */}
+          {game.current_session_game_id && roundState && (
+            <Collapsible defaultOpen>
+              <div className={`${theme.card} p-4`}>
+                <CollapsibleTrigger className="w-full flex items-center justify-between text-left">
+                  <h3 className="text-sm font-medium text-[#D4AF37] flex items-center gap-2">
+                    <Wallet className="h-4 w-4" />
+                    Historique Cagnotte
+                  </h3>
+                  <Badge variant="outline" className="text-xs">
+                    {choices.filter(c => c.visa_choice === 'COMMON_POOL').length} utilisateurs
+                  </Badge>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-4">
+                  <SheriffPoolHistoryPanel
+                    choices={choices}
+                    players={players}
+                    poolInitial={roundState.common_pool_initial}
+                    poolSpent={roundState.common_pool_spent}
+                  />
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          )}
+
           {botPlayers.length > 0 && game.current_session_game_id && (
             <Collapsible>
               <div className={`${theme.card} p-4`}>
