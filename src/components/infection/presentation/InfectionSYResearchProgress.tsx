@@ -21,28 +21,21 @@ export function InfectionSYResearchProgress({
   roundStates, 
   isMobile 
 }: InfectionSYResearchProgressProps) {
-  // Calculate total SY progress across all rounds
+  // Get the current/latest round's SY progress (same as MJ dashboard)
   const syProgress = useMemo(() => {
-    let totalSuccesses = 0;
-    let requiredPerRound = 2; // Default
+    // Find the most recent round (highest manche number)
+    const sortedRounds = [...roundStates].sort((a, b) => b.manche - a.manche);
+    const currentRound = sortedRounds[0];
 
-    roundStates.forEach((round) => {
-      if (round.sy_success_count !== null) {
-        totalSuccesses += round.sy_success_count;
-      }
-      if (round.sy_required_success !== null) {
-        requiredPerRound = round.sy_required_success;
-      }
-    });
-
-    // Show progress against the per-round requirement (not multiplied by rounds)
-    const percentage = requiredPerRound > 0 ? Math.min((totalSuccesses / requiredPerRound) * 100, 100) : 0;
+    const current = currentRound?.sy_success_count ?? 0;
+    const required = currentRound?.sy_required_success ?? 2;
+    const percentage = required > 0 ? Math.min((current / required) * 100, 100) : 0;
 
     return {
-      current: totalSuccesses,
-      requiredPerRound,
+      current,
+      required,
       percentage,
-      isComplete: totalSuccesses >= requiredPerRound
+      isComplete: current >= required
     };
   }, [roundStates]);
 
@@ -80,7 +73,7 @@ export function InfectionSYResearchProgress({
               color: INFECTION_COLORS.bgPrimary
             }}
           >
-            {syProgress.current}/{syProgress.requiredPerRound}
+            {syProgress.current}/{syProgress.required}
           </Badge>
         </div>
       </div>
@@ -141,7 +134,7 @@ export function InfectionSYResearchProgress({
               {syProgress.current}
             </span>
             <span style={{ color: INFECTION_COLORS.textMuted }}>
-              /{syProgress.requiredPerRound} succès requis
+              /{syProgress.required} succès requis
             </span>
           </div>
         </div>
@@ -164,7 +157,7 @@ export function InfectionSYResearchProgress({
 
       {/* Round breakdown */}
       <div className="mt-2 flex items-center gap-4 text-xs" style={{ color: INFECTION_COLORS.textMuted }}>
-        <span>Objectif: {syProgress.requiredPerRound} succès cumulés</span>
+        <span>Objectif: {syProgress.required} succès requis</span>
       </div>
     </div>
   );
