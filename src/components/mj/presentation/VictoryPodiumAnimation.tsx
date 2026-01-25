@@ -35,9 +35,10 @@ interface VictoryPodiumAnimationProps {
   rankings: TeamRanking[];
   gameStats?: GameStats;
   onComplete?: () => void;
+  isIntermediatePodium?: boolean;
 }
 
-export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }: VictoryPodiumAnimationProps) {
+export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete, isIntermediatePodium = false }: VictoryPodiumAnimationProps) {
   const [animationStep, setAnimationStep] = useState(0);
   
   // Confetti burst function
@@ -209,12 +210,14 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete }
             <div className="flex items-center justify-center gap-2 lg:gap-3 mb-2">
               <Trophy className="h-8 w-8 lg:h-12 lg:w-12 text-yellow-400 animate-bounce" />
               <h1 className="font-display text-2xl sm:text-4xl lg:text-5xl text-yellow-400 text-glow">
-                FIN DE PARTIE
+                {isIntermediatePodium ? 'CLASSEMENT INTERMÉDIAIRE' : 'FIN DE PARTIE'}
               </h1>
               <Trophy className="h-8 w-8 lg:h-12 lg:w-12 text-yellow-400 animate-bounce" />
             </div>
             <p className="text-sm lg:text-lg text-muted-foreground">
-              La forêt de Ndogmoabeng a été conquise !
+              {isIntermediatePodium 
+                ? 'La forêt de Ndogmoabeng a été nettoyée ! L\'aventure continue...'
+                : 'La forêt de Ndogmoabeng a été conquise !'}
             </p>
           </div>
         

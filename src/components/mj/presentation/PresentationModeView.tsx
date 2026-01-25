@@ -28,6 +28,8 @@ interface Game {
   phase: string;
   phase_locked: boolean;
   current_session_game_id: string | null;
+  mode?: string;
+  selected_game_type_code?: string | null;
 }
 
 interface MonsterState {
@@ -251,7 +253,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       // First, fetch latest game state to ensure we have current phase/manche/status
       const { data: latestGame, error: gameError } = await supabase
         .from('games')
-        .select('id, name, status, manche_active, phase, phase_locked, current_session_game_id')
+        .select('id, name, status, manche_active, phase, phase_locked, current_session_game_id, mode, selected_game_type_code')
         .eq('id', gameId)
         .single();
       
@@ -575,8 +577,19 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   // Explicitly exclude shop phases to prevent false positives when battlefield is empty
   const gamePhase = game.phase;
   const gameStatus = game.status;
+  const gameMode = game.mode;
   const isShopPhase = gamePhase === 'PHASE3_SHOP' || gamePhase === 'SHOP';
-  const isGameEnded = gameStatus === 'ENDED' || gameStatus === 'FINISHED' || gamePhase === 'FINISHED';
+  
+  // In ADVENTURE mode for FORET, check if all monsters are dead (intermediate podium)
+  const isAdventureMode = gameMode === 'ADVENTURE';
+  const allMonstersDead = monsters.length > 0 && monsters.every(m => m.status === 'MORT');
+  
+  // Game is ended when:
+  // 1. Global status is ENDED/FINISHED OR phase is FINISHED (for single games)
+  // 2. OR in Adventure mode for Forêt: all monsters are dead (show intermediate podium)
+  const isGameEndedGlobal = gameStatus === 'ENDED' || gameStatus === 'FINISHED' || gamePhase === 'FINISHED';
+  const isForetSessionComplete = isAdventureMode && allMonstersDead && !isShopPhase && gamePhase !== 'PHASE1_MISES';
+  const isGameEnded = isGameEndedGlobal || isForetSessionComplete;
   
   // Build team/player rankings for victory screen with detailed stats
   // Score formula: recompenses + (jetons / 3)
@@ -823,7 +836,8 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
 
   // If game is ended, show victory podium
   if (isGameEnded && !loading) {
-    console.log('[Presentation] Game ended - showing podium. Players:', players.length, 'Rankings:', playerRankings.length);
+    const podiumType = isForetSessionComplete && !isGameEndedGlobal ? 'intermediate' : 'final';
+    console.log('[Presentation] Showing podium:', podiumType, '| Players:', players.length, '| Rankings:', playerRankings.length, '| AllMonstersDead:', allMonstersDead, '| GameStatus:', gameStatus);
     
     // Ensure we have player data
     if (players.length === 0 || playerRankings.length === 0) {
@@ -852,6 +866,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
         show={true}
         rankings={playerRankings}
         gameStats={buildGameStats()}
+        isIntermediatePodium={podiumType === 'intermediate'}
       />
     );
   }
