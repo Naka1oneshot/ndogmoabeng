@@ -23,8 +23,9 @@ import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDis
 import { SheriffBotConfigPanel, SheriffBotConfig } from './SheriffBotConfigPanel';
 import { SheriffBotHistoryPanel } from './SheriffBotHistoryPanel';
 import { SheriffPoolHistoryPanel } from './SheriffPoolHistoryPanel';
+import { SheriffPvicHistoryPanel } from './SheriffPvicHistoryPanel';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { History, Wallet } from 'lucide-react';
+import { History, Wallet, Trophy } from 'lucide-react';
 
 interface Game {
   id: string;
@@ -1156,6 +1157,31 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                     players={players}
                     poolInitial={roundState.common_pool_initial}
                     poolSpent={roundState.common_pool_spent}
+                  />
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          )}
+
+          {/* PVic Transaction History */}
+          {game.current_session_game_id && (
+            <Collapsible defaultOpen>
+              <div className={`${theme.card} p-4`}>
+                <CollapsibleTrigger className="w-full flex items-center justify-between text-left">
+                  <h3 className="text-sm font-medium text-amber-400 flex items-center gap-2">
+                    <Trophy className="h-4 w-4" />
+                    Historique PVic
+                  </h3>
+                  <Badge variant="outline" className="text-xs">
+                    {choices.filter(c => c.victory_points_delta !== 0).length + 
+                     duels.filter(d => d.status === 'RESOLVED' && (d.player1_vp_delta !== 0 || d.player2_vp_delta !== 0)).length} transactions
+                  </Badge>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-4">
+                  <SheriffPvicHistoryPanel
+                    choices={choices}
+                    duels={duels}
+                    players={players}
                   />
                 </CollapsibleContent>
               </div>
