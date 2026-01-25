@@ -929,8 +929,17 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
         <TabsContent value="control" className="p-4 space-y-4 mt-0">
           {/* Round control */}
           <div className={theme.card}>
-            <div className="p-4 border-b border-[#2D3748]">
+            <div className="p-4 border-b border-[#2D3748] flex items-center justify-between">
               <h2 className="font-semibold">Contrôle de la manche</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={fetchData}
+                className="h-8 w-8 text-[#6B7280] hover:text-[#D4AF37] hover:bg-[#1A2235]"
+                title="Actualiser"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
             </div>
             <div className="p-4 space-y-4">
               {roundState?.status === 'OPEN' && (
