@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Trophy, Medal, Crown, X, Skull, FlaskConical, Syringe, TrendingUp, TrendingDown } from 'lucide-react';
+import { Trophy, Medal, Crown, X, Skull, FlaskConical, Syringe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS } from '../InfectionTheme';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import confetti from 'canvas-confetti';
@@ -21,16 +22,18 @@ interface Player {
   avatar_url?: string | null;
 }
 
-interface TeamRanking {
+interface RankingEntry {
   name: string;
   totalPvic: number;
   players: Player[];
-  mate_num: number;
+  key: string; // unique key for rendering
 }
 
 interface InfectionVictoryPodiumProps {
   players: Player[];
   winner: 'SY' | 'PV' | 'CV' | null;
+  gameMode: string;
+  gameId: string;
   onClose: () => void;
 }
 
@@ -164,54 +167,98 @@ function StatsPanel({
 export function InfectionVictoryPodium({
   players,
   winner,
+  gameMode,
+  gameId,
   onClose,
 }: InfectionVictoryPodiumProps) {
   const isMobile = useIsMobile();
   const [showPodium, setShowPodium] = useState(false);
   const [showRanking, setShowRanking] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [ranking, setRanking] = useState<RankingEntry[]>([]);
+  const [loadingScores, setLoadingScores] = useState(gameMode === 'ADVENTURE');
   
-  // Build team ranking based on mate_num, fallback to individual if no mates
-  const teamRanking: TeamRanking[] = (() => {
-    const teamMap = new Map<number, Player[]>();
-    const soloPlayers: Player[] = [];
-    
-    players.forEach(p => {
-      if (p.player_number === null) return;
-      
-      if (p.mate_num === null) {
-        // No mate - add as solo player
-        soloPlayers.push(p);
+  // Determine if this is a team game (any player has a mate_num)
+  const isTeamGame = players.some(p => p.mate_num !== null);
+  
+  // Fetch adventure cumulative scores if in adventure mode
+  useEffect(() => {
+    const buildRanking = async () => {
+      if (gameMode === 'ADVENTURE' && isTeamGame) {
+        // Fetch cumulative scores from adventure_scores
+        const playerIds = players.map(p => p.id);
+        const { data: adventureScores } = await supabase
+          .from('adventure_scores')
+          .select('game_player_id, total_score_value')
+          .in('game_player_id', playerIds);
+        
+        const scoreMap = new Map<string, number>();
+        adventureScores?.forEach(s => {
+          scoreMap.set(s.game_player_id, s.total_score_value || 0);
+        });
+        
+        // Build team ranking with cumulative scores
+        const teamMap = new Map<number, Player[]>();
+        players.forEach(p => {
+          if (p.player_number === null || p.mate_num === null) return;
+          const teamKey = Math.min(p.player_number, p.mate_num);
+          if (!teamMap.has(teamKey)) {
+            teamMap.set(teamKey, []);
+          }
+          teamMap.get(teamKey)!.push(p);
+        });
+        
+        const teams: RankingEntry[] = [];
+        teamMap.forEach((teamPlayers, mateNum) => {
+          const name = teamPlayers.map(p => p.display_name).join(' & ');
+          // Use cumulative adventure score + current session pvic
+          const totalPvic = teamPlayers.reduce((sum, p) => {
+            const cumulativeScore = scoreMap.get(p.id) || 0;
+            return sum + cumulativeScore + (p.pvic || 0);
+          }, 0);
+          teams.push({ name, totalPvic, players: teamPlayers, key: `team-${mateNum}` });
+        });
+        
+        setRanking(teams.sort((a, b) => b.totalPvic - a.totalPvic));
+      } else if (isTeamGame) {
+        // Single game with teams
+        const teamMap = new Map<number, Player[]>();
+        players.forEach(p => {
+          if (p.player_number === null || p.mate_num === null) return;
+          const teamKey = Math.min(p.player_number, p.mate_num);
+          if (!teamMap.has(teamKey)) {
+            teamMap.set(teamKey, []);
+          }
+          teamMap.get(teamKey)!.push(p);
+        });
+        
+        const teams: RankingEntry[] = [];
+        teamMap.forEach((teamPlayers, mateNum) => {
+          const name = teamPlayers.map(p => p.display_name).join(' & ');
+          const totalPvic = teamPlayers.reduce((sum, p) => sum + (p.pvic || 0), 0);
+          teams.push({ name, totalPvic, players: teamPlayers, key: `team-${mateNum}` });
+        });
+        
+        setRanking(teams.sort((a, b) => b.totalPvic - a.totalPvic));
       } else {
-        const teamKey = Math.min(p.player_number, p.mate_num);
-        if (!teamMap.has(teamKey)) {
-          teamMap.set(teamKey, []);
-        }
-        teamMap.get(teamKey)!.push(p);
+        // Individual ranking (no teams)
+        const individuals: RankingEntry[] = players
+          .filter(p => p.player_number !== null)
+          .map(p => ({
+            name: p.display_name,
+            totalPvic: p.pvic || 0,
+            players: [p],
+            key: `player-${p.player_number}`,
+          }))
+          .sort((a, b) => b.totalPvic - a.totalPvic);
+        
+        setRanking(individuals);
       }
-    });
+      setLoadingScores(false);
+    };
     
-    const teams: TeamRanking[] = [];
-    
-    // Add teams (pairs)
-    teamMap.forEach((teamPlayers, mateNum) => {
-      const name = teamPlayers.map(p => p.display_name).join(' & ');
-      const totalPvic = teamPlayers.reduce((sum, p) => sum + (p.pvic || 0), 0);
-      teams.push({ name, totalPvic, players: teamPlayers, mate_num: mateNum });
-    });
-    
-    // Add solo players as individual "teams"
-    soloPlayers.forEach(p => {
-      teams.push({ 
-        name: p.display_name, 
-        totalPvic: p.pvic || 0, 
-        players: [p], 
-        mate_num: p.player_number! 
-      });
-    });
-    
-    return teams.sort((a, b) => b.totalPvic - a.totalPvic);
-  })();
+    buildRanking();
+  }, [players, gameMode, gameId, isTeamGame]);
   
   // Separate players by team
   const syPlayers = players.filter(p => p.team_code === 'SY');
@@ -284,7 +331,7 @@ export function InfectionVictoryPodium({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
   
-  const top3 = teamRanking.slice(0, 3);
+  const top3 = ranking.slice(0, 3);
   
   const getMedalIcon = (position: number) => {
     switch (position) {
@@ -345,6 +392,18 @@ export function InfectionVictoryPodium({
   
   const winnerInfo = getWinnerInfo();
   const WinnerIcon = winnerInfo.icon;
+  
+  // Show loading state while fetching adventure scores
+  if (loadingScores) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: INFECTION_COLORS.bgPrimary }}>
+        <div className="text-center">
+          <Trophy className="h-16 w-16 mx-auto mb-4 animate-pulse" style={{ color: INFECTION_COLORS.accent }} />
+          <p style={{ color: INFECTION_COLORS.textSecondary }}>Calcul des scores...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="fixed inset-0 z-50 overflow-auto" style={{ backgroundColor: INFECTION_COLORS.bgPrimary }}>
@@ -497,16 +556,17 @@ export function InfectionVictoryPodium({
           </div>
         </div>
         
-        {/* Full Team Ranking */}
+        {/* Full Ranking */}
         <div className={`bg-[#1E293B] border border-[#475569] rounded-xl p-4 transition-all duration-1000 ${showRanking ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2" style={{ color: INFECTION_COLORS.accent }}>
             <Trophy className="h-5 w-5" />
-            Classement par Équipe
+            {isTeamGame ? 'Classement par Équipe' : 'Classement Individuel'}
+            {gameMode === 'ADVENTURE' && <Badge variant="outline" className="ml-2 text-xs border-[#D4AF37] text-[#D4AF37]">Cumul Aventure</Badge>}
           </h3>
           <div className="space-y-2">
-            {teamRanking.map((team, idx) => (
+            {ranking.map((entry, idx) => (
               <div
-                key={team.mate_num}
+                key={entry.key}
                 className={`flex items-center justify-between p-3 rounded-lg ${idx < 3 ? 'bg-[#D4AF37]/10 border border-[#D4AF37]/30' : 'bg-[#0F172A]'}`}
               >
                 <div className="flex items-center gap-3">
@@ -514,7 +574,7 @@ export function InfectionVictoryPodium({
                     #{idx + 1}
                   </span>
                   <div className="flex gap-1">
-                    {team.players.slice(0, 3).map(p => (
+                    {entry.players.slice(0, 3).map(p => (
                       p.avatar_url ? (
                         <img key={p.id} src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover border border-[#D4AF37]/30" />
                       ) : (
@@ -525,11 +585,11 @@ export function InfectionVictoryPodium({
                     ))}
                   </div>
                   <span className="font-medium text-white truncate max-w-[200px]">
-                    <TeamNameWithTooltip name={team.name} />
+                    <TeamNameWithTooltip name={entry.name} />
                   </span>
                 </div>
                 <span className={`font-bold whitespace-nowrap ${idx < 3 ? 'text-[#D4AF37] text-lg' : 'text-[#9CA3AF]'}`}>
-                  {team.totalPvic} PVic
+                  {entry.totalPvic} PVic
                 </span>
               </div>
             ))}
