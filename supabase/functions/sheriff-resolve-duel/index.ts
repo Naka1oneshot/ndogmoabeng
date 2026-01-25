@@ -16,10 +16,10 @@ interface DuelResult {
   };
 }
 
-// Calculate VP impact based on tokens beyond 20 (1% to 10%)
-function calculateImpactPercent(tokensEntering: number): number {
+// Calculate VP impact based on tokens beyond 20 (0% to duelMaxImpact%)
+function calculateImpactPercent(tokensEntering: number, duelMaxImpact: number): number {
   const extraTokens = Math.max(0, (tokensEntering || 20) - 20);
-  return Math.min(extraTokens, 10); // 0% to 10% max
+  return Math.min(extraTokens, duelMaxImpact); // 0% to max impact
 }
 
 function calculateDuelOutcome(
@@ -28,7 +28,8 @@ function calculateDuelOutcome(
   p1HasIllegal: boolean,
   p2HasIllegal: boolean,
   p1TokensEntering: number,
-  p2TokensEntering: number
+  p2TokensEntering: number,
+  duelMaxImpact: number
 ): DuelResult {
   let p1VpDelta = 0;
   let p2VpDelta = 0;
@@ -38,8 +39,8 @@ function calculateDuelOutcome(
   let p2Summary = '';
 
   // Calculate impact based on tokens beyond 20
-  const p1Impact = calculateImpactPercent(p1TokensEntering);
-  const p2Impact = calculateImpactPercent(p2TokensEntering);
+  const p1Impact = calculateImpactPercent(p1TokensEntering, duelMaxImpact);
+  const p2Impact = calculateImpactPercent(p2TokensEntering, duelMaxImpact);
 
   // Player 1 searches Player 2
   if (p1Searches) {
@@ -178,6 +179,16 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Get round state config for duel max impact
+    const { data: roundState } = await supabase
+      .from('sheriff_round_state')
+      .select('bot_config')
+      .eq('session_game_id', sessionGameId)
+      .single();
+
+    const config = (roundState?.bot_config as { duel_max_impact?: number } | null) || {};
+    const duelMaxImpact = config.duel_max_impact || 10;
+
     // Calculate duel outcome - impact based on tokens beyond 20
     const result = calculateDuelOutcome(
       duel.player1_searches,
@@ -185,7 +196,8 @@ Deno.serve(async (req) => {
       p1Choice.has_illegal_tokens,
       p2Choice.has_illegal_tokens,
       p1Choice.tokens_entering || 20,
-      p2Choice.tokens_entering || 20
+      p2Choice.tokens_entering || 20,
+      duelMaxImpact
     );
 
     // Update duel with results

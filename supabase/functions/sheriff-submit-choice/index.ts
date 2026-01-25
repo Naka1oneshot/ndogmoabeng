@@ -25,10 +25,10 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Validate round state is in CHOICES phase
+    // Validate round state is in CHOICES phase and get config
     const { data: roundState } = await supabase
       .from('sheriff_round_state')
-      .select('phase')
+      .select('phase, bot_config')
       .eq('session_game_id', sessionGameId)
       .single();
 
@@ -38,6 +38,11 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
+
+    // Get config values
+    const config = (roundState.bot_config as { visa_pvic_percent?: number; cost_per_player?: number } | null) || {};
+    const visaPvicPercent = config.visa_pvic_percent || 20;
+    const poolCostPerPlayer = config.cost_per_player || 10;
 
     // Get player's current pvic for visa cost calculation
     const { data: player } = await supabase
@@ -54,12 +59,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Calculate visa cost
+    // Calculate visa cost using configured percentage
     let visaCostApplied = 0;
     if (visaChoice === 'VICTORY_POINTS') {
-      visaCostApplied = (player.pvic || 0) * 0.2; // 20% of current PV
+      visaCostApplied = (player.pvic || 0) * (visaPvicPercent / 100); // Use configured %
     } else if (visaChoice === 'COMMON_POOL') {
-      visaCostApplied = 10; // 10€ from common pool
+      visaCostApplied = poolCostPerPlayer; // Use configured pool cost
     }
 
     const hasIllegalTokens = tokensEntering > 20;
@@ -83,11 +88,11 @@ Deno.serve(async (req) => {
 
     if (updateError) throw updateError;
 
-    // If visa is paid from common pool, update the spent amount
+    // If visa is paid from common pool, update the spent amount with configured cost
     if (visaChoice === 'COMMON_POOL') {
       const { error: poolError } = await supabase.rpc('increment_sheriff_pool_spent', {
         p_session_game_id: sessionGameId,
-        p_amount: 10
+        p_amount: poolCostPerPlayer
       });
       
       // Fallback if RPC doesn't exist
@@ -95,7 +100,7 @@ Deno.serve(async (req) => {
         await supabase
           .from('sheriff_round_state')
           .update({ 
-            common_pool_spent: supabase.rpc('raw', `common_pool_spent + 10`)
+            common_pool_spent: supabase.rpc('raw', `common_pool_spent + ${poolCostPerPlayer}`)
           })
           .eq('session_game_id', sessionGameId);
       }
