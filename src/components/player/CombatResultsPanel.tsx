@@ -196,7 +196,7 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
                   {hasDelayedExplosion && (
                     <div className="flex items-center gap-1 text-xs text-amber-400 pl-6">
                       <Zap className="h-3 w-3" />
-                      <span>💥 {hasDelayedExplosion.weapon} explose : +{hasDelayedExplosion.damage} dégâts (Slot {hasDelayedExplosion.slot})</span>
+                      <span>💥 {hasDelayedExplosion.weapon} explose : +{hasDelayedExplosion.damage} dégâts</span>
                     </div>
                   )}
                   {/* Protection used */}
@@ -204,7 +204,6 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
                     <div className="flex items-center gap-1 text-xs text-blue-400 pl-6">
                       <Shield className="h-3 w-3" />
                       <span>{hasProtection.item}</span>
-                      <span className="text-muted-foreground">(Slot {hasProtection.slot})</span>
                     </div>
                   )}
                 </div>
