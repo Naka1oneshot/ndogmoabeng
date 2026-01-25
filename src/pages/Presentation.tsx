@@ -15,6 +15,8 @@ interface Game {
   manche_active: number;
   selected_game_type_code: string | null;
   current_session_game_id: string | null;
+  mode?: string;
+  adventure_id?: string | null;
 }
 
 const Presentation = () => {
@@ -28,7 +30,7 @@ const Presentation = () => {
     const fetchGame = async () => {
       const { data, error } = await supabase
         .from("games")
-        .select("id, name, status, phase, phase_locked, manche_active, selected_game_type_code, current_session_game_id")
+        .select("id, name, status, phase, phase_locked, manche_active, selected_game_type_code, current_session_game_id, mode, adventure_id")
         .eq("id", gameId)
         .single();
 
