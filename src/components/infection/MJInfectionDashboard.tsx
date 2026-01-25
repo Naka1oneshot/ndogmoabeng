@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { MJActionsTab } from './MJActionsTab';
 import { MJChatsTab } from './MJChatsTab';
 import { MJRoundHistorySelector } from './MJRoundHistorySelector';
+import { InfectionRoundStartAnimation } from './presentation/InfectionRoundStartAnimation';
 import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { LandscapeModePrompt } from '@/components/mj/LandscapeModePrompt';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -115,6 +116,10 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   // Bot management state
   const [addingBots, setAddingBots] = useState(false);
   const [deletingBots, setDeletingBots] = useState(false);
+  
+  // Round start animation state
+  const [showRoundStartAnimation, setShowRoundStartAnimation] = useState(false);
+  const [animationManche, setAnimationManche] = useState(1);
   const [botCount, setBotCount] = useState(5);
   const [triggeringBotDecisions, setTriggeringBotDecisions] = useState(false);
 
@@ -308,6 +313,11 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
       // Use newManche from response (that's what the edge function returns)
       const newManche = data.data?.newManche ?? data.data?.manche ?? currentManche + 1;
       toast.success(`Manche ${newManche} ouverte !`);
+      
+      // Trigger round start animation
+      setAnimationManche(newManche);
+      setShowRoundStartAnimation(true);
+      
       fetchData();
     } catch (err) {
       console.error('[MJ] next-infection-round exception:', err);
@@ -857,6 +867,14 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   return (
     <>
     <LandscapeModePrompt storageKey="mj-infection-landscape-dismissed" />
+    
+    {/* Round Start Animation */}
+    <InfectionRoundStartAnimation
+      show={showRoundStartAnimation}
+      manche={animationManche}
+      onComplete={() => setShowRoundStartAnimation(false)}
+    />
+    
     <div className={theme.container}>
       {/* Header */}
       <div className={`${theme.header} p-3 sm:p-4`}>
