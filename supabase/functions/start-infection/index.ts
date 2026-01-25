@@ -478,6 +478,34 @@ Deno.serve(async (req) => {
       console.error('[start-infection] Error logging MJ details:', mjLogError);
     }
 
+    // 14. Send private message to Ezkar+KK players about disabled vest
+    const ezkarKKPlayers = playerUpdates.filter((p, idx) => {
+      const player = players[idx];
+      return p.role_code === 'KK' && player?.clan === 'Ezkar';
+    });
+
+    for (const ezkarKK of ezkarKKPlayers) {
+      const player = players.find(pl => pl.id === ezkarKK.id);
+      if (player) {
+        await supabase.from('game_events').insert({
+          game_id: gameId,
+          session_game_id: sessionGameId,
+          event_type: 'PRIVATE_INFO',
+          message: `⚠️ Attention ${player.display_name}: En tant que membre du clan Ezkar avec le rôle Sans Cercle (KK), ton gilet pare-balles est INOPÉRANT. Tu mourras au premier tir. Cependant, tu peux toujours utiliser ton antidote Ezkar à tout moment.`,
+          manche: 1,
+          phase: 'OPEN',
+          visibility: 'PRIVATE',
+          player_id: ezkarKK.id,
+          player_num: player.player_number,
+          payload: {
+            type: 'EZKAR_KK_VEST_WARNING',
+            affected_player: player.player_number,
+          },
+        });
+        console.log('[start-infection] Sent Ezkar+KK vest warning to player:', player.player_number);
+      }
+    }
+
     console.log('[start-infection] Game started successfully');
 
     return new Response(
