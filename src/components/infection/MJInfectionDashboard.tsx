@@ -932,46 +932,99 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
         </TabsList>
 
         <TabsContent value="control" className="p-4 space-y-4 mt-0">
-          {/* Round control */}
-          <div className={theme.card}>
-            <div className="p-4 border-b border-[#2D3748] flex items-center justify-between">
-              <h2 className="font-semibold">Contrôle de la manche</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={fetchData}
-                className="h-8 w-8 text-[#6B7280] hover:text-[#D4AF37] hover:bg-[#1A2235]"
-                title="Actualiser"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-4 space-y-4">
-              {roundState?.status === 'OPEN' && (
-                <Button 
-                  className={`w-full ${theme.buttonDanger}`}
-                  onClick={handleLockAndResolve}
-                >
-                  <Lock className="h-4 w-4 mr-2" />
-                  Verrouiller et Résoudre
-                </Button>
-              )}
-              {roundState?.status === 'RESOLVED' && (
+          {/* Game Ended State */}
+          {(game.status === 'ENDED' || game.phase === 'ENDED') && (
+            <div className={theme.card}>
+              <div className="p-4 border-b border-[#2D3748]">
+                <h2 className="font-semibold text-[#2AB3A6] flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5" />
+                  Partie Terminée
+                </h2>
+              </div>
+              <div className="p-4 space-y-4">
+                <p className="text-center text-[#9CA3AF]">
+                  La partie est terminée. Tous les Porte-Venin sont morts ou les Synthétistes ont trouvé l'antidote.
+                </p>
+                
+                {/* Quick Rankings */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-[#D4AF37]">Top 3</h3>
+                  {activePlayers
+                    .filter(p => p.player_number !== null)
+                    .sort((a, b) => (b.pvic || 0) - (a.pvic || 0))
+                    .slice(0, 3)
+                    .map((p, idx) => {
+                      const roleInfo = p.role_code ? INFECTION_ROLE_LABELS[p.role_code] : null;
+                      return (
+                        <div key={p.id} className="flex items-center justify-between p-2 bg-[#1A2235] rounded">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold text-[#D4AF37]">#{idx + 1}</span>
+                            <span>{p.display_name}</span>
+                            {roleInfo && (
+                              <Badge style={{ backgroundColor: `${roleInfo.color}20`, color: roleInfo.color }}>
+                                {roleInfo.name}
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="font-bold text-[#2AB3A6]">{p.pvic || 0} PVic</span>
+                        </div>
+                      );
+                    })}
+                </div>
+                
                 <Button 
                   className={`w-full ${theme.button}`}
-                  onClick={handleNextRound}
+                  onClick={() => window.open(`/presentation/${game.id}`, '_blank')}
                 >
-                  <Play className="h-4 w-4 mr-2" />
-                  Ouvrir manche suivante
+                  <Activity className="h-4 w-4 mr-2" />
+                  Voir le Podium
                 </Button>
-              )}
-              {!roundState && (
-                <p className="text-center text-[#6B7280]">
-                  Aucune manche active
-                </p>
-              )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Round control - only when game is not ended */}
+          {game.status !== 'ENDED' && game.phase !== 'ENDED' && (
+            <div className={theme.card}>
+              <div className="p-4 border-b border-[#2D3748] flex items-center justify-between">
+                <h2 className="font-semibold">Contrôle de la manche</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={fetchData}
+                  className="h-8 w-8 text-[#6B7280] hover:text-[#D4AF37] hover:bg-[#1A2235]"
+                  title="Actualiser"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="p-4 space-y-4">
+                {roundState?.status === 'OPEN' && (
+                  <Button 
+                    className={`w-full ${theme.buttonDanger}`}
+                    onClick={handleLockAndResolve}
+                  >
+                    <Lock className="h-4 w-4 mr-2" />
+                    Verrouiller et Résoudre
+                  </Button>
+                )}
+                {roundState?.status === 'RESOLVED' && (
+                  <Button 
+                    className={`w-full ${theme.button}`}
+                    onClick={handleNextRound}
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Ouvrir manche suivante
+                  </Button>
+                )}
+                {!roundState && (
+                  <p className="text-center text-[#6B7280]">
+                    Aucune manche active
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Bot Decisions (Admin only, when round is OPEN) */}
           {isAdminOrSuper && botPlayers.length > 0 && roundState?.status === 'OPEN' && (

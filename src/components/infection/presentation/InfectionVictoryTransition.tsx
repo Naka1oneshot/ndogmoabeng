@@ -3,7 +3,7 @@ import { Skull, Syringe, Trophy, Sparkles } from 'lucide-react';
 import { INFECTION_COLORS } from '../InfectionTheme';
 
 interface InfectionVictoryTransitionProps {
-  winner: 'SY' | 'PV';
+  winner: 'SY' | 'PV' | 'NON_PV';
   onComplete: () => void;
 }
 
@@ -54,9 +54,11 @@ export function InfectionVictoryTransition({ winner, onComplete }: InfectionVict
     return () => clearTimeout(timer);
   }, [phase, countdown, onComplete]);
 
-  const winnerColor = winner === 'SY' ? INFECTION_COLORS.teamSY : INFECTION_COLORS.accent;
-  const winnerLabel = winner === 'SY' ? 'Les Syndics' : 'Le Patient Véro';
-  const WinnerIcon = winner === 'SY' ? Syringe : Skull;
+  // NON_PV means SY team won (all PV are dead)
+  const isSYVictory = winner === 'SY' || winner === 'NON_PV';
+  const winnerColor = isSYVictory ? INFECTION_COLORS.teamSY : INFECTION_COLORS.accent;
+  const winnerLabel = isSYVictory ? 'Les Synthétistes' : 'Les Porte-Venin';
+  const WinnerIcon = isSYVictory ? Syringe : Skull;
 
   return (
     <div 
