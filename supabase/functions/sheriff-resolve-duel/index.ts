@@ -52,10 +52,9 @@ function calculateDuelOutcome(
       p1Summary = `Fouille réussie ! +${p2Impact}% PV`;
       p2Summary = `Pris en flagrant délit ! -${p2Impact}% PV, -${p2Impact} jetons`;
     } else {
-      // P1 searched but P2 was legal - penalty based on P1's own risk level
-      const falsePenalty = Math.max(p1Impact, 1); // Min 1% penalty for false search
-      p1VpDelta -= falsePenalty;
-      p1Summary = `Fouille d'un voyageur légal. -${falsePenalty}% PV`;
+      // P1 searched but P2 was legal - fixed penalty based on duelMaxImpact setting
+      p1VpDelta -= duelMaxImpact;
+      p1Summary = `Fouille d'un voyageur légal. -${duelMaxImpact}% PV`;
       p2Summary = `Vous étiez légal. Pas de pénalité.`;
     }
   } else {
@@ -81,10 +80,9 @@ function calculateDuelOutcome(
       p2Summary += ` | Fouille réussie ! +${p1Impact}% PV`;
       p1Summary += ` | Pris en flagrant délit ! -${p1Impact}% PV, -${p1Impact} jetons`;
     } else {
-      // P2 searched but P1 was legal
-      const falsePenalty = Math.max(p2Impact, 1);
-      p2VpDelta -= falsePenalty;
-      p2Summary += ` | Fouille d'un voyageur légal. -${falsePenalty}% PV`;
+      // P2 searched but P1 was legal - fixed penalty based on duelMaxImpact setting
+      p2VpDelta -= duelMaxImpact;
+      p2Summary += ` | Fouille d'un voyageur légal. -${duelMaxImpact}% PV`;
       p1Summary += ` | Vous étiez légal. Pas de pénalité.`;
     }
   } else {
