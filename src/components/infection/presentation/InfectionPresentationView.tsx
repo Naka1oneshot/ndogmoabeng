@@ -62,7 +62,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const [winner, setWinner] = useState<'SY' | 'PV' | 'NON_PV' | null>(null);
+  const [winner, setWinner] = useState<'SY' | 'PV' | 'CV' | null>(null);
   const [showVictoryTransition, setShowVictoryTransition] = useState(false);
   const [showVictoryPodium, setShowVictoryPodium] = useState(false);
   
@@ -212,9 +212,12 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       
       if (gameEndEvent && !winner) {
         const payload = gameEndEvent.payload as { winner?: string } | null;
-        // Winner can be 'SY', 'PV', or 'NON_PV' (all PV dead = SY victory)
-        const winnerTeam = payload?.winner || (gameEndEvent.message?.includes('SY') ? 'SY' : 'PV');
-        setWinner(winnerTeam as 'SY' | 'PV' | 'NON_PV');
+        const rawWinner = payload?.winner || (gameEndEvent.message?.includes('SY') ? 'SY' : 'PV');
+        
+        // Map NON_PV to CV (Citizens won by eliminating all PV, but SY didn't succeed)
+        let mappedWinner: 'SY' | 'PV' | 'CV' = rawWinner === 'NON_PV' ? 'CV' : (rawWinner as 'SY' | 'PV');
+        
+        setWinner(mappedWinner);
         setShowVictoryTransition(true);
       }
     }

@@ -72,18 +72,26 @@ export function InfectionGameEndScreen({ gameId, sessionGameId, player }: Infect
   };
 
   const getWinnerInfo = () => {
-    if (winner === 'NON_PV' || winner === 'SY') {
+    if (winner === 'SY') {
       return {
         title: 'Victoire des Synthétistes !',
-        subtitle: 'Le remède a été trouvé ou les Porte Venins ont été éliminés.',
+        subtitle: "L'antidote a été trouvé ! La population est sauvée.",
         icon: FlaskConical,
         color: '#2AB3A6',
         bgColor: 'bg-[#2AB3A6]/20',
       };
+    } else if (winner === 'NON_PV') {
+      return {
+        title: 'Victoire des Citoyens du Village !',
+        subtitle: 'Tous les Porte-Venin ont été éliminés. Le village est sauf.',
+        icon: Trophy,
+        color: '#60A5FA',
+        bgColor: 'bg-[#60A5FA]/20',
+      };
     } else if (winner === 'PV') {
       return {
-        title: 'Victoire des Porte Venins !',
-        subtitle: 'Le virus s\'est propagé. L\'humanité est condamnée.',
+        title: 'Victoire des Porte-Venin !',
+        subtitle: "Le virus s'est propagé. L'humanité est condamnée.",
         icon: Syringe,
         color: '#B00020',
         bgColor: 'bg-[#B00020]/20',
@@ -102,8 +110,8 @@ export function InfectionGameEndScreen({ gameId, sessionGameId, player }: Infect
   const WinnerIcon = winnerInfo.icon;
   
   const roleInfo = player.role_code ? INFECTION_ROLE_LABELS[player.role_code] : null;
-  const playerWon = (winner === 'NON_PV' && player.team_code !== 'PV') || 
-                    (winner === 'SY' && player.team_code !== 'PV') ||
+  const playerWon = (winner === 'SY' && player.team_code === 'SY') || 
+                    (winner === 'NON_PV' && (player.team_code === 'CITOYEN' || player.team_code === 'NEUTRE')) ||
                     (winner === 'PV' && player.team_code === 'PV');
 
   // Get player's PVic breakdown
@@ -111,8 +119,12 @@ export function InfectionGameEndScreen({ gameId, sessionGameId, player }: Infect
 
   // Sort players: winners first, then by pvic
   const sortedPlayers = [...allPlayers].sort((a, b) => {
-    const aWon = (winner === 'NON_PV' && a.team_code !== 'PV') || (winner === 'PV' && a.team_code === 'PV');
-    const bWon = (winner === 'NON_PV' && b.team_code !== 'PV') || (winner === 'PV' && b.team_code === 'PV');
+    const aWon = (winner === 'SY' && a.team_code === 'SY') || 
+                 (winner === 'NON_PV' && (a.team_code === 'CITOYEN' || a.team_code === 'NEUTRE')) || 
+                 (winner === 'PV' && a.team_code === 'PV');
+    const bWon = (winner === 'SY' && b.team_code === 'SY') || 
+                 (winner === 'NON_PV' && (b.team_code === 'CITOYEN' || b.team_code === 'NEUTRE')) || 
+                 (winner === 'PV' && b.team_code === 'PV');
     if (aWon && !bWon) return -1;
     if (!aWon && bWon) return 1;
     return (b.pvic || 0) - (a.pvic || 0);
@@ -217,7 +229,9 @@ export function InfectionGameEndScreen({ gameId, sessionGameId, player }: Infect
           <div className="divide-y divide-[#2D3748]">
             {sortedPlayers.map(p => {
               const pRoleInfo = p.role_code ? INFECTION_ROLE_LABELS[p.role_code] : null;
-              const pWon = (winner === 'NON_PV' && p.team_code !== 'PV') || (winner === 'PV' && p.team_code === 'PV');
+              const pWon = (winner === 'SY' && p.team_code === 'SY') || 
+                           (winner === 'NON_PV' && (p.team_code === 'CITOYEN' || p.team_code === 'NEUTRE')) || 
+                           (winner === 'PV' && p.team_code === 'PV');
               const pBreakdown = pvicBreakdowns.find(b => b.player_num === p.player_number);
               
               return (
