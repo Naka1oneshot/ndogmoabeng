@@ -12,6 +12,7 @@ import { InfectionPatient0Timeline } from './InfectionPatient0Timeline';
 import { InfectionRoleRoster } from './InfectionRoleRoster';
 import { InfectionStatsPanel } from './InfectionStatsPanel';
 import { InfectionRoundAnimation } from './InfectionRoundAnimation';
+import { InfectionSYResearchProgress } from './InfectionSYResearchProgress';
 
 interface Game {
   id: string;
@@ -38,6 +39,8 @@ interface RoundState {
   manche: number;
   status: string;
   resolved_at: string | null;
+  sy_success_count: number | null;
+  sy_required_success: number | null;
 }
 
 interface InfectionPresentationViewProps {
@@ -106,11 +109,11 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       }
     }
 
-    // Fetch round states for timeline
+    // Fetch round states for timeline and SY progress
     if (game.current_session_game_id) {
       const { data: roundData } = await supabase
         .from('infection_round_state')
-        .select('id, manche, status, resolved_at')
+        .select('id, manche, status, resolved_at, sy_success_count, sy_required_success')
         .eq('session_game_id', game.current_session_game_id)
         .order('manche', { ascending: true });
 
@@ -271,7 +274,15 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       {/* Mobile Layout */}
       {isMobile ? (
         <div className="pt-14 h-full flex flex-col">
-          {/* Timeline at top */}
+          {/* SY Research Progress at top */}
+          <div className="flex-shrink-0 p-2 pb-0">
+            <InfectionSYResearchProgress
+              roundStates={roundStates}
+              isMobile={true}
+            />
+          </div>
+
+          {/* Timeline */}
           <div className="flex-shrink-0 p-2">
             <InfectionPatient0Timeline
               roundStates={roundStates}
@@ -315,9 +326,17 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
             <InfectionRoleRoster roleStats={roleStats} isMobile={false} />
           </div>
 
-          {/* Center - Campfire + Timeline */}
+          {/* Center - Campfire + SY Progress + Timeline */}
           <div className="col-span-8 flex flex-col gap-4">
-            {/* Timeline at top */}
+            {/* SY Research Progress at top */}
+            <div className="flex-shrink-0">
+              <InfectionSYResearchProgress
+                roundStates={roundStates}
+                isMobile={false}
+              />
+            </div>
+
+            {/* Timeline */}
             <div className="flex-shrink-0">
               <InfectionPatient0Timeline
                 roundStates={roundStates}
