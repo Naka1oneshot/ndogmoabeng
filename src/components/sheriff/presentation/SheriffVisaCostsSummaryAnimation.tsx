@@ -26,6 +26,8 @@ interface SheriffVisaCostsSummaryAnimationProps {
   choices: PlayerChoice[];
   poolInitial: number;
   poolSpent: number;
+  visaPvicPercent: number;
+  poolCostPerPlayer: number;
   onComplete: () => void;
 }
 
@@ -34,6 +36,8 @@ export function SheriffVisaCostsSummaryAnimation({
   choices,
   poolInitial,
   poolSpent,
+  visaPvicPercent,
+  poolCostPerPlayer,
   onComplete,
 }: SheriffVisaCostsSummaryAnimationProps) {
   const [phase, setPhase] = useState<'intro' | 'pvic_players' | 'pool_players' | 'totals' | 'done'>('intro');
@@ -109,7 +113,7 @@ export function SheriffVisaCostsSummaryAnimation({
             <div className="flex items-center gap-2 mb-4">
               <span className="text-2xl">⭐</span>
               <h3 className="text-lg font-bold text-purple-300">Paiement en PVic</h3>
-              <span className="ml-auto text-sm text-purple-400">-20% PV</span>
+              <span className="ml-auto text-sm text-purple-400">-{visaPvicPercent}% PV</span>
             </div>
             
             <div className="space-y-2 min-h-[120px]">
@@ -167,7 +171,7 @@ export function SheriffVisaCostsSummaryAnimation({
             <div className="flex items-center gap-2 mb-4">
               <span className="text-2xl">💰</span>
               <h3 className="text-lg font-bold text-amber-300">Paiement Cagnotte</h3>
-              <span className="ml-auto text-sm text-amber-400">10€/joueur</span>
+              <span className="ml-auto text-sm text-amber-400">{poolCostPerPlayer}€/joueur</span>
             </div>
             
             <div className="space-y-2 min-h-[120px]">

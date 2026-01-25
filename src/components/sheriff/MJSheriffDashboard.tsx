@@ -1613,7 +1613,8 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                       <th className="text-left py-2">Mate</th>
                       <th className="text-right py-2">Jetons</th>
                       <th className="text-right py-2">PVic Init</th>
-                      <th className="text-right py-2">PV Δ 🔄</th>
+                      <th className="text-right py-2">Coût Visa</th>
+                      <th className="text-right py-2">Coût Duel</th>
                       <th className="text-right py-2">PVic Act 🔄</th>
                     </tr>
                   </thead>
@@ -1622,13 +1623,30 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                       const choice = getPlayerChoice(player.player_number!);
                       // pvic_initial is the PVic at the start of Sheriff (from game_players.pvic snapshot)
                       const pvicInitial = choice?.pvic_initial ?? (player.pvic || 0);
-                      // victory_points_delta is a CUMULATIVE PERCENTAGE (e.g., -20 means -20%)
-                      // It already includes visa cost AND all duel results (updated by sheriff-resolve-duel)
-                      // DO NOT add duel deltas separately - that would double-count!
-                      const deltaPercent = choice?.victory_points_delta ?? 0;
-                      // Calculate PVic Act = PVic Init + (PVic Init × delta%)
-                      // This MUST match MJDashboard calculation exactly
-                      const pvicActuel = pvicInitial + Math.round(pvicInitial * (deltaPercent / 100));
+                      
+                      // NEW CALCULATION LOGIC:
+                      // Coût Visa PVic = 0 if paid with pool, otherwise PVic Init * configured visa percent
+                      const coutVisaPvic = (choice?.visa_choice === 'VICTORY_POINTS') 
+                        ? Math.round(pvicInitial * (visaPvicPercent / 100)) 
+                        : 0;
+                      
+                      // Calculate cumulative duel delta from all resolved duels for this player
+                      const playerDuels = duels.filter(d => 
+                        d.status === 'RESOLVED' && 
+                        (d.player1_number === player.player_number || d.player2_number === player.player_number)
+                      );
+                      const duelDeltaPercent = playerDuels.reduce((sum, d) => {
+                        if (d.player1_number === player.player_number) return sum + d.player1_vp_delta;
+                        return sum + d.player2_vp_delta;
+                      }, 0);
+                      
+                      // Coût Duel = (PVic Init - Coût Visa PVic) * cumulative duel delta %
+                      const baseAfterVisa = pvicInitial - coutVisaPvic;
+                      const coutDuel = Math.round(baseAfterVisa * (Math.abs(duelDeltaPercent) / 100)) * (duelDeltaPercent < 0 ? 1 : -1);
+                      
+                      // PVic Actuel = PVic Init - Coût Visa PVic - Coût Duel
+                      const pvicActuel = pvicInitial - coutVisaPvic - coutDuel;
+                      
                       return (
                         <tr key={player.id} className="border-b border-[#D4AF37]/10">
                           <td className="py-2 font-bold text-[#D4AF37]">{player.player_number}</td>
@@ -1651,11 +1669,22 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                           <td className="py-2 text-right text-[#D4AF37]">{player.jetons}💎</td>
                           <td className="py-2 text-right text-amber-400">{pvicInitial}🏆</td>
                           <td className="py-2 text-right">
-                            <span className={deltaPercent >= 0 ? 'text-green-500' : 'text-red-500'}>
-                              {deltaPercent > 0 ? '+' : ''}{deltaPercent.toFixed(1)}%
-                            </span>
+                            {coutVisaPvic > 0 ? (
+                              <span className="text-red-400">-{coutVisaPvic}🏆</span>
+                            ) : (
+                              <span className="text-[#9CA3AF]">-</span>
+                            )}
                           </td>
-                          <td className="py-2 text-right text-amber-400 font-semibold">{pvicActuel.toFixed(1)}🏆</td>
+                          <td className="py-2 text-right">
+                            {coutDuel !== 0 ? (
+                              <span className={coutDuel > 0 ? 'text-red-400' : 'text-green-400'}>
+                                {coutDuel > 0 ? '-' : '+'}{Math.abs(coutDuel)}🏆
+                              </span>
+                            ) : (
+                              <span className="text-[#9CA3AF]">-</span>
+                            )}
+                          </td>
+                          <td className="py-2 text-right text-amber-400 font-semibold">{pvicActuel}🏆</td>
                         </tr>
                       );
                     })}

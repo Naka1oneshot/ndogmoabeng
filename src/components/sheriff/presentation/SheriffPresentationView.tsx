@@ -44,6 +44,7 @@ interface PlayerChoice {
   tokens_entering: number | null;
   has_illegal_tokens: boolean;
   victory_points_delta: number;
+  pvic_initial?: number;
 }
 
 interface Duel {
@@ -66,6 +67,11 @@ interface RoundState {
   total_duels: number;
   common_pool_initial: number;
   common_pool_spent: number;
+  bot_config?: {
+    visa_pvic_percent?: number;
+    cost_per_player?: number;
+    duel_max_impact?: number;
+  } | null;
 }
 
 interface SheriffPresentationViewProps {
@@ -281,20 +287,38 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const playersWithChoices = choices.filter(c => c.visa_choice !== null);
   const playersWithoutChoices = activePlayers.filter(p => !choices.find(c => c.player_number === p.player_number && c.visa_choice !== null));
   
-  // Calculate cumulative PVic for a player: PVic Act = PVic Init + (PVic Init × delta%)
-  // This matches the MJ Dashboard logic exactly
+  // Get configured visa percent from round state (default 20%)
+  const visaPvicPercent = roundState?.bot_config?.visa_pvic_percent || 20;
+  
+  // Calculate cumulative PVic for a player using NEW logic:
+  // Coût Visa PVic = 0 if pool, otherwise PVic Init * configured visa percent
+  // Coût Duel = (PVic Init - Coût Visa PVic) * cumulative duel delta %
+  // PVic Actuel = PVic Init - Coût Visa PVic - Coût Duel
   const getPlayerCumulativePvic = (playerNum: number): number => {
-    const player = activePlayers.find(p => p.player_number === playerNum);
-    const pvicInit = player?.pvic || 0;
-    
-    // Get cumulative delta percentage from choices (already includes visa + duel results)
     const choice = choices.find(c => c.player_number === playerNum);
-    const deltaPercent = choice?.victory_points_delta || 0;
+    const pvicInit = choice?.pvic_initial || activePlayers.find(p => p.player_number === playerNum)?.pvic || 0;
     
-    // Calculate PVic Act = PVic Init + (PVic Init × delta%)
-    const pvicAct = pvicInit + Math.round(pvicInit * (deltaPercent / 100));
+    // Coût Visa PVic
+    const coutVisaPvic = (choice?.visa_choice === 'VICTORY_POINTS') 
+      ? Math.round(pvicInit * (visaPvicPercent / 100)) 
+      : 0;
     
-    return pvicAct;
+    // Calculate cumulative duel delta from all resolved duels for this player
+    const playerDuels = duels.filter(d => 
+      d.status === 'RESOLVED' && 
+      (d.player1_number === playerNum || d.player2_number === playerNum)
+    );
+    const duelDeltaPercent = playerDuels.reduce((sum, d) => {
+      if (d.player1_number === playerNum) return sum + d.player1_vp_delta;
+      return sum + d.player2_vp_delta;
+    }, 0);
+    
+    // Coût Duel = (PVic Init - Coût Visa PVic) * cumulative duel delta %
+    const baseAfterVisa = pvicInit - coutVisaPvic;
+    const coutDuel = Math.round(baseAfterVisa * (Math.abs(duelDeltaPercent) / 100)) * (duelDeltaPercent < 0 ? 1 : -1);
+    
+    // PVic Actuel = PVic Init - Coût Visa PVic - Coût Duel
+    return pvicInit - coutVisaPvic - coutDuel;
   };
 
   // Team ranking (grouped by mate pairs - player_number <-> mate_num are cross-referenced)
@@ -370,6 +394,8 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
           choices={choices}
           poolInitial={roundState.common_pool_initial}
           poolSpent={roundState.common_pool_spent}
+          visaPvicPercent={roundState.bot_config?.visa_pvic_percent || 20}
+          poolCostPerPlayer={roundState.bot_config?.cost_per_player || 10}
           onComplete={handleChoicesResolutionComplete}
         />
       )}
