@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
 
     if (tokensError) throw tokensError;
 
-    // Initialize player choices
+    // Initialize player choices with initial PVic snapshot
     const choicesInsert = players.map(p => ({
       game_id: gameId,
       session_game_id: sessionGameId,
@@ -88,6 +88,7 @@ Deno.serve(async (req) => {
       visa_choice: null,
       tokens_entering: null,
       has_illegal_tokens: false,
+      pvic_initial: p.pvic ?? 0, // Capture PVic at start of Sheriff game
     }));
 
     const { error: choicesError } = await supabase

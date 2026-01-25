@@ -2857,6 +2857,7 @@ export type Database = {
           id: string
           player_id: string
           player_number: number
+          pvic_initial: number | null
           session_game_id: string | null
           tokens_entering: number | null
           updated_at: string | null
@@ -2872,6 +2873,7 @@ export type Database = {
           id?: string
           player_id: string
           player_number: number
+          pvic_initial?: number | null
           session_game_id?: string | null
           tokens_entering?: number | null
           updated_at?: string | null
@@ -2887,6 +2889,7 @@ export type Database = {
           id?: string
           player_id?: string
           player_number?: number
+          pvic_initial?: number | null
           session_game_id?: string | null
           tokens_entering?: number | null
           updated_at?: string | null

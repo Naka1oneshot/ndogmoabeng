@@ -69,6 +69,7 @@ interface PlayerChoice {
   tokens_entering: number | null;
   has_illegal_tokens: boolean;
   victory_points_delta: number;
+  pvic_initial: number;
 }
 
 interface Duel {
@@ -1271,12 +1272,17 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                       <th className="text-left py-2">Clan</th>
                       <th className="text-left py-2">Mate</th>
                       <th className="text-right py-2">Jetons</th>
+                      <th className="text-right py-2">PVic Init</th>
                       <th className="text-right py-2">PV Δ</th>
+                      <th className="text-right py-2">PVic Act</th>
                     </tr>
                   </thead>
                   <tbody>
                     {activePlayers.map(player => {
                       const choice = getPlayerChoice(player.player_number!);
+                      const pvicInitial = choice?.pvic_initial ?? 0;
+                      const pvDelta = choice?.victory_points_delta ?? 0;
+                      const pvicActuel = pvicInitial + pvDelta;
                       return (
                         <tr key={player.id} className="border-b border-[#D4AF37]/10">
                           <td className="py-2 font-bold text-[#D4AF37]">{player.player_number}</td>
@@ -1289,13 +1295,13 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                           <td className="py-2 text-[#9CA3AF]">{player.clan || '-'}</td>
                           <td className="py-2 text-[#9CA3AF]">{player.mate_num || '-'}</td>
                           <td className="py-2 text-right text-[#D4AF37]">{player.jetons}💎</td>
+                          <td className="py-2 text-right text-amber-400">{pvicInitial}🏆</td>
                           <td className="py-2 text-right">
-                            {choice && (
-                              <span className={choice.victory_points_delta >= 0 ? 'text-green-500' : 'text-red-500'}>
-                                {choice.victory_points_delta > 0 ? '+' : ''}{choice.victory_points_delta.toFixed(1)}%
-                              </span>
-                            )}
+                            <span className={pvDelta >= 0 ? 'text-green-500' : 'text-red-500'}>
+                              {pvDelta > 0 ? '+' : ''}{pvDelta.toFixed(1)}%
+                            </span>
                           </td>
+                          <td className="py-2 text-right text-amber-400 font-semibold">{pvicActuel.toFixed(1)}🏆</td>
                         </tr>
                       );
                     })}
