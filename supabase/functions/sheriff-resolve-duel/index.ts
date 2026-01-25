@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
       gainPerIllegalFound: botConfig.duel_gain_per_illegal_found ?? 10,
       lossSearchNoIllegal: botConfig.duel_loss_search_no_illegal ?? 50,
       gainPerIllegalPassed: botConfig.duel_gain_per_illegal_passed ?? 10,
-      lossPerIllegalCaught: botConfig.duel_loss_per_illegal_caught ?? 10,
+      lossPerIllegalCaught: botConfig.duel_loss_per_illegal_caught ?? 5,
     };
 
     // Calculate duel outcome with configurable parameters

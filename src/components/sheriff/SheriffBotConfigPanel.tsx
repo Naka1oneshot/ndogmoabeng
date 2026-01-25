@@ -30,7 +30,7 @@ export const DEFAULT_SHERIFF_BOT_CONFIG: SheriffBotConfig = {
   duel_gain_per_illegal_found: 10,
   duel_loss_search_no_illegal: 50,
   duel_gain_per_illegal_passed: 10,
-  duel_loss_per_illegal_caught: 10,
+  duel_loss_per_illegal_caught: 5,
 };
 
 interface SheriffBotConfigPanelProps {
