@@ -641,6 +641,7 @@ function ChoicesPhaseDisplay({
           <h4 className="text-[#D4AF37] font-bold mb-3 flex items-center gap-2">
             <Trophy className="h-4 w-4" />
             Classement Équipes
+            <span className="text-xs font-normal text-[#9CA3AF]">(PVic cumulés 🔄)</span>
           </h4>
           <div className="space-y-2">
             {teamRanking.map((team, idx) => (
@@ -795,6 +796,7 @@ function DuelsPhaseDisplay({
           <h4 className="text-[#D4AF37] font-bold mb-3 flex items-center gap-2">
             <Trophy className="h-4 w-4" />
             Classement Équipes
+            <span className="text-xs font-normal text-[#9CA3AF]">(PVic cumulés 🔄)</span>
           </h4>
           <div className="space-y-2">
             {teamRanking.slice(0, 10).map((team, idx) => (
