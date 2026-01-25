@@ -330,8 +330,9 @@ serve(async (req) => {
     const playerKillBonusWeapons = new Map<number, { weaponName: string; bonusTokens: number }[]>();
     const killBonusTokens: { playerNum: number; playerName: string; weaponName: string; bonus: number }[] = [];
     
-    // Track token penalties from Voile du Gardien
+    // Track token penalties from Voile du Gardien (attacker loses, defender gains)
     const voilePenalties: { playerNum: number; playerName: string; tokens: number; reason: string }[] = [];
+    const voileGains: { playerNum: number; playerName: string; tokens: number }[] = [];
     
     // Track damage multipliers from Amulette
     const damageMultipliers = new Map<number, number>(); // playerNum -> multiplier
@@ -897,17 +898,24 @@ serve(async (req) => {
       mjAction.totalDamage = totalDirectDamage;
       publicAction.totalDamage = totalDirectDamage + (totalAoeDamage * 3);
 
-      // Check Voile du Gardien - BLOCKS damage AND applies token penalty
+      // Check Voile du Gardien - BLOCKS damage, attacker loses tokens, defender gains tokens
       let voileBlocked = false;
       if (targetSlot && totalDirectDamage > 0 && !attackCancelled) {
         for (const voile of voileEffects) {
           if (voile.slot === targetSlot && voile.activatedAt < pos.position_finale) {
-            // Player loses tokens = damage they would have dealt
+            // Attacker loses tokens = damage they would have dealt
             voilePenalties.push({
               playerNum: pos.num_joueur,
               playerName: pos.nom,
               tokens: totalDirectDamage,
               reason: 'Voile du Gardien',
+            });
+            // Voile owner gains the same amount of tokens
+            const voileOwnerName = players?.find(p => p.player_number === voile.playerNum)?.display_name || `Joueur ${voile.playerNum}`;
+            voileGains.push({
+              playerNum: voile.playerNum,
+              playerName: voileOwnerName,
+              tokens: totalDirectDamage,
             });
             // Attack IS blocked - monster takes no damage
             voileBlocked = true;
@@ -915,7 +923,7 @@ serve(async (req) => {
             mjAction.cancelReason = 'Voile du Gardien';
             publicAction.cancelled = true;
             publicAction.cancelReason = 'Voile du Gardien';
-            console.log(`[resolve-combat] Voile du Gardien: ${pos.nom} loses ${totalDirectDamage} jetons, attack blocked`);
+            console.log(`[resolve-combat] Voile du Gardien: ${pos.nom} loses ${totalDirectDamage} jetons, ${voileOwnerName} gains ${totalDirectDamage} jetons, attack blocked`);
             break;
           }
         }
@@ -1093,6 +1101,37 @@ serve(async (req) => {
           .eq('player_number', penalty.playerNum);
         
         console.log(`[resolve-combat] Applied Voile penalty: ${penalty.playerName} -${penalty.tokens} jetons`);
+      }
+    }
+
+    // Apply Voile du Gardien gains (defender gains tokens from blocked attacks)
+    // Aggregate gains per player first
+    const voileGainsAggregated = new Map<number, { playerName: string; totalTokens: number }>();
+    for (const gain of voileGains) {
+      const existing = voileGainsAggregated.get(gain.playerNum);
+      if (existing) {
+        existing.totalTokens += gain.tokens;
+      } else {
+        voileGainsAggregated.set(gain.playerNum, { playerName: gain.playerName, totalTokens: gain.tokens });
+      }
+    }
+    
+    for (const [playerNum, gainData] of voileGainsAggregated) {
+      const { data: playerData } = await supabase
+        .from('game_players')
+        .select('jetons')
+        .eq('game_id', gameId)
+        .eq('player_number', playerNum)
+        .single();
+      
+      if (playerData) {
+        await supabase
+          .from('game_players')
+          .update({ jetons: (playerData.jetons || 0) + gainData.totalTokens })
+          .eq('game_id', gameId)
+          .eq('player_number', playerNum);
+        
+        console.log(`[resolve-combat] Applied Voile gain: ${gainData.playerName} +${gainData.totalTokens} jetons`);
       }
     }
 
