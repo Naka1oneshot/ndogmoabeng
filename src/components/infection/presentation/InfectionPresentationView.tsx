@@ -68,8 +68,8 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const [showVictoryTransition, setShowVictoryTransition] = useState(false);
   const [showVictoryPodium, setShowVictoryPodium] = useState(false);
   
-  // Track if we already checked game end on mount (to skip transition for ended games)
-  const hasCheckedGameEnd = useRef(false);
+  // Check if initial game is already ended - if so, skip transition
+  const isGameAlreadyEnded = initialGame.status === 'ENDED' || initialGame.phase === 'ENDED';
   
   // Animation state for death reveal
   const [showDeathReveal, setShowDeathReveal] = useState(false);
@@ -91,6 +91,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const previousResolvedCountRef = useRef<number>(0);
   const previousDeadPlayersRef = useRef<Set<number>>(new Set());
   const previousMancheRef = useRef<number | null>(null);
+  const hasTriggeredVictory = useRef(false);
 
   const fetchData = useCallback(async () => {
     if (!game.id) return;
@@ -215,11 +216,12 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         .eq('event_type', 'GAME_END')
         .maybeSingle();
       
-      if (gameEndEvent && activePlayers.length > 0) {
+      if (gameEndEvent && activePlayers.length > 0 && !hasTriggeredVictory.current) {
         const payload = gameEndEvent.payload as { winner?: string } | null;
         const rawWinner = payload?.winner;
         
         console.log('[InfectionPresentation] GAME_END detected with', activePlayers.length, 'players loaded. rawWinner:', rawWinner);
+        console.log('[InfectionPresentation] isGameAlreadyEnded:', isGameAlreadyEnded);
         
         // Map winner values correctly
         let mappedWinner: 'SY' | 'PV' | 'CV';
@@ -236,22 +238,17 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         }
         
         console.log('[InfectionPresentation] Mapped winner:', mappedWinner);
+        hasTriggeredVictory.current = true;
+        setWinner(mappedWinner);
         
-        // Only trigger if winner not already set
-        if (!winner) {
-          setWinner(mappedWinner);
-          
-          // If game is already ended when we open presentation, skip transition and show podium directly
-          if (!hasCheckedGameEnd.current && (gameData?.status === 'ENDED' || gameData?.phase === 'ENDED')) {
-            console.log('[InfectionPresentation] Game already ended, showing podium directly');
-            hasCheckedGameEnd.current = true;
-            setShowVictoryPodium(true);
-          } else if (!hasCheckedGameEnd.current) {
-            // Game just ended while we were watching - show transition
-            console.log('[InfectionPresentation] Game just ended, showing transition animation');
-            hasCheckedGameEnd.current = true;
-            setShowVictoryTransition(true);
-          }
+        // If game was already ended when we opened presentation, skip transition and show podium directly
+        if (isGameAlreadyEnded) {
+          console.log('[InfectionPresentation] Game was already ended on mount, showing podium directly');
+          setShowVictoryPodium(true);
+        } else {
+          // Game just ended while we were watching - show transition
+          console.log('[InfectionPresentation] Game just ended, showing transition animation');
+          setShowVictoryTransition(true);
         }
       } else if (gameEndEvent && activePlayers.length === 0) {
         console.log('[InfectionPresentation] GAME_END detected but waiting for players to load...');
