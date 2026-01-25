@@ -136,8 +136,26 @@ export default function JoinAnonymous() {
         return;
       }
 
-      // Allow LOBBY and IN_ROUND status
-      if (data.status !== 'LOBBY' && data.status !== 'IN_ROUND') {
+      // Check if we already have a token for this game BEFORE status check
+      // This allows reconnection even if game is IN_GAME
+      const existingToken = localStorage.getItem(`${PLAYER_TOKEN_PREFIX}${data.id}`);
+      if (existingToken) {
+        const { data: validation } = await supabase.functions.invoke('validate-player', {
+          body: { gameId: data.id, playerToken: existingToken },
+        });
+
+        if (validation?.valid) {
+          navigate(`/player/${data.id}`);
+          return;
+        } else {
+          // Token invalid, remove it
+          localStorage.removeItem(`${PLAYER_TOKEN_PREFIX}${data.id}`);
+        }
+      }
+
+      // Now check game status for NEW players (after token check)
+      // Allow LOBBY, IN_ROUND, and IN_GAME status
+      if (data.status !== 'LOBBY' && data.status !== 'IN_ROUND' && data.status !== 'IN_GAME') {
         setError('Cette partie n\'accepte plus de nouveaux joueurs');
         setLoading(false);
         return;
@@ -169,21 +187,6 @@ export default function JoinAnonymous() {
         .not('player_number', 'is', null);
 
       setPlayerCount(count || 0);
-
-      // Check if we already have a token for this game
-      const existingToken = localStorage.getItem(`${PLAYER_TOKEN_PREFIX}${data.id}`);
-      if (existingToken) {
-        const { data: validation } = await supabase.functions.invoke('validate-player', {
-          body: { gameId: data.id, playerToken: existingToken },
-        });
-
-        if (validation?.valid) {
-          navigate(`/player/${data.id}`);
-          return;
-        } else {
-          localStorage.removeItem(`${PLAYER_TOKEN_PREFIX}${data.id}`);
-        }
-      }
     } catch (err) {
       console.error('Check game error:', err);
       setError('Erreur lors de la recherche');
