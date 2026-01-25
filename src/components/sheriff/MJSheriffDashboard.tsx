@@ -155,6 +155,11 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   
   // PVic Init state
   const [initializingPvic, setInitializingPvic] = useState(false);
+  
+  // Pool modification state
+  const [editingPool, setEditingPool] = useState(false);
+  const [newPoolAmount, setNewPoolAmount] = useState(0);
+  const [savingPool, setSavingPool] = useState(false);
 
   const getPresenceBadge = (lastSeen: string | null) => {
     if (!lastSeen) return { color: 'bg-red-500', textColor: 'text-red-500', label: 'Déconnecté' };
@@ -652,6 +657,43 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
     } finally {
       setInitializingPvic(false);
     }
+  };
+
+  // Update pool initial amount
+  const handleUpdatePoolInitial = async () => {
+    if (!game.current_session_game_id || !roundState) {
+      toast.error('Aucune session de jeu active');
+      return;
+    }
+    
+    setSavingPool(true);
+    try {
+      const { error } = await supabase
+        .from('sheriff_round_state')
+        .update({ common_pool_initial: newPoolAmount })
+        .eq('session_game_id', game.current_session_game_id);
+      
+      if (error) throw error;
+      
+      toast.success(`Cagnotte initiale mise à jour: ${newPoolAmount}€`);
+      setEditingPool(false);
+      fetchData();
+    } catch (err: any) {
+      console.error('[MJ] update pool initial error:', err);
+      toast.error('Erreur lors de la mise à jour');
+    } finally {
+      setSavingPool(false);
+    }
+  };
+
+  const startEditingPool = () => {
+    setNewPoolAmount(roundState?.common_pool_initial || 0);
+    setEditingPool(true);
+  };
+
+  const cancelEditingPool = () => {
+    setEditingPool(false);
+    setNewPoolAmount(0);
   };
 
   const activePlayers = players.filter(p => p.status === 'ACTIVE' && !p.is_host && p.player_number !== null);
@@ -1176,6 +1218,82 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
               </div>
             )}
           </div>
+
+          {/* Admin Settings - Pool & PVic Init */}
+          {game.current_session_game_id && roundState && (
+            <div className={`${theme.card} p-4`}>
+              <h3 className="text-sm font-medium text-[#D4AF37] mb-3 flex items-center gap-2">
+                <Pencil className="h-4 w-4" />
+                Paramètres de la Partie
+              </h3>
+              <div className="space-y-3">
+                {/* Pool Initial Edit */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#9CA3AF]">💰 Cagnotte initiale</span>
+                  {editingPool ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={10000}
+                        value={newPoolAmount}
+                        onChange={(e) => setNewPoolAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                        className={`w-24 h-8 text-center ${theme.input}`}
+                      />
+                      <span className="text-[#D4AF37]">€</span>
+                      <Button
+                        size="sm"
+                        onClick={handleUpdatePoolInitial}
+                        disabled={savingPool}
+                        className="h-8 px-2 bg-green-600 hover:bg-green-700"
+                      >
+                        {savingPool ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={cancelEditingPool}
+                        className="h-8 px-2"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#D4AF37] font-bold">{roundState.common_pool_initial}€</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={startEditingPool}
+                        className="h-8 px-2 text-[#9CA3AF] hover:text-[#D4AF37]"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                
+                {/* PVic Init Button */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#9CA3AF]">🏆 PVic Initial</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleInitializePvicInit}
+                    disabled={initializingPvic}
+                    className="h-8 border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                  >
+                    {initializingPvic ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                    )}
+                    Réinitialiser
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Stats */}
           <div className={`${theme.card} p-4`}>
