@@ -14,6 +14,7 @@ import { InfectionStatsPanel } from './InfectionStatsPanel';
 import { InfectionRoundAnimation } from './InfectionRoundAnimation';
 import { InfectionSYResearchProgress } from './InfectionSYResearchProgress';
 import { InfectionVictoryPodium } from './InfectionVictoryPodium';
+import { InfectionVictoryTransition } from './InfectionVictoryTransition';
 
 interface Game {
   id: string;
@@ -61,6 +62,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [winner, setWinner] = useState<'SY' | 'PV' | null>(null);
+  const [showVictoryTransition, setShowVictoryTransition] = useState(false);
   const [showVictoryPodium, setShowVictoryPodium] = useState(false);
   
   // Animation state
@@ -156,11 +158,11 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         .eq('event_type', 'GAME_END')
         .maybeSingle();
       
-      if (gameEndEvent) {
+      if (gameEndEvent && !winner) {
         const payload = gameEndEvent.payload as { winner?: string } | null;
         const winnerTeam = payload?.winner || (gameEndEvent.message?.includes('SY') ? 'SY' : 'PV');
         setWinner(winnerTeam as 'SY' | 'PV');
-        setShowVictoryPodium(true);
+        setShowVictoryTransition(true);
       }
     }
 
@@ -227,7 +229,20 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
     );
   }
 
-  // Show victory podium when game ends
+  // Show victory transition animation first
+  if (showVictoryTransition && winner) {
+    return (
+      <InfectionVictoryTransition
+        winner={winner}
+        onComplete={() => {
+          setShowVictoryTransition(false);
+          setShowVictoryPodium(true);
+        }}
+      />
+    );
+  }
+
+  // Show victory podium after transition
   if (showVictoryPodium && winner) {
     // Add avatar URLs to players for podium
     const playersWithAvatars = players.map(p => ({
