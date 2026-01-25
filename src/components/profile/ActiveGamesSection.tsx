@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Gamepad2, Copy, ExternalLink, Check, RefreshCw } from 'lucide-react';
+import { Gamepad2, Copy, ExternalLink, Check, RefreshCw, Map, Droplets, Swords, Bug, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -20,13 +20,29 @@ interface ActiveGameLink {
     name: string;
     status: string;
     phase: string;
+    mode: string;
     selected_game_type_code: string | null;
+    current_step_index: number;
+    adventure_id: string | null;
   } | null;
 }
+
+interface AdventureStep {
+  step_index: number;
+  game_type_code: string;
+}
+
+const GAME_TYPE_INFO: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  FORET: { label: 'La Forêt', icon: Swords, color: 'text-emerald-400' },
+  RIVIERES: { label: 'Les Rivières', icon: Droplets, color: 'text-blue-400' },
+  INFECTION: { label: 'Infection', icon: Bug, color: 'text-red-400' },
+  SHERIFF: { label: 'Shérif', icon: Shield, color: 'text-amber-400' },
+};
 
 export function ActiveGamesSection() {
   const { user } = useAuth();
   const [gameLinks, setGameLinks] = useState<ActiveGameLink[]>([]);
+  const [adventureSteps, setAdventureSteps] = useState<Record<string, AdventureStep[]>>({});
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -49,7 +65,10 @@ export function ActiveGamesSection() {
             name,
             status,
             phase,
-            selected_game_type_code
+            mode,
+            selected_game_type_code,
+            current_step_index,
+            adventure_id
           )
         `)
         .eq('user_id', user.id)
@@ -63,6 +82,34 @@ export function ActiveGamesSection() {
       );
       
       setGameLinks(activeLinks);
+
+      // Fetch adventure steps for adventure mode games
+      const adventureIds = activeLinks
+        .filter(link => link.game?.mode === 'ADVENTURE' && link.game?.adventure_id)
+        .map(link => link.game!.adventure_id!)
+        .filter((id, idx, arr) => arr.indexOf(id) === idx);
+
+      if (adventureIds.length > 0) {
+        const { data: stepsData } = await supabase
+          .from('adventure_steps')
+          .select('adventure_id, step_index, game_type_code')
+          .in('adventure_id', adventureIds)
+          .order('step_index');
+
+        if (stepsData) {
+          const stepsMap: Record<string, AdventureStep[]> = {};
+          stepsData.forEach(step => {
+            if (!stepsMap[step.adventure_id]) {
+              stepsMap[step.adventure_id] = [];
+            }
+            stepsMap[step.adventure_id].push({
+              step_index: step.step_index,
+              game_type_code: step.game_type_code,
+            });
+          });
+          setAdventureSteps(stepsMap);
+        }
+      }
     } catch (error) {
       console.error('Error fetching game links:', error);
     } finally {
@@ -112,14 +159,37 @@ export function ActiveGamesSection() {
     window.open(url, '_blank');
   };
 
-  const getGameTypeName = (code: string | null) => {
-    switch (code) {
-      case 'FOREST': return 'La Forêt';
-      case 'INFECTION': return 'Infection';
-      case 'RIVIERES': return 'Les Rivières';
-      case 'SHERIFF': return 'Sheriff';
-      default: return 'Partie';
-    }
+  const getGameTypeDisplay = (game: ActiveGameLink['game']) => {
+    if (!game) return null;
+    
+    const code = game.selected_game_type_code;
+    const info = code ? GAME_TYPE_INFO[code] : null;
+    
+    if (!info) return null;
+    
+    const Icon = info.icon;
+    return (
+      <span className={`flex items-center gap-1 ${info.color}`}>
+        <Icon className="w-3 h-3" />
+        {info.label}
+      </span>
+    );
+  };
+
+  const getAdventureProgress = (game: ActiveGameLink['game']) => {
+    if (!game || game.mode !== 'ADVENTURE' || !game.adventure_id) return null;
+    
+    const steps = adventureSteps[game.adventure_id];
+    if (!steps || steps.length === 0) return null;
+    
+    const currentStepIndex = game.current_step_index;
+    
+    return (
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Map className="w-3 h-3" />
+        <span>Aventure ({currentStepIndex}/{steps.length})</span>
+      </div>
+    );
   };
 
   const getStatusBadge = (status: string) => {
@@ -190,9 +260,16 @@ export function ActiveGamesSection() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-semibold truncate">{link.game.name}</h4>
                         {getStatusBadge(link.game.status)}
+                        {link.game.mode === 'ADVENTURE' && (
+                          <Badge variant="outline" className="bg-primary/10 border-primary/30 text-primary">
+                            <Map className="w-3 h-3 mr-1" />
+                            Aventure
+                          </Badge>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                        <span>{getGameTypeName(link.game.selected_game_type_code)}</span>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1 flex-wrap">
+                        {getGameTypeDisplay(link.game)}
+                        {link.game.mode === 'ADVENTURE' && getAdventureProgress(link.game)}
                         <span>•</span>
                         <span>Mis à jour {format(new Date(link.updated_at), 'dd/MM à HH:mm', { locale: fr })}</span>
                       </div>
