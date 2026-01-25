@@ -52,7 +52,7 @@ export function GamesSection() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
-          {GAMES_DATA.map((game) => (
+          {GAMES_DATA.filter((game) => game.code !== 'SHERIFF').map((game) => (
             <Card 
               key={game.id} 
               className="card-gradient border-border/50 hover:border-primary/50 transition-colors group overflow-hidden"
