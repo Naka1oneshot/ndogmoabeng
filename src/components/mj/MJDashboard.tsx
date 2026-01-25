@@ -193,37 +193,19 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         }
       }
       
-      // For SHERIFF: Get visa costs and duel deltas from sheriff tables
+      // For SHERIFF: Get cumulative delta from sheriff_player_choices
+      // IMPORTANT: victory_points_delta already includes duel results (updated by sheriff-resolve-duel)
+      // Do NOT add from sheriff_duels separately - that would cause double counting!
       let sheriffDeltaMap = new Map<number, number>(); // player_number -> cumulative delta percentage
       if (game.selected_game_type_code === 'SHERIFF' && game.current_session_game_id) {
-        // Get visa choice deltas
         const { data: choices } = await supabase
           .from('sheriff_player_choices')
           .select('player_number, victory_points_delta')
           .eq('session_game_id', game.current_session_game_id);
         
-        // Get duel result deltas
-        const { data: duels } = await supabase
-          .from('sheriff_duels')
-          .select('player1_number, player2_number, player1_vp_delta, player2_vp_delta, status')
-          .eq('session_game_id', game.current_session_game_id)
-          .eq('status', 'RESOLVED');
-        
-        // Build delta map: visa cost + duel delta per player
         if (choices) {
           for (const choice of choices) {
-            const existing = sheriffDeltaMap.get(choice.player_number) || 0;
-            sheriffDeltaMap.set(choice.player_number, existing + (choice.victory_points_delta || 0));
-          }
-        }
-        
-        if (duels) {
-          for (const duel of duels) {
-            const existingP1 = sheriffDeltaMap.get(duel.player1_number) || 0;
-            sheriffDeltaMap.set(duel.player1_number, existingP1 + (duel.player1_vp_delta || 0));
-            
-            const existingP2 = sheriffDeltaMap.get(duel.player2_number) || 0;
-            sheriffDeltaMap.set(duel.player2_number, existingP2 + (duel.player2_vp_delta || 0));
+            sheriffDeltaMap.set(choice.player_number, choice.victory_points_delta || 0);
           }
         }
       }
