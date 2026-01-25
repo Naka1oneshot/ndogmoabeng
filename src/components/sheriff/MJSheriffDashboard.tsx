@@ -152,6 +152,9 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   const [generatingBotChoices, setGeneratingBotChoices] = useState(false);
   const [generatingBotDuels, setGeneratingBotDuels] = useState(false);
   const [generatingAllBotDuels, setGeneratingAllBotDuels] = useState(false);
+  
+  // PVic Init state
+  const [initializingPvic, setInitializingPvic] = useState(false);
 
   const getPresenceBadge = (lastSeen: string | null) => {
     if (!lastSeen) return { color: 'bg-red-500', textColor: 'text-red-500', label: 'Déconnecté' };
@@ -603,6 +606,54 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
     }
   };
 
+  // Initialize PVic Init for all players
+  const handleInitializePvicInit = async () => {
+    if (!game.current_session_game_id) {
+      toast.error('Aucune session de jeu active');
+      return;
+    }
+    
+    setInitializingPvic(true);
+    try {
+      // Get current pvic values from game_players
+      const { data: currentPlayers, error: fetchError } = await supabase
+        .from('game_players')
+        .select('id, player_number, pvic')
+        .eq('game_id', game.id)
+        .eq('status', 'ACTIVE')
+        .not('player_number', 'is', null);
+      
+      if (fetchError) throw fetchError;
+      
+      if (!currentPlayers || currentPlayers.length === 0) {
+        toast.error('Aucun joueur trouvé');
+        return;
+      }
+      
+      // Update sheriff_player_choices with pvic_initial
+      let updated = 0;
+      for (const player of currentPlayers) {
+        const { error: updateError } = await supabase
+          .from('sheriff_player_choices')
+          .update({ pvic_initial: player.pvic ?? 0 })
+          .eq('session_game_id', game.current_session_game_id)
+          .eq('player_number', player.player_number);
+        
+        if (!updateError) {
+          updated++;
+        }
+      }
+      
+      toast.success(`PVic Init initialisé pour ${updated} joueurs`);
+      fetchData();
+    } catch (err: any) {
+      console.error('[MJ] initialize pvic_initial error:', err);
+      toast.error('Erreur lors de l\'initialisation');
+    } finally {
+      setInitializingPvic(false);
+    }
+  };
+
   const activePlayers = players.filter(p => p.status === 'ACTIVE' && !p.is_host && p.player_number !== null);
   const kickedPlayers = players.filter(p => p.status === 'REMOVED');
   const botPlayers = activePlayers.filter(p => p.is_bot);
@@ -623,6 +674,12 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
 
   const availablePlayerNumbers = Array.from({ length: 20 }, (_, i) => i + 1);
   const CLANS = ['Aseyra', 'Ezkar', 'Royaux', 'Zoulous', 'Keryndes', 'Akila', 'Akandé'];
+  
+  // Check if any player has pvic_initial = 0 but should have higher
+  const hasUninitialized = choices.some((c) => {
+    const player = activePlayers.find(p => p.player_number === c.player_number);
+    return c.pvic_initial === 0 && (player?.pvic ?? 0) > 0;
+  });
 
   // Lobby view
   if (game.status === 'LOBBY') {
@@ -1236,10 +1293,30 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
 
         <TabsContent value="players" className="p-4">
           <div className={`${theme.card} p-4`}>
-            <h3 className="text-sm font-medium text-[#D4AF37] mb-3 flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Joueurs ({activePlayers.length})
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-[#D4AF37] flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Joueurs ({activePlayers.length})
+              </h3>
+              
+              {/* Button to initialize PVic Init if missing */}
+              {game.current_session_game_id && hasUninitialized && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleInitializePvicInit}
+                  disabled={initializingPvic}
+                  className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                >
+                  {initializingPvic ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Trophy className="h-4 w-4 mr-1" />
+                  )}
+                  Initialiser PVic Init
+                </Button>
+              )}
+            </div>
             
             {isMobile ? (
               <div className="space-y-2">
