@@ -84,7 +84,20 @@ export function RoundResolutionSummary({
     : null;
 
   const newlyInfected = players.filter(p => p.infected_at_manche === manche && p.role_code !== 'PV');
-  const newlyDead = players.filter(p => p.is_alive === false);
+  
+  // Deaths from infection (players who died this round from infection, not shot)
+  const deathsFromInfection = players.filter(p => 
+    p.is_alive === false && 
+    p.will_die_at_manche === manche &&
+    !shots.some(s => s.target_num === p.player_number && s.status === 'APPLIED' && !s.ignore_reason)
+  );
+  
+  // Players who became contagious this round (infected 2 rounds ago)
+  const newlyContagious = players.filter(p => 
+    p.is_contagious === true && 
+    p.infected_at_manche === manche - 2 &&
+    p.is_alive !== false
+  );
 
   // Group actions by player
   const playerActions = players
@@ -309,7 +322,39 @@ export function RoundResolutionSummary({
             </div>
           )}
           
-          {killedByShot.length === 0 && blockedByGilet.length === 0 && sabotaged.length === 0 && !patient0ThisRound && newlyInfected.length === 0 && (
+          {deathsFromInfection.length > 0 && (
+            <div className="flex items-start gap-2 p-2 bg-[#6B21A8]/10 rounded">
+              <Skull className="h-4 w-4 text-[#9333EA] mt-0.5" />
+              <div>
+                <span>Morts par infection:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {deathsFromInfection.map(p => (
+                    <Badge key={p.id} className="bg-[#9333EA]/20 text-[#9333EA] text-xs">
+                      #{p.player_number} {p.display_name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {newlyContagious.length > 0 && (
+            <div className="flex items-start gap-2 p-2 bg-[#E6A23C]/10 rounded">
+              <AlertTriangle className="h-4 w-4 text-[#E6A23C] mt-0.5" />
+              <div>
+                <span>Nouveaux contaminateurs:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {newlyContagious.map(p => (
+                    <Badge key={p.id} className="bg-[#E6A23C]/20 text-[#E6A23C] text-xs">
+                      #{p.player_number} {p.display_name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {killedByShot.length === 0 && blockedByGilet.length === 0 && sabotaged.length === 0 && !patient0ThisRound && newlyInfected.length === 0 && deathsFromInfection.length === 0 && newlyContagious.length === 0 && (
             <div className="text-[#6B7280] text-center py-2">Aucun événement majeur cette manche</div>
           )}
         </div>
