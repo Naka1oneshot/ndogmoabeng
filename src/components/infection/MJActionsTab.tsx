@@ -307,6 +307,10 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccess
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [botLogs, setBotLogs] = useState<BotDecisionLog[]>([]);
   const [subTab, setSubTab] = useState('roles');
+  const [allRoundStates, setAllRoundStates] = useState<{ manche: number; status: string }[]>([]);
+  
+  // Check if viewing all rounds mode
+  const isAllRoundsMode = manche === 0;
 
   useEffect(() => {
     fetchData();
@@ -323,18 +327,27 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccess
   }, [sessionGameId, manche, gameId]);
 
   const fetchData = async () => {
-    const [{ data: inputsData }, { data: shotsData }, { data: inventoryData }, { data: logsData }] = await Promise.all([
-      supabase
-        .from('infection_inputs')
-        .select('*')
-        .eq('session_game_id', sessionGameId)
-        .eq('manche', manche),
-      supabase
-        .from('infection_shots')
-        .select('*')
-        .eq('session_game_id', sessionGameId)
-        .eq('manche', manche)
-        .order('server_ts', { ascending: true }),
+    // Build queries based on mode
+    let inputsQuery = supabase
+      .from('infection_inputs')
+      .select('*')
+      .eq('session_game_id', sessionGameId);
+    
+    let shotsQuery = supabase
+      .from('infection_shots')
+      .select('*')
+      .eq('session_game_id', sessionGameId)
+      .order('server_ts', { ascending: true });
+    
+    // If not all rounds mode, filter by specific manche
+    if (!isAllRoundsMode) {
+      inputsQuery = inputsQuery.eq('manche', manche);
+      shotsQuery = shotsQuery.eq('manche', manche);
+    }
+    
+    const [{ data: inputsData }, { data: shotsData }, { data: inventoryData }, { data: logsData }, { data: roundStatesData }] = await Promise.all([
+      inputsQuery,
+      shotsQuery,
       supabase
         .from('inventory')
         .select('owner_num, objet, quantite, disponible, dispo_attaque')
@@ -347,12 +360,18 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccess
         .eq('action', 'BOT_DECISIONS')
         .order('timestamp', { ascending: false })
         .limit(20),
+      supabase
+        .from('infection_round_state')
+        .select('manche, status')
+        .eq('session_game_id', sessionGameId)
+        .order('manche', { ascending: true }),
     ]);
 
     if (inputsData) setInputs(inputsData);
     if (shotsData) setShots(shotsData);
     if (inventoryData) setInventory(inventoryData as InventoryItem[]);
     if (logsData) setBotLogs(logsData as BotDecisionLog[]);
+    if (roundStatesData) setAllRoundStates(roundStatesData);
   };
 
   const parseBotDecisions = (details: string): { bots_processed: number; inputs_created: number; shots_created: number; results: BotDecisionResult[] } | null => {
@@ -429,13 +448,48 @@ export function MJActionsTab({ gameId, sessionGameId, manche, players, sySuccess
         </TabsList>
 
         <TabsContent value="summary" className="mt-4">
-          <RoundResolutionSummary
-            manche={manche}
-            players={players}
-            inputs={inputs}
-            shots={shots}
-            isResolved={roundStatus === 'RESOLVED'}
-          />
+          {isAllRoundsMode ? (
+            <ScrollArea className="h-[calc(100vh-300px)] min-h-[400px]">
+              <div className="space-y-6 pr-4">
+                {allRoundStates.map(rs => {
+                  const roundInputs = inputs.filter(i => i.manche === rs.manche);
+                  const roundShots = shots.filter(s => s.manche === rs.manche);
+                  return (
+                    <div key={rs.manche} className="border border-[#2D3748] rounded-lg overflow-hidden">
+                      <div className="bg-[#1A2235] px-4 py-2 border-b border-[#2D3748] flex items-center justify-between">
+                        <h3 className="font-semibold text-[#E6A23C]">Manche {rs.manche}</h3>
+                        <Badge className={rs.status === 'RESOLVED' ? 'bg-[#6B7280]/20 text-[#6B7280]' : 'bg-[#2AB3A6]/20 text-[#2AB3A6]'}>
+                          {rs.status === 'RESOLVED' ? 'Terminée' : 'En cours'}
+                        </Badge>
+                      </div>
+                      <div className="p-4">
+                        <RoundResolutionSummary
+                          manche={rs.manche}
+                          players={players}
+                          inputs={roundInputs}
+                          shots={roundShots}
+                          isResolved={rs.status === 'RESOLVED'}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                {allRoundStates.length === 0 && (
+                  <div className="text-center text-[#6B7280] py-8">
+                    Aucune manche enregistrée
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          ) : (
+            <RoundResolutionSummary
+              manche={manche}
+              players={players}
+              inputs={inputs}
+              shots={shots}
+              isResolved={roundStatus === 'RESOLVED'}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="roles" className="mt-4 space-y-4">

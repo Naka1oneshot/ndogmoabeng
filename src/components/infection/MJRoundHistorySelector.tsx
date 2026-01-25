@@ -83,10 +83,20 @@ export function MJRoundHistorySelector({
         value={selectedManche.toString()} 
         onValueChange={(v) => onSelectManche(parseInt(v))}
       >
-        <SelectTrigger className="w-[180px] bg-[#1A2235] border-[#2D3748]">
+        <SelectTrigger className="w-[200px] bg-[#1A2235] border-[#2D3748]">
           <SelectValue placeholder="Sélectionner manche" />
         </SelectTrigger>
-        <SelectContent className="bg-[#1A2235] border-[#2D3748]">
+        <SelectContent className="bg-[#1A2235] border-[#2D3748] z-50">
+          {/* All rounds option */}
+          <SelectItem value="0">
+            <div className="flex items-center">
+              <span className="font-medium">📋 Toutes les manches</span>
+            </div>
+          </SelectItem>
+          
+          {/* Separator */}
+          <div className="h-px bg-[#2D3748] my-1" />
+          
           {rounds.map(round => (
             <SelectItem key={round.id} value={round.manche.toString()}>
               <div className="flex items-center">
@@ -97,9 +107,17 @@ export function MJRoundHistorySelector({
           ))}
         </SelectContent>
       </Select>
-      {selectedManche !== currentManche && (
+      {selectedManche !== currentManche && selectedManche !== 0 && (
         <Badge 
           className="bg-[#E6A23C]/20 text-[#E6A23C] cursor-pointer"
+          onClick={() => onSelectManche(currentManche)}
+        >
+          ← Retour manche active
+        </Badge>
+      )}
+      {selectedManche === 0 && (
+        <Badge 
+          className="bg-[#2AB3A6]/20 text-[#2AB3A6] cursor-pointer"
           onClick={() => onSelectManche(currentManche)}
         >
           ← Retour manche active
