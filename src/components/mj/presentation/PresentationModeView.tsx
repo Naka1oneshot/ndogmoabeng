@@ -244,32 +244,38 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   }, [triggerMonsterReplacement, triggerEmptySlot]);
 
   const fetchData = useCallback(async () => {
-    console.log('[Presentation] Fetching data for game', game.id, 'manche', game.manche_active, 'phase', game.phase);
+    const gameId = initialGame.id;
+    console.log('[Presentation] Fetching data for game', gameId);
     
-    // First, fetch latest game state to ensure we have current phase/manche/status
-    const { data: latestGame } = await supabase
-      .from('games')
-      .select('id, name, status, manche_active, phase, phase_locked, current_session_game_id')
-      .eq('id', game.id)
-      .single();
-    
-    if (latestGame) {
-      // Check for phase change and trigger animation
-      if (previousPhaseRef.current !== latestGame.phase) {
-        triggerPhaseTransition(latestGame.phase);
-        previousPhaseRef.current = latestGame.phase;
+    try {
+      // First, fetch latest game state to ensure we have current phase/manche/status
+      const { data: latestGame, error: gameError } = await supabase
+        .from('games')
+        .select('id, name, status, manche_active, phase, phase_locked, current_session_game_id')
+        .eq('id', gameId)
+        .single();
+      
+      if (gameError) {
+        console.error('[Presentation] Error fetching game:', gameError);
       }
-      setGame(latestGame);
-    }
-    
-    const manche = latestGame?.manche_active ?? game.manche_active;
-    const sessionGameId = latestGame?.current_session_game_id ?? game.current_session_game_id;
+      
+      if (latestGame) {
+        // Check for phase change and trigger animation
+        if (previousPhaseRef.current !== latestGame.phase) {
+          triggerPhaseTransition(latestGame.phase);
+          previousPhaseRef.current = latestGame.phase;
+        }
+        setGame(latestGame);
+      }
+      
+      const manche = latestGame?.manche_active ?? initialGame.manche_active;
+      const sessionGameId = latestGame?.current_session_game_id ?? initialGame.current_session_game_id;
 
     // Fetch monsters
     let monstersQuery = supabase
       .from('game_state_monsters')
       .select('id, monster_id, pv_current, status, battlefield_slot')
-      .eq('game_id', game.id);
+      .eq('game_id', gameId);
     
     if (sessionGameId) {
       monstersQuery = monstersQuery.eq('session_game_id', sessionGameId);
@@ -281,7 +287,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       const monsterIds = monstersData.map(m => m.monster_id);
       const [catalogRes, configRes] = await Promise.all([
         supabase.from('monster_catalog').select('id, name, type, pv_max_default, reward_default').in('id', monsterIds),
-        supabase.from('game_monsters').select('monster_id, pv_max_override, reward_override').eq('game_id', game.id).in('monster_id', monsterIds),
+        supabase.from('game_monsters').select('monster_id, pv_max_override, reward_override').eq('game_id', gameId).in('monster_id', monsterIds),
       ]);
 
       const catalogMap = new Map((catalogRes.data || []).map(c => [c.id, c]));
@@ -306,7 +312,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     const { data: playersData } = await supabase
       .from('game_players')
       .select('id, display_name, player_number, jetons, recompenses, mate_num, is_host, user_id, clan')
-      .eq('game_id', game.id)
+      .eq('game_id', gameId)
       .is('removed_at', null)
       .eq('is_host', false)
       .order('player_number');
@@ -340,7 +346,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     const { data: betsData } = await supabase
       .from('round_bets')
       .select('num_joueur, manche, mise, status')
-      .eq('game_id', game.id)
+      .eq('game_id', gameId)
       .eq('manche', manche);
     setBets(betsData || []);
 
@@ -348,7 +354,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     const { data: actionsData } = await supabase
       .from('actions')
       .select('num_joueur, manche, attaque1, attaque2')
-      .eq('game_id', game.id)
+      .eq('game_id', gameId)
       .eq('manche', manche);
     setActions(actionsData || []);
 
@@ -357,11 +363,11 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       supabase
         .from('actions')
         .select('num_joueur, attaque1, attaque2')
-        .eq('game_id', game.id),
+        .eq('game_id', gameId),
       supabase
         .from('round_bets')
         .select('num_joueur, mise_effective')
-        .eq('game_id', game.id),
+        .eq('game_id', gameId),
     ]);
     setAllActions(allActionsRes.data || []);
     setAllBets(allBetsRes.data || []);
@@ -370,7 +376,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     const { data: positionsData } = await supabase
       .from('positions_finales')
       .select('num_joueur, nom, position_finale')
-      .eq('game_id', game.id)
+      .eq('game_id', gameId)
       .eq('manche', manche);
     setPositions((positionsData || []).sort((a, b) => a.position_finale - b.position_finale));
 
@@ -378,7 +384,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     const { data: prioritiesData } = await supabase
       .from('priority_rankings')
       .select('player_id, num_joueur, display_name, rank')
-      .eq('game_id', game.id)
+      .eq('game_id', gameId)
       .eq('manche', manche);
     setPriorities((prioritiesData || []).sort((a, b) => a.rank - b.rank));
 
@@ -386,7 +392,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     const { data: shopOfferData } = await supabase
       .from('game_shop_offers')
       .select('id, item_ids')
-      .eq('game_id', game.id)
+      .eq('game_id', gameId)
       .eq('manche', manche)
       .maybeSingle();
     
@@ -416,7 +422,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     const { data: shopRequestsData } = await supabase
       .from('shop_requests')
       .select('player_id, player_num')
-      .eq('game_id', game.id)
+      .eq('game_id', gameId)
       .eq('manche', manche);
     setShopRequests(shopRequestsData || []);
 
@@ -425,7 +431,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
       const { data: combatResults } = await supabase
         .from('combat_results')
         .select('kills')
-        .eq('game_id', game.id)
+        .eq('game_id', gameId)
         .eq('session_game_id', sessionGameId);
       
       if (combatResults) {
@@ -457,11 +463,14 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
         setAllKillsByPlayer(killsByPlayer);
       }
     }
-
-    setLastUpdate(new Date());
-    setLoading(false);
-    setIsRefreshing(false);
-  }, [game.id, game.manche_active, game.current_session_game_id, game.phase, triggerPhaseTransition, triggerCoupDeGrace, checkBattlefieldReplacements]);
+    } catch (error) {
+      console.error('[Presentation] Error in fetchData:', error);
+    } finally {
+      setLastUpdate(new Date());
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [initialGame.id, triggerPhaseTransition, triggerCoupDeGrace, checkBattlefieldReplacements]);
   
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -488,7 +497,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [game.id, fetchData]);
+  }, [initialGame.id, fetchData]);
 
   // Handle keyboard escape
   useEffect(() => {
@@ -813,16 +822,26 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   };
 
   // If game is ended, show victory podium
-  if (isGameEnded) {
-    console.log('[Presentation] Game ended - showing podium. Players:', players.length, 'Rankings:', playerRankings.length, playerRankings);
+  if (isGameEnded && !loading) {
+    console.log('[Presentation] Game ended - showing podium. Players:', players.length, 'Rankings:', playerRankings.length);
     
-    // If we still don't have player data, show loading while we fetch
-    if (players.length === 0) {
+    // Ensure we have player data
+    if (players.length === 0 || playerRankings.length === 0) {
+      console.log('[Presentation] No player data yet, triggering refetch...');
+      // Data not ready - show a brief loading then let the effect handle refresh
       return (
         <div className="fixed inset-0 z-[100] bg-gradient-to-b from-background to-secondary flex items-center justify-center">
           <div className="text-center space-y-4">
             <Trophy className="h-16 w-16 text-primary mx-auto animate-pulse" />
-            <p className="text-lg text-muted-foreground">Chargement du podium...</p>
+            <p className="text-lg text-muted-foreground">Préparation du podium...</p>
+            <Button 
+              variant="outline" 
+              onClick={handleManualRefresh}
+              className="mt-4"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualiser
+            </Button>
           </div>
         </div>
       );
