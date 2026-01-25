@@ -502,7 +502,7 @@ export function CombatLogsDetailedPanel({
                   <span className="font-bold text-amber-400">{kill.killerName}</span>
                   {' a éliminé '}
                   <span className="font-bold text-red-400">{kill.monsterName}</span>
-                  {' (Slot {kill.slot}) '}
+                  {` (Slot ${kill.slot}) `}
                   <Badge variant="outline" className="text-xs ml-2 text-green-400 border-green-400/50">
                     +{kill.reward} jetons
                   </Badge>
