@@ -243,13 +243,14 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             }
           } else if (game.selected_game_type_code === 'SHERIFF') {
             // For SHERIFF: Calculate PVic Act = PVic Init + (PVic Init × delta%)
-            // This matches the player table logic exactly
+            // This MUST match MJPlayersTab exactly:
+            // PVic Act = pvic + Math.round(pvic * (delta / 100))
+            // where pvic is the value from game_players.pvic (the initial value at start of Sheriff)
             const deltaPercent = sheriffDeltaMap.get(player.player_number) || 0;
-            const pvicInitial = player.pvic || 0;
-            const pvicAct = pvicInitial + Math.round(pvicInitial * (deltaPercent / 100));
-            // Return PVic Act as the "current game score" (replaces adventure score for Sheriff)
-            // Since adventure_scores already has previous games, we return pvicAct here
-            // and the caller should NOT add adventure_scores for SHERIFF
+            const pvicInit = player.pvic || 0;
+            const pvicAct = pvicInit + Math.round(pvicInit * (deltaPercent / 100));
+            // Return PVic Act - this is the FINAL score for this player in Sheriff
+            // The caller should NOT add adventure_scores for SHERIFF
             return pvicAct;
           } else {
             // For FORET and others: Use only recompenses (current game kills/rewards)
