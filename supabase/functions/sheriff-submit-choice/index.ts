@@ -59,18 +59,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Calculate visa cost using configured percentage
+    // Calculate visa cost - visaCostApplied stores the absolute amount for display
+    // victoryPointsDelta stores the PERCENTAGE for consistent scoring with duels
     let visaCostApplied = 0;
+    let victoryPointsDelta = 0;
+    
     if (visaChoice === 'VICTORY_POINTS') {
-      visaCostApplied = (player.pvic || 0) * (visaPvicPercent / 100); // Use configured %
+      // Cost is X% of PVic - store absolute value for display
+      visaCostApplied = (player.pvic || 0) * (visaPvicPercent / 100);
+      // Store as PERCENTAGE delta (negative) for scoring formula consistency
+      victoryPointsDelta = -visaPvicPercent;
     } else if (visaChoice === 'COMMON_POOL') {
-      visaCostApplied = poolCostPerPlayer; // Use configured pool cost
+      visaCostApplied = poolCostPerPlayer;
+      victoryPointsDelta = 0; // No PVic impact for pool payment
     }
 
     const hasIllegalTokens = tokensEntering > 20;
-
-    // Calculate victory points delta for PVic visa payment (negative = cost)
-    const victoryPointsDelta = visaChoice === 'VICTORY_POINTS' ? -visaCostApplied : 0;
 
     // Update player choice with immediate PVic delta for real-time display
     const { error: updateError } = await supabase
