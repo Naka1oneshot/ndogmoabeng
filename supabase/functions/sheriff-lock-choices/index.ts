@@ -25,6 +25,22 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    // Get round state to read pool config
+    const { data: roundState, error: roundError } = await supabase
+      .from('sheriff_round_state')
+      .select('common_pool_initial, bot_config')
+      .eq('session_game_id', sessionGameId)
+      .single();
+
+    if (roundError) throw roundError;
+
+    // Extract pool settings from bot_config
+    const poolConfig = roundState?.bot_config as { cost_per_player?: number; floor_percent?: number } || {};
+    const costPerPlayer = poolConfig.cost_per_player || 10;
+    const floorPercent = poolConfig.floor_percent || 40;
+    const poolInitial = roundState?.common_pool_initial || 100;
+    const poolFloor = poolInitial * (floorPercent / 100);
+
     // Get all players with their choices (including visa_choice and visa_cost_applied)
     const { data: choices, error: choicesError } = await supabase
       .from('sheriff_player_choices')
@@ -34,10 +50,15 @@ Deno.serve(async (req) => {
 
     if (choicesError) throw choicesError;
 
-    // Calculate total pool spent from COMMON_POOL visa choices
-    const totalPoolSpent = choices
-      ?.filter(c => c.visa_choice === 'COMMON_POOL')
-      .reduce((sum, c) => sum + (c.visa_cost_applied || 0), 0) || 0;
+    // Count players who chose COMMON_POOL
+    const poolChoiceCount = choices?.filter(c => c.visa_choice === 'COMMON_POOL').length || 0;
+    
+    // Calculate raw total based on cost per player
+    const rawPoolSpent = poolChoiceCount * costPerPlayer;
+    
+    // Apply floor limit: pool cannot go below floor, so spent is capped
+    const maxSpendable = poolInitial - poolFloor;
+    const totalPoolSpent = Math.min(rawPoolSpent, maxSpendable);
 
     // Get players with mate info to avoid same-team duels
     const { data: players, error: playersError } = await supabase

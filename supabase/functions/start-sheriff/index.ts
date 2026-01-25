@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { gameId, sessionGameId, initialPool } = await req.json();
+    const { gameId, sessionGameId, initialPool, poolCostPerPlayer, poolFloorPercent } = await req.json();
 
     if (!gameId || !sessionGameId) {
       return new Response(
@@ -20,8 +20,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Use provided initialPool or default to 100
+    // Use provided values or defaults
     const commonPoolInitial = typeof initialPool === 'number' && initialPool >= 0 ? initialPool : 100;
+    const costPerPlayer = typeof poolCostPerPlayer === 'number' && poolCostPerPlayer > 0 ? poolCostPerPlayer : 10;
+    const floorPercent = typeof poolFloorPercent === 'number' && poolFloorPercent >= 0 ? poolFloorPercent : 40;
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -47,7 +49,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create round state
+    // Create round state with pool config
+    const poolConfig = {
+      cost_per_player: costPerPlayer,
+      floor_percent: floorPercent,
+    };
+    
     const { error: stateError } = await supabase
       .from('sheriff_round_state')
       .upsert({
@@ -58,6 +65,7 @@ Deno.serve(async (req) => {
         total_duels: 0,
         common_pool_initial: commonPoolInitial,
         common_pool_spent: 0,
+        bot_config: poolConfig, // Store pool settings in bot_config for now
       }, { onConflict: 'session_game_id' });
 
     if (stateError) throw stateError;
