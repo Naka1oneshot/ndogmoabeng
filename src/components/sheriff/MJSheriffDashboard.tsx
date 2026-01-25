@@ -1273,8 +1273,8 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                       <th className="text-left py-2">Mate</th>
                       <th className="text-right py-2">Jetons</th>
                       <th className="text-right py-2">PVic Init</th>
-                      <th className="text-right py-2">PV Δ</th>
-                      <th className="text-right py-2">PVic Act</th>
+                      <th className="text-right py-2">PV Δ 🔄</th>
+                      <th className="text-right py-2">PVic Act 🔄</th>
                     </tr>
                   </thead>
                   <tbody>
