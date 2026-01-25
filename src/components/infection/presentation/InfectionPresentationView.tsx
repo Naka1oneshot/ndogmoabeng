@@ -212,15 +212,32 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         .eq('event_type', 'GAME_END')
         .maybeSingle();
       
-      if (gameEndEvent && !winner) {
+      if (gameEndEvent && !winner && activePlayers.length > 0) {
+        // Only trigger victory sequence once we have players loaded
         const payload = gameEndEvent.payload as { winner?: string } | null;
-        const rawWinner = payload?.winner || (gameEndEvent.message?.includes('SY') ? 'SY' : 'PV');
+        const rawWinner = payload?.winner;
         
-        // Map NON_PV to CV (Citizens won by eliminating all PV, but SY didn't succeed)
-        let mappedWinner: 'SY' | 'PV' | 'CV' = rawWinner === 'NON_PV' ? 'CV' : (rawWinner as 'SY' | 'PV');
+        console.log('[InfectionPresentation] GAME_END detected with', activePlayers.length, 'players loaded. rawWinner:', rawWinner);
         
+        // Map winner values correctly
+        let mappedWinner: 'SY' | 'PV' | 'CV';
+        if (rawWinner === 'SY') {
+          mappedWinner = 'SY';
+        } else if (rawWinner === 'NON_PV') {
+          // NON_PV means all PV are dead but SY mission failed = Citizens win
+          mappedWinner = 'CV';
+        } else if (rawWinner === 'PV') {
+          mappedWinner = 'PV';
+        } else {
+          // Fallback: try to infer from message
+          mappedWinner = gameEndEvent.message?.includes('Synthétistes') ? 'SY' : 'CV';
+        }
+        
+        console.log('[InfectionPresentation] Mapped winner:', mappedWinner);
         setWinner(mappedWinner);
         setShowVictoryTransition(true);
+      } else if (gameEndEvent && !winner && activePlayers.length === 0) {
+        console.log('[InfectionPresentation] GAME_END detected but waiting for players to load...');
       }
     }
 
@@ -245,6 +262,14 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       supabase.removeChannel(channel);
     };
   }, [fetchData, game.id]);
+  
+  // Force fetch when podium should be shown but players are empty
+  useEffect(() => {
+    if (showVictoryPodium && players.length === 0) {
+      console.log('[InfectionPresentation] Podium requested but players empty, forcing fetch...');
+      fetchData();
+    }
+  }, [showVictoryPodium, players.length, fetchData]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -309,16 +334,26 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
     }));
     
     console.log('[InfectionPresentationView] Showing podium with players:', playersWithAvatars.length);
-    console.log('[InfectionPresentationView] Player data:', playersWithAvatars.map(p => ({ name: p.display_name, pvic: p.pvic, role: p.role_code })));
+    console.log('[InfectionPresentationView] Winner:', winner);
     
-    // If players are not loaded yet, show loading
+    // If players are not loaded yet, trigger a fetch and show loading
     if (playersWithAvatars.length === 0) {
+      // Trigger immediate fetch if players are empty
+      console.log('[InfectionPresentationView] Players empty, triggering fetch...');
+      
       return (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: INFECTION_COLORS.bgPrimary }}>
           <div className="text-center">
             <Trophy className="h-16 w-16 mx-auto mb-4 animate-pulse" style={{ color: INFECTION_COLORS.accent }} />
             <p style={{ color: INFECTION_COLORS.textSecondary }}>Chargement des données...</p>
-            <Button variant="outline" onClick={fetchData} className="mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                console.log('[InfectionPresentationView] Manual refresh triggered');
+                fetchData();
+              }} 
+              className="mt-4"
+            >
               <RefreshCw className="h-4 w-4 mr-2" /> Actualiser
             </Button>
           </div>
