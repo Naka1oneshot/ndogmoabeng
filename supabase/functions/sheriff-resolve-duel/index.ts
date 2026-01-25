@@ -16,10 +16,16 @@ interface DuelResult {
   };
 }
 
-// Calculate VP impact based on tokens beyond 20 (0% to duelMaxImpact%)
-function calculateImpactPercent(tokensEntering: number, duelMaxImpact: number): number {
-  const extraTokens = Math.max(0, (tokensEntering || 20) - 20);
-  return Math.min(extraTokens, duelMaxImpact); // 0% to max impact
+interface DuelConfig {
+  gainPerIllegalFound: number;   // % gain per illegal token found (default 10)
+  lossSearchNoIllegal: number;   // % loss if search finds 0 illegal (default 50)
+  gainPerIllegalPassed: number;  // % gain per illegal token passed unsearched (default 10)
+  lossPerIllegalCaught: number;  // % loss per illegal token when caught (default 10)
+}
+
+// Calculate number of illegal tokens (tokens beyond 20)
+function getIllegalTokenCount(tokensEntering: number): number {
+  return Math.max(0, (tokensEntering || 20) - 20);
 }
 
 function calculateDuelOutcome(
@@ -29,7 +35,7 @@ function calculateDuelOutcome(
   p2HasIllegal: boolean,
   p1TokensEntering: number,
   p2TokensEntering: number,
-  duelMaxImpact: number
+  config: DuelConfig
 ): DuelResult {
   let p1VpDelta = 0;
   let p2VpDelta = 0;
@@ -38,32 +44,35 @@ function calculateDuelOutcome(
   let p1Summary = '';
   let p2Summary = '';
 
-  // Calculate impact based on tokens beyond 20
-  const p1Impact = calculateImpactPercent(p1TokensEntering, duelMaxImpact);
-  const p2Impact = calculateImpactPercent(p2TokensEntering, duelMaxImpact);
+  // Calculate illegal token counts
+  const p1IllegalCount = getIllegalTokenCount(p1TokensEntering);
+  const p2IllegalCount = getIllegalTokenCount(p2TokensEntering);
 
   // Player 1 searches Player 2
   if (p1Searches) {
-    if (p2HasIllegal) {
+    if (p2HasIllegal && p2IllegalCount > 0) {
       // P1 found illegal tokens on P2
-      p1VpDelta += p2Impact; // Gain X% PV based on P2's token count
-      p2VpDelta -= p2Impact; // Lose X% PV
-      p2TokensLost = p2Impact; // Lose illegal tokens
-      p1Summary = `Fouille réussie ! +${p2Impact}% PV`;
-      p2Summary = `Pris en flagrant délit ! -${p2Impact}% PV, -${p2Impact} jetons`;
+      const p1Gain = p2IllegalCount * config.gainPerIllegalFound;
+      const p2Loss = p2IllegalCount * config.lossPerIllegalCaught;
+      p1VpDelta += p1Gain;
+      p2VpDelta -= p2Loss;
+      p2TokensLost = p2IllegalCount;
+      p1Summary = `Fouille réussie ! +${p1Gain}% PV (${p2IllegalCount} jetons × ${config.gainPerIllegalFound}%)`;
+      p2Summary = `Pris en flagrant délit ! -${p2Loss}% PV, -${p2IllegalCount} jetons`;
     } else {
-      // P1 searched but P2 was legal - fixed penalty based on duelMaxImpact setting
-      p1VpDelta -= duelMaxImpact;
-      p1Summary = `Fouille d'un voyageur légal. -${duelMaxImpact}% PV`;
+      // P1 searched but P2 was legal - fixed penalty
+      p1VpDelta -= config.lossSearchNoIllegal;
+      p1Summary = `Fouille d'un voyageur légal. -${config.lossSearchNoIllegal}% PV`;
       p2Summary = `Vous étiez légal. Pas de pénalité.`;
     }
   } else {
     // P1 didn't search P2
-    if (p2HasIllegal) {
+    if (p2HasIllegal && p2IllegalCount > 0) {
       // P2 passed with illegal tokens
-      p2VpDelta += p2Impact; // Gain X% PV for successful smuggling
+      const p2Gain = p2IllegalCount * config.gainPerIllegalPassed;
+      p2VpDelta += p2Gain;
       p1Summary = `Vous avez laissé passer un contrebandier !`;
-      p2Summary = `Passage réussi avec contrebande ! +${p2Impact}% PV`;
+      p2Summary = `Passage réussi avec contrebande ! +${p2Gain}% PV (${p2IllegalCount} jetons × ${config.gainPerIllegalPassed}%)`;
     } else {
       p1Summary = `Vous avez laissé passer.`;
       p2Summary = `Passage sans encombre.`;
@@ -72,26 +81,29 @@ function calculateDuelOutcome(
 
   // Player 2 searches Player 1
   if (p2Searches) {
-    if (p1HasIllegal) {
+    if (p1HasIllegal && p1IllegalCount > 0) {
       // P2 found illegal tokens on P1
-      p2VpDelta += p1Impact;
-      p1VpDelta -= p1Impact;
-      p1TokensLost = p1Impact;
-      p2Summary += ` | Fouille réussie ! +${p1Impact}% PV`;
-      p1Summary += ` | Pris en flagrant délit ! -${p1Impact}% PV, -${p1Impact} jetons`;
+      const p2Gain = p1IllegalCount * config.gainPerIllegalFound;
+      const p1Loss = p1IllegalCount * config.lossPerIllegalCaught;
+      p2VpDelta += p2Gain;
+      p1VpDelta -= p1Loss;
+      p1TokensLost = p1IllegalCount;
+      p2Summary += ` | Fouille réussie ! +${p2Gain}% PV (${p1IllegalCount} jetons × ${config.gainPerIllegalFound}%)`;
+      p1Summary += ` | Pris en flagrant délit ! -${p1Loss}% PV, -${p1IllegalCount} jetons`;
     } else {
-      // P2 searched but P1 was legal - fixed penalty based on duelMaxImpact setting
-      p2VpDelta -= duelMaxImpact;
-      p2Summary += ` | Fouille d'un voyageur légal. -${duelMaxImpact}% PV`;
+      // P2 searched but P1 was legal - fixed penalty
+      p2VpDelta -= config.lossSearchNoIllegal;
+      p2Summary += ` | Fouille d'un voyageur légal. -${config.lossSearchNoIllegal}% PV`;
       p1Summary += ` | Vous étiez légal. Pas de pénalité.`;
     }
   } else {
     // P2 didn't search P1
-    if (p1HasIllegal) {
+    if (p1HasIllegal && p1IllegalCount > 0) {
       // P1 passed with illegal tokens
-      p1VpDelta += p1Impact;
+      const p1Gain = p1IllegalCount * config.gainPerIllegalPassed;
+      p1VpDelta += p1Gain;
       p2Summary += ` | Vous avez laissé passer un contrebandier !`;
-      p1Summary += ` | Passage réussi avec contrebande ! +${p1Impact}% PV`;
+      p1Summary += ` | Passage réussi avec contrebande ! +${p1Gain}% PV (${p1IllegalCount} jetons × ${config.gainPerIllegalPassed}%)`;
     } else {
       p2Summary += ` | Vous avez laissé passer.`;
       p1Summary += ` | Passage sans encombre.`;
@@ -177,17 +189,29 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get round state config for duel max impact
+    // Get round state config for duel parameters
     const { data: roundState } = await supabase
       .from('sheriff_round_state')
       .select('bot_config')
       .eq('session_game_id', sessionGameId)
       .single();
 
-    const config = (roundState?.bot_config as { duel_max_impact?: number } | null) || {};
-    const duelMaxImpact = config.duel_max_impact || 10;
+    const botConfig = (roundState?.bot_config as {
+      duel_gain_per_illegal_found?: number;
+      duel_loss_search_no_illegal?: number;
+      duel_gain_per_illegal_passed?: number;
+      duel_loss_per_illegal_caught?: number;
+    } | null) || {};
 
-    // Calculate duel outcome - impact based on tokens beyond 20
+    // Build duel config with defaults
+    const duelConfig: DuelConfig = {
+      gainPerIllegalFound: botConfig.duel_gain_per_illegal_found ?? 10,
+      lossSearchNoIllegal: botConfig.duel_loss_search_no_illegal ?? 50,
+      gainPerIllegalPassed: botConfig.duel_gain_per_illegal_passed ?? 10,
+      lossPerIllegalCaught: botConfig.duel_loss_per_illegal_caught ?? 10,
+    };
+
+    // Calculate duel outcome with configurable parameters
     const result = calculateDuelOutcome(
       duel.player1_searches,
       duel.player2_searches,
@@ -195,7 +219,7 @@ Deno.serve(async (req) => {
       p2Choice.has_illegal_tokens,
       p1Choice.tokens_entering || 20,
       p2Choice.tokens_entering || 20,
-      duelMaxImpact
+      duelConfig
     );
 
     // Update duel with results
