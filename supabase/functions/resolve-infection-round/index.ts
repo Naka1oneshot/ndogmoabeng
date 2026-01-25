@@ -395,6 +395,9 @@ Deno.serve(async (req) => {
       }
 
       // Check for Gilet (vest)
+      // SPECIAL RULE: Ezkar + KK = gilet disabled (dies on first shot)
+      const isEzkarKK = target.clan === 'Ezkar' && target.role_code === 'KK';
+      
       const gilet = inventory.find(i => 
         i.owner_num === target.player_number && 
         i.objet === 'Gilet' && 
@@ -402,8 +405,8 @@ Deno.serve(async (req) => {
         i.disponible
       );
 
-      if (gilet) {
-        // Vest blocks the bullet
+      if (gilet && !isEzkarKK) {
+        // Vest blocks the bullet (but NOT for Ezkar+KK)
         gilet.quantite -= 1;
         await supabase.from('inventory').update({ quantite: gilet.quantite }).eq('id', gilet.id);
         await supabase.from('infection_shots').update({ status: 'APPLIED', ignore_reason: 'blocked_by_vest' }).eq('id', shot.id);
@@ -411,6 +414,11 @@ Deno.serve(async (req) => {
         
         privateMessages.push({ player_num: target.player_number, message: `🛡️ Ton gilet t'a protégé d'une balle!` });
         continue;
+      }
+      
+      // Log if Ezkar+KK had a vest but it didn't work
+      if (gilet && isEzkarKK) {
+        addLog('STEP_2_EZKAR_KK_VEST_DISABLED', { target: target.player_number, reason: 'Ezkar+KK combo disables vest' });
       }
 
       // Shot kills target
