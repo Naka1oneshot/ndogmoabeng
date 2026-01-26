@@ -618,11 +618,25 @@ Deno.serve(async (req) => {
     // 8a: Patient 0 (only manche 1)
     if (manche === 1) {
       const alivePV = players.filter(p => p.role_code === 'PV' && p.is_alive && !deaths.includes(p.player_number));
+      
+      // Filter votes to only include LIVING targets (not killed this round, not PV)
+      const validPatient0Targets = players.filter(p => 
+        p.is_alive && 
+        !deaths.includes(p.player_number) && 
+        p.role_code !== 'PV'
+      ).map(p => p.player_number);
+      
       const patient0Votes = alivePV
         .map(pv => getInput(pv.player_number)?.pv_patient0_target_num)
-        .filter(v => v !== null && v !== undefined) as number[];
+        .filter(v => v !== null && v !== undefined && validPatient0Targets.includes(v)) as number[];
 
-      const { winner: patient0Num } = countVotes(patient0Votes);
+      addLog('STEP_8_PATIENT0_VOTES', { 
+        alivePV: alivePV.map(p => p.player_number),
+        validTargets: validPatient0Targets,
+        filteredVotes: patient0Votes 
+      });
+
+      const { winner: patient0Num, counts: patient0Counts } = countVotes(patient0Votes);
 
       if (patient0Num) {
         const patient0 = getPlayerByNum(players, patient0Num);
@@ -643,8 +657,10 @@ Deno.serve(async (req) => {
           }).eq('id', patient0.id);
 
           pvMessages.push(`🦠 Patient 0: ${patient0.display_name} (#${patient0.player_number})`);
-          addLog('STEP_8_PATIENT0', { patient0_num: patient0Num, name: patient0.display_name });
+          addLog('STEP_8_PATIENT0', { patient0_num: patient0Num, name: patient0.display_name, votes: patient0Counts });
         }
+      } else {
+        addLog('STEP_8_PATIENT0_SKIPPED', { reason: 'No valid votes for living non-PV targets' });
       }
     }
 
