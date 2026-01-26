@@ -12,7 +12,7 @@ interface ActionPayload {
   playerId: string;
   playerNum: number;
   actionType: 'CORRUPTION' | 'AE_SABOTAGE' | 'SY_RESEARCH' | 'PV_PATIENT0' | 'PV_ANTIDOTE' | 'OC_LOOKUP' | 'VOTE_TEST' | 'VOTE_SUSPECT';
-  targetNum?: number;
+  targetNum?: number | null; // null means clear/cancel the selection
   amount?: number;
 }
 
