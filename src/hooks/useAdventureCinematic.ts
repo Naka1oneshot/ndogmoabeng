@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { CinematicSequence } from '@/components/adventure/AdventureCinematicOverlay';
+import type { CinematicSequence } from '@/components/adventure/CinematicSequenceContent';
+import { getSequenceForGameType, getEndSequence } from '@/components/adventure/CinematicSequenceContent';
 import type { DebugState } from '@/components/adventure/AdventureCinematicDebugPanel';
+
+// Re-export for convenience
+export { getSequenceForGameType, getEndSequence };
+export type { CinematicSequence };
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -28,6 +33,7 @@ export function useAdventureCinematic(
   
   const [isOpen, setIsOpen] = useState(false);
   const [currentSequence, setCurrentSequence] = useState<CinematicSequence[]>([]);
+  const [currentBroadcastId, setCurrentBroadcastId] = useState<string | null>(null);
   const [debugState, setDebugState] = useState<DebugState>({
     gameId: gameId || null,
     mode: null,
@@ -163,6 +169,7 @@ export function useAdventureCinematic(
       // Also show locally for the broadcaster
       lastBroadcastIdRef.current = id;
       setCurrentSequence(sequence);
+      setCurrentBroadcastId(id);
       setIsOpen(true);
     }
   }, [gameId]);
@@ -218,6 +225,7 @@ export function useAdventureCinematic(
             console.log('[CINEMATIC][INITIAL_FETCH] Found recent cinematic, opening overlay:', eventPayload.sequence);
             lastBroadcastIdRef.current = eventPayload.broadcast_id;
             setCurrentSequence(eventPayload.sequence);
+            setCurrentBroadcastId(eventPayload.broadcast_id);
             setIsOpen(true);
             
             setDebugState(prev => ({
@@ -280,6 +288,7 @@ export function useAdventureCinematic(
               console.log('[CINEMATIC][REALTIME] Opening overlay with sequence:', newEvent.payload.sequence);
               lastBroadcastIdRef.current = broadcastId;
               setCurrentSequence(newEvent.payload.sequence);
+              setCurrentBroadcastId(broadcastId);
               setIsOpen(true);
               
               setDebugState(prev => ({
@@ -312,35 +321,12 @@ export function useAdventureCinematic(
   return {
     isOpen,
     currentSequence,
+    currentBroadcastId,
     closeOverlay,
     replayLocal,
     broadcastCinematic,
     debugState,
   };
-}
-
-// Helper: Get the cinematic sequence for a given game step
-export function getSequenceForGameType(
-  gameTypeCode: string | null,
-  isStart: boolean = true
-): CinematicSequence[] {
-  switch (gameTypeCode) {
-    case 'RIVIERES':
-      return isStart ? ['INTRO', 'GUIDE_CHOICE', 'PRE_RIVIERES'] : [];
-    case 'FORET':
-      return isStart ? ['TRANSITION_1', 'PRE_FORET'] : [];
-    case 'SHERIFF':
-      return isStart ? ['TRANSITION_2', 'PRE_SHERIFF'] : [];
-    case 'INFECTION':
-      return isStart ? ['TRANSITION_3', 'PRE_INFECTION'] : [];
-    default:
-      return [];
-  }
-}
-
-// Helper: Get end sequence
-export function getEndSequence(): CinematicSequence[] {
-  return ['END'];
 }
 
 // Export the constant for use elsewhere

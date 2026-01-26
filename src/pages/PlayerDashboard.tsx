@@ -15,7 +15,6 @@ import { CombatHistorySummarySheet } from '@/components/mj/presentation/CombatHi
 import { usePresentationAnimations, PhaseTransitionOverlay, CoupDeGraceOverlay } from '@/components/game/PresentationAnimations';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic } from '@/hooks/useAdventureCinematic';
-import { AdventureCinematicDebugPanel } from '@/components/adventure/AdventureCinematicDebugPanel';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
 import { EventsFeed } from '@/components/player/EventsFeed';
@@ -84,10 +83,13 @@ export default function PlayerDashboard() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [initError, setInitError] = useState<string | null>(null); // Delayed error display
   const [mobileTab, setMobileTab] = useState('battle');
   const [selectedManche, setSelectedManche] = useState<number>(1);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [showCatalog, setShowCatalog] = useState(false);
+  const initRetryCountRef = useRef(0);
+  const initErrorTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Apply game-specific theme
   useGameTheme(game?.selected_game_type_code);
@@ -112,6 +114,7 @@ export default function PlayerDashboard() {
   const {
     isOpen: isCinematicOpen,
     currentSequence: cinematicSequence,
+    currentBroadcastId: cinematicBroadcastId,
     closeOverlay: closeCinematic,
     replayLocal: replayCinematic,
     debugState: cinematicDebugState,
@@ -259,13 +262,22 @@ export default function PlayerDashboard() {
     validateAndFetch(playerToken);
   }, [gameId, searchParams]);
 
-  const validateAndFetch = async (playerToken: string) => {
+  const validateAndFetch = async (playerToken: string, isRetry = false) => {
     try {
       const { data, error: validateError } = await supabase.functions.invoke('validate-player', {
         body: { gameId, playerToken },
       });
 
       if (validateError || !data?.valid) {
+        // Check if we should retry silently
+        if (!isRetry && initRetryCountRef.current < 2) {
+          initRetryCountRef.current++;
+          console.log('[PlayerDashboard] Validation failed, retrying silently...', initRetryCountRef.current);
+          // Wait a bit and retry
+          setTimeout(() => validateAndFetch(playerToken, true), 800);
+          return;
+        }
+        
         localStorage.removeItem(`${PLAYER_TOKEN_PREFIX}${gameId}`);
 
         if (data?.removed) {
@@ -276,6 +288,12 @@ export default function PlayerDashboard() {
 
         redirectToJoin();
         return;
+      }
+
+      // Clear any pending error timer
+      if (initErrorTimerRef.current) {
+        clearTimeout(initErrorTimerRef.current);
+        initErrorTimerRef.current = null;
       }
 
       setPlayer({
@@ -296,12 +314,26 @@ export default function PlayerDashboard() {
 
       setGame(data.game as Game);
       setLoading(false);
+      setError(''); // Clear any error
 
       subscribeToUpdates(playerToken);
     } catch (err) {
       console.error('Validation error:', err);
-      setError('Erreur de validation');
-      setLoading(false);
+      
+      // Don't show error immediately - wait and see if a retry succeeds
+      if (!isRetry && initRetryCountRef.current < 2) {
+        initRetryCountRef.current++;
+        setTimeout(() => validateAndFetch(playerToken, true), 800);
+        return;
+      }
+      
+      // After retries failed, still delay the error display
+      if (!initErrorTimerRef.current) {
+        initErrorTimerRef.current = setTimeout(() => {
+          setError('Erreur de validation');
+          setLoading(false);
+        }, 2500);
+      }
     }
   };
 
@@ -428,24 +460,17 @@ export default function PlayerDashboard() {
       onClose={closeCinematic}
       onReplay={replayCinematic}
       isHost={false}
+      broadcastId={cinematicBroadcastId || undefined}
     />
   ) : null;
 
-  // Debug panel for adventure cinematics (visible in adventure mode)
-  const debugPanel = isAnyAdventure ? (
-    <AdventureCinematicDebugPanel
-      gameId={game?.id}
-      isHost={false}
-      debugState={cinematicDebugState}
-    />
-  ) : null;
+  // Debug panel REMOVED for players - only visible for MJ
 
   // Lobby view
   if (game.status === 'LOBBY') {
     return (
       <>
         {cinematicOverlay}
-        {debugPanel}
         <div className="min-h-screen flex flex-col">
         <PlayerHeader game={game} player={player} />
         <main className="flex-1 p-4">
@@ -550,7 +575,6 @@ export default function PlayerDashboard() {
     return (
       <>
         {cinematicOverlay}
-        {debugPanel}
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0B1020] via-[#151B2D] to-[#0B1020]">
           <PlayerHeader game={game} player={player} />
           <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
@@ -576,7 +600,6 @@ export default function PlayerDashboard() {
     return (
       <>
         {cinematicOverlay}
-        {debugPanel}
         <PlayerInfectionDashboard 
           game={game} 
           player={{
@@ -602,9 +625,8 @@ export default function PlayerDashboard() {
     return (
       <>
         {cinematicOverlay}
-        {debugPanel}
         <PlayerSheriffDashboard 
-          game={game} 
+          game={game}
           player={{
             id: player.id,
             display_name: player.displayName,
