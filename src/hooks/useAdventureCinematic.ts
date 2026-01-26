@@ -81,6 +81,30 @@ export function useAdventureCinematic(
       return;
     }
 
+    // Get current auth session for debugging
+    const { data: sessionData } = await supabase.auth.getSession();
+    const authUserId = sessionData?.session?.user?.id || null;
+
+    console.log('[CINEMATIC][BROADCAST] Auth check:', {
+      gameId,
+      authUserId,
+      hasSession: !!sessionData?.session,
+    });
+
+    // Check if user is host
+    const { data: gameData, error: gameError } = await supabase
+      .from('games')
+      .select('host_user_id')
+      .eq('id', gameId)
+      .single();
+
+    console.log('[CINEMATIC][BROADCAST] Host check:', {
+      hostUserId: gameData?.host_user_id,
+      authUserId,
+      isHost: gameData?.host_user_id === authUserId,
+      gameError: gameError?.message,
+    });
+
     const id = broadcastId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     const payload = {
@@ -111,13 +135,19 @@ export function useAdventureCinematic(
 
     if (error) {
       console.error('[CINEMATIC][BROADCAST] Insert error:', error);
+      console.error('[CINEMATIC][BROADCAST] Full error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
       setDebugState(prev => ({
         ...prev,
         lastBroadcastAttempt: {
           timestamp,
           sequence,
           success: false,
-          error: error.message,
+          error: `${error.message} (auth: ${authUserId?.slice(0, 8) || 'none'}, host: ${gameData?.host_user_id?.slice(0, 8) || 'unknown'})`,
         },
       }));
     } else {
