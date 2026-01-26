@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, RotateCcw, Users } from 'lucide-react';
+import { X, RotateCcw, Users, Play, Pause, ChevronRight } from 'lucide-react';
 import { CLANS_DATA } from '@/data/ndogmoabengData';
+import { SEQUENCE_NARRATIVES, calculateSequenceDuration } from './CinematicSequenceContent';
+import type { CinematicSequence } from './CinematicSequenceContent';
+
+// Re-export type for external use
+export type { CinematicSequence } from './CinematicSequenceContent';
 
 // Import clan images
 import maisonRoyaleImg from '@/assets/clans/maison-royale.png';
@@ -20,17 +25,8 @@ const clanImages: Record<string, string> = {
 
 const GUIDE_CLANS = ['maison-royale', 'maison-keryndes', 'akande', 'sources-akila', 'ezkar'];
 
-export type CinematicSequence = 
-  | 'INTRO'
-  | 'GUIDE_CHOICE'
-  | 'PRE_RIVIERES'
-  | 'TRANSITION_1'
-  | 'PRE_FORET'
-  | 'TRANSITION_2'
-  | 'PRE_SHERIFF'
-  | 'TRANSITION_3'
-  | 'PRE_INFECTION'
-  | 'END';
+// Key for localStorage to track seen broadcasts
+const SEEN_BROADCASTS_KEY = 'ndogmoabeng_seen_cinematics';
 
 interface AdventureCinematicOverlayProps {
   open: boolean;
@@ -39,61 +35,8 @@ interface AdventureCinematicOverlayProps {
   onReplay: () => void;
   isHost?: boolean;
   onBroadcastReplay?: () => void;
+  broadcastId?: string;
 }
-
-// Sequence content configuration
-const SEQUENCE_CONTENT: Record<CinematicSequence, { title: string; subtitle?: string; duration: number }> = {
-  INTRO: { 
-    title: 'La Carte Trouvée', 
-    subtitle: 'Une aventure au cœur de Ndogmoabeng',
-    duration: 4000 
-  },
-  GUIDE_CHOICE: { 
-    title: 'Les Guides du Village', 
-    subtitle: 'Cinq clans pourront vous accompagner',
-    duration: 8000 
-  },
-  PRE_RIVIERES: { 
-    title: 'Les Rivières du Nord', 
-    subtitle: 'Votre voyage commence sur les eaux tumultueuses...',
-    duration: 3500 
-  },
-  TRANSITION_1: { 
-    title: 'Transition', 
-    subtitle: 'Le voyage continue...',
-    duration: 2500 
-  },
-  PRE_FORET: { 
-    title: 'La Forêt de Ndogmoabeng', 
-    subtitle: 'La traversée des ombres vous attend...',
-    duration: 3500 
-  },
-  TRANSITION_2: { 
-    title: 'Transition', 
-    subtitle: 'Aux portes du Centre...',
-    duration: 2500 
-  },
-  PRE_SHERIFF: { 
-    title: 'Le Shérif de Ndogmoabeng', 
-    subtitle: 'Le contrôle des portes du Centre...',
-    duration: 3500 
-  },
-  TRANSITION_3: { 
-    title: 'Transition', 
-    subtitle: 'Le village est en danger...',
-    duration: 2500 
-  },
-  PRE_INFECTION: { 
-    title: 'Infection à Ndogmoabeng', 
-    subtitle: 'La contamination a commencé...',
-    duration: 3500 
-  },
-  END: { 
-    title: 'Fin de l\'Aventure', 
-    subtitle: 'La carte a révélé ses secrets...',
-    duration: 5000 
-  },
-};
 
 // Floating particles component
 function FloatingParticles() {
@@ -146,19 +89,19 @@ function ClanCard({ clanId, index }: { clanId: string; index: number }) {
       initial={{ opacity: 0, y: 50, scale: 0.8 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -30, scale: 0.9 }}
-      transition={{ delay: index * 0.3, duration: 0.6, ease: 'easeOut' }}
-      className="bg-gradient-to-b from-[#1A1510]/90 to-[#0F0D08]/90 rounded-lg border border-[#D4AF37]/40 p-4 flex flex-col items-center text-center max-w-[180px]"
+      transition={{ delay: index * 0.2, duration: 0.5, ease: 'easeOut' }}
+      className="bg-gradient-to-b from-[#1A1510]/90 to-[#0F0D08]/90 rounded-lg border border-[#D4AF37]/40 p-3 flex flex-col items-center text-center w-[140px] sm:w-[160px] shrink-0"
     >
-      <div className="w-20 h-20 mb-3 flex items-center justify-center">
+      <div className="w-14 h-14 sm:w-16 sm:h-16 mb-2 flex items-center justify-center">
         <img 
           src={image} 
           alt={clan.name} 
           className="w-full h-full object-contain"
         />
       </div>
-      <h4 className="font-display text-sm text-[#D4AF37] mb-1">{clan.name}</h4>
-      <p className="text-xs text-[#9CA3AF] mb-2 line-clamp-2">{clan.description}</p>
-      <p className="text-xs text-[#D4AF37]/80 italic">"{clan.devise}"</p>
+      <h4 className="font-display text-xs sm:text-sm text-[#D4AF37] mb-1">{clan.name}</h4>
+      <p className="text-[10px] sm:text-xs text-[#9CA3AF] mb-1 line-clamp-2">{clan.description}</p>
+      <p className="text-[10px] sm:text-xs text-[#D4AF37]/80 italic">"{clan.devise}"</p>
     </motion.div>
   );
 }
@@ -170,16 +113,46 @@ export function AdventureCinematicOverlay({
   onReplay,
   isHost = false,
   onBroadcastReplay,
+  broadcastId,
 }: AdventureCinematicOverlayProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isSecondView, setIsSecondView] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentSequence = sequence[currentIndex];
-  const content = currentSequence ? SEQUENCE_CONTENT[currentSequence] : null;
+  const content = currentSequence ? SEQUENCE_NARRATIVES[currentSequence] : null;
+  const duration = currentSequence ? calculateSequenceDuration(currentSequence) : 5000;
 
-  // Auto-advance timer
+  // Check if this broadcast was already seen
   useEffect(() => {
-    if (!open || !content) return;
+    if (open && broadcastId) {
+      try {
+        const seenBroadcasts = JSON.parse(localStorage.getItem(SEEN_BROADCASTS_KEY) || '[]');
+        const hasSeenBefore = seenBroadcasts.includes(broadcastId);
+        setIsSecondView(hasSeenBefore);
+        
+        if (!hasSeenBefore) {
+          // Mark as seen
+          seenBroadcasts.push(broadcastId);
+          // Keep only last 50 to avoid localStorage bloat
+          if (seenBroadcasts.length > 50) {
+            seenBroadcasts.shift();
+          }
+          localStorage.setItem(SEEN_BROADCASTS_KEY, JSON.stringify(seenBroadcasts));
+        }
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+  }, [open, broadcastId]);
+
+  // Auto-advance timer (disabled on second view or when paused)
+  useEffect(() => {
+    if (!open || !content || isPaused || isSecondView) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      return;
+    }
 
     timerRef.current = setTimeout(() => {
       if (currentIndex < sequence.length - 1) {
@@ -188,33 +161,49 @@ export function AdventureCinematicOverlay({
         // Auto-close after last sequence
         onClose();
       }
-    }, content.duration);
+    }, duration);
 
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
     };
-  }, [open, currentIndex, content, sequence.length, onClose]);
+  }, [open, currentIndex, content, sequence.length, onClose, isPaused, isSecondView, duration]);
 
   // Reset on open
   useEffect(() => {
     if (open) {
       setCurrentIndex(0);
+      setIsPaused(false);
     }
   }, [open]);
 
   const handleReplay = useCallback(() => {
     setCurrentIndex(0);
+    setIsPaused(false);
+    setIsSecondView(true); // Replays should use manual control
     onReplay();
   }, [onReplay]);
 
   const handleBroadcastReplay = useCallback(() => {
     if (onBroadcastReplay) {
       setCurrentIndex(0);
+      setIsPaused(false);
       onBroadcastReplay();
     }
   }, [onBroadcastReplay]);
+
+  const handleNext = useCallback(() => {
+    if (currentIndex < sequence.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+    } else {
+      onClose();
+    }
+  }, [currentIndex, sequence.length, onClose]);
+
+  const togglePause = useCallback(() => {
+    setIsPaused(prev => !prev);
+  }, []);
 
   if (!open || !currentSequence || !content) return null;
 
@@ -226,7 +215,7 @@ export function AdventureCinematicOverlay({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
-        className="fixed inset-0 z-[100] flex flex-col items-center justify-center"
+        className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden"
         style={{
           background: 'linear-gradient(135deg, #0B1020 0%, #1A1510 50%, #0B1020 100%)',
         }}
@@ -249,7 +238,7 @@ export function AdventureCinematicOverlay({
         <FloatingParticles />
 
         {/* Content */}
-        <div className="relative z-10 flex flex-col items-center justify-center px-6 text-center max-w-4xl">
+        <div className="relative z-10 flex flex-col items-center justify-center px-4 sm:px-6 text-center max-w-3xl w-full max-h-[80vh] overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentSequence}
@@ -261,7 +250,7 @@ export function AdventureCinematicOverlay({
             >
               {/* Main title */}
               <motion.h1
-                className="font-display text-4xl md:text-6xl text-[#D4AF37] mb-4"
+                className="font-display text-2xl sm:text-4xl md:text-5xl text-[#D4AF37] mb-4"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.2, duration: 0.5 }}
@@ -269,35 +258,35 @@ export function AdventureCinematicOverlay({
                 {content.title}
               </motion.h1>
 
-              {/* Subtitle */}
-              {content.subtitle && (
-                <motion.p
-                  className="text-lg md:text-xl text-[#E8E8E8]/80 mb-8"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4, duration: 0.5 }}
-                >
-                  {content.subtitle}
-                </motion.p>
-              )}
+              {/* Narrative text */}
+              <motion.div
+                className="text-sm sm:text-base md:text-lg text-[#E8E8E8]/90 mb-6 max-w-2xl whitespace-pre-line leading-relaxed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4, duration: 0.5 }}
+              >
+                {content.narrative}
+              </motion.div>
 
-              {/* Special content for GUIDE_CHOICE */}
-              {currentSequence === 'GUIDE_CHOICE' && (
+              {/* Clan cards for GUIDE_CHOICE - horizontal scroll on mobile */}
+              {content.showClans && (
                 <motion.div
-                  className="flex flex-wrap justify-center gap-4 mt-4"
+                  className="w-full mt-4 overflow-x-auto pb-4"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.6 }}
                 >
-                  {GUIDE_CLANS.map((clanId, index) => (
-                    <ClanCard key={clanId} clanId={clanId} index={index} />
-                  ))}
+                  <div className="flex gap-3 justify-start sm:justify-center min-w-max px-4 sm:px-0">
+                    {GUIDE_CLANS.map((clanId, index) => (
+                      <ClanCard key={clanId} clanId={clanId} index={index} />
+                    ))}
+                  </div>
                 </motion.div>
               )}
 
               {/* Progress indicator */}
               <motion.div
-                className="flex items-center gap-2 mt-8"
+                className="flex items-center gap-2 mt-6"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.8 }}
@@ -306,38 +295,87 @@ export function AdventureCinematicOverlay({
                   <div
                     key={idx}
                     className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                      idx === currentIndex ? 'bg-[#D4AF37] w-4' : 'bg-[#D4AF37]/30'
+                      idx === currentIndex ? 'bg-[#D4AF37] w-4' : idx < currentIndex ? 'bg-[#D4AF37]/60' : 'bg-[#D4AF37]/30'
                     }`}
                   />
                 ))}
               </motion.div>
+              
+              {/* Manual control indicator for second view */}
+              {isSecondView && (
+                <motion.p
+                  className="text-xs text-[#D4AF37]/60 mt-3"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1 }}
+                >
+                  Mode manuel • Utilisez "Suivant" pour avancer
+                </motion.p>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
 
         {/* Control buttons */}
-        <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-4 z-20">
+        <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 flex flex-wrap items-center justify-center gap-2 sm:gap-3 z-20 px-4">
           {/* Skip/Close button */}
           <motion.button
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1 }}
+            transition={{ delay: 0.8 }}
             onClick={onClose}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1A1510]/80 border border-[#D4AF37]/30 text-[#E8E8E8]/80 hover:text-[#E8E8E8] hover:bg-[#1A1510] transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-[#1A1510]/80 border border-[#D4AF37]/30 text-[#E8E8E8]/80 hover:text-[#E8E8E8] hover:bg-[#1A1510] transition-all text-sm"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>Passer</span>
           </motion.button>
+
+          {/* Pause/Play button (first view only) */}
+          {!isSecondView && (
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.9 }}
+              onClick={togglePause}
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-[#1A1510]/80 border border-[#D4AF37]/30 text-[#D4AF37]/80 hover:text-[#D4AF37] hover:bg-[#1A1510] transition-all text-sm"
+            >
+              {isPaused ? (
+                <>
+                  <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Reprendre</span>
+                </>
+              ) : (
+                <>
+                  <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Pause</span>
+                </>
+              )}
+            </motion.button>
+          )}
+
+          {/* Next button (second view or when paused) */}
+          {(isSecondView || isPaused) && (
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.95 }}
+              onClick={handleNext}
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/30 transition-all text-sm font-medium"
+            >
+              <span>Suivant</span>
+              <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </motion.button>
+          )}
 
           {/* Replay button */}
           <motion.button
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.1 }}
+            transition={{ delay: 1 }}
             onClick={handleReplay}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1A1510]/80 border border-[#D4AF37]/30 text-[#D4AF37]/80 hover:text-[#D4AF37] hover:bg-[#1A1510] transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-[#1A1510]/80 border border-[#D4AF37]/30 text-[#D4AF37]/80 hover:text-[#D4AF37] hover:bg-[#1A1510] transition-all text-sm"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>Relancer</span>
           </motion.button>
 
@@ -346,12 +384,13 @@ export function AdventureCinematicOverlay({
             <motion.button
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.2 }}
+              transition={{ delay: 1.1 }}
               onClick={handleBroadcastReplay}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/30 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/30 transition-all text-sm"
             >
-              <Users className="w-4 h-4" />
-              <span>Relancer pour tous</span>
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Relancer pour tous</span>
+              <span className="sm:hidden">Tous</span>
             </motion.button>
           )}
         </div>
