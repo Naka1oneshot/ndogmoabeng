@@ -22,6 +22,7 @@ interface PublicAction {
   mineExplosion?: boolean;
   protectionUsed?: { item: string; slot: number };
   delayedExplosion?: { damage: number; slot: number; weapon: string };
+  noMonster?: boolean; // Slot was empty - no monster to attack
 }
 
 interface Kill {
@@ -139,6 +140,7 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
               const hasMinePlaced = action.minePlaced;
               const hasProtection = action.protectionUsed;
               const hasDelayedExplosion = action.delayedExplosion;
+              const isNoMonster = action.noMonster;
               
               return (
                 <div 
@@ -148,9 +150,11 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
                       ? 'bg-orange-500/10 border border-orange-500/30'
                       : hasDelayedExplosion
                         ? 'bg-amber-500/10 border border-amber-500/30'
-                        : action.cancelled 
-                          ? 'bg-destructive/10 border border-destructive/20' 
-                          : 'bg-secondary/50'
+                        : isNoMonster
+                          ? 'bg-muted/50 border border-muted-foreground/20'
+                          : action.cancelled 
+                            ? 'bg-destructive/10 border border-destructive/20' 
+                            : 'bg-secondary/50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -178,6 +182,11 @@ export function CombatResultsPanel({ game, selectedManche, sessionGameId, classN
                         <span className="text-amber-400 text-xs flex items-center gap-1">
                           <Timer className="h-3 w-3" />
                           Posée
+                        </span>
+                      ) : isNoMonster ? (
+                        <span className="text-muted-foreground text-xs flex items-center gap-1">
+                          <Ban className="h-3 w-3" />
+                          pas de monstre
                         </span>
                       ) : action.cancelled ? (
                         <span className="text-destructive text-xs flex items-center gap-1">
