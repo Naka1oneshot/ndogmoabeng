@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 
-export type EventVisibility = 'MJ' | 'PUBLIC';
+export type EventVisibility = 'MJ' | 'PUBLIC' | 'PRIVATE';
 
 export interface GameEventData {
   gameId: string;

@@ -34,6 +34,7 @@ export function InfectionPrivateMessagesPanel({
   const theme = getInfectionThemeClasses();
   const [messages, setMessages] = useState<PrivateMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMessages();
@@ -62,7 +63,8 @@ export function InfectionPrivateMessagesPanel({
   }, [sessionGameId, player.player_number]);
 
   const fetchMessages = async () => {
-    const { data } = await supabase
+    setError(null);
+    const { data, error: fetchError } = await supabase
       .from('game_events')
       .select('id, event_type, message, manche, created_at, payload')
       .eq('session_game_id', sessionGameId)
@@ -70,7 +72,10 @@ export function InfectionPrivateMessagesPanel({
       .eq('player_num', player.player_number)
       .order('created_at', { ascending: false });
 
-    if (data) {
+    if (fetchError) {
+      console.error('[PrivateMessages] Fetch error:', fetchError);
+      setError(fetchError.message || 'Erreur lors du chargement des messages');
+    } else if (data) {
       setMessages(data as PrivateMessage[]);
     }
     setLoading(false);
@@ -114,6 +119,20 @@ export function InfectionPrivateMessagesPanel({
     return (
       <div className="flex items-center justify-center py-8">
         <p className="text-[#6B7280]">Chargement...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={theme.card}>
+        <div className="p-3 border-b border-[#2D3748] flex items-center gap-2">
+          <Mail className="h-4 w-4 text-[#D4AF37]" />
+          <span className="font-semibold">Messages privés</span>
+        </div>
+        <div className="p-4 text-center">
+          <p className="text-[#B00020] text-sm">⚠️ {error}</p>
+        </div>
       </div>
     );
   }
