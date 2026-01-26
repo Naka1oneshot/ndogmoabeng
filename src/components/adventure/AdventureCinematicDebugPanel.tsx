@@ -46,7 +46,24 @@ export function AdventureCinematicDebugPanel({
     mode: string | null;
     adventure_id: string | null;
     adventure_name: string | null;
+    host_user_id: string | null;
   } | null>(null);
+  const [authInfo, setAuthInfo] = useState<{
+    userId: string | null;
+    email: string | null;
+  }>({ userId: null, email: null });
+
+  // Fetch auth info
+  useEffect(() => {
+    const getAuthInfo = async () => {
+      const { data } = await supabase.auth.getSession();
+      setAuthInfo({
+        userId: data.session?.user?.id || null,
+        email: data.session?.user?.email || null,
+      });
+    };
+    getAuthInfo();
+  }, []);
 
   // Fetch real game context from DB
   useEffect(() => {
@@ -55,7 +72,7 @@ export function AdventureCinematicDebugPanel({
     const fetchContext = async () => {
       const { data: gameData, error: gameError } = await supabase
         .from('games')
-        .select('mode, adventure_id')
+        .select('mode, adventure_id, host_user_id')
         .eq('id', gameId)
         .single();
 
@@ -78,6 +95,7 @@ export function AdventureCinematicDebugPanel({
         mode: gameData?.mode || null,
         adventure_id: gameData?.adventure_id || null,
         adventure_name: adventureName,
+        host_user_id: gameData?.host_user_id || null,
       });
 
       console.log('[CINEMATIC][DEBUG] Game context fetched:', {
@@ -85,6 +103,7 @@ export function AdventureCinematicDebugPanel({
         mode: gameData?.mode,
         adventure_id: gameData?.adventure_id,
         adventure_name: adventureName,
+        host_user_id: gameData?.host_user_id,
       });
     };
 
@@ -169,6 +188,38 @@ export function AdventureCinematicDebugPanel({
             </div>
           </div>
 
+          {/* Auth & Host Verification */}
+          <div className="space-y-1">
+            <div className="text-muted-foreground text-[10px] uppercase tracking-wide">
+              Auth & Host
+            </div>
+            <div className="bg-muted p-2 rounded space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">auth.uid:</span>
+                <span className="text-foreground truncate max-w-[150px]" title={authInfo.userId || ''}>
+                  {authInfo.userId?.slice(0, 8) || 'none'}...
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">host_user_id:</span>
+                <span className="text-foreground truncate max-w-[150px]" title={gameContext?.host_user_id || ''}>
+                  {gameContext?.host_user_id?.slice(0, 8) || 'unknown'}...
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">isHost match:</span>
+                <Badge
+                  variant={authInfo.userId === gameContext?.host_user_id ? 'default' : 'destructive'}
+                  className="text-[10px] px-1 py-0"
+                >
+                  {authInfo.userId && gameContext?.host_user_id 
+                    ? (authInfo.userId === gameContext.host_user_id ? 'YES ✓' : 'NO ✗')
+                    : 'checking...'}
+                </Badge>
+              </div>
+            </div>
+          </div>
+
           {/* Hook State */}
           <div className="space-y-1">
             <div className="text-muted-foreground text-[10px] uppercase tracking-wide">
@@ -186,7 +237,7 @@ export function AdventureCinematicDebugPanel({
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">channel:</span>
-                <span className="text-emerald-500 truncate max-w-[150px]">
+                <span className="text-primary truncate max-w-[150px]">
                   {debugState.channelName || 'none'}
                 </span>
               </div>
