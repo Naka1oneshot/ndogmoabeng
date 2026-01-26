@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target, MessageSquare, Package, Activity, Syringe, Vote, Skull, Mail } from 'lucide-react';
+import { Target, MessageSquare, Package, Activity, Syringe, Vote, Skull, RefreshCw } from 'lucide-react';
 import { INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { InfectionActionPanel } from './InfectionActionPanel';
 import { InfectionVotePanel } from './InfectionVotePanel';
@@ -73,6 +74,7 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
   const [roundState, setRoundState] = useState<RoundState | null>(null);
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [activeTab, setActiveTab] = useState('actions');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Role reveal animation state
   const [showRoleReveal, setShowRoleReveal] = useState(false);
@@ -123,10 +125,10 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
     return () => { supabase.removeChannel(channel); };
   }, [game.id]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     const { data: playersData } = await supabase
       .from('game_players')
-      .select('id, display_name, player_number, clan, is_alive, role_code, team_code, jetons, is_host')
+      .select('id, display_name, player_number, clan, is_alive, role_code, team_code, jetons, pvic, is_host')
       .eq('game_id', game.id)
       .is('removed_at', null)
       .order('player_number');
@@ -143,6 +145,12 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
 
       if (roundData) setRoundState(roundData as RoundState);
     }
+  }, [game.id, game.current_session_game_id, game.manche_active]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setTimeout(() => setIsRefreshing(false), 500);
   };
 
   const roleInfo = player.role_code ? INFECTION_ROLE_LABELS[player.role_code] : null;
@@ -229,6 +237,15 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="h-8 w-8 text-[#9CA3AF] hover:text-[#D4AF37]"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
             <Badge className="bg-[#1A2235] border-[#D4AF37]/30 text-[#D4AF37]">💰 {player.jetons || 0}</Badge>
             <Badge className="bg-[#1A2235] border-[#2AB3A6]/30 text-[#2AB3A6]">⭐ {player.pvic || 0}</Badge>
           </div>

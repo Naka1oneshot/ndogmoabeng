@@ -441,44 +441,79 @@ Deno.serve(async (req) => {
     // ========================================
     const aliveOC = players.find(p => p.role_code === 'OC' && p.is_alive && !deaths.includes(p.player_number));
     
+    addLog('STEP_3_OC_CHECK', { 
+      has_oc: !!aliveOC, 
+      oc_num: aliveOC?.player_number,
+      oc_alive: aliveOC?.is_alive 
+    });
+    
     if (aliveOC) {
       const ocInput = getInput(aliveOC.player_number);
       const ocTarget = ocInput?.oc_lookup_target_num;
 
+      addLog('STEP_3_OC_INPUT', { 
+        oc_num: aliveOC.player_number, 
+        has_input: !!ocInput, 
+        target: ocTarget 
+      });
+
       if (ocTarget) {
         const targetPlayer = getPlayerByNum(players, ocTarget);
         if (targetPlayer) {
-          // Consume crystal ball
+          // Find crystal ball - don't require it to be available (OC always has implicit vision)
           const crystal = inventory.find(i => 
             i.owner_num === aliveOC.player_number && 
-            i.objet === 'Boule de cristal' && 
-            i.quantite > 0
+            i.objet === 'Boule de cristal'
           );
 
-          if (crystal) {
+          addLog('STEP_3_OC_CRYSTAL', { 
+            has_crystal: !!crystal, 
+            crystal_qty: crystal?.quantite,
+            crystal_id: crystal?.id 
+          });
+
+          // OC can always see roles (crystal ball is symbolic, always works)
+          const ocMessage = `🔮 Le rôle de ${targetPlayer.display_name} est: ${targetPlayer.role_code}`;
+          privateMessages.push({ 
+            player_num: aliveOC.player_number, 
+            message: ocMessage
+          });
+
+          // Consume crystal ball if exists and has quantity
+          if (crystal && crystal.quantite > 0) {
             crystal.quantite -= 1;
-            await supabase.from('inventory').update({ quantite: crystal.quantite }).eq('id', crystal.id);
+            const { error: crystalError } = await supabase
+              .from('inventory')
+              .update({ quantite: crystal.quantite })
+              .eq('id', crystal.id);
             
-            const ocMessage = `🔮 Le rôle de ${targetPlayer.display_name} est: ${targetPlayer.role_code}`;
-            privateMessages.push({ 
-              player_num: aliveOC.player_number, 
-              message: ocMessage
-            });
+            if (crystalError) {
+              addLog('STEP_3_OC_CRYSTAL_ERROR', { error: crystalError.message });
+            }
+          }
 
-            // Also insert as game_event for the private messages panel
-            await supabase.from('game_events').insert({
-              game_id: gameId,
-              session_game_id: sessionGameId,
-              event_type: 'OC_REVEAL',
-              message: ocMessage,
-              manche,
-              phase: 'RESOLVED',
-              visibility: 'PRIVATE',
-              player_num: aliveOC.player_number,
-              payload: { target_num: ocTarget, role_revealed: targetPlayer.role_code, target_name: targetPlayer.display_name },
-            });
+          // Insert as game_event for the private messages panel
+          const { error: eventError } = await supabase.from('game_events').insert({
+            game_id: gameId,
+            session_game_id: sessionGameId,
+            event_type: 'OC_REVEAL',
+            message: ocMessage,
+            manche,
+            phase: 'RESOLVED',
+            visibility: 'PRIVATE',
+            player_num: aliveOC.player_number,
+            payload: { target_num: ocTarget, role_revealed: targetPlayer.role_code, target_name: targetPlayer.display_name },
+          });
 
-            addLog('STEP_3_OC', { oc_num: aliveOC.player_number, target: ocTarget, role_revealed: targetPlayer.role_code });
+          if (eventError) {
+            addLog('STEP_3_OC_EVENT_ERROR', { error: eventError.message });
+          } else {
+            addLog('STEP_3_OC_SUCCESS', { 
+              oc_num: aliveOC.player_number, 
+              target: ocTarget, 
+              role_revealed: targetPlayer.role_code,
+              message: ocMessage 
+            });
           }
         }
       }
