@@ -92,11 +92,11 @@ export function GameTransitionAnimation({
     };
   }, []);
 
-  // Animate through phases
+  // Animate through phases - FAST transitions (total ~2.5s)
   useEffect(() => {
-    const exitTimer = setTimeout(() => setPhase('transition'), 1000);
-    const transitionTimer = setTimeout(() => setPhase('enter'), 2500);
-    const completeTimer = setTimeout(() => onComplete?.(), 4000);
+    const exitTimer = setTimeout(() => setPhase('transition'), 600);
+    const transitionTimer = setTimeout(() => setPhase('enter'), 1400);
+    const completeTimer = setTimeout(() => onComplete?.(), 2500);
 
     return () => {
       clearTimeout(exitTimer);

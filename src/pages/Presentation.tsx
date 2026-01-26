@@ -1,5 +1,5 @@
 import { useParams, Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PresentationModeView } from "@/components/mj/presentation/PresentationModeView";
@@ -7,7 +7,9 @@ import { RivieresPresentationView } from "@/components/rivieres/presentation/Riv
 import { InfectionPresentationView } from "@/components/infection/presentation/InfectionPresentationView";
 import { SheriffPresentationView } from "@/components/sheriff/presentation/SheriffPresentationView";
 import { AdventureCinematicDebugPanel } from "@/components/adventure/AdventureCinematicDebugPanel";
+import { CinematicButton } from "@/components/adventure/CinematicButton";
 import { useAdventureCinematic } from "@/hooks/useAdventureCinematic";
+import { getSequenceForGameType } from "@/components/adventure/CinematicSequenceContent";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, LogIn } from "lucide-react";
 
@@ -29,6 +31,9 @@ const Presentation = () => {
   const { user, session, loading: authLoading } = useAuth();
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Track auto-broadcast per game type to prevent duplicates
+  const autoBroadcastedRef = useRef<string | null>(null);
 
   // Log auth state on mount for debugging
   useEffect(() => {
@@ -48,6 +53,24 @@ const Presentation = () => {
   } = useAdventureCinematic(isAdventureMode ? gameId : undefined, {
     enabled: isAdventureMode,
   });
+  
+  // Auto-broadcast cinematic when entering presentation mode for adventure games
+  useEffect(() => {
+    if (!isAdventureMode || !game || loading) return;
+    
+    const gameTypeCode = game.selected_game_type_code;
+    const broadcastKey = `${game.id}-${gameTypeCode}`;
+    
+    // Don't re-broadcast for the same game+type
+    if (autoBroadcastedRef.current === broadcastKey) return;
+    
+    const sequence = getSequenceForGameType(gameTypeCode, true);
+    if (sequence.length > 0) {
+      console.log('[PRESENTATION] Auto-broadcasting cinematic for', gameTypeCode, sequence);
+      autoBroadcastedRef.current = broadcastKey;
+      broadcastCinematic(sequence);
+    }
+  }, [isAdventureMode, game, loading, broadcastCinematic]);
 
   useEffect(() => {
     if (!gameId) return;
@@ -136,11 +159,23 @@ const Presentation = () => {
       onBroadcastTest={broadcastCinematic}
     />
   ) : null;
+  
+  // Cinematic button for top-right corner (all presentation views)
+  const cinematicButton = isAdventureMode ? (
+    <div className="fixed top-4 right-4 z-50">
+      <CinematicButton
+        gameTypeCode={game?.selected_game_type_code ?? null}
+        onBroadcast={broadcastCinematic}
+        showEndOption={game?.selected_game_type_code === 'INFECTION'}
+      />
+    </div>
+  ) : null;
 
   // Route to appropriate presentation based on game type
   if (game.selected_game_type_code === 'RIVIERES') {
     return (
       <>
+        {cinematicButton}
         {debugPanel}
         <RivieresPresentationView game={game} onClose={() => window.close()} />
       </>
@@ -150,6 +185,7 @@ const Presentation = () => {
   if (game.selected_game_type_code === 'INFECTION') {
     return (
       <>
+        {cinematicButton}
         {debugPanel}
         <InfectionPresentationView game={game} onClose={() => window.close()} />
       </>
@@ -159,6 +195,7 @@ const Presentation = () => {
   if (game.selected_game_type_code === 'SHERIFF') {
     return (
       <>
+        {cinematicButton}
         {debugPanel}
         <SheriffPresentationView game={game} onClose={() => window.close()} />
       </>
@@ -168,6 +205,7 @@ const Presentation = () => {
   // Default to Forest presentation
   return (
     <>
+      {cinematicButton}
       {debugPanel}
       <PresentationModeView game={game} onClose={() => window.close()} />
     </>
