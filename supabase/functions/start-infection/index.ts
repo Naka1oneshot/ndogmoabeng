@@ -20,6 +20,7 @@ interface StartInfectionRequest {
   sessionGameId: string;
   roleConfig?: Partial<RoleConfig>;
   startingTokens?: number;
+  preAssignedRoles?: Record<string, string>; // playerId -> roleCode
 }
 
 // Role to team mapping
@@ -75,9 +76,9 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { gameId, sessionGameId, roleConfig, startingTokens }: StartInfectionRequest = await req.json();
+    const { gameId, sessionGameId, roleConfig, startingTokens, preAssignedRoles }: StartInfectionRequest = await req.json();
 
-    console.log('[start-infection] Starting with:', { gameId, sessionGameId, roleConfig, startingTokens });
+    console.log('[start-infection] Starting with:', { gameId, sessionGameId, roleConfig, startingTokens, preAssignedRoles: preAssignedRoles ? Object.keys(preAssignedRoles).length : 0 });
 
     // 1. Fetch active players (with player_number assigned) - with retry
     const playersRaw = await withRetry(async () => {
@@ -172,16 +173,33 @@ Deno.serve(async (req) => {
 
     console.log('[start-infection] Role config:', finalRoleConfig);
 
-    // 3. Build role list and shuffle
-    const roles: string[] = [];
+    // 3. Build role list and shuffle (considering pre-assigned roles)
+    const preAssigned = preAssignedRoles || {};
+    
+    // Count pre-assigned roles to adjust remaining pool
+    const preAssignedCounts: Record<string, number> = {};
+    for (const roleCode of Object.values(preAssigned)) {
+      preAssignedCounts[roleCode] = (preAssignedCounts[roleCode] || 0) + 1;
+    }
+    
+    // Calculate remaining roles after pre-assignments
+    const remainingRoleCounts: Record<string, number> = {};
     for (const [role, count] of Object.entries(finalRoleConfig)) {
+      const preAssignedCount = preAssignedCounts[role] || 0;
+      remainingRoleCounts[role] = Math.max(0, count - preAssignedCount);
+    }
+    
+    // Build remaining roles pool
+    const remainingRoles: string[] = [];
+    for (const [role, count] of Object.entries(remainingRoleCounts)) {
       for (let i = 0; i < count; i++) {
-        roles.push(role);
+        remainingRoles.push(role);
       }
     }
-    const shuffledRoles = shuffleArray(roles);
+    const shuffledRemainingRoles = shuffleArray(remainingRoles);
 
-    console.log('[start-infection] Shuffled roles:', shuffledRoles);
+    console.log('[start-infection] Pre-assigned counts:', preAssignedCounts);
+    console.log('[start-infection] Remaining roles to assign:', shuffledRemainingRoles);
 
     // 4. Get starting tokens
     const { data: gameData } = await supabase
@@ -192,9 +210,12 @@ Deno.serve(async (req) => {
 
     const tokens = startingTokens || gameData?.starting_tokens || 50;
 
-    // 5. Assign roles to players and prepare updates
-    const playerUpdates = players.map((player, index) => {
-      const role = shuffledRoles[index];
+    // 5. Assign roles to players (respecting pre-assignments) and prepare updates
+    let remainingRoleIndex = 0;
+    const playerUpdates = players.map((player) => {
+      // Check if this player has a pre-assigned role
+      const preAssignedRole = preAssigned[player.id];
+      const role = preAssignedRole || shuffledRemainingRoles[remainingRoleIndex++];
       const team = ROLE_TO_TEAM[role] || 'CITOYEN';
       
       // Royaux clan bonus: 1.5x starting tokens
@@ -216,6 +237,7 @@ Deno.serve(async (req) => {
         will_contaminate_at_manche: null,
         will_die_at_manche: null,
         has_antibodies: false,
+        was_pre_assigned: !!preAssignedRole,
       };
     });
 

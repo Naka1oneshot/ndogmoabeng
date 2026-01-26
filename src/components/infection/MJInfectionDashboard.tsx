@@ -29,6 +29,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 import { InfectionRankingPanel } from './InfectionRankingPanel';
+import { RoleAssignmentPanel } from './RoleAssignmentPanel';
 
 interface Game {
   id: string;
@@ -120,6 +121,9 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   
   const [botCount, setBotCount] = useState(5);
   const [triggeringBotDecisions, setTriggeringBotDecisions] = useState(false);
+  
+  // Role assignment state (for pre-game configuration)
+  const [roleAssignments, setRoleAssignments] = useState<Array<{ playerId: string; roleCode: string | null }>>([]);
 
   // Presence helper
   const getPresenceBadge = (lastSeen: string | null) => {
@@ -214,12 +218,21 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
 
     toast.info('Lancement de la partie INFECTION...');
 
+    // Build pre-assigned roles map from roleAssignments
+    const preAssignedRoles: Record<string, string> = {};
+    for (const assignment of roleAssignments) {
+      if (assignment.roleCode) {
+        preAssignedRoles[assignment.playerId] = assignment.roleCode;
+      }
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('start-infection', {
         body: {
           gameId: game.id,
           sessionGameId: game.current_session_game_id,
           startingTokens: game.starting_tokens,
+          preAssignedRoles: Object.keys(preAssignedRoles).length > 0 ? preAssignedRoles : undefined,
         },
       });
 
@@ -778,29 +791,21 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
             </div>
           )}
 
-          {/* Role configuration (placeholder) */}
+          {/* Role assignment panel */}
           <div className={theme.card}>
             <div className="p-4 border-b border-[#2D3748]">
               <h2 className="font-semibold flex items-center gap-2">
                 <Settings className="h-4 w-4 text-[#D4AF37]" />
-                Configuration des rôles
+                Attribution des rôles
               </h2>
             </div>
             <div className="p-4">
-              <p className="text-[#6B7280] text-sm mb-4">
-                Composition par défaut selon le nombre de joueurs :
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                {Object.entries(INFECTION_ROLE_LABELS).map(([code, info]) => (
-                  <div key={code} className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: info.color }}
-                    />
-                    <span>{info.name}</span>
-                  </div>
-                ))}
-              </div>
+              <RoleAssignmentPanel
+                players={players}
+                roleAssignments={roleAssignments}
+                onAssignmentsChange={setRoleAssignments}
+                playerCount={activePlayers.length}
+              />
             </div>
           </div>
 
