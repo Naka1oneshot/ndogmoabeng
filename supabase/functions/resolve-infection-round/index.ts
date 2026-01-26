@@ -189,6 +189,60 @@ Deno.serve(async (req) => {
     addLog('STEP_1_FREEZE', { status: 'LOCKED' });
 
     // ========================================
+    // STEP 1B: PATIENT 0 INFECTION (BEFORE SHOTS!)
+    // Only in manche 1 - Patient 0 is infected BEFORE any shooting
+    // ========================================
+    let patient0Player: Player | null = null;
+    
+    if (manche === 1) {
+      const alivePV = players.filter(p => p.role_code === 'PV' && p.is_alive);
+      
+      // Filter votes to only include LIVING targets (not PV)
+      const validPatient0Targets = players.filter(p => 
+        p.is_alive && 
+        p.role_code !== 'PV'
+      ).map(p => p.player_number);
+      
+      const patient0Votes = alivePV
+        .map(pv => getInput(pv.player_number)?.pv_patient0_target_num)
+        .filter(v => v !== null && v !== undefined && validPatient0Targets.includes(v)) as number[];
+
+      addLog('STEP_1B_PATIENT0_VOTES', { 
+        alivePV: alivePV.map(p => p.player_number),
+        validTargets: validPatient0Targets,
+        filteredVotes: patient0Votes 
+      });
+
+      const { winner: patient0Num, counts: patient0Counts } = countVotes(patient0Votes);
+
+      if (patient0Num) {
+        const patient0 = getPlayerByNum(players, patient0Num);
+        if (patient0 && patient0.is_alive) {
+          // Infect patient 0 BEFORE shots
+          patient0.is_carrier = true;
+          patient0.is_contagious = false;
+          patient0.infected_at_manche = manche;
+          patient0.will_contaminate_at_manche = manche + 1;
+          patient0.will_die_at_manche = manche + 2;
+          patient0Player = patient0;
+
+          await supabase.from('game_players').update({
+            is_carrier: true,
+            is_contagious: false,
+            infected_at_manche: manche,
+            will_contaminate_at_manche: manche + 1,
+            will_die_at_manche: manche + 2,
+          }).eq('id', patient0.id);
+
+          pvMessages.push(`🦠 Patient 0: ${patient0.display_name} (#${patient0.player_number})`);
+          addLog('STEP_1B_PATIENT0', { patient0_num: patient0Num, name: patient0.display_name, votes: patient0Counts });
+        }
+      } else {
+        addLog('STEP_1B_PATIENT0_SKIPPED', { reason: 'No valid votes for living non-PV targets' });
+      }
+    }
+
+    // ========================================
     // STEP 5: CORRUPTION AE (before timestamp order)
     // ========================================
     const ae = players.find(p => p.role_code === 'AE' && p.is_alive);
@@ -615,54 +669,9 @@ Deno.serve(async (req) => {
     // STEP 8: INFECTION CYCLE
     // ========================================
     
-    // 8a: Patient 0 (only manche 1)
-    if (manche === 1) {
-      const alivePV = players.filter(p => p.role_code === 'PV' && p.is_alive && !deaths.includes(p.player_number));
-      
-      // Filter votes to only include LIVING targets (not killed this round, not PV)
-      const validPatient0Targets = players.filter(p => 
-        p.is_alive && 
-        !deaths.includes(p.player_number) && 
-        p.role_code !== 'PV'
-      ).map(p => p.player_number);
-      
-      const patient0Votes = alivePV
-        .map(pv => getInput(pv.player_number)?.pv_patient0_target_num)
-        .filter(v => v !== null && v !== undefined && validPatient0Targets.includes(v)) as number[];
-
-      addLog('STEP_8_PATIENT0_VOTES', { 
-        alivePV: alivePV.map(p => p.player_number),
-        validTargets: validPatient0Targets,
-        filteredVotes: patient0Votes 
-      });
-
-      const { winner: patient0Num, counts: patient0Counts } = countVotes(patient0Votes);
-
-      if (patient0Num) {
-        const patient0 = getPlayerByNum(players, patient0Num);
-        if (patient0 && patient0.is_alive && !deaths.includes(patient0.player_number)) {
-          // Infect patient 0
-          patient0.is_carrier = true;
-          patient0.is_contagious = false;
-          patient0.infected_at_manche = manche;
-          patient0.will_contaminate_at_manche = manche + 1;
-          patient0.will_die_at_manche = manche + 2;
-
-          await supabase.from('game_players').update({
-            is_carrier: true,
-            is_contagious: false,
-            infected_at_manche: manche,
-            will_contaminate_at_manche: manche + 1,
-            will_die_at_manche: manche + 2,
-          }).eq('id', patient0.id);
-
-          pvMessages.push(`🦠 Patient 0: ${patient0.display_name} (#${patient0.player_number})`);
-          addLog('STEP_8_PATIENT0', { patient0_num: patient0Num, name: patient0.display_name, votes: patient0Counts });
-        }
-      } else {
-        addLog('STEP_8_PATIENT0_SKIPPED', { reason: 'No valid votes for living non-PV targets' });
-      }
-    }
+    // Note: Patient 0 is now infected in STEP 1B (before shots)
+    // The normal contamination logic (8b) handles both living and dead contaminators,
+    // including the case where Patient 0 dies in manche 1 but still contaminates in manche 2
 
     // 8b: Contamination (spread to neighbors)
     // RULE: Maximum 2 NEW infections per round (global limit, not per contaminator)
