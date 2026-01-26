@@ -77,7 +77,7 @@ function FloatingParticles() {
   );
 }
 
-// Clan card for GUIDE_CHOICE sequence
+// Clan card for GUIDE_CHOICE sequence - compact for 2+3 grid layout
 function ClanCard({ clanId, index }: { clanId: string; index: number }) {
   const clan = CLANS_DATA.find(c => c.id === clanId);
   const image = clanImages[clanId];
@@ -86,22 +86,21 @@ function ClanCard({ clanId, index }: { clanId: string; index: number }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50, scale: 0.8 }}
+      initial={{ opacity: 0, y: 30, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -30, scale: 0.9 }}
-      transition={{ delay: index * 0.2, duration: 0.5, ease: 'easeOut' }}
-      className="bg-gradient-to-b from-[#1A1510]/90 to-[#0F0D08]/90 rounded-lg border border-[#D4AF37]/40 p-3 flex flex-col items-center text-center w-[140px] sm:w-[160px] shrink-0"
+      exit={{ opacity: 0, y: -20, scale: 0.95 }}
+      transition={{ delay: index * 0.12, duration: 0.4, ease: 'easeOut' }}
+      className="bg-gradient-to-b from-[#1A1510]/90 to-[#0F0D08]/90 rounded-lg border border-[#D4AF37]/40 p-2 sm:p-3 flex flex-col items-center text-center w-[100px] sm:w-[130px]"
     >
-      <div className="w-14 h-14 sm:w-16 sm:h-16 mb-2 flex items-center justify-center">
+      <div className="w-10 h-10 sm:w-12 sm:h-12 mb-1.5 flex items-center justify-center">
         <img 
           src={image} 
           alt={clan.name} 
           className="w-full h-full object-contain"
         />
       </div>
-      <h4 className="font-display text-xs sm:text-sm text-[#D4AF37] mb-1">{clan.name}</h4>
-      <p className="text-[10px] sm:text-xs text-[#9CA3AF] mb-1 line-clamp-2">{clan.description}</p>
-      <p className="text-[10px] sm:text-xs text-[#D4AF37]/80 italic">"{clan.devise}"</p>
+      <h4 className="font-display text-[10px] sm:text-xs text-[#D4AF37] mb-0.5 leading-tight">{clan.name}</h4>
+      <p className="text-[8px] sm:text-[10px] text-[#9CA3AF] line-clamp-2 leading-tight">{clan.description}</p>
     </motion.div>
   );
 }
@@ -268,17 +267,24 @@ export function AdventureCinematicOverlay({
                 {content.narrative}
               </motion.div>
 
-              {/* Clan cards for GUIDE_CHOICE - horizontal scroll on mobile */}
+              {/* Clan cards for GUIDE_CHOICE - 2+3 grid layout, no scrollbar */}
               {content.showClans && (
                 <motion.div
-                  className="w-full mt-4 overflow-x-auto pb-4"
+                  className="w-full mt-4 flex flex-col items-center gap-2 sm:gap-3"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.6 }}
                 >
-                  <div className="flex gap-3 justify-start sm:justify-center min-w-max px-4 sm:px-0">
-                    {GUIDE_CLANS.map((clanId, index) => (
+                  {/* Row 1: 2 clans centered */}
+                  <div className="flex gap-2 sm:gap-3 justify-center">
+                    {GUIDE_CLANS.slice(0, 2).map((clanId, index) => (
                       <ClanCard key={clanId} clanId={clanId} index={index} />
+                    ))}
+                  </div>
+                  {/* Row 2: 3 clans centered */}
+                  <div className="flex gap-2 sm:gap-3 justify-center">
+                    {GUIDE_CLANS.slice(2, 5).map((clanId, index) => (
+                      <ClanCard key={clanId} clanId={clanId} index={index + 2} />
                     ))}
                   </div>
                 </motion.div>
