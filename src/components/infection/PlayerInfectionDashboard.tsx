@@ -52,6 +52,7 @@ interface Player {
   role_code: string | null;
   team_code: string | null;
   immune_permanent: boolean | null;
+  is_host?: boolean;
 }
 
 interface RoundState {
@@ -125,7 +126,7 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
   const fetchData = async () => {
     const { data: playersData } = await supabase
       .from('game_players')
-      .select('id, display_name, player_number, clan, is_alive, role_code, jetons')
+      .select('id, display_name, player_number, clan, is_alive, role_code, team_code, jetons, is_host')
       .eq('game_id', game.id)
       .is('removed_at', null)
       .order('player_number');

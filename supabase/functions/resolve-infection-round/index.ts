@@ -547,6 +547,7 @@ Deno.serve(async (req) => {
       if (testedPlayer) {
         const hasAntibodies = testedPlayer.has_antibodies;
         
+        // Send private message to the tested player about their antibody status
         privateMessages.push({ 
           player_num: testedPlayer.player_number, 
           message: hasAntibodies 
@@ -554,8 +555,24 @@ Deno.serve(async (req) => {
             : `🧬 Résultat du test: Tu n'as pas les anticorps.`
         });
 
-        publicEvents.push(`🧪 Un test anticorps a été réalisé.`);
-        addLog('STEP_6_VOTE_TEST', { target: testTarget, hasAntibodies, votes: testCounts });
+        // Also insert as game_event for the private messages panel
+        await supabase.from('game_events').insert({
+          game_id: gameId,
+          session_game_id: sessionGameId,
+          event_type: 'ANTIBODY_TEST',
+          message: hasAntibodies 
+            ? `🧬 Résultat du test: Tu as les anticorps!`
+            : `🧬 Résultat du test: Tu n'as pas les anticorps.`,
+          manche,
+          phase: 'RESOLVED',
+          visibility: 'PRIVATE',
+          player_num: testedPlayer.player_number,
+          payload: { hasAntibodies, votes_received: testCounts[testTarget] || 0 },
+        });
+
+        // PUBLIC message: announce who got tested (name revealed)
+        publicEvents.push(`🧪 Test anticorps: ${testedPlayer.display_name} (#${testedPlayer.player_number}) a été désigné(e) par le vote.`);
+        addLog('STEP_6_VOTE_TEST', { target: testTarget, targetName: testedPlayer.display_name, hasAntibodies, votes: testCounts });
       }
     }
 

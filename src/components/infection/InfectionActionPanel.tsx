@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Target, Syringe, Search, Eye, Skull, Coins } from 'lucide-react';
+import { Target, Syringe, Search, Eye, Skull, Coins, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Player {
@@ -12,7 +12,9 @@ interface Player {
   player_number: number | null;
   is_alive: boolean | null;
   role_code: string | null;
+  team_code?: string | null;
   jetons: number | null;
+  is_host?: boolean;
 }
 
 interface InfectionInput {
@@ -32,6 +34,9 @@ interface InfectionActionPanelProps {
   allPlayers: Player[];
   isLocked: boolean;
 }
+
+// Special value for "do not use" option
+const NO_ACTION_VALUE = '-1';
 
 export function InfectionActionPanel({
   gameId,
@@ -54,8 +59,20 @@ export function InfectionActionPanel({
   const [hasUsedBullet, setHasUsedBullet] = useState(false);
   const [bulletCount, setBulletCount] = useState(0);
   const [alreadyResearchedTargets, setAlreadyResearchedTargets] = useState<number[]>([]);
+  const [hasChanges, setHasChanges] = useState(false);
 
-  const alivePlayers = allPlayers.filter(p => p.is_alive !== false && p.player_number !== player.player_number);
+  // Filter out MJ (host) from all player lists
+  const selectablePlayers = allPlayers.filter(p => !p.is_host);
+  
+  // Alive players excluding self and MJ
+  const alivePlayers = selectablePlayers.filter(p => p.is_alive !== false && p.player_number !== player.player_number);
+  
+  // For antidote: include self in the list (PV can self-inject)
+  const alivePlayersWithSelf = selectablePlayers.filter(p => p.is_alive !== false);
+  
+  // For corruption: exclude AE player
+  const aePlayer = selectablePlayers.find(p => p.role_code === 'AE');
+  const corruptionTargetPlayers = alivePlayers.filter(p => p.role_code !== 'AE');
   
   // For SY: filter out already researched targets
   const availableResearchTargets = player.role_code === 'SY' 
@@ -89,6 +106,7 @@ export function InfectionActionPanel({
         oc_lookup_target_num: data.oc_lookup_target_num,
       });
     }
+    setHasChanges(false);
   };
 
   const loadInventoryState = async () => {
@@ -143,7 +161,7 @@ export function InfectionActionPanel({
     }
   };
 
-  const submitAction = async (actionType: string, targetNum?: number, amount?: number) => {
+  const submitAction = async (actionType: string, targetNum?: number | null, amount?: number) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('infection-submit-action', {
@@ -154,7 +172,7 @@ export function InfectionActionPanel({
           playerId: player.id,
           playerNum: player.player_number,
           actionType,
-          targetNum,
+          targetNum: targetNum === null ? null : targetNum, // Explicitly pass null to clear
           amount,
         },
       });
@@ -163,6 +181,7 @@ export function InfectionActionPanel({
       if (!data?.success) throw new Error(data?.error || 'Failed to submit');
 
       toast.success('Action enregistrée');
+      setHasChanges(false);
       loadCurrentInputs();
     } catch (err: any) {
       toast.error(err.message || 'Erreur');
@@ -197,6 +216,23 @@ export function InfectionActionPanel({
     }
   };
 
+  // Handle select change with "no action" support
+  const handleSelectChange = (value: string, field: keyof InfectionInput, actionType: string) => {
+    if (value === NO_ACTION_VALUE) {
+      setInputs(prev => ({ ...prev, [field]: null }));
+      submitAction(actionType, null);
+    } else {
+      const numValue = parseInt(value);
+      setInputs(prev => ({ ...prev, [field]: numValue }));
+      submitAction(actionType, numValue);
+    }
+  };
+
+  // Get display value for select (handle null as "no action")
+  const getSelectValue = (value: number | null): string => {
+    return value === null ? '' : String(value);
+  };
+
   if (isLocked) {
     return (
       <div className="p-4 bg-[#1A2235] rounded-lg text-center text-[#6B7280]">
@@ -225,7 +261,7 @@ export function InfectionActionPanel({
                 <SelectTrigger className="flex-1 bg-[#0B0E14] border-[#2D3748]">
                   <SelectValue placeholder="Choisir une cible..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#1A2235] border-[#2D3748]">
                   {alivePlayers.map((p) => (
                     <SelectItem key={p.player_number} value={String(p.player_number)}>
                       #{p.player_number} - {p.display_name}
@@ -253,17 +289,14 @@ export function InfectionActionPanel({
                 Choisissez votre première victime du virus.
               </p>
               <Select 
-                value={inputs.pv_patient0_target_num?.toString() || ''} 
-                onValueChange={(v) => {
-                  setInputs(prev => ({ ...prev, pv_patient0_target_num: parseInt(v) }));
-                  submitAction('PV_PATIENT0', parseInt(v));
-                }}
+                value={getSelectValue(inputs.pv_patient0_target_num)} 
+                onValueChange={(v) => handleSelectChange(v, 'pv_patient0_target_num', 'PV_PATIENT0')}
                 disabled={loading}
               >
                 <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
                   <SelectValue placeholder="Choisir Patient 0..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#1A2235] border-[#2D3748]">
                   {alivePlayers.map((p) => (
                     <SelectItem key={p.player_number} value={String(p.player_number)}>
                       #{p.player_number} - {p.display_name}
@@ -286,7 +319,7 @@ export function InfectionActionPanel({
                 <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
                   <SelectValue placeholder="Choisir une cible..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#1A2235] border-[#2D3748]">
                   {alivePlayers.map((p) => (
                     <SelectItem key={p.player_number} value={String(p.player_number)}>
                       #{p.player_number} - {p.display_name}
@@ -302,27 +335,35 @@ export function InfectionActionPanel({
           <div className="p-4 bg-[#1A2235] rounded-lg border border-[#2AB3A6]/30">
             <h3 className="font-semibold text-[#2AB3A6] mb-2 flex items-center gap-2">
               <Syringe className="h-4 w-4" />
-              Antidote
+              Antidote (optionnel)
             </h3>
+            <p className="text-sm text-[#6B7280] mb-3">
+              Tu peux t'injecter l'antidote à toi-même.
+            </p>
             <Select 
-              value={inputs.pv_antidote_target_num?.toString() || ''} 
-              onValueChange={(v) => {
-                setInputs(prev => ({ ...prev, pv_antidote_target_num: parseInt(v) }));
-                submitAction('PV_ANTIDOTE', parseInt(v));
-              }}
+              value={getSelectValue(inputs.pv_antidote_target_num)} 
+              onValueChange={(v) => handleSelectChange(v, 'pv_antidote_target_num', 'PV_ANTIDOTE')}
               disabled={loading}
             >
               <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
                 <SelectValue placeholder="Administrer à..." />
               </SelectTrigger>
-              <SelectContent>
-                {alivePlayers.map((p) => (
+              <SelectContent className="bg-[#1A2235] border-[#2D3748]">
+                <SelectItem value={NO_ACTION_VALUE} className="text-[#6B7280]">
+                  — Ne pas utiliser —
+                </SelectItem>
+                {alivePlayersWithSelf.map((p) => (
                   <SelectItem key={p.player_number} value={String(p.player_number)}>
-                    #{p.player_number} - {p.display_name}
+                    #{p.player_number} - {p.display_name} {p.player_number === player.player_number ? '(moi)' : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {inputs.pv_antidote_target_num && (
+              <p className="text-xs text-[#2AB3A6] mt-2">
+                ✓ Cible: #{inputs.pv_antidote_target_num}
+              </p>
+            )}
           </div>
         </>
       )}
@@ -332,7 +373,7 @@ export function InfectionActionPanel({
         <div className="p-4 bg-[#1A2235] rounded-lg border border-[#2AB3A6]/30">
           <h3 className="font-semibold text-[#2AB3A6] mb-2 flex items-center gap-2">
             <Search className="h-4 w-4" />
-            Recherche anticorps
+            Recherche anticorps (optionnel)
           </h3>
           <p className="text-sm text-[#6B7280] mb-3">
             Tous les SY doivent choisir la même cible pour réussir.
@@ -346,17 +387,17 @@ export function InfectionActionPanel({
             <p className="text-[#D4AF37]">Tous les joueurs vivants ont déjà été testés.</p>
           ) : (
             <Select 
-              value={inputs.sy_research_target_num?.toString() || ''} 
-              onValueChange={(v) => {
-                setInputs(prev => ({ ...prev, sy_research_target_num: parseInt(v) }));
-                submitAction('SY_RESEARCH', parseInt(v));
-              }}
+              value={getSelectValue(inputs.sy_research_target_num)} 
+              onValueChange={(v) => handleSelectChange(v, 'sy_research_target_num', 'SY_RESEARCH')}
               disabled={loading}
             >
               <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
                 <SelectValue placeholder="Tester qui..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-[#1A2235] border-[#2D3748]">
+                <SelectItem value={NO_ACTION_VALUE} className="text-[#6B7280]">
+                  — Ne pas tester —
+                </SelectItem>
                 {availableResearchTargets.map((p) => (
                   <SelectItem key={p.player_number} value={String(p.player_number)}>
                     #{p.player_number} - {p.display_name}
@@ -364,6 +405,11 @@ export function InfectionActionPanel({
                 ))}
               </SelectContent>
             </Select>
+          )}
+          {inputs.sy_research_target_num && (
+            <p className="text-xs text-[#2AB3A6] mt-2">
+              ✓ Cible: #{inputs.sy_research_target_num}
+            </p>
           )}
         </div>
       )}
@@ -373,23 +419,23 @@ export function InfectionActionPanel({
         <div className="p-4 bg-[#1A2235] rounded-lg border border-[#D4AF37]/30">
           <h3 className="font-semibold text-[#D4AF37] mb-2 flex items-center gap-2">
             <Eye className="h-4 w-4" />
-            Consultation Oracle
+            Consultation Oracle (optionnel)
           </h3>
           <p className="text-sm text-[#6B7280] mb-3">
             Révélez le rôle d'un joueur (1 fois par manche).
           </p>
           <Select 
-            value={inputs.oc_lookup_target_num?.toString() || ''} 
-            onValueChange={(v) => {
-              setInputs(prev => ({ ...prev, oc_lookup_target_num: parseInt(v) }));
-              submitAction('OC_LOOKUP', parseInt(v));
-            }}
+            value={getSelectValue(inputs.oc_lookup_target_num)} 
+            onValueChange={(v) => handleSelectChange(v, 'oc_lookup_target_num', 'OC_LOOKUP')}
             disabled={loading}
           >
             <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
               <SelectValue placeholder="Consulter qui..." />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-[#1A2235] border-[#2D3748]">
+              <SelectItem value={NO_ACTION_VALUE} className="text-[#6B7280]">
+                — Ne pas consulter —
+              </SelectItem>
               {alivePlayers.map((p) => (
                 <SelectItem key={p.player_number} value={String(p.player_number)}>
                   #{p.player_number} - {p.display_name}
@@ -397,6 +443,11 @@ export function InfectionActionPanel({
               ))}
             </SelectContent>
           </Select>
+          {inputs.oc_lookup_target_num && (
+            <p className="text-xs text-[#D4AF37] mt-2">
+              ✓ Cible: #{inputs.oc_lookup_target_num}
+            </p>
+          )}
         </div>
       )}
 
@@ -405,23 +456,23 @@ export function InfectionActionPanel({
         <div className="p-4 bg-[#1A2235] rounded-lg border border-[#D4AF37]/30">
           <h3 className="font-semibold text-[#D4AF37] mb-2 flex items-center gap-2">
             <Target className="h-4 w-4" />
-            Identifier le Bras Armé
+            Identifier le Bras Armé (optionnel)
           </h3>
           <p className="text-sm text-[#6B7280] mb-3">
             Si correct, la corruption sera activée.
           </p>
           <Select 
-            value={inputs.ae_sabotage_target_num?.toString() || ''} 
-            onValueChange={(v) => {
-              setInputs(prev => ({ ...prev, ae_sabotage_target_num: parseInt(v) }));
-              submitAction('AE_SABOTAGE', parseInt(v));
-            }}
+            value={getSelectValue(inputs.ae_sabotage_target_num)} 
+            onValueChange={(v) => handleSelectChange(v, 'ae_sabotage_target_num', 'AE_SABOTAGE')}
             disabled={loading}
           >
             <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
               <SelectValue placeholder="Le BA est..." />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-[#1A2235] border-[#2D3748]">
+              <SelectItem value={NO_ACTION_VALUE} className="text-[#6B7280]">
+                — Ne pas identifier —
+              </SelectItem>
               {alivePlayers.map((p) => (
                 <SelectItem key={p.player_number} value={String(p.player_number)}>
                   #{p.player_number} - {p.display_name}
@@ -429,40 +480,51 @@ export function InfectionActionPanel({
               ))}
             </SelectContent>
           </Select>
+          {inputs.ae_sabotage_target_num && (
+            <p className="text-xs text-[#D4AF37] mt-2">
+              ✓ Cible: #{inputs.ae_sabotage_target_num}
+            </p>
+          )}
         </div>
       )}
 
-      {/* Corruption (everyone) */}
-      <div className="p-4 bg-[#1A2235] rounded-lg border border-[#D4AF37]/30">
-        <h3 className="font-semibold text-[#D4AF37] mb-2 flex items-center gap-2">
-          <Coins className="h-4 w-4" />
-          Corruption
-        </h3>
-        <p className="text-sm text-[#6B7280] mb-3">
-          Misez des jetons. Citoyens: seuil 10 pour bloquer BA. PV: seuil 15 pour débloquer.
-        </p>
-        <div className="flex gap-2">
-          <Input
-            type="number"
-            min={0}
-            max={player.jetons || 0}
-            value={inputs.corruption_amount}
-            onChange={(e) => setInputs(prev => ({ ...prev, corruption_amount: parseInt(e.target.value) || 0 }))}
-            className="flex-1 bg-[#0B0E14] border-[#2D3748]"
-            disabled={loading}
-          />
-          <Button 
-            onClick={() => submitAction('CORRUPTION', undefined, inputs.corruption_amount)}
-            disabled={loading}
-            className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
-          >
-            Miser
-          </Button>
+      {/* Corruption - displayed to all players except AE */}
+      {player.role_code !== 'AE' && (
+        <div className="p-4 bg-[#1A2235] rounded-lg border border-[#D4AF37]/30">
+          <h3 className="font-semibold text-[#D4AF37] mb-2 flex items-center gap-2">
+            <Coins className="h-4 w-4" />
+            Corruption de l'AE
+          </h3>
+          <p className="text-sm text-[#6B7280] mb-3">
+            Misez des jetons pour l'Agent Ezkar. Citoyens: seuil 10 pour bloquer BA. PV: seuil 15 pour débloquer.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              type="number"
+              min={0}
+              max={player.jetons || 0}
+              value={inputs.corruption_amount}
+              onChange={(e) => {
+                setInputs(prev => ({ ...prev, corruption_amount: parseInt(e.target.value) || 0 }));
+                setHasChanges(true);
+              }}
+              className="flex-1 bg-[#0B0E14] border-[#2D3748]"
+              disabled={loading}
+            />
+            <Button 
+              onClick={() => submitAction('CORRUPTION', undefined, inputs.corruption_amount)}
+              disabled={loading}
+              className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
+            >
+              <Check className="h-4 w-4 mr-1" />
+              Valider
+            </Button>
+          </div>
+          <p className="text-xs text-[#6B7280] mt-2">
+            Max: {player.jetons || 0} jetons
+          </p>
         </div>
-        <p className="text-xs text-[#6B7280] mt-2">
-          Max: {player.jetons || 0} jetons
-        </p>
-      </div>
+      )}
     </div>
   );
 }
