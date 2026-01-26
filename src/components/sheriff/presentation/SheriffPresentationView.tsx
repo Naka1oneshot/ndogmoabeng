@@ -107,6 +107,33 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const prevDuelOrderRef = useRef<number | null>(null);
   const prevDuelStatusRef = useRef<string | null>(null);
   
+  // Adventure cinematic - broadcast on mount for "La carte trouvée"
+  const cinematicBroadcastedRef = useRef(false);
+  const { broadcastCinematic } = useAdventureCinematic(game.id, { enabled: false });
+  
+  useEffect(() => {
+    if (cinematicBroadcastedRef.current) return;
+    
+    // Check if this is "La carte trouvée" adventure
+    const checkAndBroadcast = async () => {
+      const { data: gameData } = await supabase
+        .from('games')
+        .select('mode, adventure_id')
+        .eq('id', game.id)
+        .single();
+      
+      if (gameData?.mode === 'ADVENTURE' && gameData?.adventure_id === LA_CARTE_TROUVEE_ID) {
+        cinematicBroadcastedRef.current = true;
+        const sequence = getSequenceForGameType('SHERIFF', true);
+        if (sequence.length > 0) {
+          broadcastCinematic(sequence);
+        }
+      }
+    };
+    
+    checkAndBroadcast();
+  }, [game.id, broadcastCinematic]);
+  
   const fetchData = useCallback(async () => {
     if (!game.id) return;
     
