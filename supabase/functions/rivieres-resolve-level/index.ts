@@ -247,26 +247,51 @@ serve(async (req) => {
 
       } else {
         // Level 5 success - end of round
-        const survivors = allPlayerStats?.filter(s => s.current_round_status === "EN_BATEAU") || [];
-        const survivorCount = survivors.length;
-        const bonusSurvivor = 50;
+        // IMPORTANT: Only players who chose "RESTE" at level 5 get the distribution
+        // Players who chose "DESCENDS" at level 5 are marked A_TERRE and get nothing from this distribution
+        
+        const bonusSurvivor = 100; // Changed from 50 to 100
+        
+        // Get level 5 decisions - resteDecisions already contains RESTE decisions for current level
+        const level5RestePlayerIds = new Set(resteDecisions.map(d => d.player_id));
+        const level5DescendsPlayerIds = new Set(
+          decisions.filter(d => d.decision === "DESCENDS").map(d => d.player_id)
+        );
+        
+        // Mark DESCENDS players as A_TERRE (they got off at level 5)
+        for (const playerId of level5DescendsPlayerIds) {
+          await supabase
+            .from("river_player_stats")
+            .update({ 
+              current_round_status: "A_TERRE",
+              descended_level: 5,
+              updated_at: new Date().toISOString()
+            })
+            .eq("session_game_id", session_game_id)
+            .eq("player_id", playerId);
+        }
+        
+        // Eligible players = those who chose RESTE at level 5 (and were EN_BATEAU)
+        const eligiblePlayers = resteDecisions.map(d => d.player_id);
+        const eligibleCount = eligiblePlayers.length;
+        
+        // Calculate distribution
+        cagnotteAfter = cagnotteBefore + totalMises + (bonusSurvivor * eligibleCount);
+        const share = eligibleCount > 0 ? Math.floor(cagnotteAfter / eligibleCount) : 0;
 
-        cagnotteAfter += bonusSurvivor * survivorCount;
-        const share = survivorCount > 0 ? Math.floor(cagnotteAfter / survivorCount) : 0;
-
-        // Distribute to survivors and track distribution
-        for (const s of survivors) {
-          const player = playerMap.get(s.player_id);
+        // Distribute only to eligible players (RESTE at level 5)
+        for (const playerId of eligiblePlayers) {
+          const player = playerMap.get(playerId);
           if (player) {
             const newTokens = player.jetons + share;
             await supabase
               .from("game_players")
               .update({ jetons: newTokens })
-              .eq("id", s.player_id);
+              .eq("id", playerId);
 
             // Track distribution details
             distributionDetails.push({
-              player_id: s.player_id,
+              player_id: playerId,
               display_name: player.display_name,
               cagnotte_share: share,
               level_bonus: 0, // At level 5 success, bonus is included in cagnotte
@@ -275,8 +300,23 @@ serve(async (req) => {
           }
         }
 
-        publicSummaryParts.push(`🎉 Niveau 5 réussi ! ${survivorCount} survivant(s) se partagent ${cagnotteAfter}💎 (${share}💎 chacun)`);
-        mjSummaryParts.push(`SUCCESS N5: ${survivorCount} survivants x ${bonusSurvivor} bonus = ${bonusSurvivor * survivorCount}. Cagnotte totale: ${cagnotteAfter}, part: ${share}`);
+        // Detailed logging
+        const totalPlayers = decisions.length;
+        const resteCount = eligibleCount;
+        const descendsCount = level5DescendsPlayerIds.size;
+        
+        console.log(`[rivieres-resolve-level] Level 5 SUCCESS distribution:
+  - Total joueurs: ${totalPlayers}
+  - RESTE: ${resteCount}
+  - DESCENDS: ${descendsCount}
+  - Cagnotte avant: ${cagnotteBefore}
+  - Mises niveau 5: ${totalMises}
+  - Bonus (${bonusSurvivor} x ${resteCount}): ${bonusSurvivor * resteCount}
+  - Cagnotte après: ${cagnotteAfter}
+  - Part par survivant: ${share}`);
+
+        publicSummaryParts.push(`🎉 Niveau 5 réussi ! ${resteCount} survivant(s) RESTE se partagent ${cagnotteAfter}💎 (${share}💎 chacun). ${descendsCount} joueur(s) DESCENDS ne reçoivent rien.`);
+        mjSummaryParts.push(`SUCCESS N5: ${resteCount} RESTE x ${bonusSurvivor} bonus = ${bonusSurvivor * resteCount}. DESCENDS: ${descendsCount}. Cagnotte: ${cagnotteBefore} + ${totalMises} + ${bonusSurvivor * resteCount} = ${cagnotteAfter}, part: ${share}`);
 
         // Prepare for next round or end game
         await handleEndOfRound(supabase, state, cagnotteAfter, game, sessionGame, publicSummaryParts, mjSummaryParts);
