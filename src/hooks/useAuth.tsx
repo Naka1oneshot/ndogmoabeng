@@ -23,8 +23,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
+    // IMPORTANT: Set up auth state change listener BEFORE getSession
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('[AUTH] onAuthStateChange:', { event, userId: session?.user?.id });
+        
         // Detect session expiration from server-side invalidation
         if (event === 'SIGNED_OUT' && user !== null) {
           // Session was invalidated server-side
@@ -36,7 +39,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    // Then get the initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('[AUTH] getSession result:', { 
+        userId: session?.user?.id, 
+        hasSession: !!session, 
+        error: error?.message 
+      });
+      
       if (error && error.message.includes('session')) {
         // Session is invalid
         setSessionExpired(true);

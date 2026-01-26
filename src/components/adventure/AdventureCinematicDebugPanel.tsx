@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bug, X, ChevronDown, ChevronUp, Send } from 'lucide-react';
+import { Bug, X, ChevronDown, ChevronUp, Send, RefreshCw, AlertTriangle } from 'lucide-react';
 import type { CinematicSequence } from './AdventureCinematicOverlay';
 
 interface DebugState {
@@ -40,6 +41,7 @@ export function AdventureCinematicDebugPanel({
   debugState,
   onBroadcastTest,
 }: AdventureCinematicDebugPanelProps) {
+  const { user, session, loading: authLoading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(true);
   const [gameContext, setGameContext] = useState<{
@@ -51,19 +53,78 @@ export function AdventureCinematicDebugPanel({
   const [authInfo, setAuthInfo] = useState<{
     userId: string | null;
     email: string | null;
-  }>({ userId: null, email: null });
+    expiresAt: string | null;
+    sessionSource: string;
+  }>({ userId: null, email: null, expiresAt: null, sessionSource: 'none' });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch auth info
+  // Fetch auth info from multiple sources for debugging
+  const refreshAuthInfo = useCallback(async () => {
+    setIsRefreshing(true);
+    console.log('[CINEMATIC][DEBUG] Refreshing auth info...');
+    
+    // Source 1: useAuth hook (context)
+    const contextUserId = user?.id || null;
+    const contextEmail = user?.email || null;
+    
+    // Source 2: Direct getSession
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const sessionUserId = sessionData?.session?.user?.id || null;
+    const sessionEmail = sessionData?.session?.user?.email || null;
+    const expiresAt = sessionData?.session?.expires_at 
+      ? new Date(sessionData.session.expires_at * 1000).toLocaleString()
+      : null;
+    
+    // Source 3: getUser (validates with server)
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    const serverUserId = userData?.user?.id || null;
+    
+    console.log('[CINEMATIC][DEBUG] Auth sources:', {
+      context: { userId: contextUserId, email: contextEmail },
+      session: { userId: sessionUserId, email: sessionEmail, expiresAt, error: sessionError?.message },
+      server: { userId: serverUserId, error: userError?.message },
+    });
+    
+    // Use the most reliable source
+    const finalUserId = serverUserId || sessionUserId || contextUserId;
+    const finalEmail = sessionEmail || contextEmail;
+    const source = serverUserId ? 'server' : sessionUserId ? 'session' : contextUserId ? 'context' : 'none';
+    
+    setAuthInfo({
+      userId: finalUserId,
+      email: finalEmail,
+      expiresAt,
+      sessionSource: source,
+    });
+    
+    setIsRefreshing(false);
+  }, [user]);
+
+  // Initial auth fetch and when user changes
   useEffect(() => {
-    const getAuthInfo = async () => {
-      const { data } = await supabase.auth.getSession();
-      setAuthInfo({
-        userId: data.session?.user?.id || null,
-        email: data.session?.user?.email || null,
+    if (!authLoading) {
+      refreshAuthInfo();
+    }
+  }, [authLoading, user?.id, refreshAuthInfo]);
+  
+  // Handle session refresh
+  const handleRefreshSession = async () => {
+    setIsRefreshing(true);
+    console.log('[CINEMATIC][DEBUG] Forcing session refresh...');
+    
+    const { data, error } = await supabase.auth.refreshSession();
+    
+    if (error) {
+      console.error('[CINEMATIC][DEBUG] Session refresh failed:', error);
+    } else {
+      console.log('[CINEMATIC][DEBUG] Session refreshed:', {
+        userId: data.session?.user?.id,
+        expiresAt: data.session?.expires_at,
       });
-    };
-    getAuthInfo();
-  }, []);
+    }
+    
+    await refreshAuthInfo();
+  };
 
   // Fetch real game context from DB
   useEffect(() => {
@@ -190,14 +251,57 @@ export function AdventureCinematicDebugPanel({
 
           {/* Auth & Host Verification */}
           <div className="space-y-1">
-            <div className="text-muted-foreground text-[10px] uppercase tracking-wide">
-              Auth & Host
+            <div className="flex items-center justify-between">
+              <div className="text-muted-foreground text-[10px] uppercase tracking-wide">
+                Auth & Host
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleRefreshSession}
+                disabled={isRefreshing}
+                className="h-5 px-1 text-[10px]"
+              >
+                <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
+            
+            {/* Warning if no session */}
+            {!authInfo.userId && !authLoading && (
+              <div className="bg-destructive/20 border border-destructive/50 p-2 rounded flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+                <span className="text-destructive text-[10px]">
+                  Aucune session Supabase! Connectez-vous.
+                </span>
+              </div>
+            )}
+            
             <div className="bg-muted p-2 rounded space-y-1">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">auth.uid:</span>
-                <span className="text-foreground truncate max-w-[150px]" title={authInfo.userId || ''}>
-                  {authInfo.userId?.slice(0, 8) || 'none'}...
+                <span className={`truncate max-w-[150px] ${authInfo.userId ? 'text-foreground' : 'text-destructive'}`} title={authInfo.userId || ''}>
+                  {authInfo.userId?.slice(0, 8) || 'NONE'}...
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">source:</span>
+                <Badge
+                  variant={authInfo.sessionSource === 'server' ? 'default' : authInfo.sessionSource === 'none' ? 'destructive' : 'secondary'}
+                  className="text-[10px] px-1 py-0"
+                >
+                  {authInfo.sessionSource}
+                </Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">expires:</span>
+                <span className="text-foreground text-[10px] truncate max-w-[150px]">
+                  {authInfo.expiresAt || 'N/A'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">email:</span>
+                <span className="text-foreground truncate max-w-[150px]" title={authInfo.email || ''}>
+                  {authInfo.email || 'N/A'}
                 </span>
               </div>
               <div className="flex justify-between">
