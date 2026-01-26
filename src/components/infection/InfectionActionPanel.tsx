@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Target, Syringe, Search, Eye, Skull, Coins, Check } from 'lucide-react';
+import { Target, Syringe, Search, Eye, Skull, Coins, Check, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Player {
@@ -13,6 +13,7 @@ interface Player {
   is_alive: boolean | null;
   role_code: string | null;
   team_code?: string | null;
+  clan?: string | null;
   jetons: number | null;
   is_host?: boolean;
 }
@@ -24,6 +25,7 @@ interface InfectionInput {
   pv_antidote_target_num: number | null;
   sy_research_target_num: number | null;
   oc_lookup_target_num: number | null;
+  ezkar_antidote_target_num: number | null;
 }
 
 interface InfectionActionPanelProps {
@@ -54,12 +56,17 @@ export function InfectionActionPanel({
     pv_antidote_target_num: null,
     sy_research_target_num: null,
     oc_lookup_target_num: null,
+    ezkar_antidote_target_num: null,
   });
   const [hasShotThisRound, setHasShotThisRound] = useState(false);
   const [hasUsedBullet, setHasUsedBullet] = useState(false);
   const [bulletCount, setBulletCount] = useState(0);
   const [alreadyResearchedTargets, setAlreadyResearchedTargets] = useState<number[]>([]);
-  const [hasChanges, setHasChanges] = useState(false);
+  const [isValidated, setIsValidated] = useState(false);
+  
+  // Check if player is from Ezkar clan (case-insensitive)
+  const isEzkarClan = player.clan?.toLowerCase() === 'ezkar';
+  const isPV = player.role_code === 'PV';
 
   // Filter out MJ (host) from all player lists
   const selectablePlayers = allPlayers.filter(p => !p.is_host);
@@ -104,9 +111,9 @@ export function InfectionActionPanel({
         pv_antidote_target_num: data.pv_antidote_target_num,
         sy_research_target_num: data.sy_research_target_num,
         oc_lookup_target_num: data.oc_lookup_target_num,
+        ezkar_antidote_target_num: (data as any).ezkar_antidote_target_num ?? null,
       });
     }
-    setHasChanges(false);
   };
 
   const loadInventoryState = async () => {
@@ -181,7 +188,6 @@ export function InfectionActionPanel({
       if (!data?.success) throw new Error(data?.error || 'Failed to submit');
 
       toast.success('Action enregistrée');
-      setHasChanges(false);
       loadCurrentInputs();
     } catch (err: any) {
       toast.error(err.message || 'Erreur');
@@ -335,7 +341,7 @@ export function InfectionActionPanel({
           <div className="p-4 bg-[#1A2235] rounded-lg border border-[#2AB3A6]/30">
             <h3 className="font-semibold text-[#2AB3A6] mb-2 flex items-center gap-2">
               <Syringe className="h-4 w-4" />
-              Antidote (optionnel)
+              Antidote (optionnel) {isEzkarClan && <span className="text-xs bg-[#2AB3A6]/20 px-2 py-0.5 rounded">2 doses</span>}
             </h3>
             <p className="text-sm text-[#6B7280] mb-3">
               Tu peux t'injecter l'antidote à toi-même.
@@ -506,24 +512,127 @@ export function InfectionActionPanel({
               value={inputs.corruption_amount}
               onChange={(e) => {
                 setInputs(prev => ({ ...prev, corruption_amount: parseInt(e.target.value) || 0 }));
-                setHasChanges(true);
               }}
+              onBlur={() => submitAction('CORRUPTION', undefined, inputs.corruption_amount)}
               className="flex-1 bg-[#0B0E14] border-[#2D3748]"
               disabled={loading}
             />
-            <Button 
-              onClick={() => submitAction('CORRUPTION', undefined, inputs.corruption_amount)}
-              disabled={loading}
-              className="bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black"
-            >
-              <Check className="h-4 w-4 mr-1" />
-              Valider
-            </Button>
           </div>
           <p className="text-xs text-[#6B7280] mt-2">
             Max: {player.jetons || 0} jetons
           </p>
         </div>
+      )}
+
+      {/* Ezkar Clan Antidote - displayed to all Ezkar clan players (except PV who have their own) */}
+      {isEzkarClan && !isPV && (
+        <div className="p-4 bg-[#1A2235] rounded-lg border border-[#2AB3A6]/30">
+          <h3 className="font-semibold text-[#2AB3A6] mb-2 flex items-center gap-2">
+            <Syringe className="h-4 w-4" />
+            Antidote (optionnel)
+          </h3>
+          <p className="text-sm text-[#6B7280] mb-3">
+            En tant que membre du clan Ezkar, tu possèdes un antidote.
+          </p>
+          <Select 
+            value={getSelectValue(inputs.ezkar_antidote_target_num)} 
+            onValueChange={(v) => handleSelectChange(v, 'ezkar_antidote_target_num', 'EZKAR_ANTIDOTE')}
+            disabled={loading}
+          >
+            <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
+              <SelectValue placeholder="Administrer à..." />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1A2235] border-[#2D3748]">
+              <SelectItem value={NO_ACTION_VALUE} className="text-[#6B7280]">
+                — Ne pas utiliser —
+              </SelectItem>
+              {alivePlayersWithSelf.map((p) => (
+                <SelectItem key={p.player_number} value={String(p.player_number)}>
+                  #{p.player_number} - {p.display_name} {p.player_number === player.player_number ? '(moi)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {inputs.ezkar_antidote_target_num && (
+            <p className="text-xs text-[#2AB3A6] mt-2">
+              ✓ Cible: #{inputs.ezkar_antidote_target_num}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Global Validation Button */}
+      <div className="p-4 bg-[#1A2235] rounded-lg border border-[#2AB3A6]/50">
+        <GlobalValidationButton 
+          player={player}
+          manche={manche}
+          inputs={inputs}
+          isLocked={isLocked}
+          loading={loading}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Component for global validation button
+interface GlobalValidationButtonProps {
+  player: Player;
+  manche: number;
+  inputs: InfectionInput;
+  isLocked: boolean;
+  loading: boolean;
+}
+
+function GlobalValidationButton({ player, manche, inputs, isLocked, loading }: GlobalValidationButtonProps) {
+  const [validated, setValidated] = useState(false);
+
+  // Check if all mandatory choices are made
+  const areMandatoryChoicesMade = (): boolean => {
+    // PV must choose Patient 0 in manche 1
+    if (player.role_code === 'PV' && manche === 1) {
+      if (inputs.pv_patient0_target_num === null) {
+        return false;
+      }
+    }
+    // All other choices are optional
+    return true;
+  };
+
+  const canValidate = areMandatoryChoicesMade() && !isLocked && !loading;
+
+  if (isLocked) {
+    return (
+      <div className="flex items-center gap-2 text-[#6B7280]">
+        <Clock className="h-4 w-4" />
+        <span>Manche verrouillée — résolution en cours</span>
+      </div>
+    );
+  }
+
+  if (validated) {
+    return (
+      <div className="flex items-center gap-2 text-[#2AB3A6]">
+        <Check className="h-5 w-5" />
+        <span className="font-medium">Choix validés — en attente de résolution</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Button
+        onClick={() => setValidated(true)}
+        disabled={!canValidate}
+        className="w-full bg-[#2AB3A6] hover:bg-[#2AB3A6]/80 text-white disabled:opacity-50"
+      >
+        <Check className="h-4 w-4 mr-2" />
+        Valider mes choix
+      </Button>
+      {!areMandatoryChoicesMade() && (
+        <p className="text-xs text-[#D4AF37] text-center">
+          ⚠️ Vous devez compléter vos choix obligatoires avant de valider
+        </p>
       )}
     </div>
   );
