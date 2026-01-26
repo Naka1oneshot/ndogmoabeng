@@ -17,6 +17,10 @@ import { RivieresLockAnimation } from './RivieresLockAnimation';
 import { RivieresResolveAnimation } from './RivieresResolveAnimation';
 import { RivieresVictoryPodium } from './RivieresVictoryPodium';
 import { RivieresPlayerSortAnimation } from './RivieresPlayerSortAnimation';
+import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
+import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdventureCinematic';
+
+const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
 interface Game {
   id: string;
@@ -109,6 +113,7 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [adventureInfo, setAdventureInfo] = useState<{ mode: string; adventure_id: string | null } | null>(null);
 
   // Animation states
   const [showLockAnimation, setShowLockAnimation] = useState(false);
@@ -131,12 +136,53 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
   // Animation lock refs - prevent re-triggering during animation playback
   const lockAnimationTriggeredRef = useRef(false);
   const resolveAnimationTriggeredRef = useRef(false);
+  const hasBroadcastCinematicRef = useRef(false);
   
   // Previous state refs for detecting changes
   const previousDecisionsLockedRef = useRef<boolean>(false);
   const previousLevelHistoryCountRef = useRef<number>(0);
   const previousDangerEffectifRef = useRef<number | null>(null);
   const previousLevelKeyRef = useRef<string>('');
+
+  // Check if this is "La carte trouvée" adventure
+  const isLaCarteTrouvee = adventureInfo?.mode === 'ADVENTURE' && adventureInfo?.adventure_id === LA_CARTE_TROUVEE_ID;
+
+  // Adventure cinematic hook
+  const {
+    isOpen: isCinematicOpen,
+    currentSequence: cinematicSequence,
+    closeOverlay: closeCinematic,
+    replayLocal: replayCinematic,
+    broadcastCinematic,
+  } = useAdventureCinematic(isLaCarteTrouvee ? game.id : undefined, {
+    enabled: isLaCarteTrouvee,
+  });
+
+  // Fetch adventure info on mount
+  useEffect(() => {
+    const fetchAdventureInfo = async () => {
+      const { data } = await supabase
+        .from('games')
+        .select('mode, adventure_id')
+        .eq('id', game.id)
+        .single();
+      if (data) {
+        setAdventureInfo({ mode: data.mode, adventure_id: data.adventure_id });
+      }
+    };
+    fetchAdventureInfo();
+  }, [game.id]);
+
+  // Auto-broadcast cinematic when opening presentation for "La carte trouvée"
+  useEffect(() => {
+    if (isLaCarteTrouvee && !hasBroadcastCinematicRef.current && !loading) {
+      hasBroadcastCinematicRef.current = true;
+      const sequence = getSequenceForGameType('RIVIERES', true);
+      if (sequence.length > 0) {
+        broadcastCinematic(sequence);
+      }
+    }
+  }, [isLaCarteTrouvee, loading, broadcastCinematic]);
 
   const fetchData = useCallback(async () => {
     if (!game.current_session_game_id) {
@@ -479,6 +525,21 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
 
   return (
     <div className="fixed inset-0 z-50 bg-gradient-to-br from-[#0B1020] via-[#151B2D] to-[#0B1020] overflow-hidden">
+      {/* Adventure Cinematic Overlay */}
+      {isLaCarteTrouvee && (
+        <AdventureCinematicOverlay
+          open={isCinematicOpen}
+          sequence={cinematicSequence}
+          onClose={closeCinematic}
+          onReplay={replayCinematic}
+          isHost={true}
+          onBroadcastReplay={() => {
+            const sequence = getSequenceForGameType('RIVIERES', true);
+            if (sequence.length > 0) broadcastCinematic(sequence);
+          }}
+        />
+      )}
+
       {/* Lock Animation Overlay */}
       {showLockAnimation && (
         <RivieresLockAnimation onComplete={handleLockAnimationComplete} />

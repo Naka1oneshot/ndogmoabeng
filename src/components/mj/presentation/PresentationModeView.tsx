@@ -19,6 +19,10 @@ import { PlayerNameTooltip } from './PlayerNameTooltip';
 import { VictoryPodiumAnimation } from './VictoryPodiumAnimation';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import emptySlotRip from '@/assets/monsters/empty-slot-rip.png';
+import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
+import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdventureCinematic';
+
+const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
 interface Game {
   id: string;
@@ -162,6 +166,33 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const previousPhaseRef = useRef<string>(initialGame.phase);
   const previousKillsCountRef = useRef<number>(0);
   const previousBattlefieldRef = useRef<Map<number, { monsterId: number; monsterName: string }>>(new Map());
+  const hasBroadcastCinematicRef = useRef(false);
+
+  // Check if this is "La carte trouvée" adventure
+  const isLaCarteTrouvee = initialGame.mode === 'ADVENTURE' && 
+    (initialGame as any).adventure_id === LA_CARTE_TROUVEE_ID;
+
+  // Adventure cinematic hook
+  const {
+    isOpen: isCinematicOpen,
+    currentSequence: cinematicSequence,
+    closeOverlay: closeCinematic,
+    replayLocal: replayCinematic,
+    broadcastCinematic,
+  } = useAdventureCinematic(isLaCarteTrouvee ? initialGame.id : undefined, {
+    enabled: isLaCarteTrouvee,
+  });
+
+  // Auto-broadcast cinematic when opening presentation for FORET in "La carte trouvée"
+  useEffect(() => {
+    if (isLaCarteTrouvee && !hasBroadcastCinematicRef.current && !loading) {
+      hasBroadcastCinematicRef.current = true;
+      const sequence = getSequenceForGameType('FORET', true);
+      if (sequence.length > 0) {
+        broadcastCinematic(sequence);
+      }
+    }
+  }, [isLaCarteTrouvee, loading, broadcastCinematic]);
 
   // Define trigger functions BEFORE fetchData so they can be used inside it
   const triggerPhaseTransition = useCallback((newPhase: string) => {
