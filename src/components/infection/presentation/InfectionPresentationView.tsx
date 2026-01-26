@@ -101,29 +101,39 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   // Adventure cinematic refs
   const cinematicStartBroadcastedRef = useRef(false);
   const cinematicEndBroadcastedRef = useRef(false);
-  const { broadcastCinematic } = useAdventureCinematic(game.id, { enabled: false });
+  const { broadcastCinematic, debugState: cinematicDebugState } = useAdventureCinematic(game.id, { enabled: false });
   
-  // A) Broadcast start cinematic on mount for "La carte trouvée" adventure
+  // A) Broadcast start cinematic on mount for ANY adventure mode
   useEffect(() => {
     if (cinematicStartBroadcastedRef.current) return;
     
-    if (game.mode === 'ADVENTURE' && game.adventure_id === LA_CARTE_TROUVEE_ID) {
+    console.log('[INFECTION][PRESENTATION] Adventure check:', {
+      mode: game.mode,
+      adventure_id: game.adventure_id,
+      isAdventure: game.mode === 'ADVENTURE',
+    });
+    
+    // Broadcast for ANY adventure mode, not just "La carte trouvée"
+    if (game.mode === 'ADVENTURE') {
       cinematicStartBroadcastedRef.current = true;
       const sequence = getSequenceForGameType('INFECTION', true);
+      console.log('[INFECTION][PRESENTATION] Broadcasting start cinematic:', sequence);
       if (sequence.length > 0) {
         broadcastCinematic(sequence);
       }
     }
   }, [game.mode, game.adventure_id, broadcastCinematic]);
   
-  // B) Broadcast END cinematic when victory podium is shown
+  // B) Broadcast END cinematic when victory podium is shown (for ANY adventure)
   useEffect(() => {
     if (cinematicEndBroadcastedRef.current) return;
     if (!showVictoryPodium) return;
     
-    if (game.mode === 'ADVENTURE' && game.adventure_id === LA_CARTE_TROUVEE_ID) {
+    // Broadcast for ANY adventure mode
+    if (game.mode === 'ADVENTURE') {
       cinematicEndBroadcastedRef.current = true;
       const endSequence = getEndSequence();
+      console.log('[INFECTION][PRESENTATION] Broadcasting END cinematic:', endSequence);
       if (endSequence.length > 0) {
         broadcastCinematic(endSequence);
       }

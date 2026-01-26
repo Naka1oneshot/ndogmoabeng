@@ -5,6 +5,8 @@ import { PresentationModeView } from "@/components/mj/presentation/PresentationM
 import { RivieresPresentationView } from "@/components/rivieres/presentation/RivieresPresentationView";
 import { InfectionPresentationView } from "@/components/infection/presentation/InfectionPresentationView";
 import { SheriffPresentationView } from "@/components/sheriff/presentation/SheriffPresentationView";
+import { AdventureCinematicDebugPanel } from "@/components/adventure/AdventureCinematicDebugPanel";
+import { useAdventureCinematic } from "@/hooks/useAdventureCinematic";
 
 interface Game {
   id: string;
@@ -23,6 +25,15 @@ const Presentation = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Adventure cinematic hook for debug panel (MJ side)
+  const isAdventureMode = game?.mode === 'ADVENTURE';
+  const {
+    broadcastCinematic,
+    debugState: cinematicDebugState,
+  } = useAdventureCinematic(isAdventureMode ? gameId : undefined, {
+    enabled: isAdventureMode,
+  });
 
   useEffect(() => {
     if (!gameId) return;
@@ -75,21 +86,51 @@ const Presentation = () => {
     );
   }
 
+  // Debug panel for MJ (visible in adventure mode)
+  const debugPanel = isAdventureMode ? (
+    <AdventureCinematicDebugPanel
+      gameId={gameId}
+      isHost={true}
+      debugState={cinematicDebugState}
+      onBroadcastTest={broadcastCinematic}
+    />
+  ) : null;
+
   // Route to appropriate presentation based on game type
   if (game.selected_game_type_code === 'RIVIERES') {
-    return <RivieresPresentationView game={game} onClose={() => window.close()} />;
+    return (
+      <>
+        {debugPanel}
+        <RivieresPresentationView game={game} onClose={() => window.close()} />
+      </>
+    );
   }
 
   if (game.selected_game_type_code === 'INFECTION') {
-    return <InfectionPresentationView game={game} onClose={() => window.close()} />;
+    return (
+      <>
+        {debugPanel}
+        <InfectionPresentationView game={game} onClose={() => window.close()} />
+      </>
+    );
   }
 
   if (game.selected_game_type_code === 'SHERIFF') {
-    return <SheriffPresentationView game={game} onClose={() => window.close()} />;
+    return (
+      <>
+        {debugPanel}
+        <SheriffPresentationView game={game} onClose={() => window.close()} />
+      </>
+    );
   }
 
   // Default to Forest presentation
-  return <PresentationModeView game={game} onClose={() => window.close()} />;
+  return (
+    <>
+      {debugPanel}
+      <PresentationModeView game={game} onClose={() => window.close()} />
+    </>
+  );
 };
 
 export default Presentation;
