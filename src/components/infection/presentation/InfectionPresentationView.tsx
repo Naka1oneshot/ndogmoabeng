@@ -16,6 +16,10 @@ import { InfectionRoundStartAnimation } from './InfectionRoundStartAnimation';
 import { InfectionSYResearchProgress } from './InfectionSYResearchProgress';
 import { InfectionVictoryPodium } from './InfectionVictoryPodium';
 import { InfectionVictoryTransition } from './InfectionVictoryTransition';
+import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
+import { useAdventureCinematic, getSequenceForGameType, getEndSequence } from '@/hooks/useAdventureCinematic';
+
+const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
 interface Game {
   id: string;

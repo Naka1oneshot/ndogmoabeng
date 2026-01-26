@@ -13,6 +13,8 @@ import { GameStartAnimation } from '@/components/game/GameStartAnimation';
 import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
 import { CombatHistorySummarySheet } from '@/components/mj/presentation/CombatHistorySummarySheet';
 import { usePresentationAnimations, PhaseTransitionOverlay, CoupDeGraceOverlay } from '@/components/game/PresentationAnimations';
+import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
+import { useAdventureCinematic } from '@/hooks/useAdventureCinematic';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
 import { EventsFeed } from '@/components/player/EventsFeed';
@@ -32,6 +34,8 @@ import { PlayerRivieresDashboard } from '@/components/rivieres/PlayerRivieresDas
 import { PlayerInfectionDashboard } from '@/components/infection/PlayerInfectionDashboard';
 import { PlayerSheriffDashboard } from '@/components/sheriff/PlayerSheriffDashboard';
 import LobbyWaitingRoom from '@/components/lobby/LobbyWaitingRoom';
+
+const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
 // Implemented game types
 const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION', 'SHERIFF'];
@@ -99,7 +103,18 @@ export default function PlayerDashboard() {
   const previousStepIndexRef = useRef<number | null>(null);
 
   const isAdventure = game?.mode === 'ADVENTURE' && game?.adventure_id;
+  const isLaCarteTrouvee = isAdventure && game?.adventure_id === LA_CARTE_TROUVEE_ID;
   const isForetGame = game?.selected_game_type_code === 'FORET' || (!game?.selected_game_type_code && game?.status === 'IN_GAME');
+
+  // Adventure cinematic hook (only for "La carte trouvée" adventure)
+  const {
+    isOpen: isCinematicOpen,
+    currentSequence: cinematicSequence,
+    closeOverlay: closeCinematic,
+    replayLocal: replayCinematic,
+  } = useAdventureCinematic(isLaCarteTrouvee ? game?.id : undefined, {
+    enabled: isLaCarteTrouvee,
+  });
 
   // Presentation animations (phase transitions, coup de grâce)
   const {
@@ -402,10 +417,23 @@ export default function PlayerDashboard() {
     return null;
   }
 
+  // Adventure cinematic overlay (renders on top of everything for "La carte trouvée")
+  const cinematicOverlay = isLaCarteTrouvee ? (
+    <AdventureCinematicOverlay
+      open={isCinematicOpen}
+      sequence={cinematicSequence}
+      onClose={closeCinematic}
+      onReplay={replayCinematic}
+      isHost={false}
+    />
+  ) : null;
+
   // Lobby view
   if (game.status === 'LOBBY') {
     return (
-      <div className="min-h-screen flex flex-col">
+      <>
+        {cinematicOverlay}
+        <div className="min-h-screen flex flex-col">
         <PlayerHeader game={game} player={player} />
         <main className="flex-1 p-4">
           <div className="max-w-4xl mx-auto space-y-4">
@@ -441,7 +469,8 @@ export default function PlayerDashboard() {
             </div>
           </div>
         </main>
-      </div>
+        </div>
+      </>
     );
   }
 
