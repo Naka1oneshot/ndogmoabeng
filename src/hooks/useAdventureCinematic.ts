@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { CinematicSequence } from '@/components/adventure/AdventureCinematicOverlay';
+import type { DebugState } from '@/components/adventure/AdventureCinematicDebugPanel';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -27,17 +28,44 @@ export function useAdventureCinematic(
   
   const [isOpen, setIsOpen] = useState(false);
   const [currentSequence, setCurrentSequence] = useState<CinematicSequence[]>([]);
+  const [debugState, setDebugState] = useState<DebugState>({
+    gameId: gameId || null,
+    mode: null,
+    adventureId: null,
+    adventureName: null,
+    hookActive: enabled,
+    channelName: null,
+    lastReceivedEvent: null,
+    lastBroadcastAttempt: null,
+    overlayOpen: false,
+    currentSequence: [],
+  });
+  
   const lastBroadcastIdRef = useRef<string | null>(null);
   const hasCheckedInitialRef = useRef(false);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Update debug state when overlay state changes
+  useEffect(() => {
+    setDebugState(prev => ({
+      ...prev,
+      gameId: gameId || null,
+      hookActive: enabled,
+      overlayOpen: isOpen,
+      currentSequence,
+    }));
+  }, [gameId, enabled, isOpen, currentSequence]);
 
   // Close the overlay
   const closeOverlay = useCallback(() => {
+    console.log('[CINEMATIC][OVERLAY] Closing overlay');
     setIsOpen(false);
   }, []);
 
   // Replay locally (just restart the current sequence)
   const replayLocal = useCallback(() => {
     if (currentSequence.length > 0) {
+      console.log('[CINEMATIC][OVERLAY] Replaying locally:', currentSequence);
       setIsOpen(false);
       setTimeout(() => setIsOpen(true), 100);
     }
@@ -48,28 +76,60 @@ export function useAdventureCinematic(
     sequence: CinematicSequence[],
     broadcastId?: string
   ) => {
-    if (!gameId) return;
+    if (!gameId) {
+      console.error('[CINEMATIC][BROADCAST] No gameId provided');
+      return;
+    }
 
     const id = broadcastId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    const { error } = await supabase
+    const payload = {
+      adventure_id: LA_CARTE_TROUVEE_ID,
+      sequence,
+      broadcast_id: id,
+    };
+
+    console.log('[CINEMATIC][BROADCAST] Attempting insert:', {
+      gameId,
+      sequence,
+      payload,
+    });
+
+    const { data, error } = await supabase
       .from('game_events')
       .insert({
         game_id: gameId,
         visibility: 'PUBLIC',
         event_type: 'ADVENTURE_CINEMATIC',
         message: 'Adventure cinematic',
-        payload: {
-          adventure_id: LA_CARTE_TROUVEE_ID,
-          sequence,
-          broadcast_id: id,
-        },
-      });
+        payload,
+      })
+      .select()
+      .single();
+
+    const timestamp = new Date().toLocaleTimeString();
 
     if (error) {
-      console.error('[useAdventureCinematic] Broadcast error:', error);
+      console.error('[CINEMATIC][BROADCAST] Insert error:', error);
+      setDebugState(prev => ({
+        ...prev,
+        lastBroadcastAttempt: {
+          timestamp,
+          sequence,
+          success: false,
+          error: error.message,
+        },
+      }));
     } else {
-      console.log('[useAdventureCinematic] Broadcast sent:', sequence);
+      console.log('[CINEMATIC][BROADCAST] Insert success:', data);
+      setDebugState(prev => ({
+        ...prev,
+        lastBroadcastAttempt: {
+          timestamp,
+          sequence,
+          success: true,
+        },
+      }));
       // Also show locally for the broadcaster
       lastBroadcastIdRef.current = id;
       setCurrentSequence(sequence);
@@ -79,7 +139,18 @@ export function useAdventureCinematic(
 
   // Subscribe to cinematic events
   useEffect(() => {
-    if (!gameId || !enabled) return;
+    if (!gameId || !enabled) {
+      console.log('[CINEMATIC][SUBSCRIBE] Skipping - gameId:', gameId, 'enabled:', enabled);
+      return;
+    }
+
+    const channelName = `adventure-cinematic-${gameId}`;
+    console.log('[CINEMATIC][SUBSCRIBE] Setting up channel:', channelName);
+
+    setDebugState(prev => ({
+      ...prev,
+      channelName,
+    }));
 
     // Initial fetch: check for recent cinematic events (within 2 minutes)
     const checkRecentEvent = async () => {
@@ -87,6 +158,8 @@ export function useAdventureCinematic(
       hasCheckedInitialRef.current = true;
 
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+
+      console.log('[CINEMATIC][INITIAL_FETCH] Checking for recent events since:', twoMinutesAgo);
 
       const { data, error } = await supabase
         .from('game_events')
@@ -99,21 +172,32 @@ export function useAdventureCinematic(
         .limit(1);
 
       if (error) {
-        console.error('[useAdventureCinematic] Initial fetch error:', error);
+        console.error('[CINEMATIC][INITIAL_FETCH] Error:', error);
         return;
       }
 
+      console.log('[CINEMATIC][INITIAL_FETCH] Result:', data);
+
       if (data && data.length > 0) {
         const event = data[0] as unknown as AdventureCinematicEvent;
-        const payload = event.payload;
+        const eventPayload = event.payload;
         
-        if (payload?.adventure_id === LA_CARTE_TROUVEE_ID && payload?.sequence) {
+        if (eventPayload?.sequence) {
           // Don't replay if we already saw this broadcast
-          if (lastBroadcastIdRef.current !== payload.broadcast_id) {
-            console.log('[useAdventureCinematic] Found recent cinematic:', payload.sequence);
-            lastBroadcastIdRef.current = payload.broadcast_id;
-            setCurrentSequence(payload.sequence);
+          if (lastBroadcastIdRef.current !== eventPayload.broadcast_id) {
+            console.log('[CINEMATIC][INITIAL_FETCH] Found recent cinematic, opening overlay:', eventPayload.sequence);
+            lastBroadcastIdRef.current = eventPayload.broadcast_id;
+            setCurrentSequence(eventPayload.sequence);
             setIsOpen(true);
+            
+            setDebugState(prev => ({
+              ...prev,
+              lastReceivedEvent: {
+                id: event.id,
+                created_at: event.created_at,
+                sequence: eventPayload.sequence,
+              },
+            }));
           }
         }
       }
@@ -123,7 +207,7 @@ export function useAdventureCinematic(
 
     // Realtime subscription
     const channel = supabase
-      .channel(`adventure-cinematic-${gameId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -133,9 +217,13 @@ export function useAdventureCinematic(
           filter: `game_id=eq.${gameId}`,
         },
         (payload) => {
+          console.log('[CINEMATIC][REALTIME] Received event:', payload);
+          
           const newEvent = payload.new as {
+            id: string;
             event_type: string;
             visibility: string;
+            created_at: string;
             payload: {
               adventure_id?: string;
               sequence?: CinematicSequence[];
@@ -146,25 +234,48 @@ export function useAdventureCinematic(
           if (
             newEvent.event_type === 'ADVENTURE_CINEMATIC' &&
             newEvent.visibility === 'PUBLIC' &&
-            newEvent.payload?.adventure_id === LA_CARTE_TROUVEE_ID &&
             newEvent.payload?.sequence
           ) {
             const broadcastId = newEvent.payload.broadcast_id || '';
             
+            console.log('[CINEMATIC][REALTIME] Cinematic event detected:', {
+              id: newEvent.id,
+              sequence: newEvent.payload.sequence,
+              broadcastId,
+              lastBroadcastId: lastBroadcastIdRef.current,
+            });
+            
             // Don't replay if we already saw this broadcast
             if (lastBroadcastIdRef.current !== broadcastId) {
-              console.log('[useAdventureCinematic] Received cinematic:', newEvent.payload.sequence);
+              console.log('[CINEMATIC][REALTIME] Opening overlay with sequence:', newEvent.payload.sequence);
               lastBroadcastIdRef.current = broadcastId;
               setCurrentSequence(newEvent.payload.sequence);
               setIsOpen(true);
+              
+              setDebugState(prev => ({
+                ...prev,
+                lastReceivedEvent: {
+                  id: newEvent.id,
+                  created_at: newEvent.created_at,
+                  sequence: newEvent.payload!.sequence!,
+                },
+              }));
+            } else {
+              console.log('[CINEMATIC][REALTIME] Skipping duplicate broadcast:', broadcastId);
             }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[CINEMATIC][SUBSCRIBE] Channel status:', status);
+      });
+
+    channelRef.current = channel;
 
     return () => {
+      console.log('[CINEMATIC][SUBSCRIBE] Cleaning up channel:', channelName);
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [gameId, enabled]);
 
@@ -174,6 +285,7 @@ export function useAdventureCinematic(
     closeOverlay,
     replayLocal,
     broadcastCinematic,
+    debugState,
   };
 }
 
@@ -200,3 +312,6 @@ export function getSequenceForGameType(
 export function getEndSequence(): CinematicSequence[] {
   return ['END'];
 }
+
+// Export the constant for use elsewhere
+export { LA_CARTE_TROUVEE_ID };

@@ -107,14 +107,14 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const prevDuelOrderRef = useRef<number | null>(null);
   const prevDuelStatusRef = useRef<string | null>(null);
   
-  // Adventure cinematic - broadcast on mount for "La carte trouvée"
+  // Adventure cinematic - broadcast on mount for ANY adventure mode
   const cinematicBroadcastedRef = useRef(false);
-  const { broadcastCinematic } = useAdventureCinematic(game.id, { enabled: false });
+  const { broadcastCinematic, debugState: cinematicDebugState } = useAdventureCinematic(game.id, { enabled: false });
   
   useEffect(() => {
     if (cinematicBroadcastedRef.current) return;
     
-    // Check if this is "La carte trouvée" adventure
+    // Check if this is ANY adventure mode
     const checkAndBroadcast = async () => {
       const { data: gameData } = await supabase
         .from('games')
@@ -122,9 +122,17 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
         .eq('id', game.id)
         .single();
       
-      if (gameData?.mode === 'ADVENTURE' && gameData?.adventure_id === LA_CARTE_TROUVEE_ID) {
+      console.log('[SHERIFF][PRESENTATION] Game context:', {
+        mode: gameData?.mode,
+        adventure_id: gameData?.adventure_id,
+        isAdventure: gameData?.mode === 'ADVENTURE',
+      });
+      
+      // Broadcast for ANY adventure mode, not just "La carte trouvée"
+      if (gameData?.mode === 'ADVENTURE') {
         cinematicBroadcastedRef.current = true;
         const sequence = getSequenceForGameType('SHERIFF', true);
+        console.log('[SHERIFF][PRESENTATION] Broadcasting cinematic:', sequence);
         if (sequence.length > 0) {
           broadcastCinematic(sequence);
         }

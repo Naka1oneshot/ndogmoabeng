@@ -15,6 +15,7 @@ import { CombatHistorySummarySheet } from '@/components/mj/presentation/CombatHi
 import { usePresentationAnimations, PhaseTransitionOverlay, CoupDeGraceOverlay } from '@/components/game/PresentationAnimations';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic } from '@/hooks/useAdventureCinematic';
+import { AdventureCinematicDebugPanel } from '@/components/adventure/AdventureCinematicDebugPanel';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
 import { EventsFeed } from '@/components/player/EventsFeed';
@@ -106,14 +107,16 @@ export default function PlayerDashboard() {
   const isLaCarteTrouvee = isAdventure && game?.adventure_id === LA_CARTE_TROUVEE_ID;
   const isForetGame = game?.selected_game_type_code === 'FORET' || (!game?.selected_game_type_code && game?.status === 'IN_GAME');
 
-  // Adventure cinematic hook (only for "La carte trouvée" adventure)
+  // Adventure cinematic hook - enabled for ANY adventure mode
+  const isAnyAdventure = game?.mode === 'ADVENTURE';
   const {
     isOpen: isCinematicOpen,
     currentSequence: cinematicSequence,
     closeOverlay: closeCinematic,
     replayLocal: replayCinematic,
-  } = useAdventureCinematic(isLaCarteTrouvee ? game?.id : undefined, {
-    enabled: isLaCarteTrouvee,
+    debugState: cinematicDebugState,
+  } = useAdventureCinematic(isAnyAdventure ? game?.id : undefined, {
+    enabled: isAnyAdventure,
   });
 
   // Presentation animations (phase transitions, coup de grâce)
@@ -417,8 +420,8 @@ export default function PlayerDashboard() {
     return null;
   }
 
-  // Adventure cinematic overlay (renders on top of everything for "La carte trouvée")
-  const cinematicOverlay = isLaCarteTrouvee ? (
+  // Adventure cinematic overlay (renders on top of everything for any adventure)
+  const cinematicOverlay = isAnyAdventure ? (
     <AdventureCinematicOverlay
       open={isCinematicOpen}
       sequence={cinematicSequence}
@@ -428,11 +431,21 @@ export default function PlayerDashboard() {
     />
   ) : null;
 
+  // Debug panel for adventure cinematics (visible in adventure mode)
+  const debugPanel = isAnyAdventure ? (
+    <AdventureCinematicDebugPanel
+      gameId={game?.id}
+      isHost={false}
+      debugState={cinematicDebugState}
+    />
+  ) : null;
+
   // Lobby view
   if (game.status === 'LOBBY') {
     return (
       <>
         {cinematicOverlay}
+        {debugPanel}
         <div className="min-h-screen flex flex-col">
         <PlayerHeader game={game} player={player} />
         <main className="flex-1 p-4">
@@ -535,63 +548,75 @@ export default function PlayerDashboard() {
   // RIVIERES Dashboard
   if (game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0B1020] via-[#151B2D] to-[#0B1020]">
-        <PlayerHeader game={game} player={player} />
-        <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
-          <PlayerRivieresDashboard
-            gameId={game.id}
-            sessionGameId={game.current_session_game_id}
-            playerId={player.id}
-            playerNumber={player.playerNumber}
-            playerToken={player.playerToken || ''}
-            clan={player.clan}
-            jetons={player.jetons}
-            gameStatus={game.status}
-            displayName={player.displayName}
-          />
-        </main>
-      </div>
+      <>
+        {cinematicOverlay}
+        {debugPanel}
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0B1020] via-[#151B2D] to-[#0B1020]">
+          <PlayerHeader game={game} player={player} />
+          <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
+            <PlayerRivieresDashboard
+              gameId={game.id}
+              sessionGameId={game.current_session_game_id}
+              playerId={player.id}
+              playerNumber={player.playerNumber}
+              playerToken={player.playerToken || ''}
+              clan={player.clan}
+              jetons={player.jetons}
+              gameStatus={game.status}
+              displayName={player.displayName}
+            />
+          </main>
+        </div>
+      </>
     );
   }
 
   // INFECTION Dashboard
   if (game.selected_game_type_code === 'INFECTION') {
     return (
-      <PlayerInfectionDashboard 
-        game={game} 
-        player={{
-          id: player.id,
-          display_name: player.displayName,
-          player_number: player.playerNumber,
-          clan: player.clan,
-          jetons: player.jetons,
-          pvic: player.pvic ?? 0,
-          is_alive: player.isAlive ?? true,
-          role_code: player.roleCode,
-          team_code: player.teamCode,
-          immune_permanent: player.immunePermanent ?? false,
-        }}
-        onLeave={handleLeave}
-      />
+      <>
+        {cinematicOverlay}
+        {debugPanel}
+        <PlayerInfectionDashboard 
+          game={game} 
+          player={{
+            id: player.id,
+            display_name: player.displayName,
+            player_number: player.playerNumber,
+            clan: player.clan,
+            jetons: player.jetons,
+            pvic: player.pvic ?? 0,
+            is_alive: player.isAlive ?? true,
+            role_code: player.roleCode,
+            team_code: player.teamCode,
+            immune_permanent: player.immunePermanent ?? false,
+          }}
+          onLeave={handleLeave}
+        />
+      </>
     );
   }
 
   // SHERIFF Dashboard
   if (game.selected_game_type_code === 'SHERIFF') {
     return (
-      <PlayerSheriffDashboard 
-        game={game} 
-        player={{
-          id: player.id,
-          display_name: player.displayName,
-          player_number: player.playerNumber,
-          clan: player.clan,
-          mate_num: player.mateNum,
-          jetons: player.jetons,
-          pvic: player.pvic ?? 0,
-        }}
-        onLeave={handleLeave}
-      />
+      <>
+        {cinematicOverlay}
+        {debugPanel}
+        <PlayerSheriffDashboard 
+          game={game} 
+          player={{
+            id: player.id,
+            display_name: player.displayName,
+            player_number: player.playerNumber,
+            clan: player.clan,
+            mate_num: player.mateNum,
+            jetons: player.jetons,
+            pvic: player.pvic ?? 0,
+          }}
+          onLeave={handleLeave}
+        />
+      </>
     );
   }
 

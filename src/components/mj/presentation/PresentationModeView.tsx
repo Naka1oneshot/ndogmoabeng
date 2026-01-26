@@ -168,31 +168,41 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const previousBattlefieldRef = useRef<Map<number, { monsterId: number; monsterName: string }>>(new Map());
   const hasBroadcastCinematicRef = useRef(false);
 
-  // Check if this is "La carte trouvée" adventure
-  const isLaCarteTrouvee = initialGame.mode === 'ADVENTURE' && 
+  // Check if this is ANY adventure mode (not just "La carte trouvée")
+  const isAdventureMode = initialGame.mode === 'ADVENTURE';
+  const isLaCarteTrouvee = isAdventureMode && 
     (initialGame as any).adventure_id === LA_CARTE_TROUVEE_ID;
 
-  // Adventure cinematic hook
+  console.log('[FORET][PRESENTATION] Adventure check:', {
+    mode: initialGame.mode,
+    adventure_id: (initialGame as any).adventure_id,
+    isAdventureMode,
+    isLaCarteTrouvee,
+  });
+
+  // Adventure cinematic hook - enabled for ANY adventure mode
   const {
     isOpen: isCinematicOpen,
     currentSequence: cinematicSequence,
     closeOverlay: closeCinematic,
     replayLocal: replayCinematic,
     broadcastCinematic,
-  } = useAdventureCinematic(isLaCarteTrouvee ? initialGame.id : undefined, {
-    enabled: isLaCarteTrouvee,
+    debugState: cinematicDebugState,
+  } = useAdventureCinematic(isAdventureMode ? initialGame.id : undefined, {
+    enabled: isAdventureMode,
   });
 
-  // Auto-broadcast cinematic when opening presentation for FORET in "La carte trouvée"
+  // Auto-broadcast cinematic when opening presentation for FORET in ANY adventure
   useEffect(() => {
-    if (isLaCarteTrouvee && !hasBroadcastCinematicRef.current && !loading) {
+    if (isAdventureMode && !hasBroadcastCinematicRef.current && !loading) {
       hasBroadcastCinematicRef.current = true;
       const sequence = getSequenceForGameType('FORET', true);
+      console.log('[FORET][PRESENTATION] Broadcasting cinematic:', sequence);
       if (sequence.length > 0) {
         broadcastCinematic(sequence);
       }
     }
-  }, [isLaCarteTrouvee, loading, broadcastCinematic]);
+  }, [isAdventureMode, loading, broadcastCinematic]);
 
   // Define trigger functions BEFORE fetchData so they can be used inside it
   const triggerPhaseTransition = useCallback((newPhase: string) => {
@@ -612,7 +622,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   const isShopPhase = gamePhase === 'PHASE3_SHOP' || gamePhase === 'SHOP';
   
   // In ADVENTURE mode for FORET, check if all monsters are dead (intermediate podium)
-  const isAdventureMode = gameMode === 'ADVENTURE';
+  const isAdventureModeForPodium = gameMode === 'ADVENTURE';
   const allMonstersDead = monsters.length > 0 && monsters.every(m => m.status === 'MORT');
   
   // Game is ended when:
@@ -621,7 +631,7 @@ export function PresentationModeView({ game: initialGame, onClose }: Presentatio
   // 3. OR in Adventure mode for Forêt: all monsters are dead (show intermediate podium)
   const isGameEndedGlobal = gameStatus === 'ENDED' || gameStatus === 'FINISHED' || gamePhase === 'FINISHED';
   const isSessionComplete = gamePhase === 'SESSION_COMPLETE';
-  const isForetSessionComplete = isAdventureMode && (isSessionComplete || (allMonstersDead && !isShopPhase && gamePhase !== 'PHASE1_MISES'));
+  const isForetSessionComplete = isAdventureModeForPodium && (isSessionComplete || (allMonstersDead && !isShopPhase && gamePhase !== 'PHASE1_MISES'));
   const isGameEnded = isGameEndedGlobal || isForetSessionComplete;
   
   // Build team/player rankings for victory screen with detailed stats

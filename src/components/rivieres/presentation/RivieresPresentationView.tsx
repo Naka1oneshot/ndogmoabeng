@@ -144,18 +144,27 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
   const previousDangerEffectifRef = useRef<number | null>(null);
   const previousLevelKeyRef = useRef<string>('');
 
-  // Check if this is "La carte trouvée" adventure
-  const isLaCarteTrouvee = adventureInfo?.mode === 'ADVENTURE' && adventureInfo?.adventure_id === LA_CARTE_TROUVEE_ID;
+  // Check if this is ANY adventure mode (not just "La carte trouvée")
+  const isAdventureMode = adventureInfo?.mode === 'ADVENTURE';
+  const isLaCarteTrouvee = isAdventureMode && adventureInfo?.adventure_id === LA_CARTE_TROUVEE_ID;
 
-  // Adventure cinematic hook
+  // Adventure cinematic hook - enabled for ANY adventure mode
   const {
     isOpen: isCinematicOpen,
     currentSequence: cinematicSequence,
     closeOverlay: closeCinematic,
     replayLocal: replayCinematic,
     broadcastCinematic,
-  } = useAdventureCinematic(isLaCarteTrouvee ? game.id : undefined, {
-    enabled: isLaCarteTrouvee,
+    debugState: cinematicDebugState,
+  } = useAdventureCinematic(isAdventureMode ? game.id : undefined, {
+    enabled: isAdventureMode,
+  });
+
+  console.log('[RIVIERES][PRESENTATION] Adventure info:', {
+    mode: adventureInfo?.mode,
+    adventure_id: adventureInfo?.adventure_id,
+    isAdventureMode,
+    isLaCarteTrouvee,
   });
 
   // Fetch adventure info on mount
@@ -173,16 +182,17 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
     fetchAdventureInfo();
   }, [game.id]);
 
-  // Auto-broadcast cinematic when opening presentation for "La carte trouvée"
+  // Auto-broadcast cinematic when opening presentation for ANY adventure
   useEffect(() => {
-    if (isLaCarteTrouvee && !hasBroadcastCinematicRef.current && !loading) {
+    if (isAdventureMode && !hasBroadcastCinematicRef.current && !loading) {
       hasBroadcastCinematicRef.current = true;
       const sequence = getSequenceForGameType('RIVIERES', true);
+      console.log('[RIVIERES][PRESENTATION] Broadcasting cinematic sequence:', sequence);
       if (sequence.length > 0) {
         broadcastCinematic(sequence);
       }
     }
-  }, [isLaCarteTrouvee, loading, broadcastCinematic]);
+  }, [isAdventureMode, loading, broadcastCinematic]);
 
   const fetchData = useCallback(async () => {
     if (!game.current_session_game_id) {
