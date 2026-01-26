@@ -26,13 +26,13 @@ export function InfectionRoundAnimation({ show, deathCount, onComplete }: Infect
         setBloodDrops(drops);
       }
 
-      // Animation timeline
-      const enterTimer = setTimeout(() => setPhase('main'), 300);
-      const mainTimer = setTimeout(() => setPhase('exiting'), deathCount > 0 ? 3500 : 2500);
+      // Animation timeline - faster exit
+      const enterTimer = setTimeout(() => setPhase('main'), 200);
+      const mainTimer = setTimeout(() => setPhase('exiting'), deathCount > 0 ? 2000 : 1500);
       const exitTimer = setTimeout(() => {
         setPhase('hidden');
         onComplete();
-      }, deathCount > 0 ? 4000 : 3000);
+      }, deathCount > 0 ? 2300 : 1800);
 
       return () => {
         clearTimeout(enterTimer);

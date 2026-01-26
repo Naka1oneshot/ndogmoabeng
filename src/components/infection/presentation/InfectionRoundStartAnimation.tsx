@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, Users, AlertTriangle } from 'lucide-react';
 import { INFECTION_COLORS } from '../InfectionTheme';
@@ -24,29 +24,33 @@ export function InfectionRoundStartAnimation({ show, manche, onComplete }: Infec
     DEBATE_PHRASES[Math.floor(Math.random() * DEBATE_PHRASES.length)]
   );
 
+  // Use ref to prevent stale closure issues with onComplete
+  const onCompleteRef = React.useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
     if (!show) {
       setPhase('title');
       return;
     }
 
-    // Phase 1: Title (1.5s)
-    const titleTimer = setTimeout(() => setPhase('debate'), 1500);
+    // Phase 1: Title (0.8s) - faster
+    const titleTimer = setTimeout(() => setPhase('debate'), 800);
     
-    // Phase 2: Debate message (2.5s more)
-    const debateTimer = setTimeout(() => setPhase('fade'), 4000);
+    // Phase 2: Debate message (1.5s more)
+    const debateTimer = setTimeout(() => setPhase('fade'), 2300);
     
-    // Phase 3: Fade out and complete (0.5s more)
+    // Phase 3: Fade out and complete (0.3s more)
     const completeTimer = setTimeout(() => {
-      onComplete();
-    }, 4500);
+      onCompleteRef.current();
+    }, 2600);
 
     return () => {
       clearTimeout(titleTimer);
       clearTimeout(debateTimer);
       clearTimeout(completeTimer);
     };
-  }, [show, onComplete]);
+  }, [show]);
 
   return (
     <AnimatePresence>
