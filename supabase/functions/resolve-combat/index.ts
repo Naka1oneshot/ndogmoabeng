@@ -40,6 +40,7 @@ interface Monster {
   battlefield_slot: number | null;
   name?: string;
   reward?: number;
+  created_at?: string;
 }
 
 interface PublicAction {
@@ -54,6 +55,7 @@ interface PublicAction {
   dotDamage?: number;
   minePlaced?: { slot: number; weapon: string }; // Mine placed this round
   delayedExplosion?: { damage: number; slot: number; weapon: string }; // Delayed explosion triggered
+  noMonster?: boolean; // Slot was empty - no monster to attack
 }
 
 interface Kill {
@@ -277,17 +279,26 @@ serve(async (req) => {
     // Monster state by slot
     const monsterBySlot = new Map<number, Monster>();
     const monstersById = new Map<string, Monster>();
+    // Keep a queue of monsters EN_FILE ordered by monster_id (ascending) for promotion
+    const monstersInQueue: Monster[] = [];
+    
     for (const m of monsters || []) {
       const monster: Monster = {
         ...m,
         name: monsterNameMap.get(m.monster_id) || `Monstre ${m.monster_id}`,
         reward: monsterRewardMap.get(m.monster_id) || 10,
+        created_at: m.created_at,
       };
       monstersById.set(m.id, monster);
       if (m.status === 'EN_BATAILLE' && m.battlefield_slot) {
         monsterBySlot.set(m.battlefield_slot, monster);
+      } else if (m.status === 'EN_FILE') {
+        monstersInQueue.push(monster);
       }
     }
+    
+    // Sort queue by monster_id ascending (same order as end-of-round replacement)
+    monstersInQueue.sort((a, b) => a.monster_id - b.monster_id);
 
     // Inventory map
     const inventoryMap = new Map<string, number>();
@@ -353,23 +364,62 @@ serve(async (req) => {
       });
     };
     
+    // Helper to promote the next monster from queue to a battlefield slot
+    // Returns the promoted monster or null if no monster available
+    const promoteNextMonsterToSlot = (slot: number): Monster | null => {
+      if (monstersInQueue.length === 0) {
+        console.log(`[resolve-combat] PROMOTE: No monsters in queue for slot ${slot}`);
+        return null;
+      }
+      
+      const nextMonster = monstersInQueue.shift()!; // Remove from front of queue
+      nextMonster.status = 'EN_BATAILLE';
+      nextMonster.battlefield_slot = slot;
+      monsterBySlot.set(slot, nextMonster);
+      
+      console.log(`[resolve-combat] PROMOTE: Monster ${nextMonster.name} (ID ${nextMonster.monster_id}) promoted to slot ${slot} from queue`);
+      return nextMonster;
+    };
+    
+    // Helper to ensure there's an active monster on a slot
+    // If the slot is empty but there are monsters in queue, promote one immediately
+    // Returns the monster or null if slot remains empty
+    const ensureActiveMonster = (slot: number): Monster | null => {
+      const currentMonster = monsterBySlot.get(slot);
+      
+      // If there's already an active monster on this slot, return it
+      if (currentMonster && currentMonster.status === 'EN_BATAILLE') {
+        return currentMonster;
+      }
+      
+      // Slot is empty - try to promote from queue
+      return promoteNextMonsterToSlot(slot);
+    };
+    
     // Helper to apply damage to a monster and check for kill
+    // With IMMEDIATE REPLACEMENT: when a monster dies, the next one in queue is promoted immediately
     const applyDamageToMonster = (
       slot: number, 
       damage: number, 
       attackerNum: number, 
       attackerName: string,
       fromDot: boolean = false
-    ): { killed: boolean; monsterName: string | null; damageDealt: number } => {
-      const monster = monsterBySlot.get(slot);
-      if (!monster || monster.status !== 'EN_BATAILLE') {
-        return { killed: false, monsterName: null, damageDealt: 0 };
+    ): { killed: boolean; monsterName: string | null; damageDealt: number; noMonster: boolean } => {
+      // First, ensure there's a monster on the slot (promote if empty)
+      const monster = ensureActiveMonster(slot);
+      
+      // If still no monster (queue was also empty), return special "no monster" result
+      if (!monster) {
+        console.log(`[resolve-combat] NO MONSTER: Attack on slot ${slot} by ${attackerName} - no monster present, applied 0 damage`);
+        return { killed: false, monsterName: null, damageDealt: 0, noMonster: true };
       }
       
       monster.pv_current = Math.max(0, monster.pv_current - damage);
       
       if (monster.pv_current <= 0) {
         monster.status = 'MORT';
+        // Remove dead monster from slot
+        monsterBySlot.delete(slot);
         
         kills.push({
           killerName: attackerName,
@@ -398,10 +448,19 @@ serve(async (req) => {
           }
         }
         
-        return { killed: true, monsterName: monster.name || null, damageDealt: damage };
+        // IMMEDIATE REPLACEMENT: Promote next monster from queue to this slot
+        // This allows subsequent attacks in the same round to hit the new monster
+        const promotedMonster = promoteNextMonsterToSlot(slot);
+        if (promotedMonster) {
+          console.log(`[resolve-combat] IMMEDIATE REPLACEMENT: ${monster.name} died on slot ${slot}, ${promotedMonster.name} takes its place`);
+        } else {
+          console.log(`[resolve-combat] SLOT NOW EMPTY: ${monster.name} died on slot ${slot}, no more monsters in queue`);
+        }
+        
+        return { killed: true, monsterName: monster.name || null, damageDealt: damage, noMonster: false };
       }
       
-      return { killed: false, monsterName: monster.name || null, damageDealt: damage };
+      return { killed: false, monsterName: monster.name || null, damageDealt: damage, noMonster: false };
     };
     
     // Track delayed explosion damage per player
@@ -1038,16 +1097,25 @@ serve(async (req) => {
       }
 
       // Apply direct damage to target monster (only if not blocked by Voile)
+      // Uses ensureActiveMonster internally - if slot empty, promotes from queue
       if (targetSlot && totalDirectDamage > 0 && !attackCancelled && !voileBlocked) {
-        const monster = monsterBySlot.get(targetSlot);
-        if (monster && monster.status === 'EN_BATAILLE') {
-          mjAction.targetMonster = monster.name || null;
-          
-          const result = applyDamageToMonster(targetSlot, totalDirectDamage, pos.num_joueur, pos.nom, false);
+        const result = applyDamageToMonster(targetSlot, totalDirectDamage, pos.num_joueur, pos.nom, false);
+        
+        if (result.noMonster) {
+          // No monster on slot (and no monsters in queue to promote)
+          publicAction.noMonster = true;
+          publicAction.totalDamage = 0; // Display 0 damage for summary
+          mjAction.targetMonster = null;
+          mjAction.totalDamage = 0;
+          console.log(`[resolve-combat] ${pos.nom} attacked empty slot ${targetSlot} - no monster present`);
+        } else {
+          mjAction.targetMonster = result.monsterName;
           if (result.killed && result.monsterName) {
             mjAction.killed = (mjAction.killed ? mjAction.killed + ', ' : '') + result.monsterName;
           }
         }
+      } else if (targetSlot && totalDirectDamage > 0 && !attackCancelled && voileBlocked) {
+        // Already handled above
       }
 
       publicActions.push(publicAction);
@@ -1078,42 +1146,30 @@ serve(async (req) => {
       }
     }
 
-    // Update game_state_monsters
+    // Update game_state_monsters (including status, pv_current, AND battlefield_slot)
+    // The battlefield_slot is now updated during combat resolution (immediate replacement)
     const monsterUpdates = Array.from(monstersById.values()).map(m => ({
       id: m.id,
       pv_current: m.pv_current,
       status: m.status,
+      battlefield_slot: m.battlefield_slot,
     }));
 
     for (const update of monsterUpdates) {
       await supabase
         .from('game_state_monsters')
-        .update({ pv_current: update.pv_current, status: update.status })
+        .update({ 
+          pv_current: update.pv_current, 
+          status: update.status,
+          battlefield_slot: update.battlefield_slot,
+        })
         .eq('id', update.id);
     }
 
-    // Replace dead monsters with queue
-    for (const kill of kills) {
-      const { data: nextMonster } = await supabase
-        .from('game_state_monsters')
-        .select('*')
-        .eq('game_id', gameId)
-        .eq('status', 'EN_FILE')
-        .is('battlefield_slot', null)
-        .order('monster_id', { ascending: true })
-        .limit(1)
-        .single();
-      
-      if (nextMonster) {
-        await supabase
-          .from('game_state_monsters')
-          .update({ 
-            battlefield_slot: kill.slot, 
-            status: 'EN_BATAILLE' 
-          })
-          .eq('id', nextMonster.id);
-      }
-    }
+    // NOTE: Dead monsters are now replaced IMMEDIATELY during combat resolution
+    // The old "Replace dead monsters with queue" logic is no longer needed here
+    // as promotions happen in applyDamageToMonster when a monster dies
+    console.log(`[resolve-combat] Monster updates complete. Immediate replacement already handled during combat.`);
 
     // Update player rewards (also give reward to mate for cooperative gameplay)
     for (const reward of rewardUpdates) {
@@ -1389,7 +1445,7 @@ serve(async (req) => {
       }
     }
     
-    // Map player actions with mine placed info, protection usage, and delayed explosions
+    // Map player actions with mine placed info, protection usage, delayed explosions, and no-monster
     const playerActionSummaries = publicActions.map(a => {
       // Check if this player placed a mine
       const minePlacedByPlayer = pendingEffects.find(
@@ -1406,7 +1462,8 @@ serve(async (req) => {
       const delayedExplosion = delayedExplosions.get(a.num_joueur);
       
       // Calculate total damage including delayed explosion
-      const baseDamage = a.cancelled ? 0 : a.totalDamage;
+      // If noMonster is true, damage is 0
+      const baseDamage = (a.cancelled || a.noMonster) ? 0 : a.totalDamage;
       const delayedDamage = delayedExplosion?.damage || 0;
       
       return {
@@ -1415,7 +1472,8 @@ serve(async (req) => {
         weapons: a.weapons,
         totalDamage: baseDamage + delayedDamage,
         cancelled: a.cancelled,
-        cancelReason: a.cancelReason,
+        cancelReason: a.noMonster ? 'pas de monstre' : a.cancelReason,
+        noMonster: a.noMonster || false,
         minePlaced: minePlacedByPlayer ? { slot: minePlacedByPlayer.targetSlots[0], weapon: minePlacedByPlayer.weaponName } : undefined,
         protectionUsed,
         delayedExplosion: delayedExplosion ? { damage: delayedExplosion.damage, slot: delayedExplosion.slot, weapon: delayedExplosion.weapon } : undefined,
@@ -1440,6 +1498,11 @@ serve(async (req) => {
 
     // Create logs
     const publicAttackMessages = publicActions.map(a => {
+      if (a.noMonster) {
+        const weaponsStr = a.weapons.length > 0 ? `"${a.weapons.join('" + "')}"` : 'aucune arme';
+        return `${a.nom} a utilisé ${weaponsStr} — pas de monstre (0 dégâts)`;
+      }
+      
       if (a.cancelled) {
         const weaponsStr = a.weapons.length > 0 ? `"${a.weapons.join('" + "')}"` : 'aucune arme';
         return `${a.nom} a utilisé ${weaponsStr} — Attaque annulée (${a.cancelReason})`;
