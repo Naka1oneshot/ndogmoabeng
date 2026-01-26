@@ -431,7 +431,7 @@ Deno.serve(async (req) => {
       await supabase.from('infection_shots').update({ status: 'APPLIED' }).eq('id', shot.id);
       
       processedShots.push({ shooter: shot.shooter_num, target: shot.target_num, result: 'killed' });
-      publicEvents.push(`💀 ${target.display_name} a été tué(e) par balle. Rôle: ${target.role_code}`);
+      publicEvents.push(`💀 ${target.display_name} a été tué(e). Rôle: ${target.role_code}`);
     }
 
     addLog('STEP_2_ARMES', { shots: processedShots, deaths });
