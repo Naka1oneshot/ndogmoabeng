@@ -97,6 +97,38 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const previousDeadPlayersRef = useRef<Set<number>>(new Set());
   const previousMancheRef = useRef<number | null>(null);
   const hasTriggeredVictory = useRef(false);
+  
+  // Adventure cinematic refs
+  const cinematicStartBroadcastedRef = useRef(false);
+  const cinematicEndBroadcastedRef = useRef(false);
+  const { broadcastCinematic } = useAdventureCinematic(game.id, { enabled: false });
+  
+  // A) Broadcast start cinematic on mount for "La carte trouvée" adventure
+  useEffect(() => {
+    if (cinematicStartBroadcastedRef.current) return;
+    
+    if (game.mode === 'ADVENTURE' && game.adventure_id === LA_CARTE_TROUVEE_ID) {
+      cinematicStartBroadcastedRef.current = true;
+      const sequence = getSequenceForGameType('INFECTION', true);
+      if (sequence.length > 0) {
+        broadcastCinematic(sequence);
+      }
+    }
+  }, [game.mode, game.adventure_id, broadcastCinematic]);
+  
+  // B) Broadcast END cinematic when victory podium is shown
+  useEffect(() => {
+    if (cinematicEndBroadcastedRef.current) return;
+    if (!showVictoryPodium) return;
+    
+    if (game.mode === 'ADVENTURE' && game.adventure_id === LA_CARTE_TROUVEE_ID) {
+      cinematicEndBroadcastedRef.current = true;
+      const endSequence = getEndSequence();
+      if (endSequence.length > 0) {
+        broadcastCinematic(endSequence);
+      }
+    }
+  }, [showVictoryPodium, game.mode, game.adventure_id, broadcastCinematic]);
 
   const fetchData = useCallback(async () => {
     if (!game.id) return;
