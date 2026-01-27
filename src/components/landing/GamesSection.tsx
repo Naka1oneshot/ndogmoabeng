@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { GameRulesSheet } from './GameRulesSheet';
 import { RivieresRulesOverlay } from '@/components/rivieres/rules/RivieresRulesOverlay';
+import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
 import { GAMES_DATA } from '@/data/ndogmoabengData';
 import { MapPin, Users, Gamepad2, UsersRound, BookOpen } from 'lucide-react';
 
@@ -31,6 +32,7 @@ export function GamesSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [rivieresRulesOpen, setRivieresRulesOpen] = useState(false);
+  const [foretRulesOpen, setForetRulesOpen] = useState(false);
 
   const handleCreateGame = (gameCode: string) => {
     if (user) {
@@ -45,7 +47,11 @@ export function GamesSection() {
   const handleRulesClick = (gameCode: string) => {
     if (gameCode === 'RIVIERES') {
       setRivieresRulesOpen(true);
-      return true; // Handled
+      return true;
+    }
+    if (gameCode === 'FORET') {
+      setForetRulesOpen(true);
+      return true;
     }
     return false; // Not handled, use default
   };
@@ -56,6 +62,12 @@ export function GamesSection() {
       open={rivieresRulesOpen} 
       onClose={() => setRivieresRulesOpen(false)}
       role="PLAYER"
+      defaultMode="QUICK"
+    />
+    <ForetRulesOverlay 
+      open={foretRulesOpen} 
+      onClose={() => setForetRulesOpen(false)}
+      userRole="PLAYER"
       defaultMode="QUICK"
     />
     <section id="jeux" className="py-20 scroll-mt-20">
@@ -129,12 +141,12 @@ export function GamesSection() {
               </CardContent>
 
               <CardFooter className="flex flex-col gap-2">
-                {game.code === 'RIVIERES' ? (
+                {game.code === 'RIVIERES' || game.code === 'FORET' ? (
                   <Button 
                     variant="outline" 
                     size="sm" 
                     className="w-full gap-2"
-                    onClick={() => handleRulesClick('RIVIERES')}
+                    onClick={() => handleRulesClick(game.code)}
                   >
                     <BookOpen className="h-4 w-4" />
                     Voir règles

@@ -34,8 +34,9 @@ import { useForetAutoController } from '@/hooks/useForetAutoController';
 import {
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
-  Bug, Store, Swords, Target, UserPlus
+  Bug, Store, Swords, Target, UserPlus, BookOpen
 } from 'lucide-react';
+import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
@@ -83,6 +84,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [isAllBots, setIsAllBots] = useState(false);
   const [totalAdventureSteps, setTotalAdventureSteps] = useState(3);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [foretRulesOpen, setForetRulesOpen] = useState(false);
   
   // Adventure cumulative scores - grouped by team (mates)
   const [adventureScores, setAdventureScores] = useState<{ 
@@ -781,10 +783,24 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
               <span className="hidden sm:inline">Inviter</span>
             </ForestButton>
           )}
+          {isForetGame && (
+            <ForestButton variant="outline" size="sm" onClick={() => setForetRulesOpen(true)}>
+              <BookOpen className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Règles</span>
+            </ForestButton>
+          )}
           <ThemeToggle />
           <UserAvatarButton size="sm" onLeaveGame={onBack} />
         </div>
       </div>
+
+      <ForetRulesOverlay
+        open={foretRulesOpen}
+        onClose={() => setForetRulesOpen(false)}
+        gameId={game.id}
+        sessionGameId={game.current_session_game_id || undefined}
+        userRole="MJ"
+      />
 
       <InviteFriendsModal
         open={inviteModalOpen}
