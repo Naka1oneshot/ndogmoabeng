@@ -32,6 +32,7 @@ interface Game {
   mode: string;
   current_step_index: number;
   selected_game_type_code: string | null;
+  adventure_id: string | null;
 }
 
 // Must match ALLOWED_CLANS in supabase/functions/_shared/validation.ts
@@ -262,6 +263,8 @@ export default function Join() {
                     mode={game.mode}
                     currentStepIndex={game.current_step_index}
                     currentGameTypeCode={game.selected_game_type_code}
+                    adventureId={game.adventure_id}
+                    showTitle={true}
                   />
                 </div>
               </div>
