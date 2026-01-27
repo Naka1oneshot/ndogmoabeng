@@ -33,6 +33,7 @@ import { cn } from '@/lib/utils';
 import { PresentationModeView } from '@/components/mj/presentation/PresentationModeView';
 import { RivieresPresentationView } from '@/components/rivieres/presentation/RivieresPresentationView';
 import { InfectionPresentationView } from '@/components/infection/presentation/InfectionPresentationView';
+import { SheriffPresentationView } from '@/components/sheriff/presentation/SheriffPresentationView';
 
 const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   LOBBY: { label: 'En attente', variant: 'secondary' },
@@ -247,6 +248,26 @@ export default function WatchGame() {
     return (
       <InfectionPresentationView 
         game={infectionGame}
+        onClose={() => navigate('/watch')} 
+      />
+    );
+  }
+
+  // For Sheriff games, use Sheriff Presentation Mode as the spectator view
+  if (gameInfo.game_type_code === 'SHERIFF') {
+    const sheriffGame = {
+      id: gameInfo.game_id,
+      name: gameInfo.name,
+      status: gameInfo.status,
+      phase: gameInfo.phase || 'PLAYING',
+      manche_active: gameInfo.manche_active || 1,
+      selected_game_type_code: 'SHERIFF',
+      current_session_game_id: gameInfo.current_session_game_id,
+    };
+    
+    return (
+      <SheriffPresentationView 
+        game={sheriffGame}
         onClose={() => navigate('/watch')} 
       />
     );
