@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Loader2, Anchor, Ship, Trophy, MessageSquare, CheckCircle, AlertTriangle, Waves } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, Anchor, Ship, Trophy, MessageSquare, CheckCircle, AlertTriangle, Waves, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   rivieresCardStyle, 
@@ -21,6 +22,7 @@ import {
   RivieresMancheChangeAnimation,
 } from './RivieresPlayerAnimations';
 import { RivieresAutoCountdownOverlay } from './RivieresAutoCountdownOverlay';
+import { RivieresRulesOverlay } from './rules/RivieresRulesOverlay';
 
 interface RiverSessionState {
   id: string;
@@ -91,6 +93,7 @@ export function PlayerRivieresDashboard({
   const [submitting, setSubmitting] = useState(false);
   const [showStartAnimation, setShowStartAnimation] = useState(false);
   const [previousGameStatus, setPreviousGameStatus] = useState<string | undefined>(undefined);
+  const [showRulesOverlay, setShowRulesOverlay] = useState(false);
 
   // Animation states
   const [showLockAnimation, setShowLockAnimation] = useState(false);

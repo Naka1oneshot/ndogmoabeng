@@ -1,0 +1,123 @@
+import { motion } from 'framer-motion';
+import { Ship, Target, Trophy, Coins } from 'lucide-react';
+import { RivieresRulesContextData } from '../../useRivieresRulesContext';
+
+interface RulesPageObjectiveProps {
+  context: RivieresRulesContextData;
+  replayNonce: number;
+  onNavigate?: (index: number) => void;
+}
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+};
+
+export function RulesPageObjective({ context, replayNonce }: RulesPageObjectiveProps) {
+  return (
+    <motion.div
+      key={replayNonce}
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6"
+    >
+      {/* Title */}
+      <motion.div variants={itemVariants} className="text-center">
+        <div className="inline-flex items-center gap-3 bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-full px-6 py-2 mb-4">
+          <Ship className="h-6 w-6 text-[#D4AF37]" />
+          <span className="text-[#D4AF37] font-bold text-lg">Les Rivières de Ndogmoabeng</span>
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+          Objectif du jeu
+        </h1>
+      </motion.div>
+
+      {/* Main objective */}
+      <motion.div
+        variants={itemVariants}
+        className="bg-[#1a1f2e] rounded-xl p-6 border border-[#D4AF37]/20"
+      >
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-full bg-[#D4AF37]/20 flex items-center justify-center flex-shrink-0">
+            <Target className="h-7 w-7 text-[#D4AF37]" />
+          </div>
+          <div>
+            <h2 className="text-[#D4AF37] font-bold text-xl mb-3">Accumuler des jetons</h2>
+            <p className="text-[#E8E8E8] text-lg leading-relaxed">
+              Votre objectif est d'accumuler un maximum de <span className="text-[#D4AF37] font-bold">jetons</span> en 
+              naviguant sur les rivières dangereuses de Ndogmoabeng.
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* How to win */}
+      <motion.div variants={itemVariants} className="grid sm:grid-cols-2 gap-4">
+        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <Trophy className="h-6 w-6 text-green-400" />
+            <h3 className="text-green-400 font-bold">Pour gagner</h3>
+          </div>
+          <p className="text-[#E8E8E8]">
+            Terminez la partie avec le plus de jetons possible. Le joueur avec le plus de jetons 
+            à la fin des 3 manches remporte la victoire.
+          </p>
+        </div>
+
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <Coins className="h-6 w-6 text-blue-400" />
+            <h3 className="text-blue-400 font-bold">Comment gagner des jetons</h3>
+          </div>
+          <p className="text-[#E8E8E8]">
+            Restez sur le bateau et survivez aux niveaux pour partager la cagnotte avec 
+            les autres survivants.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Theme */}
+      <motion.div
+        variants={itemVariants}
+        className="bg-gradient-to-r from-blue-500/10 to-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-xl p-6"
+      >
+        <h3 className="text-white font-bold text-lg mb-3">Le thème</h3>
+        <p className="text-[#E8E8E8] leading-relaxed">
+          Vous êtes un voyageur sur les rivières du nord de Ndogmoabeng, territoire de la 
+          <span className="text-blue-400 font-medium"> Maison des Keryndes</span>. 
+          Les rivières sont dangereuses et imprévisibles. À chaque niveau, vous devez décider 
+          si vous restez sur le bateau pour tenter de gagner plus, ou si vous descendez à terre 
+          pour sécuriser vos gains actuels.
+        </p>
+      </motion.div>
+
+      {/* Key numbers */}
+      <motion.div variants={itemVariants}>
+        <h3 className="text-white font-bold text-lg mb-4">Chiffres clés</h3>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-[#1a1f2e] rounded-lg p-4 text-center">
+            <span className="text-3xl font-bold text-[#D4AF37]">3</span>
+            <p className="text-[#9CA3AF] text-sm mt-1">manches</p>
+          </div>
+          <div className="bg-[#1a1f2e] rounded-lg p-4 text-center">
+            <span className="text-3xl font-bold text-[#D4AF37]">5</span>
+            <p className="text-[#9CA3AF] text-sm mt-1">niveaux/manche</p>
+          </div>
+          <div className="bg-[#1a1f2e] rounded-lg p-4 text-center">
+            <span className="text-3xl font-bold text-[#D4AF37]">100</span>
+            <p className="text-[#9CA3AF] text-sm mt-1">bonus niveau 5</p>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
