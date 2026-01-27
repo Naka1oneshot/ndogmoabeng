@@ -4,10 +4,7 @@ import { RivieresRulesContextData } from '../../useRivieresRulesContext';
 
 // Import clan images
 import maisonKeryndes from '@/assets/clans/maison-keryndes.png';
-import cercleAseyra from '@/assets/clans/cercle-aseyra.png';
 import maisonRoyale from '@/assets/clans/maison-royale.png';
-import fraterniteZoulous from '@/assets/clans/fraternite-zoulous.png';
-import akande from '@/assets/clans/akande.png';
 
 interface RulesQuickPage3Props {
   context: RivieresRulesContextData;
@@ -36,15 +33,9 @@ const CLANS_PREVIEW = [
     color: 'blue'
   },
   { 
-    name: "Cercle d'Aséyra", 
-    image: cercleAseyra, 
-    power: 'Connaît le danger à l\'avance',
-    color: 'purple'
-  },
-  { 
     name: 'Maison Royale', 
     image: maisonRoyale, 
-    power: 'Bonus de jetons en début de manche',
+    power: 'Trésor royal : bonus de jetons au début de la partie',
     color: 'amber'
   },
 ];
@@ -116,7 +107,7 @@ export function RulesQuickPage3({ context, replayNonce }: RulesQuickPage3Props) 
           Les Clans (aperçu)
         </h2>
         
-        <div className="grid sm:grid-cols-3 gap-3">
+        <div className="grid sm:grid-cols-2 gap-3">
           {CLANS_PREVIEW.map((clan, index) => (
             <motion.div
               key={clan.name}
@@ -135,10 +126,6 @@ export function RulesQuickPage3({ context, replayNonce }: RulesQuickPage3Props) 
             </motion.div>
           ))}
         </div>
-        
-        <p className="text-[#9CA3AF] text-xs text-center mt-3">
-          Voir le mode "Complet" pour tous les clans et leurs pouvoirs détaillés.
-        </p>
       </motion.div>
 
       {/* Quick summary */}
@@ -151,12 +138,11 @@ export function RulesQuickPage3({ context, replayNonce }: RulesQuickPage3Props) 
           Résumé express
         </h2>
         <ul className="text-[#E8E8E8] text-sm space-y-2">
-          <li>• <strong>3 manches</strong> de 5 niveaux chacune</li>
+          <li>• <strong>3 manches</strong> de 5 niveaux = 15 niveaux (9 à réussir pour éviter pénalités)</li>
           <li>• Chaque niveau : décision → mise → confrontation</li>
-          <li>• <strong>RESTER</strong> = risque élevé, gain potentiel</li>
-          <li>• <strong>DESCENDRE</strong> = sécurité, gain si chavirement</li>
+          <li>• <strong>RESTER</strong> = gain si niveau 5 réussi</li>
+          <li>• <strong>DESCENDRE</strong> = gain si chavirement</li>
           <li>• Les clans offrent des <strong>avantages uniques</strong></li>
-          <li>• <strong>Niveau 5</strong> : bonus de 100 jetons pour les survivants !</li>
         </ul>
       </motion.div>
     </motion.div>

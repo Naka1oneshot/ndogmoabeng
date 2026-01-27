@@ -59,11 +59,11 @@ export function RulesQuickPage2({ context, replayNonce }: RulesQuickPage2Props) 
           <ul className="text-sm text-[#E8E8E8] space-y-2">
             <li className="flex items-start gap-2">
               <span className="text-green-400">+</span>
-              Vous participez au partage de la cagnotte
+              Vous partagez la cagnotte si le niveau 5 est réussi
             </li>
             <li className="flex items-start gap-2">
               <span className="text-green-400">+</span>
-              Plus de potentiel de gains
+              Plus de potentiel de gains + bonus niveau 5
             </li>
             <li className="flex items-start gap-2">
               <span className="text-red-400">-</span>
@@ -90,11 +90,11 @@ export function RulesQuickPage2({ context, replayNonce }: RulesQuickPage2Props) 
             </li>
             <li className="flex items-start gap-2">
               <span className="text-green-400">+</span>
-              Si chavirement, vous partagez la cagnotte
+              Vous partagerez des jetons en cas de chavirement durant la manche
             </li>
             <li className="flex items-start gap-2">
               <span className="text-red-400">-</span>
-              Pas de gains si le niveau passe
+              Pas de gains si la manche est réussie
             </li>
           </ul>
         </div>

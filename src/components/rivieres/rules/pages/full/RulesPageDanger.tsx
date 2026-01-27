@@ -111,9 +111,9 @@ export function RulesPageDanger({ context, replayNonce }: RulesPageDangerProps) 
           </h3>
           <ul className="text-[#E8E8E8] text-sm space-y-2">
             <li>• Le bateau passe au niveau suivant</li>
-            <li>• La cagnotte est partagée entre les restants</li>
-            <li>• Les descendus ne gagnent rien</li>
-            <li>• La cagnotte repart à 0 pour le niveau suivant</li>
+            <li>• <strong>Niveaux 1-4 :</strong> La cagnotte s'accumule (pas de distribution)</li>
+            <li>• <strong>Niveau 5 uniquement :</strong> La cagnotte est partagée entre les restants + bonus 100</li>
+            <li>• La cagnotte repart à 0 après le niveau 5</li>
           </ul>
         </div>
         
@@ -125,7 +125,7 @@ export function RulesPageDanger({ context, replayNonce }: RulesPageDangerProps) 
           </h3>
           <ul className="text-[#E8E8E8] text-sm space-y-2">
             <li>• Le bateau chavire</li>
-            <li>• La cagnotte est partagée entre les descendus (ce niveau)</li>
+            <li>• La cagnotte est partagée entre les descendus (cette manche, incluant ce niveau)</li>
             <li>• Les restants perdent tout</li>
             <li>• La manche se termine immédiatement</li>
           </ul>

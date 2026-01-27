@@ -42,7 +42,7 @@ export function RulesPagePayout({ context, replayNonce }: RulesPagePayoutProps) 
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
           Répartition des jetons
         </h1>
-        <p className="text-[#9CA3AF]">Comment la cagnotte est distribuée</p>
+        <p className="text-[#9CA3AF]">La cagnotte est distribuée uniquement au niveau 5 ou en cas de chavirement</p>
       </motion.div>
 
       {/* Formula */}
@@ -110,19 +110,20 @@ export function RulesPagePayout({ context, replayNonce }: RulesPagePayoutProps) 
         </div>
       </motion.div>
 
-      {/* Key insight */}
+      {/* Key insight - When distribution happens */}
       <motion.div
         variants={itemVariants}
-        className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-5"
+        className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5"
       >
         <div className="flex items-start gap-3">
-          <Sparkles className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
+          <Sparkles className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
           <div>
-            <h3 className="text-blue-400 font-bold mb-2">Stratégie</h3>
-            <p className="text-[#E8E8E8] text-sm">
-              Moins il y a de joueurs qui restent, plus le gain individuel est élevé. 
-              Mais attention : moins de restants signifie aussi moins de mises pour contrer le danger !
-            </p>
+            <h3 className="text-amber-400 font-bold mb-2">Quand la cagnotte est distribuée ?</h3>
+            <ul className="text-[#E8E8E8] text-sm space-y-2">
+              <li>• <strong>Niveaux 1-4 réussis :</strong> La cagnotte s'accumule, pas de distribution</li>
+              <li>• <strong>Niveau 5 réussi :</strong> Les restants partagent la cagnotte + bonus 100</li>
+              <li>• <strong>Chavirement (n'importe quel niveau) :</strong> Les descendus de la manche partagent</li>
+            </ul>
           </div>
         </div>
       </motion.div>

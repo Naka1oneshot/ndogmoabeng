@@ -6,12 +6,7 @@ import { RivieresRulesContextData } from '../../useRivieresRulesContext';
 
 // Import clan images
 import maisonKeryndes from '@/assets/clans/maison-keryndes.png';
-import cercleAseyra from '@/assets/clans/cercle-aseyra.png';
 import maisonRoyale from '@/assets/clans/maison-royale.png';
-import fraterniteZoulous from '@/assets/clans/fraternite-zoulous.png';
-import akande from '@/assets/clans/akande.png';
-import sourcesAkila from '@/assets/clans/sources-akila.png';
-import ezkar from '@/assets/clans/ezkar.png';
 
 interface RulesPageClansProps {
   context: RivieresRulesContextData;
@@ -45,43 +40,13 @@ const CLANS = [
     ],
   },
   {
-    id: 'aseyra',
-    name: "Cercle d'Aséyra",
-    image: cercleAseyra,
-    devise: "Si l'histoire se tord, on la redresse.",
-    description: 'Gardiens de la vraie histoire, archives alternatives.',
-    powers: [
-      'Vision : aperçu de la plage de danger avant de décider',
-    ],
-  },
-  {
     id: 'royale',
     name: 'Maison Royale',
     image: maisonRoyale,
     devise: "L'histoire s'écrit ici.",
     description: 'Gouvernent le village, archives officielles et cérémonies.',
     powers: [
-      'Trésor royal : bonus de jetons au début de chaque manche',
-    ],
-  },
-  {
-    id: 'zoulous',
-    name: 'Fraternité Zoulous',
-    image: fraterniteZoulous,
-    devise: 'Monnaie et héritage.',
-    description: 'Marchands influents, neutralité stratégique.',
-    powers: [
-      'Commerce : peut échanger des jetons avec les autres joueurs',
-    ],
-  },
-  {
-    id: 'akande',
-    name: 'Akandé',
-    image: akande,
-    devise: 'Tenir ou mourir.',
-    description: "Armée de Ndogmoabeng, prêts au sacrifice.",
-    powers: [
-      'Résistance : mise minimale réduite',
+      'Trésor royal : bonus de jetons au début de la partie',
     ],
   },
 ];
@@ -113,19 +78,11 @@ export function RulesPageClans({ context, replayNonce }: RulesPageClansProps) {
         <p className="text-[#9CA3AF]">Chaque clan possède des pouvoirs uniques</p>
       </motion.div>
 
-      {/* Desktop: 2 + 3 layout */}
+      {/* Desktop: 2 cards layout */}
       <div className="hidden sm:block">
-        {/* Top row - 2 cards */}
-        <motion.div variants={itemVariants} className="grid sm:grid-cols-2 gap-4 mb-4">
-          {CLANS.slice(0, 2).map((clan) => (
+        <motion.div variants={itemVariants} className="grid sm:grid-cols-2 gap-4">
+          {CLANS.map((clan) => (
             <ClanCard key={clan.id} clan={clan} />
-          ))}
-        </motion.div>
-        
-        {/* Bottom row - 3 cards */}
-        <motion.div variants={itemVariants} className="grid sm:grid-cols-3 gap-4">
-          {CLANS.slice(2, 5).map((clan) => (
-            <ClanCard key={clan.id} clan={clan} compact />
           ))}
         </motion.div>
       </div>

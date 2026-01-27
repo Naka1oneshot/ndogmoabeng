@@ -56,7 +56,7 @@ export function RulesPageDecisions({ context, replayNonce }: RulesPageDecisionsP
             <div className="flex items-start gap-2">
               <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
               <span className="text-[#E8E8E8] text-sm">
-                Vous participez au partage de la cagnotte si le niveau passe
+                Vous partagez la cagnotte <strong>si le niveau 5 de la manche est réussi</strong>
               </span>
             </div>
             <div className="flex items-start gap-2">
@@ -102,13 +102,13 @@ export function RulesPageDecisions({ context, replayNonce }: RulesPageDecisionsP
             <div className="flex items-start gap-2">
               <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
               <span className="text-[#E8E8E8] text-sm">
-                Si le bateau chavire, vous partagez la cagnotte
+                Vous partagerez des jetons en cas de chavirement du bateau durant la manche en cours
               </span>
             </div>
             <div className="flex items-start gap-2">
               <XCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
               <span className="text-[#E8E8E8] text-sm">
-                Pas de gains si le niveau passe avec succès
+                Pas de gains si la manche est réussie (niveau 5 atteint)
               </span>
             </div>
             <div className="flex items-start gap-2">
@@ -129,17 +129,17 @@ export function RulesPageDecisions({ context, replayNonce }: RulesPageDecisionsP
         <h3 className="text-white font-bold text-lg mb-4">Conséquences selon le résultat</h3>
         
         <div className="grid sm:grid-cols-2 gap-4">
-          {/* Success */}
+          {/* Success at Level 5 */}
           <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-            <h4 className="text-green-400 font-bold mb-2">Niveau réussi</h4>
+            <h4 className="text-green-400 font-bold mb-2">Niveau 5 réussi (fin de manche)</h4>
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
                 <Ship className="h-4 w-4 text-blue-400" />
-                <span className="text-[#E8E8E8]">Restants : partagent la cagnotte</span>
+                <span className="text-[#E8E8E8]">Restants : partagent la cagnotte + bonus 100</span>
               </div>
               <div className="flex items-center gap-2">
                 <Anchor className="h-4 w-4 text-amber-400" />
-                <span className="text-[#9CA3AF]">Descendus : 0 jetons</span>
+                <span className="text-[#9CA3AF]">Descendus (cette manche) : 0 jetons</span>
               </div>
             </div>
           </div>
@@ -150,7 +150,7 @@ export function RulesPageDecisions({ context, replayNonce }: RulesPageDecisionsP
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
                 <Anchor className="h-4 w-4 text-amber-400" />
-                <span className="text-[#E8E8E8]">Descendus (ce niveau) : partagent la cagnotte</span>
+                <span className="text-[#E8E8E8]">Descendus (cette manche, incluant ce niveau) : partagent la cagnotte</span>
               </div>
               <div className="flex items-center gap-2">
                 <Ship className="h-4 w-4 text-blue-400" />

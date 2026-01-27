@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, Users, Coins, AlertTriangle, Ship, Anchor, Sparkles } from 'lucide-react';
+import { RotateCcw, Users, Coins, AlertTriangle, Ship, Anchor, Sparkles, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
@@ -14,21 +14,24 @@ interface RivieresRulesSimulationProps {
 }
 
 const SCENARIOS = [
-  { id: 'balanced', label: 'Équilibré', pot: 350, total: 8, restants: 4 },
-  { id: 'all-stay', label: 'Tous restent', pot: 500, total: 10, restants: 10 },
-  { id: 'few-stay', label: 'Peu restent', pot: 200, total: 8, restants: 2 },
+  { id: 'balanced', label: 'Équilibré', pot: 350, total: 8, restants: 4, level: 5 },
+  { id: 'all-stay', label: 'Tous restent (niveau 5)', pot: 500, total: 10, restants: 10, level: 5 },
+  { id: 'few-stay', label: 'Peu restent (niveau 3)', pot: 200, total: 8, restants: 2, level: 3 },
 ];
 
 export function RivieresRulesSimulation({ context, compact = false }: RivieresRulesSimulationProps) {
   const [pot, setPot] = useState(context.cagnotte || 300);
   const [totalPlayers, setTotalPlayers] = useState(context.totalPlayers || 8);
   const [restants, setRestants] = useState(context.playersEnBateau || 5);
+  const [level, setLevel] = useState(context.niveau || 5);
   const [chavireToogle, setChavireToogle] = useState(false);
   const [animKey, setAnimKey] = useState(0);
   
   // Computed values
   const descendus = totalPlayers - restants;
-  const gainPerRestant = computePayoutPerPlayer(pot, restants);
+  const isLevel5 = level === 5;
+  const gainPerRestant = isLevel5 ? computePayoutPerPlayer(pot, restants) + 100 : 0;
+  const gainPerDescendu = chavireToogle ? computePayoutPerPlayer(pot, descendus) : 0;
   
   // Keep restants <= total
   useEffect(() => {
@@ -40,12 +43,13 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
   // Trigger animation on change
   useEffect(() => {
     setAnimKey(k => k + 1);
-  }, [pot, totalPlayers, restants, chavireToogle]);
+  }, [pot, totalPlayers, restants, level, chavireToogle]);
   
   const handleReset = () => {
     setPot(context.cagnotte || 300);
     setTotalPlayers(context.totalPlayers || 8);
     setRestants(context.playersEnBateau || 5);
+    setLevel(context.niveau || 5);
     setChavireToogle(false);
   };
   
@@ -53,6 +57,7 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
     setPot(scenario.pot);
     setTotalPlayers(scenario.total);
     setRestants(scenario.restants);
+    setLevel(scenario.level);
     setChavireToogle(false);
   };
   
@@ -120,6 +125,38 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
               <span className="text-amber-400 font-bold">{descendus}</span>
             </div>
             
+            {/* Level selector */}
+            <div className="pt-2 border-t border-white/10">
+              <Label className="text-[#9CA3AF] text-sm mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-[#D4AF37]" />
+                  Niveau actuel
+                </span>
+                <span className="text-[#D4AF37] font-bold">{level}</span>
+              </Label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((lvl) => (
+                  <button
+                    key={lvl}
+                    onClick={() => setLevel(lvl)}
+                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${
+                      level === lvl
+                        ? 'bg-[#D4AF37] text-black'
+                        : 'bg-[#0B1020] text-[#9CA3AF] hover:bg-[#D4AF37]/20'
+                    }`}
+                  >
+                    {lvl}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-[#9CA3AF] mt-2">
+                {isLevel5 
+                  ? '⭐ Niveau 5 : la cagnotte est partagée + bonus 100'
+                  : `Niveaux 1-4 : la cagnotte s'accumule (pas de distribution)`
+                }
+              </p>
+            </div>
+            
             {/* Chavire toggle */}
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
               <Label className="text-[#9CA3AF] text-sm flex items-center gap-2">
@@ -173,23 +210,43 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
           
           {chavireToogle ? (
             <div className="text-[#E8E8E8] text-sm">
-              <p className="mb-2">
-                En cas de chavirement, l'issue dépend des règles de la partie.
+              <p className="mb-2 font-medium text-red-400">
+                Le bateau a chaviré ! Les descendus partagent la cagnotte.
               </p>
-              <p className="text-[#9CA3AF] text-xs">
-                Généralement: ceux qui ont DESCENDU à ce niveau partagent la cagnotte, 
-                ceux qui sont RESTÉS n'obtiennent rien.
-              </p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#9CA3AF]">Descendus (cette manche)</span>
+                  <span className="text-amber-400 font-bold">{descendus} joueurs</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#9CA3AF]">Gain par descendu</span>
+                  <motion.span
+                    key={animKey}
+                    initial={{ scale: 1.5, color: '#f59e0b' }}
+                    animate={{ scale: 1, color: '#D4AF37' }}
+                    className="text-xl font-bold"
+                  >
+                    {gainPerDescendu} jetons
+                  </motion.span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#9CA3AF]">Restants</span>
+                  <span className="text-red-400 font-bold">0 jetons</span>
+                </div>
+              </div>
             </div>
-          ) : (
+          ) : isLevel5 ? (
             <div className="space-y-3">
+              <p className="text-green-400 text-sm font-medium">
+                Niveau 5 réussi ! Les restants partagent la cagnotte + bonus.
+              </p>
               <div className="flex items-center justify-between">
                 <span className="text-[#9CA3AF] text-sm">Restants</span>
                 <span className="text-blue-400 font-bold">{restants} joueurs</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#9CA3AF] text-sm">Descendus</span>
-                <span className="text-amber-400 font-bold">{descendus} joueurs</span>
+                <span className="text-amber-400 font-bold">{descendus} joueurs → 0 jetons</span>
               </div>
               <div className="border-t border-white/10 pt-3">
                 <div className="flex items-center justify-between">
@@ -204,8 +261,27 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
                   </motion.span>
                 </div>
                 <p className="text-xs text-[#9CA3AF] mt-1">
-                  = floor({pot} / {restants || 1}) = {gainPerRestant}
+                  = floor({pot} / {restants || 1}) + 100 = {computePayoutPerPlayer(pot, restants)} + 100
                 </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-amber-500/20 rounded-lg p-3 text-center">
+                <p className="text-amber-400 font-medium text-sm">
+                  Niveau {level} réussi — Pas de distribution
+                </p>
+                <p className="text-[#9CA3AF] text-xs mt-1">
+                  La cagnotte s'accumule pour le niveau suivant
+                </p>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#9CA3AF] text-sm">Cagnotte conservée</span>
+                <span className="text-[#D4AF37] font-bold">{pot} jetons</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#9CA3AF] text-sm">Restants → prochain niveau</span>
+                <span className="text-blue-400 font-bold">{restants} joueurs</span>
               </div>
             </div>
           )}
@@ -237,10 +313,10 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
           </div>
           
           {/* Players who stay */}
-          {restants > 0 && !chavireToogle && (
+          {restants > 0 && !chavireToogle && isLevel5 && (
             <div className="mb-4">
               <p className="text-blue-400 text-xs font-medium mb-2 flex items-center gap-1">
-                <Ship className="h-3 w-3" /> RESTENT ({restants})
+                <Ship className="h-3 w-3" /> RESTENT ({restants}) - Niveau 5 réussi
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {Array.from({ length: Math.min(restants, 12) }).map((_, i) => (
@@ -272,6 +348,34 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
             </div>
           )}
           
+          {/* Players who stay - no distribution (level 1-4) */}
+          {restants > 0 && !chavireToogle && !isLevel5 && (
+            <div className="mb-4">
+              <p className="text-blue-400 text-xs font-medium mb-2 flex items-center gap-1">
+                <Ship className="h-3 w-3" /> RESTENT ({restants}) - Niveau {level} (pas de distribution)
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {Array.from({ length: Math.min(restants, 12) }).map((_, i) => (
+                  <motion.div
+                    key={`stay-${i}`}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex flex-col items-center"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/50 flex items-center justify-center opacity-60">
+                      <Users className="h-4 w-4 text-blue-400" />
+                    </div>
+                    <span className="text-[10px] text-[#9CA3AF] mt-1">→</span>
+                  </motion.div>
+                ))}
+                {restants > 12 && (
+                  <span className="text-xs text-blue-400 self-center">+{restants - 12}</span>
+                )}
+              </div>
+            </div>
+          )}
+          
           {/* Players who descend */}
           {descendus > 0 && (
             <div>
@@ -291,7 +395,7 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
                       <Users className="h-4 w-4 text-amber-400" />
                     </div>
                     <span className="text-[10px] text-[#9CA3AF] mt-1">
-                      {chavireToogle ? `+${computePayoutPerPlayer(pot, descendus)}` : '0'}
+                      {chavireToogle ? `+${gainPerDescendu}` : '0'}
                     </span>
                   </motion.div>
                 ))}
@@ -324,11 +428,11 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
         
         {/* Tips */}
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-          <h4 className="text-blue-400 font-bold text-sm mb-2">Conseils stratégiques</h4>
+          <h4 className="text-blue-400 font-bold text-sm mb-2">Règles de distribution</h4>
           <ul className="text-xs text-[#E8E8E8] space-y-1">
-            <li>• Plus il y a de restants, plus le gain individuel baisse</li>
-            <li>• Descendre protège du risque mais supprime le gain de ce niveau</li>
-            <li>• Au niveau 5, un bonus de 100 jetons attend les survivants</li>
+            <li>• <strong>Niveaux 1-4 :</strong> la cagnotte s'accumule, pas de distribution</li>
+            <li>• <strong>Niveau 5 :</strong> les restants partagent la cagnotte + bonus 100</li>
+            <li>• <strong>Chavirement :</strong> les descendus de la manche partagent la cagnotte</li>
           </ul>
         </div>
       </div>
