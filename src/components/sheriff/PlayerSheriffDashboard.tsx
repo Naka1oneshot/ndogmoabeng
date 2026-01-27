@@ -5,11 +5,20 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import { 
   Shield, Coins, Star, Swords, Check, Loader2, 
   AlertTriangle, Eye, EyeOff, Clock, Trophy
 } from 'lucide-react';
-import { getSheriffThemeClasses, VISA_OPTIONS, TOKEN_OPTIONS, SHERIFF_COLORS } from './SheriffTheme';
+import { 
+  getSheriffThemeClasses, 
+  getVisaOptions, 
+  getTokenOptions,
+  getDuelRulesText,
+  SHERIFF_COLORS,
+  SheriffBotConfig,
+  DEFAULT_SHERIFF_CONFIG
+} from './SheriffTheme';
 import { toast } from 'sonner';
 import { 
   SheriffPhaseChangeAnimation, 
@@ -62,6 +71,7 @@ interface RoundState {
   phase: string;
   current_duel_order: number | null;
   total_duels: number;
+  bot_config?: SheriffBotConfig | null;
 }
 
 interface PlayerSheriffDashboardProps {
@@ -80,7 +90,8 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
   
   // Form state
   const [visaChoice, setVisaChoice] = useState<string>('');
-  const [tokenChoice, setTokenChoice] = useState<string>('');
+  const [tokenMode, setTokenMode] = useState<'LEGAL' | 'ILLEGAL'>('LEGAL');
+  const [tokensEntering, setTokensEntering] = useState<number>(20);
   const [submittingChoice, setSubmittingChoice] = useState(false);
   
   // Duel decision state
@@ -104,6 +115,16 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
   const prevMyActiveDuelRef = useRef<string | null>(null);
   const prevMyDuelStatusRef = useRef<string | null>(null);
   const initialLoadDoneRef = useRef(false);
+
+  // Extract config values with defaults - safely parse bot_config
+  const botConfig: SheriffBotConfig = (roundState?.bot_config as SheriffBotConfig) || {};
+  const visaPvicPercent = (typeof botConfig.visa_pvic_percent === 'number' ? botConfig.visa_pvic_percent : DEFAULT_SHERIFF_CONFIG.visa_pvic_percent);
+  const poolCostPerPlayer = (typeof botConfig.cost_per_player === 'number' ? botConfig.cost_per_player : DEFAULT_SHERIFF_CONFIG.cost_per_player);
+  
+  // Dynamic options based on config
+  const visaOptions = getVisaOptions({ visa_pvic_percent: visaPvicPercent, cost_per_player: poolCostPerPlayer });
+  const tokenOptions = getTokenOptions(tokensEntering);
+  const duelRules = getDuelRulesText(botConfig);
 
   useEffect(() => {
     fetchData();
@@ -133,14 +154,14 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
 
     if (playersData) setAllPlayers(playersData);
 
-    // Fetch round state
+    // Fetch round state with bot_config
     const { data: stateData } = await supabase
       .from('sheriff_round_state')
       .select('*')
       .eq('session_game_id', game.current_session_game_id)
       .maybeSingle();
 
-    if (stateData) setRoundState(stateData);
+    if (stateData) setRoundState(stateData as RoundState);
 
     // Fetch my choice
     const { data: choiceData } = await supabase
@@ -154,7 +175,9 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
       setMyChoice(choiceData);
       if (choiceData.visa_choice) setVisaChoice(choiceData.visa_choice);
       if (choiceData.tokens_entering) {
-        setTokenChoice(choiceData.tokens_entering === 30 ? 'ILLEGAL' : 'LEGAL');
+        const tokens = choiceData.tokens_entering;
+        setTokensEntering(tokens);
+        setTokenMode(tokens <= 20 ? 'LEGAL' : 'ILLEGAL');
       }
     }
 
@@ -168,8 +191,20 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
     if (duelsData) setDuels(duelsData);
   };
 
+  // Handle token mode change
+  const handleTokenModeChange = (mode: string) => {
+    const newMode = mode as 'LEGAL' | 'ILLEGAL';
+    setTokenMode(newMode);
+    if (newMode === 'LEGAL') {
+      setTokensEntering(20);
+    } else {
+      // Default to 25 when switching to illegal (middle of range)
+      setTokensEntering(25);
+    }
+  };
+
   const handleSubmitChoice = async () => {
-    if (!visaChoice || !tokenChoice) {
+    if (!visaChoice || !tokenMode) {
       toast.error('Veuillez faire tous vos choix');
       return;
     }
@@ -182,7 +217,7 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
           sessionGameId: game.current_session_game_id,
           playerNumber: player.player_number,
           visaChoice,
-          tokensEntering: tokenChoice === 'ILLEGAL' ? 30 : 20,
+          tokensEntering: tokensEntering,
         },
       });
 
@@ -457,7 +492,7 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
               </CardHeader>
               <CardContent>
                 <RadioGroup value={visaChoice} onValueChange={setVisaChoice} className="space-y-3">
-                  {Object.entries(VISA_OPTIONS).map(([key, opt]) => (
+                  {Object.entries(visaOptions).map(([key, opt]) => (
                     <div key={key} className={`flex items-center space-x-3 p-3 rounded-lg border ${visaChoice === key ? 'border-[#D4AF37] bg-[#D4AF37]/10' : 'border-[#D4AF37]/20'} ${theme.cardHover}`}>
                       <RadioGroupItem value={key} id={key} className="border-[#D4AF37]" />
                       <Label htmlFor={key} className="flex-1 cursor-pointer">
@@ -482,38 +517,76 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
                   Jetons à l'Entrée
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <RadioGroup value={tokenChoice} onValueChange={setTokenChoice} className="space-y-3">
-                  <div className={`flex items-center space-x-3 p-3 rounded-lg border ${tokenChoice === 'LEGAL' ? 'border-green-500 bg-green-500/10' : 'border-[#D4AF37]/20'} ${theme.cardHover}`}>
+              <CardContent className="space-y-4">
+                <RadioGroup value={tokenMode} onValueChange={handleTokenModeChange} className="space-y-3">
+                  {/* Legal option */}
+                  <div className={`flex items-center space-x-3 p-3 rounded-lg border ${tokenMode === 'LEGAL' ? 'border-green-500 bg-green-500/10' : 'border-[#D4AF37]/20'} ${theme.cardHover}`}>
                     <RadioGroupItem value="LEGAL" id="legal" className="border-green-500" />
                     <Label htmlFor="legal" className="flex-1 cursor-pointer">
                       <div className="flex items-center gap-2">
                         <Check className="h-5 w-5 text-green-500" />
-                        <span className="font-medium">{TOKEN_OPTIONS.LEGAL.label}</span>
+                        <span className="font-medium">20 Jetons (Légal)</span>
                       </div>
-                      <p className="text-sm text-[#9CA3AF] mt-1">{TOKEN_OPTIONS.LEGAL.description}</p>
-                      <p className="text-xs text-green-500 mt-1">{TOKEN_OPTIONS.LEGAL.risk}</p>
+                      <p className="text-sm text-[#9CA3AF] mt-1">Entrer légalement avec le maximum autorisé</p>
+                      <p className="text-xs text-green-500 mt-1">Aucun risque</p>
                     </Label>
                   </div>
-                  <div className={`flex items-center space-x-3 p-3 rounded-lg border ${tokenChoice === 'ILLEGAL' ? 'border-red-500 bg-red-500/10' : 'border-[#D4AF37]/20'} ${theme.cardHover}`}>
-                    <RadioGroupItem value="ILLEGAL" id="illegal" className="border-red-500" />
-                    <Label htmlFor="illegal" className="flex-1 cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-5 w-5 text-red-500" />
-                        <span className="font-medium">{TOKEN_OPTIONS.ILLEGAL.label}</span>
+                  
+                  {/* Illegal option */}
+                  <div className={`space-y-3 p-3 rounded-lg border ${tokenMode === 'ILLEGAL' ? 'border-red-500 bg-red-500/10' : 'border-[#D4AF37]/20'} ${theme.cardHover}`}>
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem value="ILLEGAL" id="illegal" className="border-red-500" />
+                      <Label htmlFor="illegal" className="flex-1 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-red-500" />
+                          <span className="font-medium">Contrebande (21-30 jetons)</span>
+                        </div>
+                        <p className="text-sm text-[#9CA3AF] mt-1">Tenter d'entrer avec des jetons illégaux cachés</p>
+                        <p className="text-xs text-red-500 mt-1">Risque de fouille</p>
+                      </Label>
+                    </div>
+                    
+                    {/* Slider for illegal token count */}
+                    {tokenMode === 'ILLEGAL' && (
+                      <div className="pt-2 space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-[#9CA3AF]">Nombre de jetons:</span>
+                          <span className="font-bold text-red-400">
+                            {tokensEntering} jetons ({tokensEntering - 20} illégaux)
+                          </span>
+                        </div>
+                        <Slider
+                          value={[tokensEntering]}
+                          onValueChange={(values) => setTokensEntering(values[0])}
+                          min={21}
+                          max={30}
+                          step={1}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-[#9CA3AF]">
+                          <span>21 (1 illégal)</span>
+                          <span>30 (10 illégaux)</span>
+                        </div>
                       </div>
-                      <p className="text-sm text-[#9CA3AF] mt-1">{TOKEN_OPTIONS.ILLEGAL.description}</p>
-                      <p className="text-xs text-red-500 mt-1">{TOKEN_OPTIONS.ILLEGAL.risk}</p>
-                    </Label>
+                    )}
                   </div>
                 </RadioGroup>
+                
+                {/* Current selection summary */}
+                <div className="p-3 bg-[#1A1510] rounded-lg text-center">
+                  <span className="text-[#9CA3AF] text-sm">Vous entrerez avec: </span>
+                  <span className={`font-bold ${tokenMode === 'LEGAL' ? 'text-green-400' : 'text-red-400'}`}>
+                    {tokensEntering} jetons
+                    {tokenMode === 'ILLEGAL' && ` (${tokensEntering - 20} illégaux)`}
+                  </span>
+                </div>
               </CardContent>
             </Card>
 
             {/* Submit Button */}
             <Button 
               onClick={handleSubmitChoice} 
-              disabled={!visaChoice || !tokenChoice || submittingChoice}
+              disabled={!visaChoice || submittingChoice}
               className={`w-full ${theme.button}`}
             >
               {submittingChoice ? (
@@ -532,8 +605,8 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
             <Check className="h-12 w-12 mx-auto text-green-500 mb-4" />
             <h2 className="text-lg font-bold mb-2">Choix Enregistrés</h2>
             <div className="space-y-2 text-sm text-[#9CA3AF]">
-              <p>Visa: {myChoice.visa_choice === 'VICTORY_POINTS' ? '⭐ Points de Victoire' : '💰 Cagnotte'}</p>
-              <p>Jetons: {myChoice.tokens_entering}💎 {myChoice.has_illegal_tokens && '(avec contrebande)'}</p>
+              <p>Visa: {myChoice.visa_choice === 'VICTORY_POINTS' ? `⭐ Points de Victoire (-${visaPvicPercent}%)` : `💰 Cagnotte (-${poolCostPerPlayer}€)`}</p>
+              <p>Jetons: {myChoice.tokens_entering}💎 {myChoice.has_illegal_tokens && `(${(myChoice.tokens_entering || 0) - 20} illégaux)`}</p>
             </div>
             <p className="mt-4 text-[#F59E0B]">En attente des autres joueurs...</p>
           </div>
@@ -581,8 +654,8 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
                 </div>
 
                 <div className="mt-4 p-3 bg-[#1A1510] rounded text-xs text-[#9CA3AF]">
-                  <p><strong>Fouiller:</strong> Si légal → vous perdez 10% PV. Si illégal → vous gagnez X% PV.</p>
-                  <p><strong>Laisser passer:</strong> Pas de risque, mais l'adversaire peut passer avec de la contrebande.</p>
+                  <p><strong>{duelRules.searchInfo}</strong></p>
+                  <p>{duelRules.passInfo}</p>
                 </div>
               </div>
             </CardContent>
