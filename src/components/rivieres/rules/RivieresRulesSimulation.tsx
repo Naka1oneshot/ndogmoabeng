@@ -151,7 +151,7 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
               </div>
               <p className="text-xs text-[#9CA3AF] mt-2">
                 {isLevel5 
-                  ? '⭐ Niveau 5 : la cagnotte est partagée + bonus 100'
+                  ? `⭐ Niveau 5 : la cagnotte est partagée + bonus (100 × ${restants} restants = ${100 * restants} jetons)`
                   : `Niveaux 1-4 : la cagnotte s'accumule (pas de distribution)`
                 }
               </p>
@@ -261,7 +261,7 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
                   </motion.span>
                 </div>
                 <p className="text-xs text-[#9CA3AF] mt-1">
-                  = floor({pot} / {restants || 1}) + 100 = {computePayoutPerPlayer(pot, restants)} + 100
+                  = floor({pot} / {restants || 1}) + 100 = {computePayoutPerPlayer(pot, restants)} + 100 (bonus total = {100 * restants})
                 </p>
               </div>
             </div>
