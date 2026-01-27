@@ -1,5 +1,6 @@
-import { ArrowRight, Ship, Trees, Syringe, Sparkles, Trophy, Shield } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Ship, Trees, Syringe, Sparkles, Trophy, Shield, SkipForward } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
 
 interface GameTransitionAnimationProps {
   fromGameType: string | null;
@@ -62,7 +63,34 @@ export function GameTransitionAnimation({
   onComplete,
 }: GameTransitionAnimationProps) {
   const [phase, setPhase] = useState<'exit' | 'transition' | 'enter'>('exit');
+  const [skipped, setSkipped] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timersRef = useRef<NodeJS.Timeout[]>([]);
+  const onCompleteRef = useRef(onComplete);
+
+  // Keep onComplete ref updated
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  // Skip handler
+  const handleSkip = useCallback(() => {
+    if (skipped) return;
+    setSkipped(true);
+    
+    // Clear all timers
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+    
+    // Stop audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    
+    // Complete immediately
+    onCompleteRef.current?.();
+  }, [skipped]);
 
   // Use fallback if game type is not found
   const fromInfo = (fromGameType && GAME_INFO[fromGameType]) || DEFAULT_GAME_INFO;
@@ -94,16 +122,19 @@ export function GameTransitionAnimation({
 
   // Animate through phases - FAST transitions (total ~2.5s)
   useEffect(() => {
+    if (skipped) return;
+    
     const exitTimer = setTimeout(() => setPhase('transition'), 600);
     const transitionTimer = setTimeout(() => setPhase('enter'), 1400);
-    const completeTimer = setTimeout(() => onComplete?.(), 2500);
+    const completeTimer = setTimeout(() => onCompleteRef.current?.(), 2500);
+    
+    timersRef.current = [exitTimer, transitionTimer, completeTimer];
 
     return () => {
-      clearTimeout(exitTimer);
-      clearTimeout(transitionTimer);
-      clearTimeout(completeTimer);
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
     };
-  }, [onComplete]);
+  }, [skipped]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black overflow-hidden">
@@ -190,6 +221,18 @@ export function GameTransitionAnimation({
           </p>
         </div>
       </div>
+
+      {/* Skip button */}
+      {!skipped && (
+        <Button
+          onClick={handleSkip}
+          variant="ghost"
+          className="absolute bottom-8 right-8 text-white/60 hover:text-white hover:bg-white/10 gap-2"
+        >
+          <SkipForward className="h-4 w-4" />
+          Passer
+        </Button>
+      )}
     </div>
   );
 }
