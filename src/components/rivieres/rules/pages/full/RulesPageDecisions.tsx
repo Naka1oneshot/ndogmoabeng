@@ -102,7 +102,7 @@ export function RulesPageDecisions({ context, replayNonce }: RulesPageDecisionsP
             <div className="flex items-start gap-2">
               <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
               <span className="text-[#E8E8E8] text-sm">
-                Vous partagerez des jetons en cas de chavirement du bateau durant la manche en cours
+                En cas de chavirement : partagez la cagnotte + <span className="text-amber-400 font-bold">10 jetons × niveau</span>
               </span>
             </div>
             <div className="flex items-start gap-2">
@@ -150,11 +150,11 @@ export function RulesPageDecisions({ context, replayNonce }: RulesPageDecisionsP
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
                 <Anchor className="h-4 w-4 text-amber-400" />
-                <span className="text-[#E8E8E8]">Descendus (cette manche, incluant ce niveau) : partagent la cagnotte</span>
+                <span className="text-[#E8E8E8]">Descendus : partagent la cagnotte + <span className="text-amber-400">10 × niveau</span></span>
               </div>
               <div className="flex items-center gap-2">
                 <Ship className="h-4 w-4 text-blue-400" />
-                <span className="text-[#9CA3AF]">Restants : 0 jetons</span>
+                <span className="text-[#9CA3AF]">Restants (chavirés) : 0 jetons</span>
               </div>
             </div>
           </div>

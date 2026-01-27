@@ -121,8 +121,8 @@ export function RulesPagePayout({ context, replayNonce }: RulesPagePayoutProps) 
             <h3 className="text-amber-400 font-bold mb-2">Quand la cagnotte est distribuée ?</h3>
             <ul className="text-[#E8E8E8] text-sm space-y-2">
               <li>• <strong>Niveaux 1-4 réussis :</strong> La cagnotte s'accumule, pas de distribution</li>
-              <li>• <strong>Niveau 5 réussi :</strong> Les restants partagent la cagnotte + bonus 100</li>
-              <li>• <strong>Chavirement (n'importe quel niveau) :</strong> Les descendus de la manche partagent</li>
+              <li>• <strong>Niveau 5 réussi :</strong> Les restants partagent la cagnotte + bonus (100 × restants)</li>
+              <li>• <strong>Chavirement :</strong> Les descendus partagent la cagnotte + <span className="text-amber-400">10 jetons × niveau</span> (individuel)</li>
             </ul>
           </div>
         </div>

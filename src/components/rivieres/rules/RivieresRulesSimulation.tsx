@@ -31,7 +31,9 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
   const descendus = totalPlayers - restants;
   const isLevel5 = level === 5;
   const gainPerRestant = isLevel5 ? computePayoutPerPlayer(pot, restants) + 100 : 0;
-  const gainPerDescendu = chavireToogle ? computePayoutPerPlayer(pot, descendus) : 0;
+  // Descended players: share pot + 10 tokens per successful level
+  const bonusDescenduPerLevel = 10 * level;
+  const gainPerDescendu = chavireToogle ? computePayoutPerPlayer(pot, descendus) + bonusDescenduPerLevel : 0;
   
   // Keep restants <= total
   useEffect(() => {
@@ -211,7 +213,7 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
           {chavireToogle ? (
             <div className="text-[#E8E8E8] text-sm">
               <p className="mb-2 font-medium text-red-400">
-                Le bateau a chaviré ! Les descendus partagent la cagnotte.
+                Le bateau a chaviré ! Les descendus partagent la cagnotte + bonus niveau.
               </p>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -229,8 +231,11 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
                     {gainPerDescendu} jetons
                   </motion.span>
                 </div>
+                <p className="text-xs text-[#9CA3AF]">
+                  = floor({pot} / {descendus || 1}) + (10 × {level} niveaux) = {computePayoutPerPlayer(pot, descendus)} + {bonusDescenduPerLevel}
+                </p>
                 <div className="flex items-center justify-between">
-                  <span className="text-[#9CA3AF]">Restants</span>
+                  <span className="text-[#9CA3AF]">Restants (chavirés)</span>
                   <span className="text-red-400 font-bold">0 jetons</span>
                 </div>
               </div>
