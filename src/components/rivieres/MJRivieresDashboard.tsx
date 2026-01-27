@@ -1277,6 +1277,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           lastError={autoState.lastError}
           failCounts={autoState.failCounts}
           onResetFailCounters={resetFailCounters}
+          isAuthenticated={autoState.isAuthenticated}
         />
 
         <ForestButton
