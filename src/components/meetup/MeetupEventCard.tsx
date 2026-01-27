@@ -254,7 +254,7 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/admin/event-management/${event.id}`)}
+                  onClick={() => navigate('/admin/event-management', { state: { eventId: event.id } })}
                   className="flex-1 gap-2"
                 >
                   <Cog className="w-4 h-4" />
