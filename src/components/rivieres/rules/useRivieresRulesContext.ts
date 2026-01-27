@@ -101,8 +101,14 @@ export function computePayoutPerPlayer(pot: number, nbRestants: number): number 
   return Math.floor(pot / nbRestants);
 }
 
-// Level bonus (100 tokens per survivor at level 5)
-export function computeLevelBonus(niveau: number, survived: boolean): number {
-  if (niveau === 5 && survived) return 100;
+// Level 5 bonus: 100 tokens × number of survivors (shared among them)
+export function computeTotalLevelBonus(niveau: number, nbRestants: number): number {
+  if (niveau === 5 && nbRestants > 0) return 100 * nbRestants;
+  return 0;
+}
+
+// Bonus per player at level 5
+export function computeBonusPerPlayer(niveau: number, nbRestants: number): number {
+  if (niveau === 5 && nbRestants > 0) return 100;
   return 0;
 }

@@ -140,9 +140,12 @@ export function RulesPagePayout({ context, replayNonce }: RulesPagePayoutProps) 
           <div>
             <h3 className="text-[#D4AF37] font-bold mb-2">Bonus du niveau 5</h3>
             <p className="text-[#E8E8E8] text-sm">
-              Au niveau 5 de chaque manche, les joueurs qui réussissent (restent et survivent) 
-              reçoivent un <span className="text-[#D4AF37] font-bold">bonus de 100 jetons</span> en plus 
-              de leur part de la cagnotte.
+              Au niveau 5 de chaque manche, un bonus total de <span className="text-[#D4AF37] font-bold">100 × nombre de restants</span> est 
+              ajouté à la cagnotte avant distribution. Chaque restant reçoit donc <span className="text-[#D4AF37] font-bold">+100 jetons</span> en 
+              plus de sa part de la cagnotte.
+            </p>
+            <p className="text-[#9CA3AF] text-xs mt-2">
+              Exemple : 4 restants = bonus total de 400 jetons, soit +100 par joueur.
             </p>
           </div>
         </div>
