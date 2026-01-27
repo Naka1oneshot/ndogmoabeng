@@ -2811,11 +2811,20 @@ export type Database = {
       }
       session_games: {
         Row: {
+          auto_anim_ack_at: string | null
           auto_countdown_ends_at: string | null
           auto_countdown_type: string | null
+          auto_fail_bets: number | null
+          auto_fail_positions: number | null
+          auto_fail_resolve_combat: number | null
+          auto_fail_shop: number | null
+          auto_last_error: string | null
           auto_last_step: string | null
           auto_mode: boolean | null
+          auto_runner_lease_until: string | null
+          auto_runner_user_id: string | null
           auto_updated_at: string | null
+          auto_waiting_for: string | null
           config: Json | null
           created_at: string
           ended_at: string | null
@@ -2829,11 +2838,20 @@ export type Database = {
           step_index: number
         }
         Insert: {
+          auto_anim_ack_at?: string | null
           auto_countdown_ends_at?: string | null
           auto_countdown_type?: string | null
+          auto_fail_bets?: number | null
+          auto_fail_positions?: number | null
+          auto_fail_resolve_combat?: number | null
+          auto_fail_shop?: number | null
+          auto_last_error?: string | null
           auto_last_step?: string | null
           auto_mode?: boolean | null
+          auto_runner_lease_until?: string | null
+          auto_runner_user_id?: string | null
           auto_updated_at?: string | null
+          auto_waiting_for?: string | null
           config?: Json | null
           created_at?: string
           ended_at?: string | null
@@ -2847,11 +2865,20 @@ export type Database = {
           step_index: number
         }
         Update: {
+          auto_anim_ack_at?: string | null
           auto_countdown_ends_at?: string | null
           auto_countdown_type?: string | null
+          auto_fail_bets?: number | null
+          auto_fail_positions?: number | null
+          auto_fail_resolve_combat?: number | null
+          auto_fail_shop?: number | null
+          auto_last_error?: string | null
           auto_last_step?: string | null
           auto_mode?: boolean | null
+          auto_runner_lease_until?: string | null
+          auto_runner_user_id?: string | null
           auto_updated_at?: string | null
+          auto_waiting_for?: string | null
           config?: Json | null
           created_at?: string
           ended_at?: string | null
@@ -3412,6 +3439,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_foret_auto_lease: {
+        Args: {
+          p_lease_ms?: number
+          p_session_game_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      acquire_river_auto_lease: {
+        Args: { p_lease_ms?: number; p_session_id: string; p_user_id: string }
+        Returns: boolean
+      }
       add_loyalty_points: {
         Args: {
           p_amount: number
@@ -3654,9 +3693,21 @@ export type Database = {
           updated_at: string
         }[]
       }
+      release_foret_auto_lease: {
+        Args: { p_session_game_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      release_river_auto_lease: {
+        Args: { p_session_id: string; p_user_id: string }
+        Returns: boolean
+      }
       replace_num_by_name: {
         Args: { p_game_id: string; p_message: string }
         Returns: string
+      }
+      reset_foret_auto_fail_counters: {
+        Args: { p_session_game_id: string }
+        Returns: boolean
       }
       search_users_for_friendship: {
         Args: { p_limit?: number; p_search_term: string }
