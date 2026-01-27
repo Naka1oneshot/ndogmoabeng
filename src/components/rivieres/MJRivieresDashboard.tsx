@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, Dice6, Lock, Play, Users, History, 
   AlertTriangle, CheckCircle, XCircle, Anchor, Trophy, Flag, Ship, Waves,
-  RefreshCw, Copy, Check, UserX, Calculator, Zap, Bot, Plus, Trash2, Presentation, Coins, FastForward
+  RefreshCw, Copy, Check, UserX, Calculator, Zap, Bot, Plus, Trash2, Presentation, Coins, FastForward, BookOpen
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
@@ -43,6 +43,7 @@ import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDis
 import { useRivieresAutoController } from '@/hooks/useRivieresAutoController';
 import { RivieresAutoModeToggle } from './RivieresAutoModeToggle';
 import { RivieresAutoCountdownOverlay } from './RivieresAutoCountdownOverlay';
+import { RivieresRulesOverlay } from './rules/RivieresRulesOverlay';
 
 interface RiverSessionState {
   id: string;
@@ -164,6 +165,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   const [stageScores, setStageScores] = useState<StageScore[]>([]);
   const [showFinalRanking, setShowFinalRanking] = useState(false);
   const [endingGame, setEndingGame] = useState(false);
+  const [showRulesOverlay, setShowRulesOverlay] = useState(false);
 
   // Start animation
   const [showStartAnimation, setShowStartAnimation] = useState(false);
@@ -1114,6 +1116,14 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
 
   return (
     <>
+    {/* Rules Overlay */}
+    <RivieresRulesOverlay
+      open={showRulesOverlay}
+      onClose={() => setShowRulesOverlay(false)}
+      gameId={gameId}
+      sessionGameId={sessionGameId}
+      role="MJ"
+    />
     <LandscapeModePrompt storageKey="mj-rivieres-landscape-dismissed" />
     <div className="space-y-4">
       {/* FINAL RANKING MODAL when game is finished */}
@@ -1279,6 +1289,14 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           onResetFailCounters={resetFailCounters}
           isAuthenticated={autoState.isAuthenticated}
         />
+
+        <ForestButton
+          onClick={() => setShowRulesOverlay(true)}
+          className="bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] border border-[#D4AF37]/50"
+        >
+          <BookOpen className="h-4 w-4 mr-2" />
+          Règles
+        </ForestButton>
 
         <ForestButton
           onClick={() => window.open(`/presentation/${gameId}`, '_blank')}
