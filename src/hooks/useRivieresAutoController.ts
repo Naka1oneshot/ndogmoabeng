@@ -14,14 +14,25 @@ interface RiverSessionState {
   auto_countdown_ends_at: string | null;
   auto_countdown_active: boolean;
   auto_last_step: string | null;
+  auto_runner_user_id: string | null;
+  auto_runner_lease_until: string | null;
+  auto_fail_set_danger: number;
+  auto_fail_bot_decisions: number;
+  auto_fail_lock: number;
+  auto_fail_resolve: number;
+  auto_last_error: string | null;
+  auto_waiting_for: string | null;
+  auto_anim_ack_at: string | null;
 }
 
 interface RiverDecision {
   id: string;
   player_id: string;
   player_num: number;
-  decision: string;
+  decision: string | null;
   status: string;
+  manche: number;
+  niveau: number;
 }
 
 interface GamePlayer {
@@ -37,33 +48,53 @@ interface AutoControllerState {
   countdownEndsAt: Date | null;
   currentStep: string | null;
   remainingSeconds: number;
+  isRunner: boolean;
+  runnerStatus: 'YOU' | 'OTHER' | 'NONE';
+  lastError: string | null;
+  failCounts: {
+    setDanger: number;
+    botDecisions: number;
+    lock: number;
+    resolve: number;
+  };
 }
 
 interface UseRivieresAutoControllerResult {
   state: AutoControllerState;
   toggleAutoMode: () => Promise<void>;
+  resetFailCounters: () => Promise<void>;
   isActionInFlight: boolean;
 }
 
 const COUNTDOWN_DURATION_MS = 15000; // 15 seconds
+const LEASE_DURATION_MS = 20000; // 20 seconds
+const LEASE_RENEW_INTERVAL_MS = 10000; // 10 seconds
+const MAX_FAIL_COUNT = 5;
+const ANIMATION_ACK_TIMEOUT_MS = 20000; // 20 seconds fallback
 
 export function useRivieresAutoController(
   gameId: string,
-  sessionGameId: string,
-  onLockAnimationComplete?: () => void,
-  onResolveAnimationComplete?: () => void
+  sessionGameId: string
 ): UseRivieresAutoControllerResult {
   const [sessionState, setSessionState] = useState<RiverSessionState | null>(null);
   const [decisions, setDecisions] = useState<RiverDecision[]>([]);
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [enBateauCount, setEnBateauCount] = useState(0);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   const actionInFlightRef = useRef(false);
   const cancelledRef = useRef(false);
-  const lockAnimationCompleteRef = useRef<(() => void) | null>(null);
-  const resolveAnimationCompleteRef = useRef<(() => void) | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const leaseRenewIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAckAtRef = useRef<string | null>(null);
+
+  // Get current user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id ?? null);
+    });
+  }, []);
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
@@ -77,7 +108,7 @@ export function useRivieresAutoController(
         .single(),
       supabase
         .from('river_decisions')
-        .select('id, player_id, player_num, decision, status')
+        .select('id, player_id, player_num, decision, status, manche, niveau')
         .eq('session_game_id', sessionGameId),
       supabase
         .from('game_players')
@@ -162,11 +193,111 @@ export function useRivieresAutoController(
     };
   }, [sessionState?.auto_countdown_active, sessionState?.auto_countdown_ends_at]);
 
+  // Determine if current user is the runner
+  const isRunner = useCallback(() => {
+    if (!sessionState || !currentUserId) return false;
+    if (!sessionState.auto_runner_user_id) return false;
+    if (sessionState.auto_runner_user_id !== currentUserId) return false;
+    if (!sessionState.auto_runner_lease_until) return false;
+    return new Date(sessionState.auto_runner_lease_until).getTime() > Date.now();
+  }, [sessionState, currentUserId]);
+
+  const getRunnerStatus = useCallback((): 'YOU' | 'OTHER' | 'NONE' => {
+    if (!sessionState) return 'NONE';
+    if (!sessionState.auto_runner_user_id || !sessionState.auto_runner_lease_until) return 'NONE';
+    if (new Date(sessionState.auto_runner_lease_until).getTime() <= Date.now()) return 'NONE';
+    if (sessionState.auto_runner_user_id === currentUserId) return 'YOU';
+    return 'OTHER';
+  }, [sessionState, currentUserId]);
+
+  // Acquire lease
+  const acquireLease = useCallback(async (): Promise<boolean> => {
+    if (!sessionState || !currentUserId) return false;
+
+    const now = new Date();
+    const leaseUntil = new Date(now.getTime() + LEASE_DURATION_MS);
+
+    // Check if lease is free or expired
+    if (sessionState.auto_runner_lease_until && 
+        new Date(sessionState.auto_runner_lease_until).getTime() > now.getTime() &&
+        sessionState.auto_runner_user_id !== currentUserId) {
+      // Another user holds the lease
+      return false;
+    }
+
+    const { error } = await supabase
+      .from('river_session_state')
+      .update({
+        auto_runner_user_id: currentUserId,
+        auto_runner_lease_until: leaseUntil.toISOString(),
+      })
+      .eq('id', sessionState.id);
+
+    return !error;
+  }, [sessionState, currentUserId]);
+
+  // Release lease
+  const releaseLease = useCallback(async () => {
+    if (!sessionState) return;
+
+    await supabase
+      .from('river_session_state')
+      .update({
+        auto_runner_user_id: null,
+        auto_runner_lease_until: null,
+      })
+      .eq('id', sessionState.id);
+  }, [sessionState]);
+
+  // Renew lease periodically
+  useEffect(() => {
+    if (!sessionState?.auto_mode || !isRunner()) {
+      if (leaseRenewIntervalRef.current) {
+        clearInterval(leaseRenewIntervalRef.current);
+        leaseRenewIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const renewLease = async () => {
+      if (!sessionState || !currentUserId) return;
+      const leaseUntil = new Date(Date.now() + LEASE_DURATION_MS);
+      await supabase
+        .from('river_session_state')
+        .update({ auto_runner_lease_until: leaseUntil.toISOString() })
+        .eq('id', sessionState.id)
+        .eq('auto_runner_user_id', currentUserId);
+    };
+
+    leaseRenewIntervalRef.current = setInterval(renewLease, LEASE_RENEW_INTERVAL_MS);
+
+    return () => {
+      if (leaseRenewIntervalRef.current) {
+        clearInterval(leaseRenewIntervalRef.current);
+        leaseRenewIntervalRef.current = null;
+      }
+    };
+  }, [sessionState?.auto_mode, sessionState?.id, currentUserId, isRunner]);
+
   // Toggle auto mode
   const toggleAutoMode = useCallback(async () => {
     if (!sessionState) return;
 
     const newAutoMode = !sessionState.auto_mode;
+
+    if (newAutoMode) {
+      // Activating - try to acquire lease
+      const acquired = await acquireLease();
+      if (!acquired) {
+        console.warn('[AutoController] Could not acquire lease - another MJ is running');
+        return;
+      }
+      cancelledRef.current = false;
+    } else {
+      // Deactivating - release lease
+      await releaseLease();
+      cancelledRef.current = true;
+    }
 
     await supabase
       .from('river_session_state')
@@ -176,14 +307,143 @@ export function useRivieresAutoController(
         auto_countdown_ends_at: newAutoMode ? sessionState.auto_countdown_ends_at : null,
         auto_last_step: newAutoMode ? 'ENABLED' : null,
         auto_updated_at: new Date().toISOString(),
+        auto_waiting_for: null,
+        auto_anim_ack_at: null,
+      })
+      .eq('id', sessionState.id);
+  }, [sessionState, acquireLease, releaseLease]);
+
+  // Reset fail counters
+  const resetFailCounters = useCallback(async () => {
+    if (!sessionState) return;
+
+    await supabase
+      .from('river_session_state')
+      .update({
+        auto_fail_set_danger: 0,
+        auto_fail_bot_decisions: 0,
+        auto_fail_lock: 0,
+        auto_fail_resolve: 0,
+        auto_last_error: null,
+      })
+      .eq('id', sessionState.id);
+  }, [sessionState]);
+
+  // Handle action failure with backoff
+  const handleActionFailure = useCallback(async (
+    actionType: 'set_danger' | 'bot_decisions' | 'lock' | 'resolve',
+    error: any
+  ): Promise<number> => {
+    if (!sessionState) return 0;
+
+    const fieldMap = {
+      set_danger: 'auto_fail_set_danger',
+      bot_decisions: 'auto_fail_bot_decisions',
+      lock: 'auto_fail_lock',
+      resolve: 'auto_fail_resolve',
+    };
+
+    const currentCount = sessionState[fieldMap[actionType] as keyof RiverSessionState] as number || 0;
+    const newCount = currentCount + 1;
+
+    const updates: any = {
+      [fieldMap[actionType]]: newCount,
+      auto_last_error: `${actionType} failed: ${error?.message || 'Unknown error'}`,
+    };
+
+    // Stop auto mode if max failures reached
+    if (newCount >= MAX_FAIL_COUNT) {
+      updates.auto_mode = false;
+      updates.auto_countdown_active = false;
+      updates.auto_countdown_ends_at = null;
+      updates.auto_last_step = 'STOPPED_MAX_FAILURES';
+      cancelledRef.current = true;
+      console.error(`[AutoController] Stopping auto mode after ${newCount} failures on ${actionType}`);
+    }
+
+    await supabase
+      .from('river_session_state')
+      .update(updates)
+      .eq('id', sessionState.id);
+
+    // Calculate backoff delay
+    return Math.min(20000, 1000 * Math.pow(2, newCount));
+  }, [sessionState]);
+
+  // Reset fail counter on success
+  const handleActionSuccess = useCallback(async (
+    actionType: 'set_danger' | 'bot_decisions' | 'lock' | 'resolve'
+  ) => {
+    if (!sessionState) return;
+
+    const fieldMap = {
+      set_danger: 'auto_fail_set_danger',
+      bot_decisions: 'auto_fail_bot_decisions',
+      lock: 'auto_fail_lock',
+      resolve: 'auto_fail_resolve',
+    };
+
+    const currentCount = sessionState[fieldMap[actionType] as keyof RiverSessionState] as number || 0;
+    if (currentCount > 0) {
+      await supabase
+        .from('river_session_state')
+        .update({ [fieldMap[actionType]]: 0 })
+        .eq('id', sessionState.id);
+    }
+  }, [sessionState]);
+
+  // Wait for animation ACK with timeout
+  const waitForAnimationAck = useCallback(async (waitType: 'LOCK_ANIM' | 'RESOLVE_ANIM'): Promise<boolean> => {
+    if (!sessionState) return false;
+
+    // Set waiting state
+    await supabase
+      .from('river_session_state')
+      .update({
+        auto_waiting_for: waitType,
+        auto_anim_ack_at: null,
       })
       .eq('id', sessionState.id);
 
-    if (!newAutoMode) {
-      cancelledRef.current = true;
-    } else {
-      cancelledRef.current = false;
+    const startTime = Date.now();
+    lastAckAtRef.current = sessionState.auto_anim_ack_at;
+
+    // Poll for ACK
+    while (Date.now() - startTime < ANIMATION_ACK_TIMEOUT_MS) {
+      if (cancelledRef.current) return false;
+
+      const { data } = await supabase
+        .from('river_session_state')
+        .select('auto_waiting_for, auto_anim_ack_at')
+        .eq('id', sessionState.id)
+        .single();
+
+      if (data?.auto_anim_ack_at && data.auto_anim_ack_at !== lastAckAtRef.current) {
+        // ACK received
+        await supabase
+          .from('river_session_state')
+          .update({ auto_waiting_for: null })
+          .eq('id', sessionState.id);
+        return true;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
+
+    // Timeout - stop auto mode
+    console.error(`[AutoController] Animation ACK timeout for ${waitType}`);
+    await supabase
+      .from('river_session_state')
+      .update({
+        auto_mode: false,
+        auto_waiting_for: null,
+        auto_last_step: 'STOPPED_ANIM_TIMEOUT',
+        auto_last_error: `Animation ${waitType} did not complete in time`,
+      })
+      .eq('id', sessionState.id);
+
+    cancelledRef.current = true;
+    return false;
   }, [sessionState]);
 
   // FSM Stepper - Main automation logic
@@ -192,24 +452,36 @@ export function useRivieresAutoController(
       return;
     }
 
+    // Only the runner should execute actions
+    if (!isRunner()) {
+      return;
+    }
+
     const runStep = async () => {
-      if (cancelledRef.current || !sessionState.auto_mode) return;
+      if (cancelledRef.current || !sessionState.auto_mode || !isRunner()) return;
 
       const currentManche = sessionState.manche_active;
       const currentNiveau = sessionState.niveau_active;
 
-      // Filter decisions for current level
+      // Filter decisions for current level with REAL decisions (not just placeholder DRAFT)
       const currentDecisions = decisions.filter(
-        d => d.status === 'DRAFT' || d.status === 'LOCKED'
+        d => d.manche === currentManche && 
+             d.niveau === currentNiveau &&
+             (d.status === 'DRAFT' || d.status === 'LOCKED') &&
+             d.decision !== null // Must have an actual decision value
       );
       const lockedDecisions = currentDecisions.filter(d => d.status === 'LOCKED');
       const allLocked = lockedDecisions.length > 0 && lockedDecisions.length >= enBateauCount;
 
-      // Get human players count
-      const humanPlayers = players.filter(p => !p.display_name.includes('🤖'));
+      // Get human/bot players using is_bot field (NOT display_name)
+      const botPlayers = players.filter(p => p.is_bot === true);
+      const humanPlayers = players.filter(p => p.is_bot !== true);
+      
+      // Get human decisions (with real decision value)
       const humanDecisions = currentDecisions.filter(d => 
         humanPlayers.some(hp => hp.id === d.player_id)
       );
+      
       const majorityThreshold = Math.ceil(humanPlayers.length / 2);
       const humansMajorityValidated = humanDecisions.length >= majorityThreshold;
       const allHumansValidated = humanDecisions.length >= humanPlayers.length;
@@ -225,7 +497,7 @@ export function useRivieresAutoController(
             Math.random() * (dangerRange.range.max - dangerRange.range.min + 1)
           ) + dangerRange.range.min;
 
-          await supabase.functions.invoke('rivieres-set-danger', {
+          const { error } = await supabase.functions.invoke('rivieres-set-danger', {
             body: { 
               session_game_id: sessionGameId, 
               mode: 'MANUAL', 
@@ -233,6 +505,9 @@ export function useRivieresAutoController(
             },
           });
 
+          if (error) throw error;
+
+          await handleActionSuccess('set_danger');
           await supabase
             .from('river_session_state')
             .update({ 
@@ -243,6 +518,10 @@ export function useRivieresAutoController(
 
         } catch (error) {
           console.error('[AutoController] Error setting danger:', error);
+          const backoff = await handleActionFailure('set_danger', error);
+          if (backoff > 0 && !cancelledRef.current) {
+            await new Promise(resolve => setTimeout(resolve, backoff));
+          }
         } finally {
           actionInFlightRef.current = false;
         }
@@ -252,20 +531,22 @@ export function useRivieresAutoController(
       // S2: WAIT_DECISIONS - Validate bot decisions if needed
       if (sessionState.danger_raw !== null && !allLocked && sessionState.status === 'RUNNING') {
         // First, ensure bots have made decisions
-        const botPlayers = players.filter(p => p.display_name.includes('🤖'));
         const botDecisions = currentDecisions.filter(d => 
           botPlayers.some(bp => bp.id === d.player_id)
         );
 
-        if (botDecisions.length < botPlayers.length) {
+        if (botDecisions.length < botPlayers.length && botPlayers.length > 0) {
           console.log('[AutoController] Step: BOT_DECISIONS');
           actionInFlightRef.current = true;
 
           try {
-            await supabase.functions.invoke('rivieres-bot-decisions', {
+            const { error } = await supabase.functions.invoke('rivieres-bot-decisions', {
               body: { session_game_id: sessionGameId },
             });
 
+            if (error) throw error;
+
+            await handleActionSuccess('bot_decisions');
             await supabase
               .from('river_session_state')
               .update({ 
@@ -276,6 +557,10 @@ export function useRivieresAutoController(
 
           } catch (error) {
             console.error('[AutoController] Error with bot decisions:', error);
+            const backoff = await handleActionFailure('bot_decisions', error);
+            if (backoff > 0 && !cancelledRef.current) {
+              await new Promise(resolve => setTimeout(resolve, backoff));
+            }
           } finally {
             actionInFlightRef.current = false;
           }
@@ -324,12 +609,19 @@ export function useRivieresAutoController(
               })
               .eq('id', sessionState.id);
 
-            await supabase.functions.invoke('rivieres-lock-decisions', {
+            const { error } = await supabase.functions.invoke('rivieres-lock-decisions', {
               body: { session_game_id: sessionGameId },
             });
 
+            if (error) throw error;
+            await handleActionSuccess('lock');
+
           } catch (error) {
             console.error('[AutoController] Error locking decisions:', error);
+            const backoff = await handleActionFailure('lock', error);
+            if (backoff > 0 && !cancelledRef.current) {
+              await new Promise(resolve => setTimeout(resolve, backoff));
+            }
           } finally {
             actionInFlightRef.current = false;
           }
@@ -356,9 +648,11 @@ export function useRivieresAutoController(
                 })
                 .eq('id', sessionState.id);
 
-              const { data } = await supabase.functions.invoke('rivieres-lock-decisions', {
+              const { data, error } = await supabase.functions.invoke('rivieres-lock-decisions', {
                 body: { session_game_id: sessionGameId },
               });
+
+              if (error) throw error;
 
               // Handle missing players if needed
               if (data?.needs_mj_decision) {
@@ -371,8 +665,14 @@ export function useRivieresAutoController(
                 });
               }
 
+              await handleActionSuccess('lock');
+
             } catch (error) {
               console.error('[AutoController] Error locking decisions:', error);
+              const backoff = await handleActionFailure('lock', error);
+              if (backoff > 0 && !cancelledRef.current) {
+                await new Promise(resolve => setTimeout(resolve, backoff));
+              }
             } finally {
               actionInFlightRef.current = false;
             }
@@ -381,9 +681,12 @@ export function useRivieresAutoController(
         }
 
         // Full bot game - no countdown needed, lock immediately when all bots decided
-        if (humanPlayers.length === 0 && botDecisions.length >= botPlayers.length) {
+        if (humanPlayers.length === 0 && botDecisions.length >= botPlayers.length && botPlayers.length > 0) {
           console.log('[AutoController] Step: FULL_BOT_GAME - Immediate lock');
           actionInFlightRef.current = true;
+
+          // Safety throttle: 1 cycle per second max for 100% bot games
+          await new Promise(resolve => setTimeout(resolve, 1000));
 
           try {
             await supabase
@@ -394,12 +697,19 @@ export function useRivieresAutoController(
               })
               .eq('id', sessionState.id);
 
-            await supabase.functions.invoke('rivieres-lock-decisions', {
+            const { error } = await supabase.functions.invoke('rivieres-lock-decisions', {
               body: { session_game_id: sessionGameId },
             });
 
+            if (error) throw error;
+            await handleActionSuccess('lock');
+
           } catch (error) {
             console.error('[AutoController] Error locking decisions:', error);
+            const backoff = await handleActionFailure('lock', error);
+            if (backoff > 0 && !cancelledRef.current) {
+              await new Promise(resolve => setTimeout(resolve, backoff));
+            }
           } finally {
             actionInFlightRef.current = false;
           }
@@ -409,15 +719,14 @@ export function useRivieresAutoController(
 
       // S4: LOCKED_WAIT_ANIM - All locked, wait for lock animation then resolve
       if (allLocked && sessionState.auto_last_step !== 'RESOLVING' && sessionState.status === 'RUNNING') {
-        console.log('[AutoController] Step: LOCKED_WAIT_ANIM - Waiting then resolving');
+        console.log('[AutoController] Step: LOCKED_WAIT_ANIM - Waiting for animation ACK');
         actionInFlightRef.current = true;
 
         try {
-          // Wait for lock animation (the animation component will call back)
-          // For now, use a reasonable delay that matches animation duration
-          await new Promise(resolve => setTimeout(resolve, 5500)); // Lock animation duration
-
-          if (cancelledRef.current) {
+          // Wait for lock animation ACK
+          const lockAckReceived = await waitForAnimationAck('LOCK_ANIM');
+          
+          if (!lockAckReceived || cancelledRef.current) {
             actionInFlightRef.current = false;
             return;
           }
@@ -430,14 +739,17 @@ export function useRivieresAutoController(
             })
             .eq('id', sessionState.id);
 
-          await supabase.functions.invoke('rivieres-resolve-level', {
+          const { error } = await supabase.functions.invoke('rivieres-resolve-level', {
             body: { session_game_id: sessionGameId },
           });
 
-          // Wait for resolve animation
-          await new Promise(resolve => setTimeout(resolve, 6000)); // Resolve animation duration
+          if (error) throw error;
+          await handleActionSuccess('resolve');
 
-          if (cancelledRef.current) {
+          // Wait for resolve animation ACK
+          const resolveAckReceived = await waitForAnimationAck('RESOLVE_ANIM');
+
+          if (!resolveAckReceived || cancelledRef.current) {
             actionInFlightRef.current = false;
             return;
           }
@@ -452,6 +764,10 @@ export function useRivieresAutoController(
 
         } catch (error) {
           console.error('[AutoController] Error resolving level:', error);
+          const backoff = await handleActionFailure('resolve', error);
+          if (backoff > 0 && !cancelledRef.current) {
+            await new Promise(resolve => setTimeout(resolve, backoff));
+          }
         } finally {
           actionInFlightRef.current = false;
         }
@@ -476,6 +792,10 @@ export function useRivieresAutoController(
     players,
     enBateauCount,
     sessionGameId,
+    isRunner,
+    handleActionFailure,
+    handleActionSuccess,
+    waitForAnimationAck,
   ]);
 
   // Reset cancelled flag when auto mode is enabled
@@ -494,8 +814,18 @@ export function useRivieresAutoController(
         : null,
       currentStep: sessionState?.auto_last_step ?? null,
       remainingSeconds,
+      isRunner: isRunner(),
+      runnerStatus: getRunnerStatus(),
+      lastError: sessionState?.auto_last_error ?? null,
+      failCounts: {
+        setDanger: sessionState?.auto_fail_set_danger ?? 0,
+        botDecisions: sessionState?.auto_fail_bot_decisions ?? 0,
+        lock: sessionState?.auto_fail_lock ?? 0,
+        resolve: sessionState?.auto_fail_resolve ?? 0,
+      },
     },
     toggleAutoMode,
+    resetFailCounters,
     isActionInFlight: actionInFlightRef.current,
   };
 }

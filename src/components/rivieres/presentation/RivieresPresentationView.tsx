@@ -475,16 +475,43 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
   // Check if all decisions are locked (for showing different UI)
   const allDecisionsLocked = lockedDecisions.length > 0 && lockedDecisions.length === enBateauPlayers.length;
 
+  // Send animation ACK to DB for auto mode handshake
+  const sendAnimationAck = useCallback(async (animType: 'LOCK_ANIM' | 'RESOLVE_ANIM') => {
+    if (!game.current_session_game_id) return;
+    
+    try {
+      // Check if auto mode is waiting for this animation
+      const { data } = await supabase
+        .from('river_session_state')
+        .select('auto_waiting_for')
+        .eq('session_game_id', game.current_session_game_id)
+        .single();
+      
+      if (data?.auto_waiting_for === animType) {
+        await supabase
+          .from('river_session_state')
+          .update({ auto_anim_ack_at: new Date().toISOString() })
+          .eq('session_game_id', game.current_session_game_id);
+        console.log(`[Presentation] Sent ACK for ${animType}`);
+      }
+    } catch (error) {
+      console.error(`[Presentation] Error sending ACK for ${animType}:`, error);
+    }
+  }, [game.current_session_game_id]);
+
   // Handle lock animation complete - chain to player sort
   const handleLockAnimationComplete = useCallback(() => {
     setShowLockAnimation(false);
+    
+    // Send ACK for auto mode handshake
+    sendAnimationAck('LOCK_ANIM');
     
     // Player sort data is already prepared when lock was triggered
     // Just show the animation if we have data
     if (playerSortData.length > 0) {
       setShowPlayerSortAnimation(true);
     }
-  }, [playerSortData.length]);
+  }, [playerSortData.length, sendAnimationAck]);
 
   // Handle player sort animation complete - reset lock trigger for next level
   const handlePlayerSortComplete = useCallback(() => {
@@ -498,7 +525,10 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
     setShowResolveAnimation(false);
     // Reset resolve animation trigger so it can fire again
     resolveAnimationTriggeredRef.current = false;
-  }, []);
+    
+    // Send ACK for auto mode handshake
+    sendAnimationAck('RESOLVE_ANIM');
+  }, [sendAnimationAck]);
 
   // Loading state
   if (loading) {

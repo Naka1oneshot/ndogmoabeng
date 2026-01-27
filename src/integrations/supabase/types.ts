@@ -2576,11 +2576,20 @@ export type Database = {
       }
       river_session_state: {
         Row: {
+          auto_anim_ack_at: string | null
           auto_countdown_active: boolean | null
           auto_countdown_ends_at: string | null
+          auto_fail_bot_decisions: number | null
+          auto_fail_lock: number | null
+          auto_fail_resolve: number | null
+          auto_fail_set_danger: number | null
+          auto_last_error: string | null
           auto_last_step: string | null
           auto_mode: boolean | null
+          auto_runner_lease_until: string | null
+          auto_runner_user_id: string | null
           auto_updated_at: string | null
+          auto_waiting_for: string | null
           cagnotte_manche: number
           created_at: string
           danger_dice_count: number | null
@@ -2595,11 +2604,20 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_anim_ack_at?: string | null
           auto_countdown_active?: boolean | null
           auto_countdown_ends_at?: string | null
+          auto_fail_bot_decisions?: number | null
+          auto_fail_lock?: number | null
+          auto_fail_resolve?: number | null
+          auto_fail_set_danger?: number | null
+          auto_last_error?: string | null
           auto_last_step?: string | null
           auto_mode?: boolean | null
+          auto_runner_lease_until?: string | null
+          auto_runner_user_id?: string | null
           auto_updated_at?: string | null
+          auto_waiting_for?: string | null
           cagnotte_manche?: number
           created_at?: string
           danger_dice_count?: number | null
@@ -2614,11 +2632,20 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_anim_ack_at?: string | null
           auto_countdown_active?: boolean | null
           auto_countdown_ends_at?: string | null
+          auto_fail_bot_decisions?: number | null
+          auto_fail_lock?: number | null
+          auto_fail_resolve?: number | null
+          auto_fail_set_danger?: number | null
+          auto_last_error?: string | null
           auto_last_step?: string | null
           auto_mode?: boolean | null
+          auto_runner_lease_until?: string | null
+          auto_runner_user_id?: string | null
           auto_updated_at?: string | null
+          auto_waiting_for?: string | null
           cagnotte_manche?: number
           created_at?: string
           danger_dice_count?: number | null

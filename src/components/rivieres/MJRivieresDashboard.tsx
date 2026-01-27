@@ -183,6 +183,7 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   const {
     state: autoState,
     toggleAutoMode,
+    resetFailCounters,
     isActionInFlight: autoActionInFlight,
   } = useRivieresAutoController(gameId, sessionGameId);
 
@@ -1272,6 +1273,10 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
           currentStep={autoState.currentStep}
           isLoading={autoActionInFlight}
           onToggle={toggleAutoMode}
+          runnerStatus={autoState.runnerStatus}
+          lastError={autoState.lastError}
+          failCounts={autoState.failCounts}
+          onResetFailCounters={resetFailCounters}
         />
 
         <ForestButton
