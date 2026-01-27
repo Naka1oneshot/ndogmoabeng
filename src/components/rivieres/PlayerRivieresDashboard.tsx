@@ -531,6 +531,15 @@ export function PlayerRivieresDashboard({
 
   return (
     <div className="space-y-4 pb-6">
+      {/* Rules Overlay */}
+      <RivieresRulesOverlay
+        open={showRulesOverlay}
+        onClose={() => setShowRulesOverlay(false)}
+        gameId={gameId}
+        sessionGameId={sessionGameId}
+        role="PLAYER"
+      />
+
       {/* Auto Mode Countdown Overlay for Players */}
       {state.auto_countdown_active && state.auto_countdown_ends_at && (
         <RivieresAutoCountdownOverlay
@@ -569,6 +578,23 @@ export function PlayerRivieresDashboard({
           onComplete={handleMancheComplete}
         />
       )}
+
+      {/* Header with Rules button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Ship className="h-5 w-5 text-[#D4AF37]" />
+          <span className="text-[#D4AF37] font-bold">Les Rivières</span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowRulesOverlay(true)}
+          className="border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/10"
+        >
+          <BookOpen className="h-4 w-4 mr-1" />
+          Règles
+        </Button>
+      </div>
 
       {/* Status bar */}
       <div className="grid grid-cols-4 gap-2">
