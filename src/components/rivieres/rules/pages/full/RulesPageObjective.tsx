@@ -69,7 +69,7 @@ export function RulesPageObjective({ context, replayNonce }: RulesPageObjectiveP
           </div>
           <p className="text-[#E8E8E8]">
             Terminez la partie avec le plus de jetons possible. Le joueur avec le plus de jetons 
-            à la fin des 3 manches remporte la victoire.
+            <span className="text-[#D4AF37] font-bold"> après déduction de l'impact du nombre de niveaux réussis</span> remporte la victoire.
           </p>
         </div>
 
@@ -78,10 +78,10 @@ export function RulesPageObjective({ context, replayNonce }: RulesPageObjectiveP
             <Coins className="h-6 w-6 text-blue-400" />
             <h3 className="text-blue-400 font-bold">Comment gagner des jetons</h3>
           </div>
-          <p className="text-[#E8E8E8]">
-            Restez sur le bateau et survivez aux niveaux pour partager la cagnotte avec 
-            les autres survivants.
-          </p>
+          <div className="text-[#E8E8E8] space-y-2">
+            <p><span className="text-blue-400 font-medium">En restant sur le bateau :</span> Si le niveau 5 d'une manche est réussi, les restants partagent la cagnotte.</p>
+            <p><span className="text-amber-400 font-medium">En descendant à terre :</span> Si le bateau chavire durant la manche, les descendus partagent la cagnotte.</p>
+          </div>
         </div>
       </motion.div>
 
@@ -95,8 +95,8 @@ export function RulesPageObjective({ context, replayNonce }: RulesPageObjectiveP
           Vous êtes un voyageur sur les rivières du nord de Ndogmoabeng, territoire de la 
           <span className="text-blue-400 font-medium"> Maison des Keryndes</span>. 
           Les rivières sont dangereuses et imprévisibles. À chaque niveau, vous devez décider 
-          si vous restez sur le bateau pour tenter de gagner plus, ou si vous descendez à terre 
-          pour sécuriser vos gains actuels.
+          si vous restez sur le bateau pour tenter de dompter les eaux, ou si vous descendez à terre 
+          en anticipant le drame.
         </p>
       </motion.div>
 
@@ -109,12 +109,12 @@ export function RulesPageObjective({ context, replayNonce }: RulesPageObjectiveP
             <p className="text-[#9CA3AF] text-sm mt-1">manches</p>
           </div>
           <div className="bg-[#1a1f2e] rounded-lg p-4 text-center">
-            <span className="text-3xl font-bold text-[#D4AF37]">5</span>
-            <p className="text-[#9CA3AF] text-sm mt-1">niveaux/manche</p>
+            <span className="text-3xl font-bold text-[#D4AF37]">15</span>
+            <p className="text-[#9CA3AF] text-sm mt-1">niveaux total</p>
           </div>
           <div className="bg-[#1a1f2e] rounded-lg p-4 text-center">
-            <span className="text-3xl font-bold text-[#D4AF37]">100</span>
-            <p className="text-[#9CA3AF] text-sm mt-1">bonus niveau 5</p>
+            <span className="text-3xl font-bold text-[#D4AF37]">9</span>
+            <p className="text-[#9CA3AF] text-sm mt-1">à réussir (éviter pénalités)</p>
           </div>
         </div>
       </motion.div>

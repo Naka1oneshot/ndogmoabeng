@@ -68,7 +68,7 @@ export function RulesQuickPage1({ context, replayNonce }: RulesQuickPage1Props) 
       <motion.div variants={itemVariants}>
         <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
           <Coins className="h-5 w-5 text-[#D4AF37]" />
-          Cycle de jeu (3 manches × 5 niveaux)
+          Cycle de jeu (3 manches × 5 niveaux = 15 niveaux)
         </h2>
         
         <div className="grid sm:grid-cols-2 gap-4">
@@ -124,8 +124,8 @@ export function RulesQuickPage1({ context, replayNonce }: RulesQuickPage1Props) 
               <span className="text-green-400 font-bold">Distribution</span>
             </div>
             <p className="text-[#E8E8E8] text-sm">
-              <strong>Succès :</strong> les restants se partagent la cagnotte.<br/>
-              <strong>Échec :</strong> chavirement ! Ceux qui descendaient partagent.
+              <strong>Niveau 5 réussi :</strong> les restants partagent la cagnotte + bonus 100.<br/>
+              <strong>Chavirement :</strong> les descendus partagent la cagnotte.
             </p>
           </motion.div>
         </div>
@@ -138,8 +138,8 @@ export function RulesQuickPage1({ context, replayNonce }: RulesQuickPage1Props) 
       >
         <ArrowRight className="h-5 w-5 text-[#D4AF37] flex-shrink-0" />
         <p className="text-[#E8E8E8] text-sm">
-          <span className="text-[#D4AF37] font-bold">Astuce :</span> Le jeu dure 3 manches de 5 niveaux. 
-          Au niveau 5, un bonus de 100 jetons attend les survivants !
+          <span className="text-[#D4AF37] font-bold">Astuce :</span> 15 niveaux total, 9 à réussir pour éviter des pénalités. 
+          La cagnotte n'est distribuée qu'au niveau 5 ou en cas de chavirement !
         </p>
       </motion.div>
     </motion.div>

@@ -92,6 +92,7 @@ export function RulesPageCycle({ context, replayNonce }: RulesPageCycleProps) {
           <ArrowRight className="h-4 w-4 text-[#9CA3AF]" />
           <div className="bg-green-500/20 rounded-lg px-4 py-2">
             <span className="text-green-400 font-bold">= 15 niveaux total</span>
+            <span className="text-green-400/70 text-xs block">(9 à réussir pour éviter des pénalités)</span>
           </div>
         </div>
       </motion.div>
