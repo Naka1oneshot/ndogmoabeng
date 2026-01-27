@@ -21,7 +21,7 @@ const GAME_INFO: Record<string, { label: string; icon: React.ElementType; color:
 };
 
 // Default trilogy order
-const DEFAULT_ADVENTURE_ORDER = ['RIVIERES', 'FORET', 'INFECTION'];
+const DEFAULT_ADVENTURE_ORDER = ['RIVIERES', 'FORET', 'SHERIFF', 'INFECTION'];
 
 export function AdventureProgressDisplay({
   mode,
@@ -77,13 +77,15 @@ export function AdventureProgressDisplay({
     : DEFAULT_ADVENTURE_ORDER;
   
   // Detect if step_index is 1-based (starts at 1) or 0-based (starts at 0)
-  const minStepIndex = sortedSteps.length > 0 ? Math.min(...sortedSteps.map(s => s.step_index)) : 0;
+  // When steps aren't loaded yet, assume 1-based (database convention)
+  const hasSteps = sortedSteps.length > 0;
+  const minStepIndex = hasSteps ? Math.min(...sortedSteps.map(s => s.step_index)) : 1;
   const isOneBased = minStepIndex === 1;
   
   // Adjust currentStepIndex based on the step_index base
   // Both games.current_step_index and adventure_steps.step_index are 1-based in the database
   // We need to convert to 0-based index for array iteration
-  const adjustedCurrentIndex = isOneBased ? currentStepIndex - 1 : currentStepIndex;
+  const adjustedCurrentIndex = Math.max(0, isOneBased ? currentStepIndex - 1 : currentStepIndex);
 
   if (!isAdventure) {
     // Single game mode
