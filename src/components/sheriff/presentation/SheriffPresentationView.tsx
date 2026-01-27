@@ -217,19 +217,28 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   useEffect(() => {
     fetchData();
     
-    const channel = supabase
-      .channel(`sheriff-presentation-${game.id}`)
+    // Build subscriptions - use session_game_id for sheriff tables when available
+    const sessionGameId = game.current_session_game_id;
+    
+    let channel = supabase
+      .channel(`sheriff-presentation-${game.id}-${sessionGameId || 'no-session'}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sheriff_player_choices', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sheriff_duels', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sheriff_round_state', filter: `game_id=eq.${game.id}` }, fetchData)
-      .subscribe();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, fetchData);
+    
+    // Subscribe to sheriff tables by session_game_id when available (fixes realtime updates)
+    if (sessionGameId) {
+      channel = channel
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sheriff_player_choices', filter: `session_game_id=eq.${sessionGameId}` }, fetchData)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sheriff_duels', filter: `session_game_id=eq.${sessionGameId}` }, fetchData)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sheriff_round_state', filter: `session_game_id=eq.${sessionGameId}` }, fetchData);
+    }
+    
+    channel.subscribe();
     
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [game.id, fetchData]);
+  }, [game.id, game.current_session_game_id, fetchData]);
   
   // Detect phase changes for animations
   useEffect(() => {
