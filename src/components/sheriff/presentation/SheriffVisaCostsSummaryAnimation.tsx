@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SHERIFF_COLORS } from '../SheriffTheme';
+import { AlertCircle } from 'lucide-react';
 
 interface PlayerChoice {
   id: string;
@@ -47,14 +48,41 @@ export function SheriffVisaCostsSummaryAnimation({
   
   const pvicPlayers = choices.filter(c => c.visa_choice === 'VICTORY_POINTS');
   const poolPlayers = choices.filter(c => c.visa_choice === 'COMMON_POOL');
+  const playersWithNoChoice = choices.filter(c => !c.visa_choice);
+  const hasNoChoices = pvicPlayers.length === 0 && poolPlayers.length === 0;
   
   const getPlayer = (num: number) => players.find(p => p.player_number === num);
   
   const totalPvicCost = pvicPlayers.reduce((sum, c) => sum + c.visa_cost_applied, 0);
   const totalPoolCost = poolPlayers.reduce((sum, c) => sum + c.visa_cost_applied, 0);
   
+  // Create a stable key based on actual choices to restart animation when choices change
+  const choicesKey = choices
+    .map(c => `${c.player_number}:${c.visa_choice ?? 'NONE'}:${c.visa_cost_applied ?? 0}`)
+    .sort()
+    .join('|');
+  
+  // Use ref for onComplete to ensure stable reference
+  const onCompleteRef = React.useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  
   useEffect(() => {
+    // Reset all state when choices change
+    setPhase('intro');
+    setVisiblePvicIndex(0);
+    setVisiblePoolIndex(0);
+    setShowTotals(false);
+    
     const timers: NodeJS.Timeout[] = [];
+    
+    // If no choices at all, show fallback for 3s then complete
+    if (hasNoChoices) {
+      timers.push(setTimeout(() => {
+        setPhase('done');
+        onCompleteRef.current();
+      }, 3000));
+      return () => timers.forEach(clearTimeout);
+    }
     
     // Phase transitions
     timers.push(setTimeout(() => setPhase('pvic_players'), 1500));
@@ -83,11 +111,11 @@ export function SheriffVisaCostsSummaryAnimation({
     // Complete
     timers.push(setTimeout(() => {
       setPhase('done');
-      onComplete();
+      onCompleteRef.current();
     }, totalsDelay + 2500));
     
     return () => timers.forEach(clearTimeout);
-  }, [pvicPlayers.length, poolPlayers.length, onComplete]);
+  }, [choicesKey, hasNoChoices, pvicPlayers.length, poolPlayers.length]);
   
   return (
     <div className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center">
@@ -102,7 +130,37 @@ export function SheriffVisaCostsSummaryAnimation({
           📜 Récapitulatif des Coûts Visa
         </motion.h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Fallback when no choices received */}
+        {hasNoChoices && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gradient-to-br from-amber-900/30 to-amber-800/10 border-2 border-amber-500/40 rounded-2xl p-8 text-center"
+          >
+            <AlertCircle className="w-16 h-16 mx-auto mb-4 text-amber-400" />
+            <h3 className="text-xl font-bold text-amber-300 mb-4">Aucun choix de visa reçu</h3>
+            <p className="text-amber-200/70 mb-6">Les joueurs suivants n'ont pas encore validé leur choix :</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {players.map(player => {
+                const hasChoice = choices.find(c => c.player_number === player.player_number && c.visa_choice);
+                if (hasChoice) return null;
+                return (
+                  <span 
+                    key={player.id}
+                    className="px-3 py-1.5 bg-amber-950/50 border border-amber-500/30 rounded-lg text-amber-200 text-sm"
+                  >
+                    {player.is_bot && '🤖 '}{player.display_name}
+                    <span className="text-amber-400/50 ml-1">(en attente)</span>
+                  </span>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+        
+        {!hasNoChoices && (
+          <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* PVic Payments Column */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
@@ -259,6 +317,8 @@ export function SheriffVisaCostsSummaryAnimation({
             className="h-1 bg-gradient-to-r from-purple-500 via-[#D4AF37] to-amber-500 rounded-full mt-4"
           />
         </motion.div>
+          </>
+        )}
       </div>
     </div>
   );
