@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { generateSuggestedDanger, calculateDangerRange } from '@/lib/rivieresDangerCalculator';
 
 interface RiverSessionState {
@@ -57,6 +58,7 @@ interface AutoControllerState {
     lock: number;
     resolve: number;
   };
+  isAuthenticated: boolean;
 }
 
 interface UseRivieresAutoControllerResult {
@@ -89,11 +91,21 @@ export function useRivieresAutoController(
   const leaseRenewIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const animAckResolverRef = useRef<(() => void) | null>(null);
 
-  // Get current user
+  // Get current user - use onAuthStateChange for reliable tracking
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentUserId(data.user?.id ?? null);
+    // Get initial session
+    supabase.auth.getSession().then(({ data }) => {
+      setCurrentUserId(data.session?.user?.id ?? null);
     });
+    
+    // Subscribe to auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUserId(session?.user?.id ?? null);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   // Fetch initial data
@@ -281,9 +293,22 @@ export function useRivieresAutoController(
     const newAutoMode = !sessionState.auto_mode;
 
     if (newAutoMode) {
+      // Check if user is authenticated before activating
+      if (!currentUserId) {
+        toast.error("Connexion requise", {
+          description: "Connecte-toi avec ton compte pour activer le mode auto (auth.uid manquant).",
+          duration: 5000,
+        });
+        console.warn('[AutoController] Cannot activate auto mode - currentUserId is null');
+        return;
+      }
+      
       // Activating - try to acquire lease atomically
       const acquired = await acquireLease();
       if (!acquired) {
+        toast.warning("Mode Auto déjà actif", {
+          description: "Un autre MJ pilote actuellement le mode automatique.",
+        });
         console.warn('[AutoController] Could not acquire lease - another MJ is running');
         return;
       }
@@ -311,6 +336,14 @@ export function useRivieresAutoController(
   // Reset fail counters
   const resetFailCounters = useCallback(async () => {
     if (!sessionState) return;
+    
+    // Check if user is authenticated
+    if (!currentUserId) {
+      toast.error("Connexion requise", {
+        description: "Connecte-toi avec ton compte pour cette action.",
+      });
+      return;
+    }
 
     await supabase
       .from('river_session_state')
@@ -881,6 +914,7 @@ export function useRivieresAutoController(
         lock: sessionState?.auto_fail_lock ?? 0,
         resolve: sessionState?.auto_fail_resolve ?? 0,
       },
+      isAuthenticated: currentUserId !== null,
     },
     toggleAutoMode,
     resetFailCounters,

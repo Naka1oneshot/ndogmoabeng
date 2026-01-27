@@ -1,4 +1,4 @@
-import { Zap, ZapOff, Loader2, AlertCircle, RefreshCw, User, Users } from 'lucide-react';
+import { Zap, ZapOff, Loader2, AlertCircle, RefreshCw, User, Users, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,6 +17,7 @@ interface RivieresAutoModeToggleProps {
     resolve: number;
   };
   onResetFailCounters?: () => void;
+  isAuthenticated?: boolean;
 }
 
 const STEP_LABELS: Record<string, string> = {
@@ -40,12 +41,14 @@ export function RivieresAutoModeToggle({
   lastError,
   failCounts,
   onResetFailCounters,
+  isAuthenticated = true,
 }: RivieresAutoModeToggleProps) {
   const stepLabel = currentStep ? STEP_LABELS[currentStep] || currentStep : null;
   const totalFailures = failCounts 
     ? failCounts.setDanger + failCounts.botDecisions + failCounts.lock + failCounts.resolve 
     : 0;
   const hasError = lastError || currentStep?.startsWith('STOPPED_');
+  const needsAuth = !isAuthenticated && !isAutoMode;
 
   return (
     <TooltipProvider>
@@ -108,6 +111,17 @@ export function RivieresAutoModeToggle({
           >
             {runnerStatus === 'YOU' ? <User className="h-3 w-3 mr-1" /> : <Users className="h-3 w-3 mr-1" />}
             {runnerStatus === 'YOU' ? 'Vous' : runnerStatus === 'OTHER' ? 'Autre MJ' : 'Aucun'}
+          </Badge>
+        )}
+
+        {/* Auth required indicator */}
+        {needsAuth && (
+          <Badge 
+            variant="outline" 
+            className="bg-red-900/30 border-red-500/50 text-red-300 text-xs"
+          >
+            <LogIn className="h-3 w-3 mr-1" />
+            Connexion requise
           </Badge>
         )}
 
