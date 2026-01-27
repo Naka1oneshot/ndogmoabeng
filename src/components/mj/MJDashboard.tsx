@@ -28,6 +28,9 @@ import { MJInfectionDashboard } from '@/components/infection/MJInfectionDashboar
 import { MJSheriffDashboard } from '@/components/sheriff/MJSheriffDashboard';
 import { MJActionsMenu } from './MJActionsMenu';
 import { LandscapeModePrompt } from './LandscapeModePrompt';
+import { ForetAutoModeToggle } from '@/components/foret/ForetAutoModeToggle';
+import { ForetAutoCountdownOverlay } from '@/components/foret/ForetAutoCountdownOverlay';
+import { useForetAutoController } from '@/hooks/useForetAutoController';
 import {
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins, Package,
@@ -105,7 +108,13 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const previousStepIndexRef = useRef<number>(initialGame.current_step_index);
   
   const isAdventure = game.mode === 'ADVENTURE' && game.adventure_id;
+  const isForetGame = game.selected_game_type_code === 'FORET' || !game.selected_game_type_code;
 
+  // Forêt Auto Mode Controller
+  const { state: foretAutoState, toggleAutoMode: toggleForetAutoMode, isActionInFlight: foretAutoInFlight } = useForetAutoController(
+    game.id,
+    game.current_session_game_id
+  );
   // Detect game start transition for FORET animation
   useEffect(() => {
     if (previousGameStatusRef.current === 'LOBBY' && game.status === 'IN_GAME' && 
@@ -921,7 +930,27 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           <div className="text-muted-foreground text-xs">Max</div>
           <div className="font-bold text-sm">{game.x_nb_joueurs || '∞'}</div>
         </div>
+        {/* Auto Mode Toggle - only for FORET and IN_GAME */}
+        {isForetGame && game.status === 'IN_GAME' && (
+          <div className="p-2 md:p-3 bg-secondary/50 rounded-lg flex items-center justify-center">
+            <ForetAutoModeToggle
+              isAutoMode={foretAutoState.autoMode}
+              currentStep={foretAutoState.currentStep}
+              isLoading={foretAutoInFlight}
+              onToggle={toggleForetAutoMode}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Forêt Auto Mode Countdown Overlay */}
+      {isForetGame && foretAutoState.autoMode && (
+        <ForetAutoCountdownOverlay
+          countdownEndsAt={foretAutoState.countdownEndsAt}
+          countdownType={foretAutoState.countdownType}
+          isHost={true}
+        />
+      )}
 
       {/* Action buttons - now using MJActionsMenu */}
       <MJActionsMenu

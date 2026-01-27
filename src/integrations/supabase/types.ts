@@ -2784,6 +2784,11 @@ export type Database = {
       }
       session_games: {
         Row: {
+          auto_countdown_ends_at: string | null
+          auto_countdown_type: string | null
+          auto_last_step: string | null
+          auto_mode: boolean | null
+          auto_updated_at: string | null
           config: Json | null
           created_at: string
           ended_at: string | null
@@ -2797,6 +2802,11 @@ export type Database = {
           step_index: number
         }
         Insert: {
+          auto_countdown_ends_at?: string | null
+          auto_countdown_type?: string | null
+          auto_last_step?: string | null
+          auto_mode?: boolean | null
+          auto_updated_at?: string | null
           config?: Json | null
           created_at?: string
           ended_at?: string | null
@@ -2810,6 +2820,11 @@ export type Database = {
           step_index: number
         }
         Update: {
+          auto_countdown_ends_at?: string | null
+          auto_countdown_type?: string | null
+          auto_last_step?: string | null
+          auto_mode?: boolean | null
+          auto_updated_at?: string | null
           config?: Json | null
           created_at?: string
           ended_at?: string | null
