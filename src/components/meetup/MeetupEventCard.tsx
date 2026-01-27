@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react';
-import { Calendar, MapPin, Users, Trophy, Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
+import { Calendar, MapPin, Users, Trophy, Play, Pause, Volume2, VolumeX, Maximize, Settings, Cog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MeetupEvent } from '@/hooks/useMeetupEvents';
 import { MeetupRegistrationModal } from './MeetupRegistrationModal';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useNavigate } from 'react-router-dom';
 
 interface MeetupEventCardProps {
   event: MeetupEvent;
@@ -17,6 +19,8 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const { isAdminOrSuper } = useUserRole();
+  const navigate = useNavigate();
 
   const isFull = (event.registration_count || 0) >= event.expected_players;
   
@@ -221,7 +225,7 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
           </div>
 
           {/* CTA */}
-          <div className="pt-4">
+          <div className="pt-4 space-y-3">
             <Button
               onClick={() => setShowRegistration(true)}
               disabled={isFull}
@@ -230,9 +234,33 @@ export function MeetupEventCard({ event, onRegistrationSuccess }: MeetupEventCar
               {isFull ? 'Événement complet' : 'Rejoindre l\'aventure'}
             </Button>
             {!isFull && (
-              <p className="text-center text-xs text-muted-foreground mt-2">
+              <p className="text-center text-xs text-muted-foreground">
                 Inscris-toi pour être rappelé(e)
               </p>
+            )}
+
+            {/* Admin buttons */}
+            {isAdminOrSuper && (
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/admin/meetups')}
+                  className="flex-1 gap-2"
+                >
+                  <Settings className="w-4 h-4" />
+                  Paramètres
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/admin/event-management/${event.id}`)}
+                  className="flex-1 gap-2"
+                >
+                  <Cog className="w-4 h-4" />
+                  Gestion avancée
+                </Button>
+              </div>
             )}
           </div>
         </div>
