@@ -15,6 +15,7 @@ import { CombatHistorySummarySheet } from '@/components/mj/presentation/CombatHi
 import { usePresentationAnimations, PhaseTransitionOverlay, CoupDeGraceOverlay } from '@/components/game/PresentationAnimations';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic } from '@/hooks/useAdventureCinematic';
+import { ForetAutoCountdownOverlay } from '@/components/foret/ForetAutoCountdownOverlay';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
 import { EventsFeed } from '@/components/player/EventsFeed';
@@ -108,6 +109,49 @@ export default function PlayerDashboard() {
   const isAdventure = game?.mode === 'ADVENTURE' && game?.adventure_id;
   const isLaCarteTrouvee = isAdventure && game?.adventure_id === LA_CARTE_TROUVEE_ID;
   const isForetGame = game?.selected_game_type_code === 'FORET' || (!game?.selected_game_type_code && game?.status === 'IN_GAME');
+
+  // Forêt Auto Mode countdown state (read-only for players)
+  const [foretAutoCountdown, setForetAutoCountdown] = useState<{ type: string | null; endsAt: Date | null }>({ type: null, endsAt: null });
+
+  // Subscribe to auto countdown updates for FORET
+  useEffect(() => {
+    if (!isForetGame || !game?.current_session_game_id) return;
+
+    const fetchAutoState = async () => {
+      const { data } = await supabase
+        .from('session_games')
+        .select('auto_countdown_type, auto_countdown_ends_at')
+        .eq('id', game.current_session_game_id!)
+        .single();
+      
+      if (data) {
+        setForetAutoCountdown({
+          type: data.auto_countdown_type,
+          endsAt: data.auto_countdown_ends_at ? new Date(data.auto_countdown_ends_at) : null,
+        });
+      }
+    };
+
+    fetchAutoState();
+
+    const channel = supabase
+      .channel(`player-foret-auto-${game.current_session_game_id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'session_games',
+        filter: `id=eq.${game.current_session_game_id}`,
+      }, (payload) => {
+        const data = payload.new as { auto_countdown_type: string | null; auto_countdown_ends_at: string | null };
+        setForetAutoCountdown({
+          type: data.auto_countdown_type,
+          endsAt: data.auto_countdown_ends_at ? new Date(data.auto_countdown_ends_at) : null,
+        });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [isForetGame, game?.current_session_game_id]);
 
   // Adventure cinematic hook - enabled for ANY adventure mode
   const isAnyAdventure = game?.mode === 'ADVENTURE';
@@ -661,6 +705,14 @@ export default function PlayerDashboard() {
         
         {/* Coup de Grâce Animation Overlay */}
         <CoupDeGraceOverlay show={showCoupDeGrace} info={coupDeGraceInfo} />
+        
+        {/* Forêt Auto Mode Countdown Overlay */}
+        {isForetGame && foretAutoCountdown.type && (
+          <ForetAutoCountdownOverlay
+            countdownEndsAt={foretAutoCountdown.endsAt}
+            countdownType={foretAutoCountdown.type}
+          />
+        )}
         
         <PlayerHeader game={game} player={player} onLeaveGame={handleLeave} />
 
