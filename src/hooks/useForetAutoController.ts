@@ -39,6 +39,9 @@ interface UseForetAutoControllerResult {
 const PHASE_COUNTDOWN_MS = 30000; // 30 seconds for bets, actions, shop
 const POSITIONS_WAIT_MS = 15000; // 15 seconds after positions published
 
+// Default weapon for combat
+const DEFAULT_WEAPON = 'ARME_PERMANENTE';
+
 export function useForetAutoController(
   gameId: string,
   sessionGameId: string | null,
@@ -91,7 +94,6 @@ export function useForetAutoController(
       setPlayers(playersResult.data);
     }
   }, [gameId, sessionGameId]);
-
   // Setup realtime subscriptions
   useEffect(() => {
     if (!sessionGameId) return;
@@ -290,6 +292,178 @@ export function useForetAutoController(
     };
   }, [gameId, players]);
 
+  // Generate default bets for players who haven't submitted
+  const generateDefaultBets = useCallback(async (manche: number) => {
+    if (!sessionGameId) return;
+
+    const humanPlayers = players.filter(p => !p.is_bot);
+    
+    // Get existing bets
+    const { data: existingBets } = await supabase
+      .from('round_bets')
+      .select('num_joueur')
+      .eq('game_id', gameId)
+      .eq('manche', manche)
+      .in('status', ['SUBMITTED', 'LOCKED']);
+    
+    const bettedPlayerNums = new Set((existingBets || []).map(b => b.num_joueur));
+    
+    // Find players who haven't bet
+    const playersWithoutBets = humanPlayers.filter(p => !bettedPlayerNums.has(p.player_number));
+    
+    if (playersWithoutBets.length === 0) {
+      console.log('[ForetAutoController] All players have already bet');
+      return;
+    }
+
+    console.log('[ForetAutoController] Generating default bets for', playersWithoutBets.length, 'players');
+    
+    // Insert default bets (5 if tokens available, else 0)
+    for (const player of playersWithoutBets) {
+      const defaultBet = player.jetons >= 5 ? 5 : 0;
+      
+      await supabase.from('round_bets').upsert({
+        game_id: gameId,
+        session_game_id: sessionGameId,
+        manche: manche,
+        num_joueur: player.player_number,
+        mise: defaultBet,
+        mise_demandee: defaultBet,
+        status: 'SUBMITTED',
+        note: 'Auto-generated default bet',
+        submitted_at: new Date().toISOString(),
+      }, {
+        onConflict: 'game_id,manche,num_joueur',
+      });
+    }
+    
+    console.log('[ForetAutoController] Default bets generated');
+  }, [gameId, sessionGameId, players]);
+
+  // Generate default combat actions for players who haven't submitted
+  const generateDefaultActions = useCallback(async (manche: number) => {
+    if (!sessionGameId) return;
+
+    const humanPlayers = players.filter(p => !p.is_bot);
+    
+    // Get existing actions
+    const { data: existingActions } = await supabase
+      .from('actions')
+      .select('num_joueur')
+      .eq('game_id', gameId)
+      .eq('manche', manche);
+    
+    const actionPlayerNums = new Set((existingActions || []).map(a => a.num_joueur));
+    
+    // Find players who haven't submitted actions
+    const playersWithoutActions = humanPlayers.filter(p => !actionPlayerNums.has(p.player_number));
+    
+    if (playersWithoutActions.length === 0) {
+      console.log('[ForetAutoController] All players have already submitted actions');
+      return;
+    }
+
+    // Get available battlefield slots (monsters in battle)
+    const { data: activeMonsters } = await supabase
+      .from('game_state_monsters')
+      .select('battlefield_slot')
+      .eq('game_id', gameId)
+      .eq('session_game_id', sessionGameId)
+      .eq('status', 'EN_BATAILLE')
+      .not('battlefield_slot', 'is', null);
+    
+    const availableSlots = (activeMonsters || [])
+      .map(m => m.battlefield_slot)
+      .filter((s): s is number => s !== null);
+    
+    if (availableSlots.length === 0) {
+      console.log('[ForetAutoController] No available slots for default actions');
+      return;
+    }
+
+    // Valid positions (1-7 typically)
+    const validPositions = [1, 2, 3, 4, 5, 6, 7];
+
+    console.log('[ForetAutoController] Generating default actions for', playersWithoutActions.length, 'players');
+    
+    for (const player of playersWithoutActions) {
+      // Random position and slot
+      const randomPosition = validPositions[Math.floor(Math.random() * validPositions.length)];
+      const randomSlot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
+      
+      await supabase.from('actions').upsert({
+        game_id: gameId,
+        session_game_id: sessionGameId,
+        manche: manche,
+        num_joueur: player.player_number,
+        position_souhaitee: randomPosition,
+        slot_attaque: randomSlot,
+        attaque1: DEFAULT_WEAPON,
+        attaque2: null,
+        protection_objet: null,
+        slot_protection: null,
+      }, {
+        onConflict: 'game_id,manche,num_joueur',
+      });
+    }
+    
+    console.log('[ForetAutoController] Default actions generated');
+  }, [gameId, sessionGameId, players]);
+
+  // Generate default shop requests (no purchase) for players who haven't submitted
+  const generateDefaultShopRequests = useCallback(async (manche: number) => {
+    if (!sessionGameId) return;
+
+    const humanPlayers = players.filter(p => !p.is_bot);
+    
+    // Get existing shop requests
+    const { data: existingRequests } = await supabase
+      .from('shop_requests')
+      .select('player_num')
+      .eq('game_id', gameId)
+      .eq('manche', manche);
+    
+    const requestPlayerNums = new Set((existingRequests || []).map(r => r.player_num));
+    
+    // Find players who haven't submitted shop requests
+    const playersWithoutRequests = humanPlayers.filter(p => !requestPlayerNums.has(p.player_number));
+    
+    if (playersWithoutRequests.length === 0) {
+      console.log('[ForetAutoController] All players have already submitted shop requests');
+      return;
+    }
+
+    console.log('[ForetAutoController] Generating default shop requests for', playersWithoutRequests.length, 'players');
+    
+    // Get player IDs from the full player list
+    const { data: fullPlayers } = await supabase
+      .from('game_players')
+      .select('id, player_number')
+      .eq('game_id', gameId)
+      .eq('status', 'ACTIVE');
+    
+    const playerIdMap = new Map((fullPlayers || []).map(p => [p.player_number, p.id]));
+    
+    for (const player of playersWithoutRequests) {
+      const playerId = playerIdMap.get(player.player_number);
+      if (!playerId) continue;
+      
+      await supabase.from('shop_requests').upsert({
+        game_id: gameId,
+        session_game_id: sessionGameId,
+        manche: manche,
+        player_id: playerId,
+        player_num: player.player_number,
+        want_buy: false,
+        item_name: null,
+      }, {
+        onConflict: 'game_id,manche,player_num',
+      });
+    }
+    
+    console.log('[ForetAutoController] Default shop requests generated');
+  }, [gameId, sessionGameId, players]);
+
   // FSM Stepper - Main automation logic
   useEffect(() => {
     if (!sessionState?.auto_mode || actionInFlightRef.current || cancelledRef.current || !sessionGameId) {
@@ -325,6 +499,13 @@ export function useForetAutoController(
 
           try {
             await clearCountdown();
+            await updateLastStep('GENERATING_DEFAULT_BETS');
+
+            // Generate default bets for players who haven't submitted
+            if (!allValidated) {
+              await generateDefaultBets(manche);
+            }
+
             await updateLastStep('CLOSING_BETS');
 
             // Call close-phase1-bets edge function
@@ -390,6 +571,13 @@ export function useForetAutoController(
 
           try {
             await clearCountdown();
+            await updateLastStep('GENERATING_DEFAULT_ACTIONS');
+
+            // Generate default actions for players who haven't submitted
+            if (!allValidated) {
+              await generateDefaultActions(manche);
+            }
+
             await updateLastStep('PUBLISHING_POSITIONS');
 
             // Call publish-positions edge function
@@ -486,6 +674,13 @@ export function useForetAutoController(
 
           try {
             await clearCountdown();
+            await updateLastStep('GENERATING_DEFAULT_SHOP');
+
+            // Generate default shop requests for players who haven't submitted
+            if (!allValidated) {
+              await generateDefaultShopRequests(manche);
+            }
+
             await updateLastStep('RESOLVING_SHOP');
 
             const { error } = await supabase.functions.invoke('resolve-shop', {
@@ -560,6 +755,9 @@ export function useForetAutoController(
     startCountdown,
     clearCountdown,
     updateLastStep,
+    generateDefaultBets,
+    generateDefaultActions,
+    generateDefaultShopRequests,
   ]);
 
   // Reset cancelled flag when auto mode is enabled
