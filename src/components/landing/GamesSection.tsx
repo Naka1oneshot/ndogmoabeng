@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -5,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { GameRulesSheet } from './GameRulesSheet';
+import { RivieresRulesOverlay } from '@/components/rivieres/rules/RivieresRulesOverlay';
 import { GAMES_DATA } from '@/data/ndogmoabengData';
 import { MapPin, Users, Gamepad2, UsersRound, BookOpen } from 'lucide-react';
 
@@ -28,6 +30,7 @@ const GAME_IMAGE_POSITIONS: Record<string, string> = {
 export function GamesSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [rivieresRulesOpen, setRivieresRulesOpen] = useState(false);
 
   const handleCreateGame = (gameCode: string) => {
     if (user) {
@@ -39,7 +42,22 @@ export function GamesSection() {
     }
   };
 
+  const handleRulesClick = (gameCode: string) => {
+    if (gameCode === 'RIVIERES') {
+      setRivieresRulesOpen(true);
+      return true; // Handled
+    }
+    return false; // Not handled, use default
+  };
+
   return (
+    <>
+    <RivieresRulesOverlay 
+      open={rivieresRulesOpen} 
+      onClose={() => setRivieresRulesOpen(false)}
+      role="PLAYER"
+      defaultMode="QUICK"
+    />
     <section id="jeux" className="py-20 scroll-mt-20">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
@@ -111,12 +129,24 @@ export function GamesSection() {
               </CardContent>
 
               <CardFooter className="flex flex-col gap-2">
-                <GameRulesSheet gameCode={game.code}>
-                  <Button variant="outline" size="sm" className="w-full gap-2">
+                {game.code === 'RIVIERES' ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full gap-2"
+                    onClick={() => handleRulesClick('RIVIERES')}
+                  >
                     <BookOpen className="h-4 w-4" />
                     Voir règles
                   </Button>
-                </GameRulesSheet>
+                ) : (
+                  <GameRulesSheet gameCode={game.code}>
+                    <Button variant="outline" size="sm" className="w-full gap-2">
+                      <BookOpen className="h-4 w-4" />
+                      Voir règles
+                    </Button>
+                  </GameRulesSheet>
+                )}
                 <ForestButton 
                   className="w-full"
                   onClick={() => handleCreateGame(game.code)}
@@ -130,5 +160,6 @@ export function GamesSection() {
         </div>
       </div>
     </section>
+    </>
   );
 }
