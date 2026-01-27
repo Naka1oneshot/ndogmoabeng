@@ -13,37 +13,72 @@ export const SHERIFF_COLORS = {
   muted: '#9CA3AF',        // Muted text
 };
 
-export const VISA_OPTIONS = {
-  VICTORY_POINTS: {
-    label: 'Points de Victoire',
-    description: 'Perdre 20% de vos points de victoire actuels',
-    icon: '⭐',
-    cost: '20%',
-  },
-  COMMON_POOL: {
-    label: 'Cagnotte Commune',
-    description: 'Payer 10€ depuis la cagnotte commune',
-    icon: '💰',
-    cost: '10€',
-  },
+// Bot config interface for type safety
+export interface SheriffBotConfig {
+  visa_pvic_percent?: number;
+  cost_per_player?: number;
+  duel_search_legal_penalty?: number;
+  duel_illegal_found_bonus?: number;
+  duel_illegal_pass_bonus?: number;
+  duel_caught_illegal_penalty?: number;
+}
+
+// Default config values
+export const DEFAULT_SHERIFF_CONFIG: Required<SheriffBotConfig> = {
+  visa_pvic_percent: 20,
+  cost_per_player: 10,
+  duel_search_legal_penalty: 50,
+  duel_illegal_found_bonus: 10,
+  duel_illegal_pass_bonus: 10,
+  duel_caught_illegal_penalty: 5,
 };
 
-export const TOKEN_OPTIONS = {
-  LEGAL: {
-    amount: 20,
-    label: '20 Jetons (Légal)',
-    description: 'Entrer légalement avec le maximum autorisé',
-    icon: '✓',
-    risk: 'Aucun risque',
-  },
-  ILLEGAL: {
-    amount: 30,
-    label: '30 Jetons (10 Illégaux)',
-    description: 'Tenter d\'entrer avec 10 jetons illégaux cachés',
-    icon: '⚠️',
-    risk: 'Risque de fouille',
-  },
-};
+// Dynamic VISA options based on config
+export function getVisaOptions(config: SheriffBotConfig = {}) {
+  const visaPvicPercent = config.visa_pvic_percent ?? DEFAULT_SHERIFF_CONFIG.visa_pvic_percent;
+  const costPerPlayer = config.cost_per_player ?? DEFAULT_SHERIFF_CONFIG.cost_per_player;
+
+  return {
+    VICTORY_POINTS: {
+      label: 'Points de Victoire',
+      description: `Perdre ${visaPvicPercent}% de vos points de victoire actuels`,
+      icon: '⭐',
+      cost: `${visaPvicPercent}%`,
+    },
+    COMMON_POOL: {
+      label: 'Cagnotte Commune',
+      description: `Payer ${costPerPlayer}€ depuis la cagnotte commune`,
+      icon: '💰',
+      cost: `${costPerPlayer}€`,
+    },
+  };
+}
+
+// Dynamic token options - now supports range selection for illegal tokens
+export function getTokenOptions(illegalTokenCount: number = 30) {
+  const illegalAmount = illegalTokenCount - 20;
+  
+  return {
+    LEGAL: {
+      amount: 20,
+      label: '20 Jetons (Légal)',
+      description: 'Entrer légalement avec le maximum autorisé',
+      icon: '✓',
+      risk: 'Aucun risque',
+    },
+    ILLEGAL: {
+      amount: illegalTokenCount,
+      label: `${illegalTokenCount} Jetons (${illegalAmount} Illégaux)`,
+      description: `Tenter d'entrer avec ${illegalAmount} jetons illégaux cachés`,
+      icon: '⚠️',
+      risk: 'Risque de fouille',
+    },
+  };
+}
+
+// Legacy exports for backwards compatibility - use getVisaOptions/getTokenOptions instead
+export const VISA_OPTIONS = getVisaOptions();
+export const TOKEN_OPTIONS = getTokenOptions();
 
 export function getSheriffThemeClasses() {
   return {
@@ -85,3 +120,14 @@ export const DUEL_OUTCOMES = {
     searched: 'Vous avez passé avec des jetons illégaux! Bonus: +X% PV',
   },
 };
+
+// Helper to get duel rules text with dynamic values
+export function getDuelRulesText(config: SheriffBotConfig = {}) {
+  const searchLegalPenalty = config.duel_search_legal_penalty ?? DEFAULT_SHERIFF_CONFIG.duel_search_legal_penalty;
+  const illegalFoundBonus = config.duel_illegal_found_bonus ?? DEFAULT_SHERIFF_CONFIG.duel_illegal_found_bonus;
+  
+  return {
+    searchInfo: `Fouiller: Si légal → vous perdez ${searchLegalPenalty}% PV. Si illégal → vous gagnez ${illegalFoundBonus}% PV.`,
+    passInfo: `Laisser passer: Pas de risque, mais l'adversaire peut passer avec de la contrebande.`,
+  };
+}
