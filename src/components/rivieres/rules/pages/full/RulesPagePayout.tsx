@@ -122,8 +122,11 @@ export function RulesPagePayout({ context, replayNonce }: RulesPagePayoutProps) 
             <ul className="text-[#E8E8E8] text-sm space-y-2">
               <li>• <strong>Niveaux 1-4 réussis :</strong> La cagnotte s'accumule, pas de distribution</li>
               <li>• <strong>Niveau 5 réussi :</strong> Les restants partagent la cagnotte + bonus (100 × restants)</li>
-              <li>• <strong>Chavirement :</strong> Les descendus partagent la cagnotte + <span className="text-amber-400">10 jetons × niveau</span> (individuel)</li>
+              <li>• <strong>Chavirement :</strong> Les descendus partagent la cagnotte + <span className="text-amber-400">10 × leur niveau de descente</span> (individuel)</li>
             </ul>
+            <p className="text-[#9CA3AF] text-xs mt-2 italic">
+              Exemple : J1 descend niveau 1 (+10), J2 descend niveau 2 (+20), J3 descend niveau 3 (+30). Cagnotte 90, chavire niveau 4 → J1=40, J2=50, J3=60.
+            </p>
           </div>
         </div>
       </motion.div>

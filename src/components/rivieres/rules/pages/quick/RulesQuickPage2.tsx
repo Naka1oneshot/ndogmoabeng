@@ -90,7 +90,7 @@ export function RulesQuickPage2({ context, replayNonce }: RulesQuickPage2Props) 
             </li>
             <li className="flex items-start gap-2">
               <span className="text-green-400">+</span>
-              Chavirement : partagez la cagnotte + <span className="text-amber-400 font-bold">10 × niveau</span>
+              Chavirement : partagez la cagnotte + <span className="text-amber-400 font-bold">10 × votre niveau de descente</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-red-400">-</span>
@@ -166,7 +166,7 @@ export function RulesQuickPage2({ context, replayNonce }: RulesQuickPage2Props) 
           <p className="text-red-400 font-bold text-sm">Attention au chavirement !</p>
           <p className="text-[#E8E8E8] text-sm">
             Si le danger dépasse les mises totales, le bateau chavire. 
-            Les joueurs descendus partagent la cagnotte + <span className="text-amber-400 font-bold">10 jetons × niveau</span>. 
+            Les joueurs descendus partagent la cagnotte + <span className="text-amber-400 font-bold">10 × leur niveau de descente</span>. 
             Les restants n'obtiennent rien.
           </p>
         </div>

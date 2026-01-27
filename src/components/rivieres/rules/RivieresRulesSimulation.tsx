@@ -13,55 +13,90 @@ interface RivieresRulesSimulationProps {
   compact?: boolean;
 }
 
-const SCENARIOS = [
-  { id: 'balanced', label: 'Équilibré', pot: 350, total: 8, restants: 4, level: 5 },
-  { id: 'all-stay', label: 'Tous restent (niveau 5)', pot: 500, total: 10, restants: 10, level: 5 },
-  { id: 'few-stay', label: 'Peu restent (niveau 3)', pot: 200, total: 8, restants: 2, level: 3 },
-];
+interface DescenduAtLevel {
+  level: number;
+  count: number;
+}
 
 export function RivieresRulesSimulation({ context, compact = false }: RivieresRulesSimulationProps) {
   const [pot, setPot] = useState(context.cagnotte || 300);
   const [totalPlayers, setTotalPlayers] = useState(context.totalPlayers || 8);
-  const [restants, setRestants] = useState(context.playersEnBateau || 5);
   const [level, setLevel] = useState(context.niveau || 5);
   const [chavireToogle, setChavireToogle] = useState(false);
   const [animKey, setAnimKey] = useState(0);
   
-  // Computed values
-  const descendus = totalPlayers - restants;
-  const isLevel5 = level === 5;
-  const gainPerRestant = isLevel5 ? computePayoutPerPlayer(pot, restants) + 100 : 0;
-  // Descended players: share pot + 10 tokens per successful level
-  const bonusDescenduPerLevel = 10 * level;
-  const gainPerDescendu = chavireToogle ? computePayoutPerPlayer(pot, descendus) + bonusDescenduPerLevel : 0;
+  // Track descended players at each level (1 to level-1 for capsize, or 1 to 4 for level 5)
+  const [descendusParNiveau, setDescendusParNiveau] = useState<number[]>([0, 0, 0, 0, 0]);
   
-  // Keep restants <= total
-  useEffect(() => {
-    if (restants > totalPlayers) {
-      setRestants(totalPlayers);
+  // Computed values
+  const maxDescendableLevel = chavireToogle ? level : 4;
+  const totalDescendus = descendusParNiveau.slice(0, maxDescendableLevel).reduce((a, b) => a + b, 0);
+  const restants = totalPlayers - totalDescendus;
+  const isLevel5 = level === 5;
+  
+  // Level 5 success: restants share pot + 100 bonus each
+  const gainPerRestant = isLevel5 && !chavireToogle ? computePayoutPerPlayer(pot, restants) + 100 : 0;
+  
+  // Capsize: each descendu gets their share + 10 × their descent level
+  const computeDescenduGains = () => {
+    if (!chavireToogle || totalDescendus === 0) return [];
+    const potShare = computePayoutPerPlayer(pot, totalDescendus);
+    const gains: { level: number; count: number; bonus: number; total: number }[] = [];
+    
+    for (let lvl = 1; lvl <= maxDescendableLevel; lvl++) {
+      const count = descendusParNiveau[lvl - 1];
+      if (count > 0) {
+        const bonus = 10 * lvl;
+        gains.push({ level: lvl, count, bonus, total: potShare + bonus });
+      }
     }
-  }, [totalPlayers, restants]);
+    return gains;
+  };
+  
+  const descenduGains = computeDescenduGains();
+  
+  // Keep descendus <= total
+  useEffect(() => {
+    const currentTotal = descendusParNiveau.reduce((a, b) => a + b, 0);
+    if (currentTotal > totalPlayers) {
+      // Reset descendus
+      setDescendusParNiveau([0, 0, 0, 0, 0]);
+    }
+  }, [totalPlayers, descendusParNiveau]);
   
   // Trigger animation on change
   useEffect(() => {
     setAnimKey(k => k + 1);
-  }, [pot, totalPlayers, restants, level, chavireToogle]);
+  }, [pot, totalPlayers, level, chavireToogle, descendusParNiveau]);
   
   const handleReset = () => {
     setPot(context.cagnotte || 300);
     setTotalPlayers(context.totalPlayers || 8);
-    setRestants(context.playersEnBateau || 5);
     setLevel(context.niveau || 5);
     setChavireToogle(false);
+    setDescendusParNiveau([0, 0, 0, 0, 0]);
   };
   
-  const handleScenario = (scenario: typeof SCENARIOS[0]) => {
-    setPot(scenario.pot);
-    setTotalPlayers(scenario.total);
-    setRestants(scenario.restants);
-    setLevel(scenario.level);
-    setChavireToogle(false);
+  const handleScenarioExample = () => {
+    // Example from user: J1 descend lvl 1, J2 descend lvl 2, J3 descend lvl 3, capsize lvl 4
+    setPot(90);
+    setTotalPlayers(3);
+    setLevel(4);
+    setChavireToogle(true);
+    setDescendusParNiveau([1, 1, 1, 0, 0]); // 1 at each level 1, 2, 3
   };
+  
+  const updateDescenduAtLevel = (lvl: number, value: number) => {
+    const newDescendus = [...descendusParNiveau];
+    newDescendus[lvl - 1] = value;
+    // Ensure total doesn't exceed players
+    const total = newDescendus.reduce((a, b) => a + b, 0);
+    if (total <= totalPlayers) {
+      setDescendusParNiveau(newDescendus);
+    }
+  };
+  
+  const remainingForDescente = totalPlayers - totalDescendus;
   
   return (
     <div className={`${compact ? 'space-y-4' : 'grid lg:grid-cols-2 gap-6'}`}>
@@ -105,34 +140,12 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
               />
             </div>
             
-            {/* Restants */}
-            <div>
-              <Label className="text-[#9CA3AF] text-sm mb-2 flex items-center justify-between">
-                <span>Joueurs qui RESTENT</span>
-                <span className="text-blue-400 font-bold">{restants}</span>
-              </Label>
-              <Slider
-                value={[restants]}
-                onValueChange={([v]) => setRestants(v)}
-                min={0}
-                max={totalPlayers}
-                step={1}
-                className="py-2"
-              />
-            </div>
-            
-            {/* Descendus (auto) */}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-[#9CA3AF]">Joueurs qui DESCENDENT</span>
-              <span className="text-amber-400 font-bold">{descendus}</span>
-            </div>
-            
             {/* Level selector */}
             <div className="pt-2 border-t border-white/10">
               <Label className="text-[#9CA3AF] text-sm mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Layers className="h-4 w-4 text-[#D4AF37]" />
-                  Niveau actuel
+                  {chavireToogle ? 'Niveau du chavirement' : 'Niveau actuel'}
                 </span>
                 <span className="text-[#D4AF37] font-bold">{level}</span>
               </Label>
@@ -151,12 +164,6 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-[#9CA3AF] mt-2">
-                {isLevel5 
-                  ? `⭐ Niveau 5 : la cagnotte est partagée + bonus (100 × ${restants} restants = ${100 * restants} jetons)`
-                  : `Niveaux 1-4 : la cagnotte s'accumule (pas de distribution)`
-                }
-              </p>
             </div>
             
             {/* Chavire toggle */}
@@ -169,6 +176,48 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
                 checked={chavireToogle}
                 onCheckedChange={setChavireToogle}
               />
+            </div>
+            
+            {/* Descendus per level */}
+            <div className="pt-2 border-t border-white/10">
+              <Label className="text-[#9CA3AF] text-sm mb-3 flex items-center gap-2">
+                <Anchor className="h-4 w-4 text-amber-400" />
+                Descendus par niveau (restants: {remainingForDescente})
+              </Label>
+              <div className="space-y-2">
+                {Array.from({ length: maxDescendableLevel }).map((_, i) => {
+                  const lvl = i + 1;
+                  const maxForThisLevel = remainingForDescente + descendusParNiveau[i];
+                  return (
+                    <div key={lvl} className="flex items-center gap-3">
+                      <span className="text-amber-400 font-bold text-sm w-16">Niv. {lvl}</span>
+                      <Slider
+                        value={[descendusParNiveau[i]]}
+                        onValueChange={([v]) => updateDescenduAtLevel(lvl, v)}
+                        min={0}
+                        max={Math.min(maxForThisLevel, totalPlayers)}
+                        step={1}
+                        className="flex-1"
+                      />
+                      <span className="text-amber-400 font-bold text-sm w-8 text-right">
+                        {descendusParNiveau[i]}
+                      </span>
+                      <span className="text-[#9CA3AF] text-xs w-16">
+                        (+{10 * lvl})
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Restants (auto) */}
+            <div className="flex items-center justify-between text-sm pt-2">
+              <span className="text-[#9CA3AF] flex items-center gap-2">
+                <Ship className="h-4 w-4 text-blue-400" />
+                Joueurs qui RESTENT
+              </span>
+              <span className="text-blue-400 font-bold">{restants}</span>
             </div>
             
             {/* Action buttons */}
@@ -187,11 +236,11 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleScenario(SCENARIOS[0])}
+                onClick={handleScenarioExample}
                 className="flex-1 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
               >
                 <Sparkles className="h-3 w-3 mr-1" />
-                Exemple
+                Exemple (J1+J2+J3)
               </Button>
             </div>
           </div>
@@ -212,33 +261,46 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
           
           {chavireToogle ? (
             <div className="text-[#E8E8E8] text-sm">
-              <p className="mb-2 font-medium text-red-400">
-                Le bateau a chaviré ! Les descendus partagent la cagnotte + bonus niveau.
+              <p className="mb-3 font-medium text-red-400">
+                Le bateau a chaviré au niveau {level} ! Les descendus partagent la cagnotte + bonus individuel.
               </p>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[#9CA3AF]">Descendus (cette manche)</span>
-                  <span className="text-amber-400 font-bold">{descendus} joueurs</span>
+              
+              {totalDescendus > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#9CA3AF]">Part cagnotte par descendu</span>
+                    <span className="text-[#D4AF37] font-bold">
+                      floor({pot} / {totalDescendus}) = {computePayoutPerPlayer(pot, totalDescendus)}
+                    </span>
+                  </div>
+                  
+                  <div className="border-t border-white/10 pt-3">
+                    <p className="text-amber-400 font-medium mb-2">Gains par joueur :</p>
+                    {descenduGains.map(({ level: lvl, count, bonus, total }) => (
+                      <motion.div
+                        key={lvl}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center justify-between mb-1"
+                      >
+                        <span className="text-[#9CA3AF] text-sm">
+                          {count}× Descendu niv.{lvl}
+                        </span>
+                        <span className="text-[#D4AF37] font-bold">
+                          {computePayoutPerPlayer(pot, totalDescendus)} + {bonus} = <span className="text-lg">{total}</span>
+                        </span>
+                      </motion.div>
+                    ))}
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                    <span className="text-[#9CA3AF]">Restants (chavirés)</span>
+                    <span className="text-red-400 font-bold">0 jetons</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[#9CA3AF]">Gain par descendu</span>
-                  <motion.span
-                    key={animKey}
-                    initial={{ scale: 1.5, color: '#f59e0b' }}
-                    animate={{ scale: 1, color: '#D4AF37' }}
-                    className="text-xl font-bold"
-                  >
-                    {gainPerDescendu} jetons
-                  </motion.span>
-                </div>
-                <p className="text-xs text-[#9CA3AF]">
-                  = floor({pot} / {descendus || 1}) + (10 × {level} niveaux) = {computePayoutPerPlayer(pot, descendus)} + {bonusDescenduPerLevel}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-[#9CA3AF]">Restants (chavirés)</span>
-                  <span className="text-red-400 font-bold">0 jetons</span>
-                </div>
-              </div>
+              ) : (
+                <p className="text-[#9CA3AF] italic">Aucun descendu configuré</p>
+              )}
             </div>
           ) : isLevel5 ? (
             <div className="space-y-3">
@@ -251,7 +313,7 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#9CA3AF] text-sm">Descendus</span>
-                <span className="text-amber-400 font-bold">{descendus} joueurs → 0 jetons</span>
+                <span className="text-amber-400 font-bold">{totalDescendus} joueurs → 0 jetons</span>
               </div>
               <div className="border-t border-white/10 pt-3">
                 <div className="flex items-center justify-between">
@@ -266,7 +328,7 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
                   </motion.span>
                 </div>
                 <p className="text-xs text-[#9CA3AF] mt-1">
-                  = floor({pot} / {restants || 1}) + 100 = {computePayoutPerPlayer(pot, restants)} + 100 (bonus total = {100 * restants})
+                  = floor({pot} / {restants || 1}) + 100 = {computePayoutPerPlayer(pot, restants)} + 100
                 </p>
               </div>
             </div>
@@ -293,7 +355,7 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
         </div>
       </div>
       
-      {/* Right: Visual & Scenarios */}
+      {/* Right: Visual & Tips */}
       <div className="space-y-4">
         {/* Visual distribution */}
         <div className="bg-[#1a1f2e] rounded-xl p-4 border border-[#D4AF37]/20">
@@ -317,14 +379,14 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
             </motion.div>
           </div>
           
-          {/* Players who stay */}
+          {/* Players who stay - Level 5 success */}
           {restants > 0 && !chavireToogle && isLevel5 && (
             <div className="mb-4">
               <p className="text-blue-400 text-xs font-medium mb-2 flex items-center gap-1">
                 <Ship className="h-3 w-3" /> RESTENT ({restants}) - Niveau 5 réussi
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
-                {Array.from({ length: Math.min(restants, 12) }).map((_, i) => (
+                {Array.from({ length: Math.min(restants, 8) }).map((_, i) => (
                   <motion.div
                     key={`stay-${i}`}
                     initial={{ opacity: 0, y: -10 }}
@@ -346,8 +408,8 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
                     </motion.span>
                   </motion.div>
                 ))}
-                {restants > 12 && (
-                  <span className="text-xs text-blue-400 self-center">+{restants - 12}</span>
+                {restants > 8 && (
+                  <span className="text-xs text-blue-400 self-center">+{restants - 8}</span>
                 )}
               </div>
             </div>
@@ -360,7 +422,7 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
                 <Ship className="h-3 w-3" /> RESTENT ({restants}) - Niveau {level} (pas de distribution)
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
-                {Array.from({ length: Math.min(restants, 12) }).map((_, i) => (
+                {Array.from({ length: Math.min(restants, 8) }).map((_, i) => (
                   <motion.div
                     key={`stay-${i}`}
                     initial={{ opacity: 0, y: -10 }}
@@ -374,61 +436,52 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
                     <span className="text-[10px] text-[#9CA3AF] mt-1">→</span>
                   </motion.div>
                 ))}
-                {restants > 12 && (
-                  <span className="text-xs text-blue-400 self-center">+{restants - 12}</span>
+                {restants > 8 && (
+                  <span className="text-xs text-blue-400 self-center">+{restants - 8}</span>
                 )}
               </div>
             </div>
           )}
           
-          {/* Players who descend */}
-          {descendus > 0 && (
+          {/* Players who descended - grouped by level */}
+          {totalDescendus > 0 && (
             <div>
               <p className="text-amber-400 text-xs font-medium mb-2 flex items-center gap-1">
-                <Anchor className="h-3 w-3" /> DESCENDENT ({descendus})
+                <Anchor className="h-3 w-3" /> DESCENDUS ({totalDescendus})
+                {chavireToogle && ' - Partagent la cagnotte'}
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {Array.from({ length: Math.min(descendus, 12) }).map((_, i) => (
-                  <motion.div
-                    key={`desc-${i}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="flex flex-col items-center"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center opacity-60">
-                      <Users className="h-4 w-4 text-amber-400" />
+              <div className="space-y-2">
+                {descendusParNiveau.map((count, i) => {
+                  if (count === 0 || i >= maxDescendableLevel) return null;
+                  const lvl = i + 1;
+                  const bonus = 10 * lvl;
+                  const total = chavireToogle ? computePayoutPerPlayer(pot, totalDescendus) + bonus : 0;
+                  
+                  return (
+                    <div key={lvl} className="flex items-center gap-2">
+                      <span className="text-amber-400 text-xs w-12">Niv.{lvl}</span>
+                      <div className="flex gap-1">
+                        {Array.from({ length: Math.min(count, 5) }).map((_, j) => (
+                          <motion.div
+                            key={j}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center"
+                          >
+                            <Users className="h-3 w-3 text-amber-400" />
+                          </motion.div>
+                        ))}
+                        {count > 5 && <span className="text-xs text-amber-400">+{count - 5}</span>}
+                      </div>
+                      <span className={`text-xs ml-auto ${chavireToogle ? 'text-[#D4AF37] font-bold' : 'text-[#9CA3AF]'}`}>
+                        {chavireToogle ? `+${total}` : '0'}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-[#9CA3AF] mt-1">
-                      {chavireToogle ? `+${gainPerDescendu}` : '0'}
-                    </span>
-                  </motion.div>
-                ))}
-                {descendus > 12 && (
-                  <span className="text-xs text-amber-400 self-center">+{descendus - 12}</span>
-                )}
+                  );
+                })}
               </div>
             </div>
           )}
-        </div>
-        
-        {/* Scenarios */}
-        <div className="bg-[#1a1f2e] rounded-xl p-4 border border-[#D4AF37]/20">
-          <h3 className="text-[#D4AF37] font-bold mb-3 text-sm">Scénarios prédéfinis</h3>
-          <div className="grid grid-cols-1 gap-2">
-            {SCENARIOS.map(scenario => (
-              <button
-                key={scenario.id}
-                onClick={() => handleScenario(scenario)}
-                className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#0B1020] hover:bg-[#D4AF37]/10 transition-colors text-left"
-              >
-                <span className="text-[#E8E8E8] text-sm">{scenario.label}</span>
-                <span className="text-xs text-[#9CA3AF]">
-                  {scenario.pot} jetons - {scenario.restants}/{scenario.total}
-                </span>
-              </button>
-            ))}
-          </div>
         </div>
         
         {/* Tips */}
@@ -436,8 +489,22 @@ export function RivieresRulesSimulation({ context, compact = false }: RivieresRu
           <h4 className="text-blue-400 font-bold text-sm mb-2">Règles de distribution</h4>
           <ul className="text-xs text-[#E8E8E8] space-y-1">
             <li>• <strong>Niveaux 1-4 :</strong> la cagnotte s'accumule, pas de distribution</li>
-            <li>• <strong>Niveau 5 :</strong> les restants partagent la cagnotte + bonus 100</li>
-            <li>• <strong>Chavirement :</strong> les descendus de la manche partagent la cagnotte</li>
+            <li>• <strong>Niveau 5 :</strong> les restants partagent la cagnotte + 100 chacun</li>
+            <li>• <strong>Chavirement :</strong> les descendus partagent la cagnotte + <span className="text-amber-400">10 × leur niveau de descente</span></li>
+          </ul>
+        </div>
+        
+        {/* Example scenario */}
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+          <h4 className="text-amber-400 font-bold text-sm mb-2">Exemple détaillé</h4>
+          <p className="text-xs text-[#E8E8E8]">
+            J1 descend niveau 1, J2 descend niveau 2, J3 descend niveau 3.<br/>
+            Chavirement au niveau 4 avec 90 jetons en cagnotte :
+          </p>
+          <ul className="text-xs text-[#E8E8E8] mt-2 space-y-1">
+            <li>• J1 : floor(90/3) + 10 = 30 + 10 = <span className="text-[#D4AF37] font-bold">40 jetons</span></li>
+            <li>• J2 : floor(90/3) + 20 = 30 + 20 = <span className="text-[#D4AF37] font-bold">50 jetons</span></li>
+            <li>• J3 : floor(90/3) + 30 = 30 + 30 = <span className="text-[#D4AF37] font-bold">60 jetons</span></li>
           </ul>
         </div>
       </div>
