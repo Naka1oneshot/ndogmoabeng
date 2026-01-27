@@ -111,7 +111,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const isForetGame = game.selected_game_type_code === 'FORET' || !game.selected_game_type_code;
 
   // Forêt Auto Mode Controller
-  const { state: foretAutoState, toggleAutoMode: toggleForetAutoMode, isActionInFlight: foretAutoInFlight } = useForetAutoController(
+  const { state: foretAutoState, toggleAutoMode: toggleForetAutoMode, resetFailCounters: resetForetFailCounters, isActionInFlight: foretAutoInFlight } = useForetAutoController(
     game.id,
     game.current_session_game_id
   );
@@ -938,6 +938,10 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
               currentStep={foretAutoState.currentStep}
               isLoading={foretAutoInFlight}
               onToggle={toggleForetAutoMode}
+              runnerStatus={foretAutoState.runnerStatus}
+              lastError={foretAutoState.lastError}
+              failCounts={foretAutoState.failCounts}
+              onResetFailCounters={resetForetFailCounters}
             />
           </div>
         )}

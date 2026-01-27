@@ -11,6 +11,13 @@ interface SessionGameState {
   auto_countdown_type: string | null;
   auto_countdown_ends_at: string | null;
   auto_last_step: string | null;
+  auto_runner_user_id: string | null;
+  auto_runner_lease_until: string | null;
+  auto_fail_bets: number;
+  auto_fail_positions: number;
+  auto_fail_resolve_combat: number;
+  auto_fail_shop: number;
+  auto_last_error: string | null;
 }
 
 interface Player {
@@ -27,17 +34,30 @@ interface AutoControllerState {
   countdownEndsAt: Date | null;
   currentStep: string | null;
   remainingSeconds: number;
+  isRunner: boolean;
+  runnerStatus: 'YOU' | 'OTHER' | 'NONE';
+  lastError: string | null;
+  failCounts: {
+    bets: number;
+    positions: number;
+    resolveCombat: number;
+    shop: number;
+  };
 }
 
 interface UseForetAutoControllerResult {
   state: AutoControllerState;
   toggleAutoMode: () => Promise<void>;
+  resetFailCounters: () => Promise<void>;
   isActionInFlight: boolean;
 }
 
 // Countdown durations
 const PHASE_COUNTDOWN_MS = 30000; // 30 seconds for bets, actions, shop
 const POSITIONS_WAIT_MS = 15000; // 15 seconds after positions published
+const LEASE_DURATION_MS = 20000; // 20 seconds
+const LEASE_RENEW_INTERVAL_MS = 10000; // 10 seconds
+const MAX_FAIL_COUNT = 5;
 
 // Default weapon for combat
 const DEFAULT_WEAPON = 'ARME_PERMANENTE';
@@ -56,10 +76,19 @@ export function useForetAutoController(
   const [gamePhase, setGamePhase] = useState<string>('PHASE1_MISES');
   const [players, setPlayers] = useState<Player[]>([]);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   const actionInFlightRef = useRef(false);
   const cancelledRef = useRef(false);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const leaseRenewIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get current user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id ?? null);
+    });
+  }, []);
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
@@ -68,7 +97,7 @@ export function useForetAutoController(
     const [sessionResult, gameResult, playersResult] = await Promise.all([
       supabase
         .from('session_games')
-        .select('id, game_type_code, manche_active, phase, status, auto_mode, auto_countdown_type, auto_countdown_ends_at, auto_last_step')
+        .select('id, game_type_code, manche_active, phase, status, auto_mode, auto_countdown_type, auto_countdown_ends_at, auto_last_step, auto_runner_user_id, auto_runner_lease_until, auto_fail_bets, auto_fail_positions, auto_fail_resolve_combat, auto_fail_shop, auto_last_error')
         .eq('id', sessionGameId)
         .single(),
       supabase
@@ -94,6 +123,7 @@ export function useForetAutoController(
       setPlayers(playersResult.data);
     }
   }, [gameId, sessionGameId]);
+
   // Setup realtime subscriptions
   useEffect(() => {
     if (!sessionGameId) return;
@@ -148,7 +178,7 @@ export function useForetAutoController(
     };
   }, [sessionGameId, gameId, fetchData]);
 
-  // Countdown timer
+  // Countdown timer - reduced interval to 250ms
   useEffect(() => {
     if (!sessionState?.auto_countdown_ends_at) {
       setRemainingSeconds(0);
@@ -167,7 +197,7 @@ export function useForetAutoController(
     };
 
     updateCountdown();
-    countdownTimerRef.current = setInterval(updateCountdown, 100);
+    countdownTimerRef.current = setInterval(updateCountdown, 250);
 
     return () => {
       if (countdownTimerRef.current) {
@@ -177,11 +207,99 @@ export function useForetAutoController(
     };
   }, [sessionState?.auto_countdown_ends_at]);
 
+  // Determine if current user is the runner
+  const isRunner = useCallback(() => {
+    if (!sessionState || !currentUserId) return false;
+    if (!sessionState.auto_runner_user_id) return false;
+    if (sessionState.auto_runner_user_id !== currentUserId) return false;
+    if (!sessionState.auto_runner_lease_until) return false;
+    return new Date(sessionState.auto_runner_lease_until).getTime() > Date.now();
+  }, [sessionState, currentUserId]);
+
+  const getRunnerStatus = useCallback((): 'YOU' | 'OTHER' | 'NONE' => {
+    if (!sessionState) return 'NONE';
+    if (!sessionState.auto_runner_user_id || !sessionState.auto_runner_lease_until) return 'NONE';
+    if (new Date(sessionState.auto_runner_lease_until).getTime() <= Date.now()) return 'NONE';
+    if (sessionState.auto_runner_user_id === currentUserId) return 'YOU';
+    return 'OTHER';
+  }, [sessionState, currentUserId]);
+
+  // Acquire lease using atomic RPC
+  const acquireLease = useCallback(async (): Promise<boolean> => {
+    if (!sessionGameId || !currentUserId) return false;
+
+    const { data, error } = await supabase.rpc('acquire_foret_auto_lease', {
+      p_session_game_id: sessionGameId,
+      p_user_id: currentUserId,
+      p_lease_ms: LEASE_DURATION_MS,
+    });
+
+    if (error) {
+      console.error('[ForetAutoController] Error acquiring lease:', error);
+      return false;
+    }
+
+    return data === true;
+  }, [sessionGameId, currentUserId]);
+
+  // Release lease using atomic RPC
+  const releaseLease = useCallback(async () => {
+    if (!sessionGameId || !currentUserId) return;
+
+    await supabase.rpc('release_foret_auto_lease', {
+      p_session_game_id: sessionGameId,
+      p_user_id: currentUserId,
+    });
+  }, [sessionGameId, currentUserId]);
+
+  // Renew lease periodically
+  useEffect(() => {
+    if (!sessionState?.auto_mode || !isRunner()) {
+      if (leaseRenewIntervalRef.current) {
+        clearInterval(leaseRenewIntervalRef.current);
+        leaseRenewIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const renewLease = async () => {
+      if (!sessionGameId || !currentUserId) return;
+      await supabase.rpc('acquire_foret_auto_lease', {
+        p_session_game_id: sessionGameId,
+        p_user_id: currentUserId,
+        p_lease_ms: LEASE_DURATION_MS,
+      });
+    };
+
+    leaseRenewIntervalRef.current = setInterval(renewLease, LEASE_RENEW_INTERVAL_MS);
+
+    return () => {
+      if (leaseRenewIntervalRef.current) {
+        clearInterval(leaseRenewIntervalRef.current);
+        leaseRenewIntervalRef.current = null;
+      }
+    };
+  }, [sessionState?.auto_mode, sessionGameId, currentUserId, isRunner]);
+
   // Toggle auto mode
   const toggleAutoMode = useCallback(async () => {
     if (!sessionGameId) return;
 
     const newAutoMode = !sessionState?.auto_mode;
+
+    if (newAutoMode) {
+      // Activating - try to acquire lease
+      const acquired = await acquireLease();
+      if (!acquired) {
+        console.warn('[ForetAutoController] Could not acquire lease - another MJ is running');
+        return;
+      }
+      cancelledRef.current = false;
+    } else {
+      // Deactivating - release lease
+      await releaseLease();
+      cancelledRef.current = true;
+    }
 
     await supabase
       .from('session_games')
@@ -190,16 +308,86 @@ export function useForetAutoController(
         auto_countdown_type: newAutoMode ? sessionState?.auto_countdown_type : null,
         auto_countdown_ends_at: newAutoMode ? sessionState?.auto_countdown_ends_at : null,
         auto_last_step: newAutoMode ? 'ENABLED' : null,
+        auto_last_error: null,
         auto_updated_at: new Date().toISOString(),
       })
       .eq('id', sessionGameId);
+  }, [sessionGameId, sessionState, acquireLease, releaseLease]);
 
-    if (!newAutoMode) {
+  // Reset fail counters
+  const resetFailCounters = useCallback(async () => {
+    if (!sessionGameId) return;
+
+    await supabase.rpc('reset_foret_auto_fail_counters', {
+      p_session_game_id: sessionGameId,
+    });
+  }, [sessionGameId]);
+
+  // Handle action failure with backoff
+  const handleActionFailure = useCallback(async (
+    actionType: 'bets' | 'positions' | 'resolve_combat' | 'shop',
+    error: any
+  ): Promise<number> => {
+    if (!sessionState || !sessionGameId) return 0;
+
+    const fieldMap = {
+      bets: 'auto_fail_bets',
+      positions: 'auto_fail_positions',
+      resolve_combat: 'auto_fail_resolve_combat',
+      shop: 'auto_fail_shop',
+    };
+
+    const currentCount = sessionState[fieldMap[actionType] as keyof SessionGameState] as number || 0;
+    const newCount = currentCount + 1;
+
+    const updates: any = {
+      [fieldMap[actionType]]: newCount,
+      auto_last_error: `${actionType} failed: ${error?.message || 'Unknown error'}`,
+      auto_updated_at: new Date().toISOString(),
+    };
+
+    // Stop auto mode if max failures reached
+    if (newCount >= MAX_FAIL_COUNT) {
+      updates.auto_mode = false;
+      updates.auto_countdown_type = null;
+      updates.auto_countdown_ends_at = null;
+      updates.auto_last_step = 'STOPPED_MAX_FAILURES';
+      updates.auto_runner_user_id = null;
+      updates.auto_runner_lease_until = null;
       cancelledRef.current = true;
-    } else {
-      cancelledRef.current = false;
+      console.error(`[ForetAutoController] Stopping auto mode after ${newCount} failures on ${actionType}`);
     }
-  }, [sessionGameId, sessionState]);
+
+    await supabase
+      .from('session_games')
+      .update(updates)
+      .eq('id', sessionGameId);
+
+    // Calculate backoff delay
+    return Math.min(20000, 1000 * Math.pow(2, newCount));
+  }, [sessionState, sessionGameId]);
+
+  // Reset fail counter on success
+  const handleActionSuccess = useCallback(async (
+    actionType: 'bets' | 'positions' | 'resolve_combat' | 'shop'
+  ) => {
+    if (!sessionState || !sessionGameId) return;
+
+    const fieldMap = {
+      bets: 'auto_fail_bets',
+      positions: 'auto_fail_positions',
+      resolve_combat: 'auto_fail_resolve_combat',
+      shop: 'auto_fail_shop',
+    };
+
+    const currentCount = sessionState[fieldMap[actionType] as keyof SessionGameState] as number || 0;
+    if (currentCount > 0) {
+      await supabase
+        .from('session_games')
+        .update({ [fieldMap[actionType]]: 0 })
+        .eq('id', sessionGameId);
+    }
+  }, [sessionState, sessionGameId]);
 
   // Helper: Start countdown
   const startCountdown = useCallback(async (type: string, durationMs: number) => {
@@ -245,7 +433,7 @@ export function useForetAutoController(
       .eq('id', sessionGameId);
   }, [sessionGameId]);
 
-  // Check validation counts
+  // Check validation counts with STRICT validation (real data, not placeholders)
   const getValidationCounts = useCallback(async (phase: string, manche: number) => {
     const humanPlayers = players.filter(p => !p.is_bot);
     const totalHumans = humanPlayers.length;
@@ -254,31 +442,51 @@ export function useForetAutoController(
     let validatedCount = 0;
 
     if (phase === 'PHASE1_MISES') {
+      // A bet is valid if it has a mise value set (not just a row)
       const { data: bets } = await supabase
         .from('round_bets')
-        .select('num_joueur, status')
+        .select('num_joueur, mise, status')
         .eq('game_id', gameId)
+        .eq('session_game_id', sessionGameId!)
         .eq('manche', manche)
         .in('status', ['SUBMITTED', 'LOCKED']);
       
-      const betPlayerNums = new Set((bets || []).map(b => b.num_joueur));
+      // Only count bets with actual mise value
+      const betPlayerNums = new Set(
+        (bets || [])
+          .filter(b => b.mise !== null && b.mise !== undefined)
+          .map(b => b.num_joueur)
+      );
       validatedCount = humanPlayers.filter(p => betPlayerNums.has(p.player_number)).length;
     } else if (phase === 'PHASE2_POSITIONS') {
+      // An action is valid if it has position_souhaitee AND slot_attaque AND attaque1
       const { data: actions } = await supabase
         .from('actions')
-        .select('num_joueur')
+        .select('num_joueur, position_souhaitee, slot_attaque, attaque1')
         .eq('game_id', gameId)
+        .eq('session_game_id', sessionGameId!)
         .eq('manche', manche);
       
-      const actionPlayerNums = new Set((actions || []).map(a => a.num_joueur));
+      // Only count actions with REAL data (all required fields)
+      const actionPlayerNums = new Set(
+        (actions || [])
+          .filter(a => 
+            a.position_souhaitee !== null && 
+            a.slot_attaque !== null && 
+            a.attaque1 !== null
+          )
+          .map(a => a.num_joueur)
+      );
       validatedCount = humanPlayers.filter(p => actionPlayerNums.has(p.player_number)).length;
     } else if (phase === 'PHASE3_SHOP') {
       const { data: requests } = await supabase
         .from('shop_requests')
-        .select('player_num')
+        .select('player_num, want_buy')
         .eq('game_id', gameId)
+        .eq('session_game_id', sessionGameId!)
         .eq('manche', manche);
       
+      // Shop request exists = validated (want_buy can be true/false)
       const requestPlayerNums = new Set((requests || []).map(r => r.player_num));
       validatedCount = humanPlayers.filter(p => requestPlayerNums.has(p.player_number)).length;
     }
@@ -290,7 +498,7 @@ export function useForetAutoController(
       majorityReached: validatedCount >= majorityThreshold,
       allValidated: validatedCount >= totalHumans,
     };
-  }, [gameId, players]);
+  }, [gameId, sessionGameId, players]);
 
   // Generate default bets for players who haven't submitted
   const generateDefaultBets = useCallback(async (manche: number) => {
@@ -298,15 +506,20 @@ export function useForetAutoController(
 
     const humanPlayers = players.filter(p => !p.is_bot);
     
-    // Get existing bets
+    // Get existing bets with REAL data
     const { data: existingBets } = await supabase
       .from('round_bets')
-      .select('num_joueur')
+      .select('num_joueur, mise')
       .eq('game_id', gameId)
+      .eq('session_game_id', sessionGameId)
       .eq('manche', manche)
       .in('status', ['SUBMITTED', 'LOCKED']);
     
-    const bettedPlayerNums = new Set((existingBets || []).map(b => b.num_joueur));
+    const bettedPlayerNums = new Set(
+      (existingBets || [])
+        .filter(b => b.mise !== null && b.mise !== undefined)
+        .map(b => b.num_joueur)
+    );
     
     // Find players who haven't bet
     const playersWithoutBets = humanPlayers.filter(p => !bettedPlayerNums.has(p.player_number));
@@ -340,22 +553,31 @@ export function useForetAutoController(
     console.log('[ForetAutoController] Default bets generated');
   }, [gameId, sessionGameId, players]);
 
-  // Generate default combat actions for players who haven't submitted
+  // Generate default combat actions - ROBUST even with no monsters
   const generateDefaultActions = useCallback(async (manche: number) => {
     if (!sessionGameId) return;
 
     const humanPlayers = players.filter(p => !p.is_bot);
     
-    // Get existing actions
+    // Get existing actions with REAL data
     const { data: existingActions } = await supabase
       .from('actions')
-      .select('num_joueur')
+      .select('num_joueur, position_souhaitee, slot_attaque, attaque1')
       .eq('game_id', gameId)
+      .eq('session_game_id', sessionGameId)
       .eq('manche', manche);
     
-    const actionPlayerNums = new Set((existingActions || []).map(a => a.num_joueur));
+    const actionPlayerNums = new Set(
+      (existingActions || [])
+        .filter(a => 
+          a.position_souhaitee !== null && 
+          a.slot_attaque !== null && 
+          a.attaque1 !== null
+        )
+        .map(a => a.num_joueur)
+    );
     
-    // Find players who haven't submitted actions
+    // Find players who haven't submitted complete actions
     const playersWithoutActions = humanPlayers.filter(p => !actionPlayerNums.has(p.player_number));
     
     if (playersWithoutActions.length === 0) {
@@ -372,13 +594,15 @@ export function useForetAutoController(
       .eq('status', 'EN_BATAILLE')
       .not('battlefield_slot', 'is', null);
     
-    const availableSlots = (activeMonsters || [])
+    let availableSlots = (activeMonsters || [])
       .map(m => m.battlefield_slot)
       .filter((s): s is number => s !== null);
     
+    // ROBUSTNESS: If no monsters, use default slots 1-3
+    // Combat will handle "no monster" with 0 damage
     if (availableSlots.length === 0) {
-      console.log('[ForetAutoController] No available slots for default actions');
-      return;
+      console.log('[ForetAutoController] No monsters in battle, using default slots 1-3');
+      availableSlots = [1, 2, 3];
     }
 
     // Valid positions (1-7 typically)
@@ -421,6 +645,7 @@ export function useForetAutoController(
       .from('shop_requests')
       .select('player_num')
       .eq('game_id', gameId)
+      .eq('session_game_id', sessionGameId)
       .eq('manche', manche);
     
     const requestPlayerNums = new Set((existingRequests || []).map(r => r.player_num));
@@ -470,8 +695,13 @@ export function useForetAutoController(
       return;
     }
 
+    // Only the runner should execute actions
+    if (!isRunner()) {
+      return;
+    }
+
     const runStep = async () => {
-      if (cancelledRef.current || !sessionState.auto_mode) return;
+      if (cancelledRef.current || !sessionState.auto_mode || !isRunner()) return;
 
       const manche = sessionState.manche_active;
       const countdownType = sessionState.auto_countdown_type;
@@ -514,14 +744,19 @@ export function useForetAutoController(
             });
 
             if (error) {
-              console.error('[ForetAutoController] Error closing bets:', error);
-            } else {
-              await updateLastStep('BETS_CLOSED');
-              // Wait for priority animation (fallback timeout)
-              await new Promise(resolve => setTimeout(resolve, 3000));
+              throw error;
             }
+            
+            await handleActionSuccess('bets');
+            await updateLastStep('BETS_CLOSED');
+            // Wait for priority animation (fallback timeout)
+            await new Promise(resolve => setTimeout(resolve, 3000));
           } catch (error) {
             console.error('[ForetAutoController] Error in BETS phase:', error);
+            const backoff = await handleActionFailure('bets', error);
+            if (backoff > 0 && !cancelledRef.current) {
+              await new Promise(resolve => setTimeout(resolve, backoff));
+            }
           } finally {
             actionInFlightRef.current = false;
           }
@@ -533,17 +768,24 @@ export function useForetAutoController(
           console.log('[ForetAutoController] BETS: Full bot game, closing immediately');
           actionInFlightRef.current = true;
 
+          // Safety throttle for 100% bot games
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
           try {
             await updateLastStep('CLOSING_BETS');
             const { error } = await supabase.functions.invoke('close-phase1-bets', {
               body: { gameId },
             });
-            if (!error) {
-              await updateLastStep('BETS_CLOSED');
-              await new Promise(resolve => setTimeout(resolve, 3000));
-            }
+            if (error) throw error;
+            await handleActionSuccess('bets');
+            await updateLastStep('BETS_CLOSED');
+            await new Promise(resolve => setTimeout(resolve, 3000));
           } catch (error) {
             console.error('[ForetAutoController] Error in BETS (bot game):', error);
+            const backoff = await handleActionFailure('bets', error);
+            if (backoff > 0 && !cancelledRef.current) {
+              await new Promise(resolve => setTimeout(resolve, backoff));
+            }
           } finally {
             actionInFlightRef.current = false;
           }
@@ -586,16 +828,21 @@ export function useForetAutoController(
             });
 
             if (error) {
-              console.error('[ForetAutoController] Error publishing positions:', error);
-            } else {
-              await updateLastStep('POSITIONS_PUBLISHED');
-              // Wait for positions animation
-              await new Promise(resolve => setTimeout(resolve, 3000));
-              // Start 15s countdown before combat resolution
-              await startCountdown('COMBAT_POSITIONS_WAIT', POSITIONS_WAIT_MS);
+              throw error;
             }
+            
+            await handleActionSuccess('positions');
+            await updateLastStep('POSITIONS_PUBLISHED');
+            // Wait for positions animation
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            // Start 15s countdown before combat resolution
+            await startCountdown('COMBAT_POSITIONS_WAIT', POSITIONS_WAIT_MS);
           } catch (error) {
             console.error('[ForetAutoController] Error publishing positions:', error);
+            const backoff = await handleActionFailure('positions', error);
+            if (backoff > 0 && !cancelledRef.current) {
+              await new Promise(resolve => setTimeout(resolve, backoff));
+            }
           } finally {
             actionInFlightRef.current = false;
           }
@@ -616,14 +863,19 @@ export function useForetAutoController(
             });
 
             if (error) {
-              console.error('[ForetAutoController] Error resolving combat:', error);
-            } else {
-              await updateLastStep('COMBAT_RESOLVED');
-              // Wait for combat resolution animation
-              await new Promise(resolve => setTimeout(resolve, 5000));
+              throw error;
             }
+            
+            await handleActionSuccess('resolve_combat');
+            await updateLastStep('COMBAT_RESOLVED');
+            // Wait for combat resolution animation
+            await new Promise(resolve => setTimeout(resolve, 5000));
           } catch (error) {
             console.error('[ForetAutoController] Error resolving combat:', error);
+            const backoff = await handleActionFailure('resolve_combat', error);
+            if (backoff > 0 && !cancelledRef.current) {
+              await new Promise(resolve => setTimeout(resolve, backoff));
+            }
           } finally {
             actionInFlightRef.current = false;
           }
@@ -635,18 +887,25 @@ export function useForetAutoController(
           console.log('[ForetAutoController] COMBAT: Full bot game, publishing positions');
           actionInFlightRef.current = true;
 
+          // Safety throttle
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
           try {
             await updateLastStep('PUBLISHING_POSITIONS');
             const { error } = await supabase.functions.invoke('publish-positions', {
               body: { gameId },
             });
-            if (!error) {
-              await updateLastStep('POSITIONS_PUBLISHED');
-              await new Promise(resolve => setTimeout(resolve, 3000));
-              await startCountdown('COMBAT_POSITIONS_WAIT', POSITIONS_WAIT_MS);
-            }
+            if (error) throw error;
+            await handleActionSuccess('positions');
+            await updateLastStep('POSITIONS_PUBLISHED');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            await startCountdown('COMBAT_POSITIONS_WAIT', POSITIONS_WAIT_MS);
           } catch (error) {
             console.error('[ForetAutoController] Error in COMBAT (bot game):', error);
+            const backoff = await handleActionFailure('positions', error);
+            if (backoff > 0 && !cancelledRef.current) {
+              await new Promise(resolve => setTimeout(resolve, backoff));
+            }
           } finally {
             actionInFlightRef.current = false;
           }
@@ -688,21 +947,26 @@ export function useForetAutoController(
             });
 
             if (error) {
-              console.error('[ForetAutoController] Error resolving shop:', error);
-            } else {
-              await updateLastStep('SHOP_RESOLVED');
-              // Wait for shop animation
-              await new Promise(resolve => setTimeout(resolve, 3000));
-              
-              // Advance to next round
-              await updateLastStep('ADVANCING_ROUND');
-              await supabase.functions.invoke('manage-phase', {
-                body: { gameId, action: 'next_round' },
-              });
-              await updateLastStep('ROUND_ADVANCED');
+              throw error;
             }
+            
+            await handleActionSuccess('shop');
+            await updateLastStep('SHOP_RESOLVED');
+            // Wait for shop animation
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Advance to next round
+            await updateLastStep('ADVANCING_ROUND');
+            await supabase.functions.invoke('manage-phase', {
+              body: { gameId, action: 'next_round' },
+            });
+            await updateLastStep('ROUND_ADVANCED');
           } catch (error) {
             console.error('[ForetAutoController] Error resolving shop:', error);
+            const backoff = await handleActionFailure('shop', error);
+            if (backoff > 0 && !cancelledRef.current) {
+              await new Promise(resolve => setTimeout(resolve, backoff));
+            }
           } finally {
             actionInFlightRef.current = false;
           }
@@ -714,21 +978,28 @@ export function useForetAutoController(
           console.log('[ForetAutoController] SHOP: Full bot game, resolving immediately');
           actionInFlightRef.current = true;
 
+          // Safety throttle
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
           try {
             await updateLastStep('RESOLVING_SHOP');
             const { error } = await supabase.functions.invoke('resolve-shop', {
               body: { gameId },
             });
-            if (!error) {
-              await updateLastStep('SHOP_RESOLVED');
-              await new Promise(resolve => setTimeout(resolve, 3000));
-              await supabase.functions.invoke('manage-phase', {
-                body: { gameId, action: 'next_round' },
-              });
-              await updateLastStep('ROUND_ADVANCED');
-            }
+            if (error) throw error;
+            await handleActionSuccess('shop');
+            await updateLastStep('SHOP_RESOLVED');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            await supabase.functions.invoke('manage-phase', {
+              body: { gameId, action: 'next_round' },
+            });
+            await updateLastStep('ROUND_ADVANCED');
           } catch (error) {
             console.error('[ForetAutoController] Error in SHOP (bot game):', error);
+            const backoff = await handleActionFailure('shop', error);
+            if (backoff > 0 && !cancelledRef.current) {
+              await new Promise(resolve => setTimeout(resolve, backoff));
+            }
           } finally {
             actionInFlightRef.current = false;
           }
@@ -751,6 +1022,7 @@ export function useForetAutoController(
     sessionGameId,
     gameId,
     players,
+    isRunner,
     getValidationCounts,
     startCountdown,
     clearCountdown,
@@ -758,6 +1030,8 @@ export function useForetAutoController(
     generateDefaultBets,
     generateDefaultActions,
     generateDefaultShopRequests,
+    handleActionFailure,
+    handleActionSuccess,
   ]);
 
   // Reset cancelled flag when auto mode is enabled
@@ -776,8 +1050,18 @@ export function useForetAutoController(
         : null,
       currentStep: sessionState?.auto_last_step ?? null,
       remainingSeconds,
+      isRunner: isRunner(),
+      runnerStatus: getRunnerStatus(),
+      lastError: sessionState?.auto_last_error ?? null,
+      failCounts: {
+        bets: sessionState?.auto_fail_bets ?? 0,
+        positions: sessionState?.auto_fail_positions ?? 0,
+        resolveCombat: sessionState?.auto_fail_resolve_combat ?? 0,
+        shop: sessionState?.auto_fail_shop ?? 0,
+      },
     },
     toggleAutoMode,
+    resetFailCounters,
     isActionInFlight: actionInFlightRef.current,
   };
 }
