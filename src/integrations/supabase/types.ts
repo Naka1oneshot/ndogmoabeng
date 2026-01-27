@@ -2576,6 +2576,11 @@ export type Database = {
       }
       river_session_state: {
         Row: {
+          auto_countdown_active: boolean | null
+          auto_countdown_ends_at: string | null
+          auto_last_step: string | null
+          auto_mode: boolean | null
+          auto_updated_at: string | null
           cagnotte_manche: number
           created_at: string
           danger_dice_count: number | null
@@ -2590,6 +2595,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_countdown_active?: boolean | null
+          auto_countdown_ends_at?: string | null
+          auto_last_step?: string | null
+          auto_mode?: boolean | null
+          auto_updated_at?: string | null
           cagnotte_manche?: number
           created_at?: string
           danger_dice_count?: number | null
@@ -2604,6 +2614,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_countdown_active?: boolean | null
+          auto_countdown_ends_at?: string | null
+          auto_last_step?: string | null
+          auto_mode?: boolean | null
+          auto_updated_at?: string | null
           cagnotte_manche?: number
           created_at?: string
           danger_dice_count?: number | null
