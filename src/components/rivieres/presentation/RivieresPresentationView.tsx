@@ -19,6 +19,7 @@ import { RivieresVictoryPodium } from './RivieresVictoryPodium';
 import { RivieresPlayerSortAnimation } from './RivieresPlayerSortAnimation';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdventureCinematic';
+import { RivieresAutoCountdownOverlay } from '../RivieresAutoCountdownOverlay';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -37,6 +38,9 @@ interface RiverSessionState {
   danger_raw: number | null;
   danger_effectif: number | null;
   status: string;
+  auto_mode?: boolean;
+  auto_countdown_ends_at?: string | null;
+  auto_countdown_active?: boolean;
 }
 
 interface RiverLevelHistory {
@@ -547,6 +551,15 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
             const sequence = getSequenceForGameType('RIVIERES', true);
             if (sequence.length > 0) broadcastCinematic(sequence);
           }}
+        />
+      )}
+
+      {/* Auto Mode Countdown Overlay */}
+      {sessionState?.auto_countdown_active && sessionState.auto_countdown_ends_at && (
+        <RivieresAutoCountdownOverlay
+          countdownEndsAt={new Date(sessionState.auto_countdown_ends_at)}
+          isActive={sessionState.auto_countdown_active}
+          isHost={true}
         />
       )}
 

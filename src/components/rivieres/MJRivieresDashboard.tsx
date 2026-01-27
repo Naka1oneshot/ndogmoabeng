@@ -40,6 +40,9 @@ import {
 } from '@/lib/rivieresDangerCalculator';
 import { LandscapeModePrompt } from '@/components/mj/LandscapeModePrompt';
 import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
+import { useRivieresAutoController } from '@/hooks/useRivieresAutoController';
+import { RivieresAutoModeToggle } from './RivieresAutoModeToggle';
+import { RivieresAutoCountdownOverlay } from './RivieresAutoCountdownOverlay';
 
 interface RiverSessionState {
   id: string;
@@ -50,6 +53,10 @@ interface RiverSessionState {
   danger_raw: number | null;
   danger_effectif: number | null;
   status: string;
+  auto_mode?: boolean;
+  auto_countdown_ends_at?: string | null;
+  auto_countdown_active?: boolean;
+  auto_last_step?: string | null;
 }
 
 interface RiverPlayerStats {
@@ -171,6 +178,13 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
   // Bot management state
   const [botCount, setBotCount] = useState(5);
   const [withClans, setWithClans] = useState(true);
+
+  // Auto Mode controller
+  const {
+    state: autoState,
+    toggleAutoMode,
+    isActionInFlight: autoActionInFlight,
+  } = useRivieresAutoController(gameId, sessionGameId);
 
   // Refresh decisions when manche/niveau changes
   const stateRef = useRef(state);
@@ -1242,8 +1256,24 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
         </div>
       </div>
 
-      {/* Presentation mode button */}
-      <div className="flex justify-center gap-3 flex-wrap">
+      {/* Auto Mode Countdown Overlay */}
+      {autoState.countdownActive && (
+        <RivieresAutoCountdownOverlay
+          countdownEndsAt={autoState.countdownEndsAt}
+          isActive={autoState.countdownActive}
+          isHost={true}
+        />
+      )}
+
+      {/* Presentation mode button & Auto Mode Toggle */}
+      <div className="flex justify-center gap-3 flex-wrap items-center">
+        <RivieresAutoModeToggle
+          isAutoMode={autoState.autoMode}
+          currentStep={autoState.currentStep}
+          isLoading={autoActionInFlight}
+          onToggle={toggleAutoMode}
+        />
+
         <ForestButton
           onClick={() => window.open(`/presentation/${gameId}`, '_blank')}
           className="bg-[#1B4D3E] hover:bg-[#1B4D3E]/80 text-white"

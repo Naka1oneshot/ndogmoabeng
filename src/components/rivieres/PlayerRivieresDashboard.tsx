@@ -20,6 +20,7 @@ import {
   RivieresPlayerSortPlayerAnimation,
   RivieresMancheChangeAnimation,
 } from './RivieresPlayerAnimations';
+import { RivieresAutoCountdownOverlay } from './RivieresAutoCountdownOverlay';
 
 interface RiverSessionState {
   id: string;
@@ -29,6 +30,9 @@ interface RiverSessionState {
   danger_raw: number | null;
   danger_effectif: number | null;
   status: string;
+  auto_mode?: boolean;
+  auto_countdown_ends_at?: string | null;
+  auto_countdown_active?: boolean;
 }
 
 interface RiverPlayerStats {
@@ -524,6 +528,15 @@ export function PlayerRivieresDashboard({
 
   return (
     <div className="space-y-4 pb-6">
+      {/* Auto Mode Countdown Overlay for Players */}
+      {state.auto_countdown_active && state.auto_countdown_ends_at && (
+        <RivieresAutoCountdownOverlay
+          countdownEndsAt={new Date(state.auto_countdown_ends_at)}
+          isActive={state.auto_countdown_active}
+          isHost={false}
+        />
+      )}
+
       {/* Animation Overlays */}
       {showLockAnimation && (
         <RivieresLockPlayerAnimation onComplete={handleLockComplete} />
