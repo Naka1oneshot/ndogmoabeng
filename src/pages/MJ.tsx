@@ -501,22 +501,26 @@ export default function MJ() {
     let createdGameId: string | null = null;
     
     try {
-      const joinCode = generateJoinCode();
-      
       // CRITICAL: Determine actualGameTypeCode BEFORE inserting into games
       // This prevents the "selected_game_type_code = null" window that caused player init errors
       let actualGameTypeCode: string;
       
       if (gameMode === 'ADVENTURE' && selectedAdventureId) {
-        // Fetch first step's game type for adventure mode
-        const { data: firstStep } = await supabase
+        // Fetch first step's game type for adventure mode - MUST succeed
+        const { data: firstStep, error: stepError } = await supabase
           .from('adventure_steps')
           .select('game_type_code')
           .eq('adventure_id', selectedAdventureId)
           .eq('step_index', 1)
           .single();
         
-        actualGameTypeCode = firstStep?.game_type_code || 'FORET';
+        if (stepError || !firstStep) {
+          console.error('[CREATE_GAME] Adventure misconfigured:', stepError);
+          toast.error('Aventure mal configurée: étape 1 manquante');
+          return;
+        }
+        
+        actualGameTypeCode = firstStep.game_type_code;
       } else {
         // Single game mode: use selected game type
         actualGameTypeCode = selectedGameTypeCode || 'FORET';
@@ -524,28 +528,59 @@ export default function MJ() {
       
       console.log('[CREATE_GAME] Creating game with type:', actualGameTypeCode);
       
-      // Create the game with selected_game_type_code set from the start
-      const { data, error } = await supabase
-        .from('games')
-        .insert({
-          host_user_id: user.id,
-          name: finalGameName,
-          join_code: joinCode,
-          status: 'LOBBY',
-          manche_active: 1,
-          sens_depart_egalite: sensEgalite,
-          x_nb_joueurs: xNbJoueurs,
-          starting_tokens: startingTokens,
-          mode: gameMode,
-          adventure_id: gameMode === 'ADVENTURE' ? selectedAdventureId : null,
-          selected_game_type_code: actualGameTypeCode, // Always set from the start!
-          current_step_index: 1,
-          is_public: isPublic,
-        })
-        .select()
-        .single();
+      // FIX: Retry loop for join_code collision (error 23505)
+      const MAX_JOIN_CODE_RETRIES = 5;
+      let data: any = null;
+      let lastError: any = null;
+      
+      for (let attempt = 1; attempt <= MAX_JOIN_CODE_RETRIES; attempt++) {
+        const joinCode = generateJoinCode();
+        console.log(`[CREATE_GAME] Attempt ${attempt} with join_code:`, joinCode);
+        
+        const { data: insertData, error: insertError } = await supabase
+          .from('games')
+          .insert({
+            host_user_id: user.id,
+            name: finalGameName,
+            join_code: joinCode,
+            status: 'LOBBY',
+            manche_active: 1,
+            sens_depart_egalite: sensEgalite,
+            x_nb_joueurs: xNbJoueurs,
+            starting_tokens: startingTokens,
+            mode: gameMode,
+            adventure_id: gameMode === 'ADVENTURE' ? selectedAdventureId : null,
+            selected_game_type_code: actualGameTypeCode, // Always set from the start!
+            current_step_index: 1,
+            is_public: isPublic,
+          })
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (!insertError) {
+          data = insertData;
+          break;
+        }
+        
+        lastError = insertError;
+        
+        // Check if it's a unique constraint violation on join_code
+        if (insertError.code === '23505' && insertError.message?.includes('join_code')) {
+          console.warn(`[CREATE_GAME] join_code collision, retrying... (${attempt}/${MAX_JOIN_CODE_RETRIES})`);
+          continue;
+        }
+        
+        // Other errors: throw immediately
+        throw insertError;
+      }
+      
+      if (!data) {
+        console.error('[CREATE_GAME] All join_code attempts failed:', lastError);
+        const errCode = lastError?.code || '';
+        const errMsg = lastError?.message || 'Collision de code après plusieurs tentatives';
+        toast.error(`Erreur création: ${errCode} ${errMsg}`);
+        return;
+      }
       
       createdGameId = data.id;
       console.log('[CREATE_GAME] Game inserted id=', data.id);
@@ -624,9 +659,14 @@ export default function MJ() {
       
       // Navigate to the new game's management page
       navigate(`/mj/${data.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[CREATE_GAME] Error creating game:', error);
-      toast.error('Erreur lors de la création de la partie');
+      // FIX: Display real error with code and message
+      const errCode = error?.code || '';
+      const errMsg = error?.message || 'Erreur inconnue';
+      const errDetails = error?.details || '';
+      if (errDetails) console.error('[CREATE_GAME] Error details:', errDetails);
+      toast.error(`Erreur création: ${errCode} ${errMsg}`.trim());
       
       // If we created a game but failed later, mark it as ERROR
       if (createdGameId) {
