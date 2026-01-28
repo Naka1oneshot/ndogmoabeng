@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { useUserRole } from '@/hooks/useUserRole';
+import { AnimatePresence } from 'framer-motion';
+import { AdventureRevealAnimation } from './AdventureRevealAnimation';
 
 interface Adventure {
   id: string;
@@ -77,6 +79,10 @@ export function AdventureSelector({
   const [deletingAdventure, setDeletingAdventure] = useState<Adventure | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  
+  // Animation state for "La carte trouvée"
+  const [showRevealAnimation, setShowRevealAnimation] = useState(false);
+  const [pendingAdventureId, setPendingAdventureId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -305,6 +311,35 @@ export function AdventureSelector({
     setSelectedSteps(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Check if adventure requires admin (has 4 steps = "La carte trouvée")
+  const isAdminOnlyAdventure = (adventure: Adventure) => {
+    return adventure.steps.length === 4 && adventure.name === 'La carte trouvée';
+  };
+
+  // Handle adventure selection with animation for "La carte trouvée"
+  const handleAdventureClick = useCallback((adventure: Adventure, canSelect: boolean) => {
+    if (!canSelect) {
+      toast.error('Cette aventure est réservée aux administrateurs');
+      return;
+    }
+    
+    // If it's "La carte trouvée" and not already selected, show reveal animation
+    if (isAdminOnlyAdventure(adventure) && selectedAdventureId !== adventure.id) {
+      setPendingAdventureId(adventure.id);
+      setShowRevealAnimation(true);
+    } else {
+      onAdventureSelect(adventure.id);
+    }
+  }, [selectedAdventureId, onAdventureSelect]);
+
+  const handleRevealComplete = useCallback(() => {
+    setShowRevealAnimation(false);
+    if (pendingAdventureId) {
+      onAdventureSelect(pendingAdventureId);
+      setPendingAdventureId(null);
+    }
+  }, [pendingAdventureId, onAdventureSelect]);
+
   if (loading || roleLoading) {
     return (
       <div className="flex items-center justify-center p-4">
@@ -313,13 +348,18 @@ export function AdventureSelector({
     );
   }
 
-  // Check if adventure requires admin (has 4 steps = "La carte trouvée")
-  const isAdminOnlyAdventure = (adventure: Adventure) => {
-    return adventure.steps.length === 4 && adventure.name === 'La carte trouvée';
-  };
-
   return (
     <div className="space-y-4">
+      {/* Adventure Reveal Animation */}
+      <AnimatePresence>
+        {showRevealAnimation && pendingAdventureId && (
+          <AdventureRevealAnimation
+            steps={adventures.find(a => a.id === pendingAdventureId)?.steps || []}
+            onComplete={handleRevealComplete}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Mode Selection */}
       <div className="space-y-2">
         <Label>Mode de jeu</Label>
@@ -450,13 +490,7 @@ export function AdventureSelector({
                 return (
                   <div
                     key={adventure.id}
-                    onClick={() => {
-                      if (canSelect) {
-                        onAdventureSelect(adventure.id);
-                      } else {
-                        toast.error('Cette aventure est réservée aux administrateurs');
-                      }
-                    }}
+                    onClick={() => handleAdventureClick(adventure, canSelect)}
                     className={`relative p-4 rounded-lg border-2 transition-all overflow-hidden ${
                       !canSelect 
                         ? 'opacity-60 cursor-not-allowed border-border bg-muted/30'
