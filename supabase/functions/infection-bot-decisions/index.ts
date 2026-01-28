@@ -626,7 +626,7 @@ Deno.serve(async (req) => {
                 result.skipped_reason = 'No AE to corrupt or insufficient tokens';
               }
             } else {
-              result.skipped_reason = 'No action needed (CV/KK passive) or AE not corrupted enough';
+              result.skipped_reason = 'No action needed (CV/KK passive or no role)';
             }
             break;
           }
@@ -634,6 +634,23 @@ Deno.serve(async (req) => {
       } catch (err) {
         console.error(`[infection-bot-decisions] Error processing bot ${bot.player_number}:`, err);
         result.skipped_reason = `Error: ${err instanceof Error ? err.message : 'Unknown'}`;
+      }
+
+      // Ensure ALL bots get an infection_inputs entry for validation tracking
+      // Check if this bot already has an input or one is being created
+      const hasInputCreated = inputsToInsert.some(i => i.player_num === bot.player_number);
+      const hasInputUpdated = inputsToUpdate.some(i => i.player_num === bot.player_number);
+      
+      if (!existingInput && !hasInputCreated && !hasInputUpdated) {
+        // Create a validation entry for this bot (no action, just marks as validated)
+        inputsToInsert.push({
+          game_id: gameId,
+          session_game_id: sessionGameId,
+          manche,
+          player_id: bot.id,
+          player_num: bot.player_number,
+        });
+        console.log(`[infection-bot-decisions] Created validation entry for bot ${bot.player_number} (${bot.role_code || 'no role'})`);
       }
 
       results.push(result);
