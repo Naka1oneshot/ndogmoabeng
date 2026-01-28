@@ -16,6 +16,7 @@ import { InfectionRoundStartAnimation } from './InfectionRoundStartAnimation';
 import { InfectionSYResearchProgress } from './InfectionSYResearchProgress';
 import { InfectionVictoryPodium } from './InfectionVictoryPodium';
 import { InfectionVictoryTransition } from './InfectionVictoryTransition';
+import { InfectionValidationStatusPanel } from './InfectionValidationStatusPanel';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic, getSequenceForGameType, getEndSequence } from '@/hooks/useAdventureCinematic';
 
@@ -65,6 +66,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const [players, setPlayers] = useState<Player[]>([]);
   const [roundStates, setRoundStates] = useState<RoundState[]>([]);
   const [avatarUrls, setAvatarUrls] = useState<Map<string, string>>(new Map());
+  const [validatedPlayerIds, setValidatedPlayerIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -253,6 +255,21 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         previousDeadPlayersRef.current = currentDeadPlayerNums;
         previousResolvedCountRef.current = newResolvedCount;
         setRoundStates(roundData as RoundState[]);
+      }
+      
+      // Fetch validation status from infection_inputs for current manche
+      const currentMancheNum = gameData?.manche_active || 1;
+      const { data: inputsData } = await supabase
+        .from('infection_inputs')
+        .select('player_id')
+        .eq('session_game_id', sessionGameId)
+        .eq('manche', currentMancheNum);
+      
+      if (inputsData) {
+        const validatedIds = new Set(inputsData.map(i => i.player_id));
+        setValidatedPlayerIds(validatedIds);
+      } else {
+        setValidatedPlayerIds(new Set());
       }
       
       // Check for GAME_END event to get winner
@@ -558,9 +575,20 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       ) : (
         /* Desktop Layout */
         <div className="pt-14 h-full grid grid-cols-12 gap-4 p-4">
-          {/* Left Panel - Role Roster */}
-          <div className="col-span-2">
-            <InfectionRoleRoster roleStats={roleStats} isMobile={false} />
+          {/* Left Panel - Pending Validation + Role Roster */}
+          <div className="col-span-2 flex flex-col gap-4 h-full overflow-hidden">
+            <div className="flex-1 min-h-0">
+              <InfectionValidationStatusPanel
+                players={players}
+                validatedPlayerIds={validatedPlayerIds}
+                avatarUrls={avatarUrls}
+                type="pending"
+                isMobile={false}
+              />
+            </div>
+            <div className="flex-shrink-0">
+              <InfectionRoleRoster roleStats={roleStats} isMobile={false} />
+            </div>
           </div>
 
           {/* Center - Campfire + SY Progress + Timeline */}
@@ -593,16 +621,27 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
             </div>
           </div>
 
-          {/* Right Panel - Stats */}
-          <div className="col-span-2">
-            <InfectionStatsPanel
-              totalPlayers={totalPlayers}
-              alivePlayers={alivePlayers}
-              deadPlayers={deadPlayers}
-              currentManche={currentManche}
-              roundStates={roundStates}
-              isMobile={false}
-            />
+          {/* Right Panel - Validated + Stats */}
+          <div className="col-span-2 flex flex-col gap-4 h-full overflow-hidden">
+            <div className="flex-1 min-h-0">
+              <InfectionValidationStatusPanel
+                players={players}
+                validatedPlayerIds={validatedPlayerIds}
+                avatarUrls={avatarUrls}
+                type="validated"
+                isMobile={false}
+              />
+            </div>
+            <div className="flex-shrink-0">
+              <InfectionStatsPanel
+                totalPlayers={totalPlayers}
+                alivePlayers={alivePlayers}
+                deadPlayers={deadPlayers}
+                currentManche={currentManche}
+                roundStates={roundStates}
+                isMobile={false}
+              />
+            </div>
           </div>
         </div>
       )}
