@@ -498,6 +498,8 @@ export default function MJ() {
     }
 
     setCreating(true);
+    let createdGameId: string | null = null;
+    
     try {
       const joinCode = generateJoinCode();
       
@@ -519,6 +521,8 @@ export default function MJ() {
         // Single game mode: use selected game type
         actualGameTypeCode = selectedGameTypeCode || 'FORET';
       }
+      
+      console.log('[CREATE_GAME] Creating game with type:', actualGameTypeCode);
       
       // Create the game with selected_game_type_code set from the start
       const { data, error } = await supabase
@@ -542,6 +546,9 @@ export default function MJ() {
         .single();
 
       if (error) throw error;
+      
+      createdGameId = data.id;
+      console.log('[CREATE_GAME] Game inserted id=', data.id);
 
       // Add host as player
       await supabase.from('game_players').insert({
@@ -551,8 +558,7 @@ export default function MJ() {
         is_host: true,
       });
 
-      // Create the initial session_game
-      let sessionGameId: string | null = null;
+      // CRITICAL FIX: Create the initial session_game - THIS MUST SUCCEED
       const { data: sessionGame, error: sessionError } = await supabase
         .from('session_games')
         .insert({
@@ -566,20 +572,46 @@ export default function MJ() {
         .select()
         .single();
 
-      if (!sessionError && sessionGame) {
-        sessionGameId = sessionGame.id;
+      // FIX 1: If session_game creation fails, STOP and rollback
+      if (sessionError || !sessionGame) {
+        console.error('[CREATE_GAME] CRITICAL: session_game insert failed:', sessionError);
         
-        // Update games with the session_game_id (game type already set)
-        await supabase
-          .from('games')
-          .update({ 
-            current_session_game_id: sessionGameId,
-          })
-          .eq('id', data.id);
+        // Attempt rollback: mark game as ERROR or delete it
+        try {
+          await supabase
+            .from('games')
+            .update({ status: 'ERROR' })
+            .eq('id', data.id);
+          console.log('[CREATE_GAME] Game marked as ERROR for rollback');
+        } catch (rollbackError) {
+          console.error('[CREATE_GAME] Rollback failed:', rollbackError);
+        }
+        
+        toast.error('Erreur critique: impossible de créer la session de jeu. Veuillez réessayer.');
+        return; // DO NOT navigate
+      }
+      
+      console.log('[CREATE_GAME] session_game inserted id=', sessionGame.id);
+        
+      // Update games with the session_game_id
+      const { error: updateError } = await supabase
+        .from('games')
+        .update({ 
+          current_session_game_id: sessionGame.id,
+        })
+        .eq('id', data.id);
+      
+      if (updateError) {
+        console.error('[CREATE_GAME] Failed to update current_session_game_id:', updateError);
+        // Non-critical but log it
+      } else {
+        console.log('[CREATE_GAME] current_session_game_id updated');
       }
 
-      // Initialize game monsters with defaults
-      await supabase.rpc('initialize_game_monsters', { p_game_id: data.id });
+      // Initialize game monsters with defaults (only for FORET)
+      if (actualGameTypeCode === 'FORET') {
+        await supabase.rpc('initialize_game_monsters', { p_game_id: data.id });
+      }
 
       toast.success('Partie créée !');
       setGameName('');
@@ -593,8 +625,20 @@ export default function MJ() {
       // Navigate to the new game's management page
       navigate(`/mj/${data.id}`);
     } catch (error) {
-      console.error('Error creating game:', error);
+      console.error('[CREATE_GAME] Error creating game:', error);
       toast.error('Erreur lors de la création de la partie');
+      
+      // If we created a game but failed later, mark it as ERROR
+      if (createdGameId) {
+        try {
+          await supabase
+            .from('games')
+            .update({ status: 'ERROR' })
+            .eq('id', createdGameId);
+        } catch (rollbackError) {
+          console.error('[CREATE_GAME] Rollback cleanup failed:', rollbackError);
+        }
+      }
     } finally {
       setCreating(false);
     }

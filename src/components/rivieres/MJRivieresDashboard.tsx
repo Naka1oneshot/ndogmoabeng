@@ -950,23 +950,18 @@ export function MJRivieresDashboard({ gameId, sessionGameId, isAdventure = false
       
       setActionLoading('start');
       try {
-        // First, call start-game to transition to IN_GAME
-        const { error: startError } = await supabase.functions.invoke('start-game', {
-          body: { gameId },
-        });
-        
-        if (startError) throw startError;
-        
-        // Then initialize RIVIERES-specific state
-        const { error: initError } = await supabase.functions.invoke('rivieres-init', {
+        // FIX 2: ONLY call rivieres-init for RIVIERES games
+        // DO NOT call start-game (which is FORET-specific and creates inventory/monsters)
+        const { data, error: initError } = await supabase.functions.invoke('rivieres-init', {
           body: { session_game_id: sessionGameId },
         });
         
         if (initError) {
           console.error('RIVIERES init error:', initError);
-          // Don't throw - game is already started, RIVIERES init might auto-retry
+          throw initError;
         }
         
+        console.log('[RIVIERES] Game initialized:', data);
         toast.success(`Partie RIVIERES lancée avec ${actualPlayerCount} joueur${actualPlayerCount > 1 ? 's' : ''} !`);
         fetchData();
       } catch (error: any) {
