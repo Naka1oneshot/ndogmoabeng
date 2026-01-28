@@ -59,6 +59,7 @@ interface PlayerForetDashboardProps {
   player: Player;
   onLeaveGame: () => void;
   showStartAnimation: boolean;
+  animationsEnabled?: boolean;
 }
 
 export function PlayerForetDashboard({ 
@@ -66,6 +67,7 @@ export function PlayerForetDashboard({
   player, 
   onLeaveGame,
   showStartAnimation,
+  animationsEnabled = true,
 }: PlayerForetDashboardProps) {
   const isMobile = useIsMobile();
   const [mobileTab, setMobileTab] = useState('battle');
@@ -153,10 +155,10 @@ export function PlayerForetDashboard({
     return (
       <div className="min-h-screen flex flex-col">
         {/* Phase Transition Animation Overlay */}
-        <PhaseTransitionOverlay show={showPhaseTransition} text={phaseTransitionText} />
+        {animationsEnabled && <PhaseTransitionOverlay show={showPhaseTransition} text={phaseTransitionText} />}
         
         {/* Coup de Grâce Animation Overlay */}
-        <CoupDeGraceOverlay show={showCoupDeGrace} info={coupDeGraceInfo} />
+        {animationsEnabled && <CoupDeGraceOverlay show={showCoupDeGrace} info={coupDeGraceInfo} />}
         
         {/* Forêt Auto Mode Countdown Overlay */}
         {foretAutoCountdown.type && (
@@ -281,10 +283,10 @@ export function PlayerForetDashboard({
   return (
     <div className="min-h-screen flex flex-col">
       {/* Phase Transition Animation Overlay */}
-      <PhaseTransitionOverlay show={showPhaseTransition} text={phaseTransitionText} />
+      {animationsEnabled && <PhaseTransitionOverlay show={showPhaseTransition} text={phaseTransitionText} />}
       
       {/* Coup de Grâce Animation Overlay */}
-      <CoupDeGraceOverlay show={showCoupDeGrace} info={coupDeGraceInfo} />
+      {animationsEnabled && <CoupDeGraceOverlay show={showCoupDeGrace} info={coupDeGraceInfo} />}
       
       <PlayerHeader game={game} player={player} onLeaveGame={onLeaveGame} />
 

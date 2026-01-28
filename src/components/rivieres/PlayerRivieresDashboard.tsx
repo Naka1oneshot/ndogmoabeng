@@ -71,6 +71,7 @@ interface PlayerRivieresDashboardProps {
   jetons: number;
   gameStatus?: string;
   displayName?: string;
+  animationsEnabled?: boolean;
 }
 
 export function PlayerRivieresDashboard({
@@ -83,6 +84,7 @@ export function PlayerRivieresDashboard({
   jetons,
   gameStatus = 'IN_GAME',
   displayName,
+  animationsEnabled = true,
 }: PlayerRivieresDashboardProps) {
   const [state, setState] = useState<RiverSessionState | null>(null);
   const [playerStats, setPlayerStats] = useState<RiverPlayerStats | null>(null);
@@ -280,7 +282,9 @@ export function PlayerRivieresDashboard({
               niveau: newLevel.niveau,
               manche: newLevel.manche,
             });
-            setShowResolveAnimation(true);
+            if (animationsEnabled) {
+              setShowResolveAnimation(true);
+            }
           }
           fetchData();
         })
@@ -342,7 +346,9 @@ export function PlayerRivieresDashboard({
       });
       
       setPlayerSortData(sortData);
-      setShowLockAnimation(true);
+      if (animationsEnabled) {
+        setShowLockAnimation(true);
+      }
     };
 
     if (currentDecision?.status === 'LOCKED' && prevDecisionStatusRef.current === 'DRAFT' && !lockAnimationTriggeredRef.current) {
@@ -351,7 +357,7 @@ export function PlayerRivieresDashboard({
     }
     
     prevDecisionStatusRef.current = currentDecision?.status ?? null;
-  }, [currentDecision?.status, state, sessionGameId, gameId]);
+  }, [currentDecision?.status, state, sessionGameId, gameId, animationsEnabled]);
 
   // Detect manche change
   useEffect(() => {
@@ -359,11 +365,13 @@ export function PlayerRivieresDashboard({
     
     if (prevMancheRef.current !== null && state.manche_active !== prevMancheRef.current && state.manche_active > 1) {
       setAnimationManche(state.manche_active);
-      setShowMancheAnimation(true);
+      if (animationsEnabled) {
+        setShowMancheAnimation(true);
+      }
     }
     
     prevMancheRef.current = state.manche_active;
-  }, [state?.manche_active]);
+  }, [state?.manche_active, animationsEnabled]);
 
   // Reset animation triggers on level change
   useEffect(() => {

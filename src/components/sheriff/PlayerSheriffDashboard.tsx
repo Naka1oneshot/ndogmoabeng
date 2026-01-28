@@ -85,9 +85,10 @@ interface PlayerSheriffDashboardProps {
   game: Game;
   player: Player;
   onLeave?: () => void;
+  animationsEnabled?: boolean;
 }
 
-export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffDashboardProps) {
+export function PlayerSheriffDashboard({ game, player, onLeave, animationsEnabled = true }: PlayerSheriffDashboardProps) {
   const theme = getSheriffThemeClasses();
   
   const [roundState, setRoundState] = useState<RoundState | null>(null);
@@ -339,10 +340,12 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
     if (prevPhaseRef.current !== roundState.phase) {
       const newPhase = roundState.phase as 'CHOICES' | 'DUELS' | 'COMPLETE';
       setAnimationPhase(newPhase);
-      setShowPhaseAnimation(true);
+      if (animationsEnabled) {
+        setShowPhaseAnimation(true);
+      }
       prevPhaseRef.current = roundState.phase;
     }
-  }, [roundState?.phase]);
+  }, [roundState?.phase, animationsEnabled]);
   
   // Duel animations
   useEffect(() => {
@@ -362,7 +365,9 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
           vpDelta: 0,
           opponentSearched: false,
         });
-        setShowDuelStartAnimation(true);
+        if (animationsEnabled) {
+          setShowDuelStartAnimation(true);
+        }
         prevMyActiveDuelRef.current = duelId;
         prevMyDuelStatusRef.current = 'ACTIVE';
       }
@@ -388,10 +393,12 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
         vpDelta: myVpDelta,
         opponentSearched: opponentSearched ?? false,
       });
-      setShowDuelResultAnimation(true);
+      if (animationsEnabled) {
+        setShowDuelResultAnimation(true);
+      }
       prevMyDuelStatusRef.current = 'RESOLVED';
     }
-  }, [duels, roundState?.phase, myActiveDuel, amPlayer1, player.player_number, getPlayerName]);
+  }, [duels, roundState?.phase, myActiveDuel, amPlayer1, player.player_number, getPlayerName, animationsEnabled]);
 
   // Lobby
   if (game.status === 'LOBBY') {

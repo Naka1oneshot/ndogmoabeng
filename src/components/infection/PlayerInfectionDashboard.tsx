@@ -67,9 +67,10 @@ interface PlayerInfectionDashboardProps {
   game: Game;
   player: Player;
   onLeave?: () => void;
+  animationsEnabled?: boolean;
 }
 
-export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfectionDashboardProps) {
+export function PlayerInfectionDashboard({ game, player, onLeave, animationsEnabled = true }: PlayerInfectionDashboardProps) {
   const theme = getInfectionThemeClasses();
   
   const [roundState, setRoundState] = useState<RoundState | null>(null);
@@ -89,14 +90,16 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
       const hasSeenReveal = localStorage.getItem(revealKey);
       
       if (!hasSeenReveal) {
-        setShowRoleReveal(true);
+        if (animationsEnabled) {
+          setShowRoleReveal(true);
+        }
         hasShownRevealRef.current = true;
         localStorage.setItem(revealKey, 'true');
       } else {
         hasShownRevealRef.current = true;
       }
     }
-  }, [player.role_code, game.id, player.player_number]);
+  }, [player.role_code, game.id, player.player_number, animationsEnabled]);
 
   useEffect(() => {
     fetchData();

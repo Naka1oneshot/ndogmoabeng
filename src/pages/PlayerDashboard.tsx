@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
 import { useGameTheme } from '@/contexts/ThemeContext';
+import { useAnimationPreference } from '@/hooks/useAnimationPreference';
 import { Loader2, LogOut, Clock, Zap } from 'lucide-react';
 import { ForestButton } from '@/components/ui/ForestButton';
 import { toast } from 'sonner';
@@ -70,6 +71,9 @@ export default function PlayerDashboard() {
   
   // Apply game-specific theme
   useGameTheme(game?.selected_game_type_code);
+  
+  // Animation preference
+  const { animationsEnabled, toggleAnimations } = useAnimationPreference();
   
   // Start animation state for FORET
   const [showStartAnimation, setShowStartAnimation] = useState(false);
@@ -415,7 +419,7 @@ export default function PlayerDashboard() {
       <>
         {cinematicOverlay}
         <div className="min-h-screen flex flex-col">
-        <PlayerHeader game={game} player={player} />
+        <PlayerHeader game={game} player={player} animationsEnabled={animationsEnabled} onToggleAnimations={toggleAnimations} />
         <main className="flex-1 p-4">
           <div className="max-w-4xl mx-auto space-y-4">
             <div className="card-gradient rounded-lg border border-border p-6 text-center">
@@ -456,7 +460,7 @@ export default function PlayerDashboard() {
   if (game.status === 'ENDED' || game.status === 'FINISHED') {
     return (
       <div className="min-h-screen flex flex-col">
-        <PlayerHeader game={game} player={player} />
+        <PlayerHeader game={game} player={player} animationsEnabled={animationsEnabled} onToggleAnimations={toggleAnimations} />
         <main className="flex-1 flex items-center justify-center p-4">
           <div className="card-gradient rounded-lg border border-border p-8 text-center max-w-md">
             <div className="text-5xl mb-4">🏁</div>
@@ -522,7 +526,7 @@ export default function PlayerDashboard() {
   if (!isGameTypeImplemented) {
     return (
       <div className="min-h-screen flex flex-col">
-        <PlayerHeader game={game} player={player} />
+        <PlayerHeader game={game} player={player} animationsEnabled={animationsEnabled} onToggleAnimations={toggleAnimations} />
         <main className="flex-1 p-4">
           <GameTypeInDevelopment 
             gameTypeCode={game.selected_game_type_code} 
@@ -539,7 +543,7 @@ export default function PlayerDashboard() {
       <>
         {cinematicOverlay}
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-[hsl(var(--background))] via-[hsl(var(--secondary))] to-[hsl(var(--background))]">
-          <PlayerHeader game={game} player={player} />
+          <PlayerHeader game={game} player={player} animationsEnabled={animationsEnabled} onToggleAnimations={toggleAnimations} />
           <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
             <PlayerRivieresDashboard
               gameId={game.id}
@@ -551,6 +555,7 @@ export default function PlayerDashboard() {
               jetons={player.jetons}
               gameStatus={game.status}
               displayName={player.displayName}
+              animationsEnabled={animationsEnabled}
             />
           </main>
         </div>
@@ -578,6 +583,7 @@ export default function PlayerDashboard() {
             immune_permanent: player.immunePermanent ?? false,
           }}
           onLeave={handleLeave}
+          animationsEnabled={animationsEnabled}
         />
       </>
     );
@@ -600,6 +606,7 @@ export default function PlayerDashboard() {
             pvic: player.pvic ?? 0,
           }}
           onLeave={handleLeave}
+          animationsEnabled={animationsEnabled}
         />
       </>
     );
@@ -614,7 +621,8 @@ export default function PlayerDashboard() {
           game={game}
           player={player}
           onLeaveGame={handleLeave}
-          showStartAnimation={showStartAnimation}
+          showStartAnimation={showStartAnimation && animationsEnabled}
+          animationsEnabled={animationsEnabled}
         />
       </>
     );
