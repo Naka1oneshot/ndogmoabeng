@@ -1168,6 +1168,7 @@ export type Database = {
           default_config: Json | null
           default_starting_tokens: number | null
           description: string | null
+          homepage_order: number | null
           image_url: string | null
           is_active: boolean
           lieu: string | null
@@ -1185,6 +1186,7 @@ export type Database = {
           default_config?: Json | null
           default_starting_tokens?: number | null
           description?: string | null
+          homepage_order?: number | null
           image_url?: string | null
           is_active?: boolean
           lieu?: string | null
@@ -1202,6 +1204,7 @@ export type Database = {
           default_config?: Json | null
           default_starting_tokens?: number | null
           description?: string | null
+          homepage_order?: number | null
           image_url?: string | null
           is_active?: boolean
           lieu?: string | null
