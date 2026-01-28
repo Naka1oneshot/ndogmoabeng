@@ -105,6 +105,25 @@ export function AdventureSelector({
     }
   };
 
+  // Check if an adventure with the exact same steps already exists
+  const findExistingAdventure = (stepsToCheck: string[]): Adventure | null => {
+    const stepsKey = stepsToCheck.join('->');
+    
+    for (const adventure of adventures) {
+      if (adventure.steps.length !== stepsToCheck.length) continue;
+      
+      const existingKey = adventure.steps
+        .sort((a, b) => a.step_index - b.step_index)
+        .map(s => s.game_type_code)
+        .join('->');
+      
+      if (existingKey === stepsKey) {
+        return adventure;
+      }
+    }
+    return null;
+  };
+
   const handleCreateAdventure = async () => {
     if (!newAdventureName.trim()) {
       toast.error('Veuillez entrer un nom pour l\'aventure');
@@ -115,10 +134,22 @@ export function AdventureSelector({
       return;
     }
 
-    // Check for duplicates
+    // Check for duplicates in selection
     const uniqueSteps = new Set(selectedSteps);
     if (uniqueSteps.size !== selectedSteps.length) {
       toast.error('Un type de jeu ne peut apparaître qu\'une fois dans une aventure');
+      return;
+    }
+
+    // Check if this exact adventure already exists
+    const existingAdventure = findExistingAdventure(selectedSteps);
+    if (existingAdventure) {
+      toast.info(`L'aventure "${existingAdventure.name}" existe déjà avec ces jeux dans cet ordre`);
+      setNewAdventureName('');
+      setNewAdventureDesc('');
+      setSelectedSteps([]);
+      setShowCreateAdventure(false);
+      onAdventureSelect(existingAdventure.id);
       return;
     }
 
