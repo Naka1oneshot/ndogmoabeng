@@ -2914,6 +2914,7 @@ export type Database = {
           duel_order: number
           game_id: string
           id: string
+          is_final: boolean | null
           player1_number: number
           player1_searches: boolean | null
           player1_tokens_lost: number | null
@@ -2932,6 +2933,7 @@ export type Database = {
           duel_order: number
           game_id: string
           id?: string
+          is_final?: boolean | null
           player1_number: number
           player1_searches?: boolean | null
           player1_tokens_lost?: number | null
@@ -2950,6 +2952,7 @@ export type Database = {
           duel_order?: number
           game_id?: string
           id?: string
+          is_final?: boolean | null
           player1_number?: number
           player1_searches?: boolean | null
           player1_tokens_lost?: number | null
@@ -2992,6 +2995,8 @@ export type Database = {
           pvic_initial: number | null
           session_game_id: string | null
           tokens_entering: number | null
+          tokens_entering_final: number | null
+          tokens_entering_final_confirmed: boolean | null
           updated_at: string | null
           victory_points_delta: number | null
           visa_choice: string | null
@@ -3008,6 +3013,8 @@ export type Database = {
           pvic_initial?: number | null
           session_game_id?: string | null
           tokens_entering?: number | null
+          tokens_entering_final?: number | null
+          tokens_entering_final_confirmed?: boolean | null
           updated_at?: string | null
           victory_points_delta?: number | null
           visa_choice?: string | null
@@ -3024,6 +3031,8 @@ export type Database = {
           pvic_initial?: number | null
           session_game_id?: string | null
           tokens_entering?: number | null
+          tokens_entering_final?: number | null
+          tokens_entering_final_confirmed?: boolean | null
           updated_at?: string | null
           victory_points_delta?: number | null
           visa_choice?: string | null
@@ -3060,11 +3069,15 @@ export type Database = {
           common_pool_spent: number | null
           created_at: string | null
           current_duel_order: number | null
+          final_duel_challenger_num: number | null
+          final_duel_id: string | null
+          final_duel_status: string | null
           game_id: string
           id: string
           phase: string | null
           session_game_id: string
           total_duels: number | null
+          unpaired_player_num: number | null
           updated_at: string | null
         }
         Insert: {
@@ -3073,11 +3086,15 @@ export type Database = {
           common_pool_spent?: number | null
           created_at?: string | null
           current_duel_order?: number | null
+          final_duel_challenger_num?: number | null
+          final_duel_id?: string | null
+          final_duel_status?: string | null
           game_id: string
           id?: string
           phase?: string | null
           session_game_id: string
           total_duels?: number | null
+          unpaired_player_num?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -3086,11 +3103,15 @@ export type Database = {
           common_pool_spent?: number | null
           created_at?: string | null
           current_duel_order?: number | null
+          final_duel_challenger_num?: number | null
+          final_duel_id?: string | null
+          final_duel_status?: string | null
           game_id?: string
           id?: string
           phase?: string | null
           session_game_id?: string
           total_duels?: number | null
+          unpaired_player_num?: number | null
           updated_at?: string | null
         }
         Relationships: [

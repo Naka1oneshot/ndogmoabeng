@@ -9,6 +9,7 @@ import { GameRulesSheet } from './GameRulesSheet';
 import { RivieresRulesOverlay } from '@/components/rivieres/rules/RivieresRulesOverlay';
 import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
 import { InfectionRulesOverlay } from '@/components/infection/rules/InfectionRulesOverlay';
+import { SheriffRulesOverlay } from '@/components/sheriff/rules/SheriffRulesOverlay';
 import { GAMES_DATA } from '@/data/ndogmoabengData';
 import { MapPin, Users, Gamepad2, UsersRound, BookOpen } from 'lucide-react';
 
@@ -35,6 +36,7 @@ export function GamesSection() {
   const [rivieresRulesOpen, setRivieresRulesOpen] = useState(false);
   const [foretRulesOpen, setForetRulesOpen] = useState(false);
   const [infectionRulesOpen, setInfectionRulesOpen] = useState(false);
+  const [sheriffRulesOpen, setSheriffRulesOpen] = useState(false);
 
   const handleCreateGame = (gameCode: string) => {
     if (user) {
@@ -59,6 +61,10 @@ export function GamesSection() {
       setInfectionRulesOpen(true);
       return true;
     }
+    if (gameCode === 'SHERIFF') {
+      setSheriffRulesOpen(true);
+      return true;
+    }
     return false; // Not handled, use default
   };
 
@@ -80,6 +86,12 @@ export function GamesSection() {
       open={infectionRulesOpen} 
       onClose={() => setInfectionRulesOpen(false)}
       userRole="PLAYER"
+      defaultMode="QUICK"
+    />
+    <SheriffRulesOverlay 
+      open={sheriffRulesOpen} 
+      onClose={() => setSheriffRulesOpen(false)}
+      role="PLAYER"
       defaultMode="QUICK"
     />
     <section id="jeux" className="py-20 scroll-mt-20">
