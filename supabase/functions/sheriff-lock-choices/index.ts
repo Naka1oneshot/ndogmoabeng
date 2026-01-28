@@ -86,37 +86,84 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Generate random duels avoiding same-team pairs
     const playerNumbers = players.map(p => p.player_number);
-    const shuffled = [...playerNumbers].sort(() => Math.random() - 0.5);
     
-    const duels: { player1: number; player2: number }[] = [];
-    const used = new Set<number>();
+    // Helper function to check if two players are mates
+    const areMates = (p1: number, p2: number): boolean => {
+      return matePairs.get(p1) === p2 || matePairs.get(p2) === p1;
+    };
 
-    for (let i = 0; i < shuffled.length; i++) {
-      if (used.has(shuffled[i])) continue;
-      
-      for (let j = i + 1; j < shuffled.length; j++) {
-        if (used.has(shuffled[j])) continue;
+    // Helper function to attempt pairing with a given shuffle
+    const attemptPairing = (shuffled: number[]): { duels: { player1: number; player2: number }[]; unpaired: number | null } => {
+      const duels: { player1: number; player2: number }[] = [];
+      const used = new Set<number>();
+
+      for (let i = 0; i < shuffled.length; i++) {
+        if (used.has(shuffled[i])) continue;
         
-        const p1 = shuffled[i];
-        const p2 = shuffled[j];
-        
-        // Check if they are mates (same team)
-        const areMates = matePairs.get(p1) === p2 || matePairs.get(p2) === p1;
-        
-        if (!areMates) {
-          duels.push({ player1: p1, player2: p2 });
-          used.add(p1);
-          used.add(p2);
-          break;
+        for (let j = i + 1; j < shuffled.length; j++) {
+          if (used.has(shuffled[j])) continue;
+          
+          const p1 = shuffled[i];
+          const p2 = shuffled[j];
+          
+          if (!areMates(p1, p2)) {
+            duels.push({ player1: p1, player2: p2 });
+            used.add(p1);
+            used.add(p2);
+            break;
+          }
         }
+      }
+
+      const unpaired = shuffled.find(num => !used.has(num)) || null;
+      return { duels, unpaired };
+    };
+
+    // Try multiple shuffles to find a complete pairing for even player counts
+    let bestResult = { duels: [] as { player1: number; player2: number }[], unpaired: null as number | null };
+    const isEven = playerNumbers.length % 2 === 0;
+    const maxAttempts = isEven ? 20 : 1; // Only retry for even counts
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const shuffled = [...playerNumbers].sort(() => Math.random() - 0.5);
+      const result = attemptPairing(shuffled);
+      
+      // For even player count, we want NO unpaired player
+      if (isEven && result.unpaired === null) {
+        bestResult = result;
+        break;
+      }
+      
+      // Keep the best result (most duels)
+      if (result.duels.length > bestResult.duels.length) {
+        bestResult = result;
+      }
+      
+      // For odd count, any result with floor(n/2) duels is optimal
+      if (!isEven && result.duels.length === Math.floor(playerNumbers.length / 2)) {
+        bestResult = result;
+        break;
       }
     }
 
-    // If odd number of players, one player doesn't have a duel
-    // Store this unpaired player for the final duel
-    const unpairedPlayerNum = shuffled.find(num => !used.has(num)) || null;
+    // Fallback: if still have unpaired player with even count, pair ignoring mate constraint
+    if (isEven && bestResult.unpaired !== null) {
+      console.log('Warning: Could not find complete pairing respecting mates, falling back to ignore mate constraint');
+      const shuffled = [...playerNumbers].sort(() => Math.random() - 0.5);
+      const duels: { player1: number; player2: number }[] = [];
+      
+      for (let i = 0; i < shuffled.length; i += 2) {
+        if (i + 1 < shuffled.length) {
+          duels.push({ player1: shuffled[i], player2: shuffled[i + 1] });
+        }
+      }
+      
+      bestResult = { duels, unpaired: null };
+    }
+
+    const duels = bestResult.duels;
+    const unpairedPlayerNum = bestResult.unpaired;
 
     // Insert duels
     const duelsInsert = duels.map((d, idx) => ({

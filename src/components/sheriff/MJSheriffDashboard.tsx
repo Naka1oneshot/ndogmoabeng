@@ -159,6 +159,7 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   const [generatingBotChoices, setGeneratingBotChoices] = useState(false);
   const [generatingBotDuels, setGeneratingBotDuels] = useState(false);
   const [generatingAllBotDuels, setGeneratingAllBotDuels] = useState(false);
+  const [generatingBotFinalTokens, setGeneratingBotFinalTokens] = useState(false);
   
   // PVic Init state
   const [initializingPvic, setInitializingPvic] = useState(false);
@@ -676,6 +677,29 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
       toast.error(err.message || 'Erreur lors de l\'automatisation des duels bots');
     } finally {
       setGeneratingAllBotDuels(false);
+    }
+  };
+
+  // Bot final duel tokens handler
+  const handleBotFinalTokens = async () => {
+    if (!game.current_session_game_id) return;
+    setGeneratingBotFinalTokens(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sheriff-bot-decisions', {
+        body: {
+          gameId: game.id,
+          sessionGameId: game.current_session_game_id,
+          action: 'final_duel_tokens',
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erreur');
+      toast.success(`Bot a choisi ses jetons pour le dernier duel !`);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors du choix des jetons bot');
+    } finally {
+      setGeneratingBotFinalTokens(false);
     }
   };
 
@@ -1353,6 +1377,17 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                         <p className="text-sm text-[#9CA3AF]">
                           <strong className="text-[#D4AF37]">{getPlayerName(roundState.final_duel_challenger_num!)}</strong> doit choisir ses jetons pour le dernier duel
                         </p>
+                        {/* Check if challenger is a bot */}
+                        {players.find(p => p.player_number === roundState.final_duel_challenger_num && p.is_bot) && (
+                          <Button
+                            onClick={handleBotFinalTokens}
+                            disabled={generatingBotFinalTokens}
+                            className="bg-[#CD853F] hover:bg-[#CD853F]/80 text-white"
+                          >
+                            {generatingBotFinalTokens ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Bot className="h-4 w-4 mr-2" />}
+                            Automatiser le choix du Bot
+                          </Button>
+                        )}
                       </div>
                     ) : roundState?.final_duel_status === 'READY' ? (
                       /* Final duel ready to be activated */

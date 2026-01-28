@@ -8,7 +8,7 @@ const corsHeaders = {
 interface BotDecisionRequest {
   gameId: string;
   sessionGameId: string;
-  action: 'choices' | 'duels' | 'duels_all'; // Which action to generate decisions for
+  action: 'choices' | 'duels' | 'duels_all' | 'final_duel_tokens'; // Which action to generate decisions for
   duelId?: string; // Optional for specific duel
 }
 
@@ -385,6 +385,127 @@ Deno.serve(async (req) => {
           payload: { results },
         });
       }
+
+    } else if (action === 'final_duel_tokens') {
+      // Generate final duel tokens for a bot challenger
+
+      // Get round state to check final duel status and challenger
+      const { data: roundState } = await supabase
+        .from('sheriff_round_state')
+        .select('final_duel_status, final_duel_challenger_num, unpaired_player_num, total_duels, bot_config')
+        .eq('session_game_id', sessionGameId)
+        .single();
+
+      if (!roundState || roundState.final_duel_status !== 'PENDING_RECHOICE') {
+        return new Response(
+          JSON.stringify({ success: false, error: `Not in PENDING_RECHOICE status: ${roundState?.final_duel_status}` }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+
+      const challengerNum = roundState.final_duel_challenger_num;
+      if (!challengerNum) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'No challenger designated' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+
+      // Check if challenger is a bot
+      const challengerBot = botPlayers.find(b => b.player_number === challengerNum);
+      if (!challengerBot) {
+        return new Response(
+          JSON.stringify({ success: true, message: 'Challenger is not a bot', decisions_made: 0 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Use config probabilities for illegal tokens
+      const config: SheriffBotConfig = { ...DEFAULT_CONFIG, ...(roundState.bot_config as Partial<SheriffBotConfig> || {}) };
+      
+      // For final duel, bot must choose 21-30 tokens
+      // Use illegal_tokens_chance to decide: random between 21-30
+      const tokensEnteringFinal = Math.random() * 100 < config.illegal_tokens_chance 
+        ? Math.floor(Math.random() * 10) + 21 // Random 21-30
+        : 21; // Minimum illegal (1 illegal token)
+
+      // Update player choice with final tokens
+      const { error: choiceError } = await supabase
+        .from('sheriff_player_choices')
+        .update({
+          tokens_entering_final: tokensEnteringFinal,
+          tokens_entering_final_confirmed: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('session_game_id', sessionGameId)
+        .eq('player_number', challengerNum);
+
+      if (choiceError) throw choiceError;
+
+      // Create the final duel
+      const { data: newDuel, error: duelInsertError } = await supabase
+        .from('sheriff_duels')
+        .insert({
+          game_id: gameId,
+          session_game_id: sessionGameId,
+          duel_order: roundState.total_duels + 1,
+          player1_number: roundState.unpaired_player_num,
+          player2_number: challengerNum,
+          status: 'PENDING',
+          is_final: true,
+        })
+        .select()
+        .single();
+
+      if (duelInsertError) throw duelInsertError;
+
+      // Update round state to READY
+      const { error: updateError } = await supabase
+        .from('sheriff_round_state')
+        .update({
+          final_duel_id: newDuel.id,
+          final_duel_status: 'READY',
+          total_duels: roundState.total_duels + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('session_game_id', sessionGameId);
+
+      if (updateError) throw updateError;
+
+      // Get player names for logging
+      const { data: players } = await supabase
+        .from('game_players')
+        .select('player_number, display_name')
+        .eq('game_id', gameId)
+        .in('player_number', [roundState.unpaired_player_num, challengerNum]);
+
+      const unpairedName = players?.find(p => p.player_number === roundState.unpaired_player_num)?.display_name || `Joueur ${roundState.unpaired_player_num}`;
+      const challengerName = players?.find(p => p.player_number === challengerNum)?.display_name || `Joueur ${challengerNum}`;
+      const illegalCount = tokensEnteringFinal - 20;
+
+      results.push({
+        player_number: challengerNum,
+        tokens_entering_final: tokensEnteringFinal,
+        illegal_count: illegalCount,
+        final_duel_id: newDuel.id,
+      });
+
+      // Log event
+      await supabase.from('session_events').insert({
+        game_id: gameId,
+        session_game_id: sessionGameId,
+        type: 'SHERIFF_FINAL_DUEL_READY',
+        message: `[Bot] ${challengerName} entre avec ${tokensEnteringFinal} jetons (${illegalCount} illégaux) pour le dernier duel contre ${unpairedName}`,
+        audience: 'ALL',
+      });
+
+      await supabase.from('logs_mj').insert({
+        game_id: gameId,
+        session_game_id: sessionGameId,
+        type: 'BOT_SHERIFF_FINAL_TOKENS',
+        message: `Bot ${challengerName} a choisi ${tokensEnteringFinal} jetons pour le dernier duel`,
+        payload: { challengerNum, tokensEnteringFinal, illegalCount },
+      });
     }
 
     return new Response(
