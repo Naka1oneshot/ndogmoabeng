@@ -2,7 +2,7 @@ import { useParams, Navigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { PresentationModeView } from "@/components/mj/presentation/PresentationModeView";
+import { ForetPresentationView } from "@/components/foret/presentation/ForetPresentationView";
 import { RivieresPresentationView } from "@/components/rivieres/presentation/RivieresPresentationView";
 import { InfectionPresentationView } from "@/components/infection/presentation/InfectionPresentationView";
 import { SheriffPresentationView } from "@/components/sheriff/presentation/SheriffPresentationView";
@@ -171,6 +171,28 @@ const Presentation = () => {
     </div>
   ) : null;
 
+  // Guard: Game type not defined
+  if (!game.selected_game_type_code) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-6 p-4">
+        <div className="flex items-center gap-3 text-destructive">
+          <AlertTriangle className="w-8 h-8" />
+          <span className="text-xl font-semibold">Type de jeu non défini</span>
+        </div>
+        <p className="text-muted-foreground text-center max-w-md">
+          La partie "{game.name}" n'a pas de type de jeu défini (selected_game_type_code = null).
+          Veuillez recharger ou contacter le MJ.
+        </p>
+        <Button
+          onClick={() => window.location.reload()}
+          className="flex items-center gap-2"
+        >
+          Recharger
+        </Button>
+      </div>
+    );
+  }
+
   // Route to appropriate presentation based on game type
   if (game.selected_game_type_code === 'RIVIERES') {
     return (
@@ -202,13 +224,28 @@ const Presentation = () => {
     );
   }
 
-  // Default to Forest presentation
+  // FORET presentation (explicit check)
+  if (game.selected_game_type_code === 'FORET') {
+    return (
+      <>
+        {cinematicButton}
+        {debugPanel}
+        <ForetPresentationView game={game} onClose={() => window.close()} />
+      </>
+    );
+  }
+
+  // Unknown game type
   return (
-    <>
-      {cinematicButton}
-      {debugPanel}
-      <PresentationModeView game={game} onClose={() => window.close()} />
-    </>
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-6 p-4">
+      <div className="flex items-center gap-3 text-amber-500">
+        <AlertTriangle className="w-8 h-8" />
+        <span className="text-xl font-semibold">Type de jeu non supporté</span>
+      </div>
+      <p className="text-muted-foreground text-center max-w-md">
+        Le type de jeu "{game.selected_game_type_code}" n'a pas de vue de présentation.
+      </p>
+    </div>
   );
 };
 

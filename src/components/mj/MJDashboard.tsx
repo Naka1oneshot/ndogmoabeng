@@ -110,7 +110,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const previousStepIndexRef = useRef<number>(initialGame.current_step_index);
   
   const isAdventure = game.mode === 'ADVENTURE' && game.adventure_id;
-  const isForetGame = game.selected_game_type_code === 'FORET' || !game.selected_game_type_code;
+  const isForetGame = game.selected_game_type_code === 'FORET';
 
   // Forêt Auto Mode Controller
   const { state: foretAutoState, toggleAutoMode: toggleForetAutoMode, resetFailCounters: resetForetFailCounters, isActionInFlight: foretAutoInFlight } = useForetAutoController(
@@ -120,7 +120,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   // Detect game start transition for FORET animation
   useEffect(() => {
     if (previousGameStatusRef.current === 'LOBBY' && game.status === 'IN_GAME' && 
-        (game.selected_game_type_code === 'FORET' || !game.selected_game_type_code)) {
+        game.selected_game_type_code === 'FORET') {
       setShowStartAnimation(true);
       const timer = setTimeout(() => setShowStartAnimation(false), 3000);
       return () => clearTimeout(timer);
@@ -682,8 +682,40 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
 
   const joinUrl = `${window.location.origin}/join/${game.join_code}`;
 
+  // Guard: Game type not defined - show error state
+  if (!game.selected_game_type_code) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <ForestButton variant="ghost" size="sm" onClick={onBack}>
+            <ChevronLeft className="h-4 w-4" />
+          </ForestButton>
+          <h2 className="font-display text-xl">{game.name}</h2>
+          <GameStatusBadge status={game.status} />
+        </div>
+        
+        <div className="card-gradient rounded-lg border border-destructive/50 p-8 text-center">
+          <div className="text-5xl mb-4">⚠️</div>
+          <h3 className="text-xl font-bold text-destructive mb-2">Type de jeu non défini</h3>
+          <p className="text-muted-foreground mb-4">
+            Cette partie n'a pas de type de jeu défini (selected_game_type_code = null).
+            Cela peut arriver si la création de la partie a échoué partiellement.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <ForestButton onClick={() => window.location.reload()}>
+              Recharger
+            </ForestButton>
+            <ForestButton variant="outline" onClick={onBack}>
+              Retour à la liste
+            </ForestButton>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Check if game type is implemented
-  const isGameTypeImplemented = IMPLEMENTED_GAME_TYPES.includes(game.selected_game_type_code || '');
+  const isGameTypeImplemented = IMPLEMENTED_GAME_TYPES.includes(game.selected_game_type_code);
 
   // Transition animation overlay for adventure mode
   if (showTransitionAnimation) {
@@ -1052,8 +1084,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         <MJSheriffDashboard game={game} onBack={onBack} />
       )}
 
-      {/* FORET Tabs (original) - Only show for FORET games or when no game type is selected */}
-      {(game.selected_game_type_code === 'FORET' || !game.selected_game_type_code) ? (
+      {/* FORET Tabs - Only show for FORET games */}
+      {game.selected_game_type_code === 'FORET' && (
       <Tabs defaultValue="players" className="w-full">
         {/* Primary tabs - 4 cols on mobile, 8 on desktop */}
         <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto">
@@ -1135,7 +1167,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           </div>
         </TabsContent>
       </Tabs>
-      ) : null}
+      )}
     </div>
     </>
   );

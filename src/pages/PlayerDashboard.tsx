@@ -108,7 +108,7 @@ export default function PlayerDashboard() {
 
   const isAdventure = game?.mode === 'ADVENTURE' && game?.adventure_id;
   const isLaCarteTrouvee = isAdventure && game?.adventure_id === LA_CARTE_TROUVEE_ID;
-  const isForetGame = game?.selected_game_type_code === 'FORET' || (!game?.selected_game_type_code && game?.status === 'IN_GAME');
+  const isForetGame = game?.selected_game_type_code === 'FORET';
 
   // Forêt Auto Mode countdown state (read-only for players)
   const [foretAutoCountdown, setForetAutoCountdown] = useState<{ type: string | null; endsAt: Date | null }>({ type: null, endsAt: null });
@@ -189,7 +189,7 @@ export default function PlayerDashboard() {
   // Detect game start transition for FORET animation
   useEffect(() => {
     if (previousGameStatusRef.current === 'LOBBY' && game?.status === 'IN_GAME' && 
-        (game.selected_game_type_code === 'FORET' || !game.selected_game_type_code)) {
+        game.selected_game_type_code === 'FORET') {
       setShowStartAnimation(true);
       const timer = setTimeout(() => setShowStartAnimation(false), 3000);
       return () => clearTimeout(timer);
@@ -596,8 +596,31 @@ export default function PlayerDashboard() {
     );
   }
 
+  // Guard: Game type not defined
+  if (!game.selected_game_type_code) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-4 bg-background">
+        <div className="flex items-center gap-3 text-destructive">
+          <Zap className="h-8 w-8" />
+          <span className="text-xl font-semibold">Type de jeu non défini</span>
+        </div>
+        <p className="text-muted-foreground text-center max-w-md">
+          La partie n'a pas de type de jeu défini. Veuillez recharger ou contacter le MJ.
+        </p>
+        <div className="flex gap-4">
+          <ForestButton onClick={() => window.location.reload()}>
+            Recharger
+          </ForestButton>
+          <ForestButton variant="outline" onClick={() => navigate('/')}>
+            Retour à l'accueil
+          </ForestButton>
+        </div>
+      </div>
+    );
+  }
+
   // Check if game type is implemented
-  const isGameTypeImplemented = IMPLEMENTED_GAME_TYPES.includes(game.selected_game_type_code || '');
+  const isGameTypeImplemented = IMPLEMENTED_GAME_TYPES.includes(game.selected_game_type_code);
 
   // Show "in development" screen for non-implemented game types
   if (!isGameTypeImplemented) {

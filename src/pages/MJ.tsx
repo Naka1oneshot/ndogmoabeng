@@ -501,7 +501,26 @@ export default function MJ() {
     try {
       const joinCode = generateJoinCode();
       
-      // Create the game
+      // CRITICAL: Determine actualGameTypeCode BEFORE inserting into games
+      // This prevents the "selected_game_type_code = null" window that caused player init errors
+      let actualGameTypeCode: string;
+      
+      if (gameMode === 'ADVENTURE' && selectedAdventureId) {
+        // Fetch first step's game type for adventure mode
+        const { data: firstStep } = await supabase
+          .from('adventure_steps')
+          .select('game_type_code')
+          .eq('adventure_id', selectedAdventureId)
+          .eq('step_index', 1)
+          .single();
+        
+        actualGameTypeCode = firstStep?.game_type_code || 'FORET';
+      } else {
+        // Single game mode: use selected game type
+        actualGameTypeCode = selectedGameTypeCode || 'FORET';
+      }
+      
+      // Create the game with selected_game_type_code set from the start
       const { data, error } = await supabase
         .from('games')
         .insert({
@@ -515,7 +534,7 @@ export default function MJ() {
           starting_tokens: startingTokens,
           mode: gameMode,
           adventure_id: gameMode === 'ADVENTURE' ? selectedAdventureId : null,
-          selected_game_type_code: gameMode === 'SINGLE_GAME' ? selectedGameTypeCode : null,
+          selected_game_type_code: actualGameTypeCode, // Always set from the start!
           current_step_index: 1,
           is_public: isPublic,
         })
@@ -532,30 +551,14 @@ export default function MJ() {
         is_host: true,
       });
 
-      // For adventure mode, get the first step's game type and create initial session_game
-      let sessionGameId: string | null = null;
-      let actualGameTypeCode = selectedGameTypeCode;
-      
-      if (gameMode === 'ADVENTURE' && selectedAdventureId) {
-        const { data: firstStep } = await supabase
-          .from('adventure_steps')
-          .select('game_type_code')
-          .eq('adventure_id', selectedAdventureId)
-          .eq('step_index', 1)
-          .single();
-        
-        if (firstStep) {
-          actualGameTypeCode = firstStep.game_type_code;
-        }
-      }
-
       // Create the initial session_game
+      let sessionGameId: string | null = null;
       const { data: sessionGame, error: sessionError } = await supabase
         .from('session_games')
         .insert({
           session_id: data.id,
           step_index: 1,
-          game_type_code: actualGameTypeCode || 'FORET',
+          game_type_code: actualGameTypeCode,
           status: 'PENDING',
           manche_active: 1,
           phase: 'PHASE1_MISES',
@@ -566,12 +569,11 @@ export default function MJ() {
       if (!sessionError && sessionGame) {
         sessionGameId = sessionGame.id;
         
-        // Update games with the session_game_id and game type
+        // Update games with the session_game_id (game type already set)
         await supabase
           .from('games')
           .update({ 
             current_session_game_id: sessionGameId,
-            selected_game_type_code: actualGameTypeCode,
           })
           .eq('id', data.id);
       }

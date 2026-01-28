@@ -40,7 +40,7 @@ const phaseLabels: Record<string, string> = {
 
 export function PlayerHeader({ game, player, onLeaveGame }: PlayerHeaderProps) {
   const [rulesOpen, setRulesOpen] = useState(false);
-  const isForet = game.selected_game_type_code === 'FORET' || !game.selected_game_type_code;
+  const isForet = game.selected_game_type_code === 'FORET';
 
   return (
     <>
