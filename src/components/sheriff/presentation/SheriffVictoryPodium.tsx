@@ -79,6 +79,16 @@ function TeamNameWithTooltip({ name, className }: { name: string; className?: st
   );
 }
 
+// Get initials from display name
+function getInitials(name: string | undefined): string {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
 // Stats Panel Component
 function StatsPanel({ 
   topGainers, 
@@ -108,8 +118,8 @@ function StatsPanel({
                   {stat.player.avatar_url ? (
                     <img src={stat.player.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover border border-green-500/30" />
                   ) : (
-                    <div className="h-7 w-7 rounded-full bg-green-500/20 flex items-center justify-center text-xs font-bold text-green-400">
-                      {stat.player.player_number}
+                    <div className="h-7 w-7 rounded-full bg-gradient-to-br from-green-500/30 to-green-700/30 flex items-center justify-center text-xs font-bold text-green-400">
+                      {getInitials(stat.player.display_name)}
                     </div>
                   )}
                   <span className="text-white text-sm truncate max-w-[100px]">{stat.player.display_name}</span>
@@ -138,8 +148,8 @@ function StatsPanel({
                   {stat.player.avatar_url ? (
                     <img src={stat.player.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover border border-red-500/30" />
                   ) : (
-                    <div className="h-7 w-7 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-bold text-red-400">
-                      {stat.player.player_number}
+                    <div className="h-7 w-7 rounded-full bg-gradient-to-br from-red-500/30 to-red-700/30 flex items-center justify-center text-xs font-bold text-red-400">
+                      {getInitials(stat.player.display_name)}
                     </div>
                   )}
                   <span className="text-white text-sm truncate max-w-[100px]">{stat.player.display_name}</span>
@@ -315,8 +325,8 @@ export function SheriffVictoryPodium({
                   p.avatar_url ? (
                     <img key={p.id} src={p.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover border-2 border-gray-300" />
                   ) : (
-                    <div key={p.id} className="h-10 w-10 rounded-full bg-gray-300/30 flex items-center justify-center border-2 border-gray-300 text-sm font-bold text-gray-300">
-                      {p.player_number}
+                    <div key={p.id} className="h-10 w-10 rounded-full bg-gradient-to-br from-gray-300/30 to-gray-500/30 flex items-center justify-center border-2 border-gray-300 text-sm font-bold text-gray-300">
+                      {getInitials(p.display_name)}
                     </div>
                   )
                 ))}
@@ -340,8 +350,8 @@ export function SheriffVictoryPodium({
                   p.avatar_url ? (
                     <img key={p.id} src={p.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover border-2 border-yellow-400" />
                   ) : (
-                    <div key={p.id} className="h-12 w-12 rounded-full bg-yellow-400/30 flex items-center justify-center border-2 border-yellow-400 text-lg font-bold text-yellow-400">
-                      {p.player_number}
+                    <div key={p.id} className="h-12 w-12 rounded-full bg-gradient-to-br from-yellow-400/30 to-yellow-600/30 flex items-center justify-center border-2 border-yellow-400 text-lg font-bold text-yellow-400">
+                      {getInitials(p.display_name)}
                     </div>
                   )
                 ))}
@@ -365,8 +375,8 @@ export function SheriffVictoryPodium({
                   p.avatar_url ? (
                     <img key={p.id} src={p.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover border-2 border-amber-600" />
                   ) : (
-                    <div key={p.id} className="h-9 w-9 rounded-full bg-amber-600/30 flex items-center justify-center border-2 border-amber-600 text-sm font-bold text-amber-600">
-                      {p.player_number}
+                    <div key={p.id} className="h-9 w-9 rounded-full bg-gradient-to-br from-amber-600/30 to-amber-800/30 flex items-center justify-center border-2 border-amber-600 text-sm font-bold text-amber-600">
+                      {getInitials(p.display_name)}
                     </div>
                   )
                 ))}
@@ -403,8 +413,8 @@ export function SheriffVictoryPodium({
                       p.avatar_url ? (
                         <img key={p.id} src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover border border-[#D4AF37]/30" />
                       ) : (
-                        <div key={p.id} className="h-8 w-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center text-xs font-bold text-[#D4AF37]">
-                          {p.player_number}
+                        <div key={p.id} className="h-8 w-8 rounded-full bg-gradient-to-br from-[#D4AF37]/30 to-[#8B4513]/30 flex items-center justify-center text-xs font-bold text-[#D4AF37]">
+                          {getInitials(p.display_name)}
                         </div>
                       )
                     ))}

@@ -53,6 +53,16 @@ export function SheriffDuelStartAnimation({
     };
   }, []); // Empty deps - run once on mount
   
+  // Get initials from display name
+  const getInitials = (name: string | undefined) => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
   const renderPlayerAvatar = (player: Player | undefined, side: 'left' | 'right') => {
     const flyClass = phase === 'flying' 
       ? side === 'left' ? '-translate-x-[200px]' : 'translate-x-[200px]'
@@ -69,8 +79,8 @@ export function SheriffDuelStartAnimation({
             className={`h-32 w-32 rounded-full object-cover border-4 border-[#D4AF37] shadow-2xl ${phase === 'collision' ? 'animate-pulse' : ''}`}
           />
         ) : (
-          <div className={`h-32 w-32 rounded-full bg-[#D4AF37]/30 flex items-center justify-center border-4 border-[#D4AF37] text-4xl font-bold text-[#D4AF37] shadow-2xl ${phase === 'collision' ? 'animate-pulse' : ''}`}>
-            {player?.player_number}
+          <div className={`h-32 w-32 rounded-full bg-gradient-to-br from-[#D4AF37]/40 to-[#8B4513]/40 flex items-center justify-center border-4 border-[#D4AF37] text-4xl font-bold text-[#D4AF37] shadow-2xl ${phase === 'collision' ? 'animate-pulse' : ''}`}>
+            {getInitials(player?.display_name)}
           </div>
         )}
         <div className="text-center mt-3">

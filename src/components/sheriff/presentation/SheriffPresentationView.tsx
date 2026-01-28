@@ -657,8 +657,8 @@ function ChoicesPhaseDisplay({
                     {player.avatar_url ? (
                       <img src={player.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
                     ) : (
-                      <div className="h-8 w-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] text-sm font-bold">
-                        {player.player_number}
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#D4AF37]/40 to-[#8B4513]/40 flex items-center justify-center text-[#D4AF37] text-xs font-bold">
+                        {player.display_name ? player.display_name.slice(0, 2).toUpperCase() : player.player_number}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
@@ -778,8 +778,8 @@ function DuelsPhaseDisplay({
                     className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full object-cover mb-4 border-4 lg:border-[6px] border-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20" 
                   />
                 ) : (
-                  <div className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full bg-[#D4AF37]/20 flex items-center justify-center mb-4 border-4 lg:border-[6px] border-[#D4AF37] text-4xl lg:text-6xl xl:text-7xl font-bold text-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20">
-                    {player1?.player_number}
+                  <div className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full bg-gradient-to-br from-[#D4AF37]/40 to-[#8B4513]/40 flex items-center justify-center mb-4 border-4 lg:border-[6px] border-[#D4AF37] text-4xl lg:text-6xl xl:text-7xl font-bold text-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20">
+                    {player1?.display_name ? (player1.display_name.split(' ').length >= 2 ? player1.display_name.split(' ')[0][0] + player1.display_name.split(' ').slice(-1)[0][0] : player1.display_name.slice(0, 2)).toUpperCase() : player1?.player_number}
                   </div>
                 )}
                 <div className="text-xl lg:text-2xl xl:text-3xl font-bold text-white">{player1?.display_name}</div>
@@ -808,8 +808,8 @@ function DuelsPhaseDisplay({
                     className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full object-cover mb-4 border-4 lg:border-[6px] border-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20" 
                   />
                 ) : (
-                  <div className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full bg-[#D4AF37]/20 flex items-center justify-center mb-4 border-4 lg:border-[6px] border-[#D4AF37] text-4xl lg:text-6xl xl:text-7xl font-bold text-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20">
-                    {player2?.player_number}
+                  <div className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full bg-gradient-to-br from-[#D4AF37]/40 to-[#8B4513]/40 flex items-center justify-center mb-4 border-4 lg:border-[6px] border-[#D4AF37] text-4xl lg:text-6xl xl:text-7xl font-bold text-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20">
+                    {player2?.display_name ? (player2.display_name.split(' ').length >= 2 ? player2.display_name.split(' ')[0][0] + player2.display_name.split(' ').slice(-1)[0][0] : player2.display_name.slice(0, 2)).toUpperCase() : player2?.player_number}
                   </div>
                 )}
                 <div className="text-xl lg:text-2xl xl:text-3xl font-bold text-white">{player2?.display_name}</div>

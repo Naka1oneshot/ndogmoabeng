@@ -98,6 +98,16 @@ export function SheriffDuelResolutionAnimation({
     };
   }, [p1Tokens, p2Tokens]); // Remove onComplete from deps
   
+  // Get initials from display name
+  const getInitials = (name: string | undefined) => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
   const renderPlayerCard = (
     player: Player | undefined,
     searches: boolean | null,
@@ -118,8 +128,8 @@ export function SheriffDuelResolutionAnimation({
               className="h-28 w-28 lg:h-36 lg:w-36 rounded-full object-cover border-4 border-[#D4AF37]"
             />
           ) : (
-            <div className="h-28 w-28 lg:h-36 lg:w-36 rounded-full bg-[#D4AF37]/30 flex items-center justify-center border-4 border-[#D4AF37] text-4xl lg:text-5xl font-bold text-[#D4AF37]">
-              {player?.player_number}
+            <div className="h-28 w-28 lg:h-36 lg:w-36 rounded-full bg-gradient-to-br from-[#D4AF37]/40 to-[#8B4513]/40 flex items-center justify-center border-4 border-[#D4AF37] text-4xl lg:text-5xl font-bold text-[#D4AF37]">
+              {getInitials(player?.display_name)}
             </div>
           )}
         </div>
