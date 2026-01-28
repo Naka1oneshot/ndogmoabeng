@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { 
   Ship, Anchor, Waves, Trophy, Users, CheckCircle, Clock, 
-  AlertTriangle, RefreshCw, Coins, Target, Skull, X
+  AlertTriangle, RefreshCw, Coins, Target, Skull, X, BookOpen
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -20,6 +20,7 @@ import { RivieresPlayerSortAnimation } from './RivieresPlayerSortAnimation';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdventureCinematic';
 import { RivieresAutoCountdownOverlay } from '../RivieresAutoCountdownOverlay';
+import { RivieresRulesOverlay } from '../rules/RivieresRulesOverlay';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -117,6 +118,7 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showRulesOverlay, setShowRulesOverlay] = useState(false);
   const [adventureInfo, setAdventureInfo] = useState<{ mode: string; adventure_id: string | null } | null>(null);
 
   // Animation states
@@ -638,6 +640,15 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => setShowRulesOverlay(true)}
+              className="h-8 w-8 text-[#9CA3AF] hover:text-[#D4AF37]"
+              title="Règles du jeu"
+            >
+              <BookOpen className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleManualRefresh}
               disabled={isRefreshing}
               className="h-8 w-8 text-[#9CA3AF] hover:text-[#D4AF37]"
@@ -654,6 +665,12 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
             </Button>
           </div>
         </div>
+
+        {/* Rules Overlay */}
+        <RivieresRulesOverlay
+          open={showRulesOverlay}
+          onClose={() => setShowRulesOverlay(false)}
+        />
 
         {/* Stats bar - compact on mobile */}
         <div className="flex items-center justify-center gap-3 md:gap-6 px-3 pb-2 md:pb-3">

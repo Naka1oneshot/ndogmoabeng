@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Skull, X, Trophy } from 'lucide-react';
+import { RefreshCw, Skull, X, Trophy, BookOpen } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS } from '../InfectionTheme';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
@@ -18,6 +18,7 @@ import { InfectionVictoryPodium } from './InfectionVictoryPodium';
 import { InfectionVictoryTransition } from './InfectionVictoryTransition';
 import { InfectionValidationStatusPanel } from './InfectionValidationStatusPanel';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
+import { InfectionRulesOverlay } from '../rules/InfectionRulesOverlay';
 import { useAdventureCinematic, getSequenceForGameType, getEndSequence } from '@/hooks/useAdventureCinematic';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
@@ -73,6 +74,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const [winner, setWinner] = useState<'SY' | 'PV' | 'CV' | null>(null);
   const [showVictoryTransition, setShowVictoryTransition] = useState(false);
   const [showVictoryPodium, setShowVictoryPodium] = useState(false);
+  const [showRulesOverlay, setShowRulesOverlay] = useState(false);
   
   // Track if game was already ended when we FIRST opened the view (use ref to persist across renders)
   const wasGameEndedOnMount = useRef(initialGame.status === 'ENDED' || initialGame.phase === 'ENDED');
@@ -509,6 +511,15 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
           <Button
             variant="ghost"
             size="icon"
+            onClick={() => setShowRulesOverlay(true)}
+            className="h-8 w-8"
+            title="Règles du jeu"
+          >
+            <BookOpen className="h-4 w-4" style={{ color: INFECTION_COLORS.textSecondary }} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
             className="h-8 w-8"
@@ -525,6 +536,13 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
           </Button>
         </div>
       </div>
+
+      {/* Rules Overlay */}
+      <InfectionRulesOverlay
+        open={showRulesOverlay}
+        onClose={() => setShowRulesOverlay(false)}
+        userRole="HOST"
+      />
 
       {/* Mobile Layout */}
       {isMobile ? (

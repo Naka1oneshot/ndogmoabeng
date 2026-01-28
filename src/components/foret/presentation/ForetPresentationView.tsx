@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords, RefreshCw, Coins, Sparkles, Info } from 'lucide-react';
+import { Heart, Trophy, Users, Target, Store, CheckCircle, Clock, Skull, Swords, RefreshCw, Coins, Sparkles, Info, BookOpen } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -21,6 +21,7 @@ import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import emptySlotRip from '@/assets/monsters/empty-slot-rip.png';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdventureCinematic';
+import { ForetRulesOverlay } from '../rules/ForetRulesOverlay';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -167,6 +168,7 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
   const previousKillsCountRef = useRef<number>(0);
   const previousBattlefieldRef = useRef<Map<number, { monsterId: number; monsterName: string }>>(new Map());
   const hasBroadcastCinematicRef = useRef(false);
+  const [showRulesOverlay, setShowRulesOverlay] = useState(false);
 
   // Check if this is ANY adventure mode (not just "La carte trouvée")
   const isAdventureMode = initialGame.mode === 'ADVENTURE';
@@ -1055,9 +1057,19 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
         onComplete={() => setShowEmptySlot(false)}
       />
 
-      {/* Close hint + Last update indicator + Manual refresh button + History */}
+      {/* Close hint + Last update indicator + Manual refresh button + History + Rules */}
       <div className="absolute top-2 md:top-4 right-2 md:right-4 flex items-center gap-2 md:gap-3 text-xs text-muted-foreground z-10">
         <CombatHistorySummarySheet gameId={game.id} sessionGameId={game.current_session_game_id} />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowRulesOverlay(true)}
+          className="h-6 md:h-7 px-2 gap-1 md:gap-1.5 bg-card/50 border-border hover:bg-card"
+          title="Règles du jeu"
+        >
+          <BookOpen className="h-3 md:h-3.5 w-3 md:w-3.5" />
+          <span className="hidden sm:inline">Règles</span>
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -1074,6 +1086,13 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
         </div>
         <span className="hidden md:inline">ESC pour fermer</span>
       </div>
+
+      {/* Rules Overlay */}
+      <ForetRulesOverlay
+        open={showRulesOverlay}
+        onClose={() => setShowRulesOverlay(false)}
+        userRole="MJ"
+      />
 
       {/* Centered Logo with link to home */}
       <div className="absolute top-2 md:top-4 left-1/2 transform -translate-x-1/2 z-10">

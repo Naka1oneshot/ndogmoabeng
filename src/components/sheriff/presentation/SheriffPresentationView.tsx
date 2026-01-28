@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { RefreshCw, X, History, Trophy, Shield, Swords, Users } from 'lucide-react';
+import { RefreshCw, X, History, Trophy, Shield, Swords, Users, BookOpen } from 'lucide-react';
 import { getSheriffThemeClasses, SHERIFF_COLORS } from '../SheriffTheme';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -14,6 +14,7 @@ import { SheriffDuelResolutionAnimation } from './SheriffDuelResolutionAnimation
 import { SheriffVictoryPodium } from './SheriffVictoryPodium';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdventureCinematic';
+import { SheriffRulesOverlay } from '../rules/SheriffRulesOverlay';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -101,6 +102,7 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const [showDuelResolution, setShowDuelResolution] = useState(false);
   const [currentDuelForAnimation, setCurrentDuelForAnimation] = useState<Duel | null>(null);
   const [showVictoryPodium, setShowVictoryPodium] = useState(false);
+  const [showRulesOverlay, setShowRulesOverlay] = useState(false);
   
   // Track previous state for animations
   const prevPhaseRef = useRef<string | null>(null);
@@ -495,6 +497,15 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => setShowRulesOverlay(true)}
+              className="text-[#D4AF37] hover:bg-[#D4AF37]/10"
+              title="Règles du jeu"
+            >
+              <BookOpen className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowHistory(!showHistory)}
               className="text-[#D4AF37] hover:bg-[#D4AF37]/10"
             >
@@ -519,6 +530,12 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
           </div>
         </div>
       </div>
+
+      {/* Rules Overlay */}
+      <SheriffRulesOverlay
+        open={showRulesOverlay}
+        onClose={() => setShowRulesOverlay(false)}
+      />
       
       {/* Main Content */}
       <div className="p-4">
