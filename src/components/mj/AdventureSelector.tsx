@@ -458,14 +458,16 @@ export function AdventureSelector({
                       }
                     }}
                     className={`relative p-4 rounded-lg border-2 transition-all overflow-hidden ${
-                      isAdminOnly 
-                        ? 'parchment-card'
-                        : !canSelect 
-                          ? 'opacity-60 cursor-not-allowed border-border bg-muted/30'
-                          : selectedAdventureId === adventure.id
-                            ? 'border-primary bg-primary/10 cursor-pointer'
-                            : 'border-border hover:border-primary/50 cursor-pointer'
-                    } ${selectedAdventureId === adventure.id && isAdminOnly ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                      !canSelect 
+                        ? 'opacity-60 cursor-not-allowed border-border bg-muted/30'
+                        : 'cursor-pointer hover:border-primary/50 hover:shadow-md'
+                    } ${
+                      selectedAdventureId === adventure.id
+                        ? isAdminOnly 
+                          ? 'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary'
+                          : 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
+                        : 'border-border'
+                    } ${isAdminOnly ? 'parchment-card' : ''}`}
                     style={isAdminOnly ? {
                       background: `
                         linear-gradient(135deg, rgba(245, 235, 220, 0.95) 0%, rgba(235, 220, 195, 0.9) 50%, rgba(225, 205, 175, 0.95) 100%)
