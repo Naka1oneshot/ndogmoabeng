@@ -86,6 +86,16 @@ export function SheriffTeamSortAnimation({
     };
   }, [choices.length]); // Only depend on choices length to prevent re-runs
   
+  // Get initials from display name
+  const getInitials = (name: string | undefined) => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
   const renderPlayer = (choice: PlayerChoice) => {
     const player = getPlayer(choice.player_number);
     if (!player) return null;
@@ -102,8 +112,8 @@ export function SheriffTeamSortAnimation({
             className="h-12 w-12 rounded-full object-cover border-2 border-[#D4AF37]"
           />
         ) : (
-          <div className="h-12 w-12 rounded-full bg-[#D4AF37]/30 flex items-center justify-center border-2 border-[#D4AF37] text-lg font-bold text-[#D4AF37]">
-            {player.player_number}
+          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-[#D4AF37]/40 to-[#8B4513]/40 flex items-center justify-center border-2 border-[#D4AF37] text-sm font-bold text-[#D4AF37]">
+            {getInitials(player.display_name)}
           </div>
         )}
         <div className="text-xs text-center mt-1 truncate max-w-[60px]">
