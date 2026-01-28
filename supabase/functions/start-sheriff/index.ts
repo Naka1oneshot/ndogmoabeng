@@ -115,10 +115,10 @@ Deno.serve(async (req) => {
 
     if (gameError) throw gameError;
 
-    // Update session game status
+    // FIX 3: Update session game status - use 'RUNNING' (uppercase) for consistency
     const { error: sessionError } = await supabase
       .from('session_games')
-      .update({ status: 'Running' })
+      .update({ status: 'RUNNING' })
       .eq('id', sessionGameId);
 
     if (sessionError) throw sessionError;

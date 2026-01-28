@@ -60,6 +60,17 @@ serve(async (req) => {
       );
     }
 
+    // FIX 2 (edge security): start-game is FORET-only
+    // Other game types have their own init functions (rivieres-init, start-infection, start-sheriff)
+    const gameTypeCode = game.selected_game_type_code || 'FORET';
+    if (gameTypeCode !== 'FORET') {
+      console.error(`start-game called for non-FORET game type: ${gameTypeCode}`);
+      return new Response(
+        JSON.stringify({ error: `start-game is FORET only. Use the appropriate init function for ${gameTypeCode}.` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (game.host_user_id !== user.id) {
       return new Response(
         JSON.stringify({ error: "Seul le MJ peut démarrer la partie" }),
@@ -378,11 +389,11 @@ serve(async (req) => {
 
     console.log("Game started successfully:", gameId, "session_game_id:", sessionGameId);
 
-    // Auto-generate the first shop for round 1 (only for FORET game type)
-    const gameTypeCode = game.selected_game_type_code || 'FORET';
+    // Auto-generate the first shop for round 1 (only for FORET game type - already verified above)
     let shopGenerated = false;
     
-    if (gameTypeCode === 'FORET') {
+    // gameTypeCode already defined above, always 'FORET' at this point
+    if (true) { // Always true since we validated FORET-only above
       console.log("[start-game] Auto-generating first shop for FORET game...");
       try {
         const fnUrl = Deno.env.get("SUPABASE_URL")!;
