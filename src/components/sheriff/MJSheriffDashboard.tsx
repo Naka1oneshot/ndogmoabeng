@@ -83,6 +83,7 @@ interface Duel {
   player1_vp_delta: number;
   player2_vp_delta: number;
   resolution_summary: any;
+  is_final?: boolean;
 }
 
 interface RoundState {
@@ -93,6 +94,10 @@ interface RoundState {
   common_pool_initial: number;
   common_pool_spent: number;
   bot_config?: SheriffBotConfig | null;
+  unpaired_player_num?: number | null;
+  final_duel_challenger_num?: number | null;
+  final_duel_status?: string | null;
+  final_duel_id?: string | null;
 }
 
 interface EditForm {
@@ -163,6 +168,9 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   const [newPoolAmount, setNewPoolAmount] = useState(0);
   const [savingPool, setSavingPool] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  
+  // Final duel state
+  const [creatingFinalDuel, setCreatingFinalDuel] = useState(false);
 
   const getPresenceBadge = (lastSeen: string | null) => {
     if (!lastSeen) return { color: 'bg-red-500', textColor: 'text-red-500', label: 'Déconnecté' };
@@ -422,6 +430,40 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
     } catch (err) {
       console.error('[MJ] sheriff-resolve-duel exception:', err);
       toast.error('Erreur lors de la résolution');
+    }
+  };
+
+  // Create final duel (for unpaired player)
+  const handleCreateFinalDuel = async () => {
+    if (!game.current_session_game_id) return;
+    
+    setCreatingFinalDuel(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sheriff-create-final-duel', {
+        body: {
+          gameId: game.id,
+          sessionGameId: game.current_session_game_id,
+        },
+      });
+
+      if (error) {
+        console.error('[MJ] sheriff-create-final-duel error:', error);
+        toast.error(`Erreur: ${error.message}`);
+        return;
+      }
+
+      if (!data?.success) {
+        toast.error(data?.error || 'Erreur inconnue');
+        return;
+      }
+
+      toast.success(`Dernier duel préparé ! ${data.challengerName} doit choisir ses jetons.`);
+      fetchData();
+    } catch (err) {
+      console.error('[MJ] sheriff-create-final-duel exception:', err);
+      toast.error('Erreur lors de la création du dernier duel');
+    } finally {
+      setCreatingFinalDuel(false);
     }
   };
 
@@ -1282,12 +1324,47 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                     </div>
                   </>
                 ) : (
-                  <div className="text-center">
+                  <div className="text-center space-y-4">
                     {pendingDuels.length > 0 ? (
                       <Button onClick={handleNextDuel} className={theme.button}>
                         <Play className="h-4 w-4 mr-2" />
                         Activer le Duel Suivant
                       </Button>
+                    ) : roundState?.unpaired_player_num && roundState?.final_duel_status === 'NONE' ? (
+                      /* All standard duels done, unpaired player exists - show final duel button */
+                      <div className="space-y-3">
+                        <p className="text-[#F59E0B]">✓ Duels standards terminés</p>
+                        <p className="text-sm text-[#9CA3AF]">
+                          Joueur impair: <strong className="text-[#D4AF37]">{getPlayerName(roundState.unpaired_player_num)}</strong>
+                        </p>
+                        <Button 
+                          onClick={handleCreateFinalDuel}
+                          disabled={creatingFinalDuel}
+                          className="bg-[#CD853F] hover:bg-[#CD853F]/80 text-white"
+                        >
+                          {creatingFinalDuel ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Swords className="h-4 w-4 mr-2" />}
+                          Lancer le Dernier Duel
+                        </Button>
+                      </div>
+                    ) : roundState?.final_duel_status === 'PENDING_RECHOICE' ? (
+                      /* Waiting for challenger to re-choose tokens */
+                      <div className="space-y-3">
+                        <p className="text-[#F59E0B]">⏳ En attente du re-choix</p>
+                        <p className="text-sm text-[#9CA3AF]">
+                          <strong className="text-[#D4AF37]">{getPlayerName(roundState.final_duel_challenger_num!)}</strong> doit choisir ses jetons pour le dernier duel
+                        </p>
+                      </div>
+                    ) : roundState?.final_duel_status === 'READY' ? (
+                      /* Final duel ready to be activated */
+                      <div className="space-y-3">
+                        <p className="text-green-500">✓ Dernier duel prêt</p>
+                        <Button onClick={handleNextDuel} className={theme.button}>
+                          <Play className="h-4 w-4 mr-2" />
+                          Activer le Dernier Duel
+                        </Button>
+                      </div>
+                    ) : roundState?.final_duel_status === 'RESOLVED' ? (
+                      <p className="text-green-500">✓ Tous les duels sont terminés (y compris le dernier) !</p>
                     ) : (
                       <p className="text-green-500">✓ Tous les duels sont terminés !</p>
                     )}

@@ -49,6 +49,8 @@ interface PlayerChoice {
   id: string;
   visa_choice: string | null;
   tokens_entering: number | null;
+  tokens_entering_final: number | null;
+  tokens_entering_final_confirmed: boolean;
   has_illegal_tokens: boolean;
   victory_points_delta: number;
 }
@@ -64,6 +66,7 @@ interface Duel {
   player1_vp_delta: number;
   player2_vp_delta: number;
   resolution_summary: any;
+  is_final?: boolean;
 }
 
 interface RoundState {
@@ -72,6 +75,10 @@ interface RoundState {
   current_duel_order: number | null;
   total_duels: number;
   bot_config?: SheriffBotConfig | null;
+  unpaired_player_num?: number | null;
+  final_duel_challenger_num?: number | null;
+  final_duel_status?: string | null;
+  final_duel_id?: string | null;
 }
 
 interface PlayerSheriffDashboardProps {
@@ -97,6 +104,10 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
   // Duel decision state
   const [duelDecision, setDuelDecision] = useState<boolean | null>(null);
   const [submittingDuel, setSubmittingDuel] = useState(false);
+  
+  // Final duel re-choice state
+  const [finalTokens, setFinalTokens] = useState<number>(25);
+  const [submittingFinalTokens, setSubmittingFinalTokens] = useState(false);
   
   // Animation states
   const [showPhaseAnimation, setShowPhaseAnimation] = useState(false);
@@ -258,6 +269,37 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
       toast.error(err.message || 'Erreur lors de la soumission');
     } finally {
       setSubmittingDuel(false);
+    }
+  };
+
+  // Submit final tokens for re-choice (final duel)
+  const handleSubmitFinalTokens = async () => {
+    if (finalTokens < 21 || finalTokens > 30) {
+      toast.error('Les jetons doivent être entre 21 et 30');
+      return;
+    }
+
+    setSubmittingFinalTokens(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sheriff-submit-final-tokens', {
+        body: {
+          gameId: game.id,
+          sessionGameId: game.current_session_game_id,
+          playerNumber: player.player_number,
+          tokensEnteringFinal: finalTokens,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erreur');
+
+      toast.success(`Vous entrerez avec ${finalTokens} jetons (${finalTokens - 20} illégaux) !`);
+      fetchData();
+    } catch (err: any) {
+      console.error('Submit final tokens error:', err);
+      toast.error(err.message || 'Erreur lors de la soumission');
+    } finally {
+      setSubmittingFinalTokens(false);
     }
   };
 
@@ -612,7 +654,89 @@ export function PlayerSheriffDashboard({ game, player, onLeave }: PlayerSheriffD
           </div>
         )}
 
-        {/* Active Duel - My Turn */}
+        {/* Final Duel Re-Choice (I am the challenger) */}
+        {roundState?.final_duel_status === 'PENDING_RECHOICE' && 
+         roundState?.final_duel_challenger_num === player.player_number && 
+         !myChoice?.tokens_entering_final_confirmed && (
+          <Card className={`${theme.card} border-2 border-[#CD853F]`}>
+            <CardHeader>
+              <CardTitle className="text-[#CD853F] flex items-center gap-2">
+                <Swords className="h-5 w-5" />
+                🎯 Dernier Duel — Re-choix des Jetons
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-3 bg-[#1A1510] rounded text-sm text-[#9CA3AF]">
+                <p className="mb-2">
+                  Vous avez été sélectionné pour affronter <strong className="text-[#D4AF37]">{getPlayerName(roundState.unpaired_player_num!)}</strong> dans le dernier duel.
+                </p>
+                <p className="text-[#F59E0B]">
+                  ⚠️ Vous devez entrer avec des jetons illégaux (21-30).
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#9CA3AF]">Nombre de jetons:</span>
+                  <span className="font-bold text-red-400">
+                    {finalTokens} jetons ({finalTokens - 20} illégaux)
+                  </span>
+                </div>
+                <Slider
+                  value={[finalTokens]}
+                  onValueChange={(values) => setFinalTokens(values[0])}
+                  min={21}
+                  max={30}
+                  step={1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-[#9CA3AF]">
+                  <span>21 (1 illégal)</span>
+                  <span>30 (10 illégaux)</span>
+                </div>
+              </div>
+
+              <Button 
+                onClick={handleSubmitFinalTokens}
+                disabled={submittingFinalTokens}
+                className="w-full bg-[#CD853F] hover:bg-[#CD853F]/80 text-white"
+              >
+                {submittingFinalTokens ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Check className="h-4 w-4 mr-2" />
+                )}
+                Confirmer ({finalTokens} jetons)
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Waiting for final duel to be activated (I am unpaired) */}
+        {roundState?.final_duel_status === 'PENDING_RECHOICE' && 
+         roundState?.unpaired_player_num === player.player_number && (
+          <div className={theme.card + ' p-6 text-center'}>
+            <Clock className="h-12 w-12 mx-auto text-[#F59E0B] mb-4" />
+            <h2 className="text-lg font-bold mb-2">Dernier Duel à Venir</h2>
+            <p className="text-[#9CA3AF]">
+              Votre adversaire <strong className="text-[#D4AF37]">{getPlayerName(roundState.final_duel_challenger_num!)}</strong> choisit ses jetons...
+            </p>
+          </div>
+        )}
+
+        {/* Final duel confirmed - waiting for MJ to activate */}
+        {roundState?.final_duel_status === 'READY' && 
+         (roundState?.unpaired_player_num === player.player_number || 
+          roundState?.final_duel_challenger_num === player.player_number) && 
+         !myActiveDuel && (
+          <div className={theme.card + ' p-6 text-center'}>
+            <Swords className="h-12 w-12 mx-auto text-[#D4AF37] mb-4" />
+            <h2 className="text-lg font-bold mb-2 text-[#D4AF37]">Dernier Duel Prêt</h2>
+            <p className="text-[#9CA3AF]">
+              En attente de l'activation par le MJ...
+            </p>
+          </div>
+        )}
         {roundState?.phase === 'DUELS' && myActiveDuel && !myDecisionMade && (
           <Card className={`${theme.card} border-2 border-[#D4AF37]`}>
             <CardHeader>

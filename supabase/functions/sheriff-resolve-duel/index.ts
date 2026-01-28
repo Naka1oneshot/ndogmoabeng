@@ -16,6 +16,15 @@ interface DuelResult {
   };
 }
 
+interface PlayerChoice {
+  id: string;
+  player_number: number;
+  has_illegal_tokens: boolean;
+  tokens_entering: number | null;
+  tokens_entering_final: number | null;
+  victory_points_delta: number | null;
+}
+
 interface DuelConfig {
   gainPerIllegalFound: number;   // % gain per illegal token found (default 10)
   lossSearchNoIllegal: number;   // % loss if search finds 0 illegal (default 50)
@@ -173,14 +182,14 @@ Deno.serve(async (req) => {
     // Get player choices
     const { data: choices, error: choicesError } = await supabase
       .from('sheriff_player_choices')
-      .select('*')
+      .select('id, player_number, has_illegal_tokens, tokens_entering, tokens_entering_final, victory_points_delta')
       .eq('session_game_id', sessionGameId)
       .in('player_number', [duel.player1_number, duel.player2_number]);
 
     if (choicesError) throw choicesError;
 
-    const p1Choice = choices?.find(c => c.player_number === duel.player1_number);
-    const p2Choice = choices?.find(c => c.player_number === duel.player2_number);
+    const p1Choice = choices?.find((c: PlayerChoice) => c.player_number === duel.player1_number) as PlayerChoice | undefined;
+    const p2Choice = choices?.find((c: PlayerChoice) => c.player_number === duel.player2_number) as PlayerChoice | undefined;
 
     if (!p1Choice || !p2Choice) {
       return new Response(
@@ -192,7 +201,7 @@ Deno.serve(async (req) => {
     // Get round state config for duel parameters
     const { data: roundState } = await supabase
       .from('sheriff_round_state')
-      .select('bot_config')
+      .select('bot_config, final_duel_challenger_num, unpaired_player_num')
       .eq('session_game_id', sessionGameId)
       .single();
 
@@ -211,14 +220,38 @@ Deno.serve(async (req) => {
       lossPerIllegalCaught: botConfig.duel_loss_per_illegal_caught ?? 5,
     };
 
+    // For final duel, use tokens_entering_final for the challenger
+    // Challenger = final_duel_challenger_num, Unpaired uses normal tokens_entering
+    const isFinalDuel = duel.is_final === true;
+    const challengerNum = roundState?.final_duel_challenger_num;
+    
+    // Determine tokens for each player (final duel may use tokens_entering_final)
+    const getTokensForPlayer = (choice: PlayerChoice): number => {
+      if (isFinalDuel && choice.player_number === challengerNum && choice.tokens_entering_final) {
+        return choice.tokens_entering_final;
+      }
+      return choice.tokens_entering || 20;
+    };
+    
+    const p1Tokens = getTokensForPlayer(p1Choice);
+    const p2Tokens = getTokensForPlayer(p2Choice);
+    
+    // For final duel, has_illegal_tokens is determined by actual tokens
+    const p1HasIllegal = isFinalDuel && p1Choice.player_number === challengerNum 
+      ? p1Tokens > 20 
+      : p1Choice.has_illegal_tokens;
+    const p2HasIllegal = isFinalDuel && p2Choice.player_number === challengerNum 
+      ? p2Tokens > 20 
+      : p2Choice.has_illegal_tokens;
+
     // Calculate duel outcome with configurable parameters
     const result = calculateDuelOutcome(
       duel.player1_searches,
       duel.player2_searches,
-      p1Choice.has_illegal_tokens,
-      p2Choice.has_illegal_tokens,
-      p1Choice.tokens_entering || 20,
-      p2Choice.tokens_entering || 20,
+      p1HasIllegal,
+      p2HasIllegal,
+      p1Tokens,
+      p2Tokens,
       duelConfig
     );
 
@@ -247,7 +280,7 @@ Deno.serve(async (req) => {
       .from('sheriff_player_choices')
       .update({
         victory_points_delta: newP1Delta,
-        final_tokens: result.player1TokensLost > 0 ? 20 : p1Choice.tokens_entering,
+        final_tokens: result.player1TokensLost > 0 ? 20 : p1Tokens,
       })
       .eq('id', p1Choice.id);
 
@@ -255,26 +288,37 @@ Deno.serve(async (req) => {
       .from('sheriff_player_choices')
       .update({
         victory_points_delta: newP2Delta,
-        final_tokens: result.player2TokensLost > 0 ? 20 : p2Choice.tokens_entering,
+        final_tokens: result.player2TokensLost > 0 ? 20 : p2Tokens,
       })
       .eq('id', p2Choice.id);
 
     // Update game_players jetons for both players
-    // Player1: if caught with illegal tokens, reset to 20; otherwise keep their tokens_entering
-    const p1FinalTokens = result.player1TokensLost > 0 ? 20 : (p1Choice.tokens_entering || 20);
+    // Player1: if caught with illegal tokens, reset to 20; otherwise keep their tokens
+    const p1FinalTokens = result.player1TokensLost > 0 ? 20 : p1Tokens;
     await supabase
       .from('game_players')
       .update({ jetons: p1FinalTokens })
       .eq('game_id', gameId)
       .eq('player_number', duel.player1_number);
 
-    // Player2: if caught with illegal tokens, reset to 20; otherwise keep their tokens_entering
-    const p2FinalTokens = result.player2TokensLost > 0 ? 20 : (p2Choice.tokens_entering || 20);
+    // Player2: if caught with illegal tokens, reset to 20; otherwise keep their tokens
+    const p2FinalTokens = result.player2TokensLost > 0 ? 20 : p2Tokens;
     await supabase
       .from('game_players')
       .update({ jetons: p2FinalTokens })
       .eq('game_id', gameId)
       .eq('player_number', duel.player2_number);
+
+    // If this is the final duel, update round state
+    if (isFinalDuel) {
+      await supabase
+        .from('sheriff_round_state')
+        .update({
+          final_duel_status: 'RESOLVED',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('session_game_id', sessionGameId);
+    }
 
     // Get player names
     const { data: players } = await supabase
