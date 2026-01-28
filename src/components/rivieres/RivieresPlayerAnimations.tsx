@@ -1,6 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
-import { Lock, AlertTriangle, Waves, Ship, Anchor, CheckCircle, Skull, Target, Coins } from 'lucide-react';
+import { Lock, AlertTriangle, Waves, Ship, Anchor, CheckCircle, Skull, Target, Coins, SkipForward } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+
+// ========== SKIP BUTTON COMPONENT ==========
+interface SkipButtonProps {
+  onSkip: () => void;
+}
+
+function SkipButton({ onSkip }: SkipButtonProps) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={onSkip}
+      className="fixed bottom-6 right-6 z-[110] text-white/70 hover:text-white hover:bg-white/10 border border-white/20"
+    >
+      <SkipForward className="h-4 w-4 mr-1" />
+      Passer
+    </Button>
+  );
+}
 
 // ========== LOCK ANIMATION ==========
 interface RivieresLockPlayerAnimationProps {
@@ -10,20 +30,25 @@ interface RivieresLockPlayerAnimationProps {
 export function RivieresLockPlayerAnimation({ onComplete }: RivieresLockPlayerAnimationProps) {
   const [phase, setPhase] = useState<'tension' | 'lock' | 'done'>('tension');
   const onCompleteRef = useRef(onComplete);
+  const timersRef = useRef<NodeJS.Timeout[]>([]);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
+  const handleSkip = () => {
+    timersRef.current.forEach(t => clearTimeout(t));
+    onCompleteRef.current();
+  };
+
   useEffect(() => {
-    const tensionTimer = setTimeout(() => setPhase('lock'), 1500);
-    const lockTimer = setTimeout(() => setPhase('done'), 2500);
-    const completeTimer = setTimeout(() => onCompleteRef.current(), 3000);
+    const t1 = setTimeout(() => setPhase('lock'), 1500);
+    const t2 = setTimeout(() => setPhase('done'), 2500);
+    const t3 = setTimeout(() => onCompleteRef.current(), 3000);
+    timersRef.current = [t1, t2, t3];
 
     return () => {
-      clearTimeout(tensionTimer);
-      clearTimeout(lockTimer);
-      clearTimeout(completeTimer);
+      timersRef.current.forEach(t => clearTimeout(t));
     };
   }, []);
 
@@ -67,6 +92,8 @@ export function RivieresLockPlayerAnimation({ onComplete }: RivieresLockPlayerAn
           </h1>
         </div>
       )}
+
+      <SkipButton onSkip={handleSkip} />
     </div>
   );
 }
@@ -93,22 +120,27 @@ export function RivieresResolvePlayerAnimation({
   const [displayedMises, setDisplayedMises] = useState(0);
   const onCompleteRef = useRef(onComplete);
   const counterRef = useRef<NodeJS.Timeout | null>(null);
+  const timersRef = useRef<NodeJS.Timeout[]>([]);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
+  const handleSkip = () => {
+    timersRef.current.forEach(t => clearTimeout(t));
+    if (counterRef.current) clearInterval(counterRef.current);
+    onCompleteRef.current();
+  };
+
   useEffect(() => {
-    const dangerTimer = setTimeout(() => setPhase('counter'), 1200);
-    const counterTimer = setTimeout(() => setPhase('result'), 3000);
-    const resultTimer = setTimeout(() => setPhase('done'), 5000);
-    const completeTimer = setTimeout(() => onCompleteRef.current(), 5500);
+    const t1 = setTimeout(() => setPhase('counter'), 1200);
+    const t2 = setTimeout(() => setPhase('result'), 3000);
+    const t3 = setTimeout(() => setPhase('done'), 5000);
+    const t4 = setTimeout(() => onCompleteRef.current(), 5500);
+    timersRef.current = [t1, t2, t3, t4];
 
     return () => {
-      clearTimeout(dangerTimer);
-      clearTimeout(counterTimer);
-      clearTimeout(resultTimer);
-      clearTimeout(completeTimer);
+      timersRef.current.forEach(t => clearTimeout(t));
     };
   }, []);
 
@@ -226,6 +258,8 @@ export function RivieresResolvePlayerAnimation({
           </div>
         )}
       </div>
+
+      <SkipButton onSkip={handleSkip} />
     </div>
   );
 }
@@ -251,44 +285,58 @@ export function RivieresPlayerSortPlayerAnimation({
   const [visiblePlayers, setVisiblePlayers] = useState<string[]>([]);
   const onCompleteRef = useRef(onComplete);
   const hasStartedRef = useRef(false);
+  const timersRef = useRef<NodeJS.Timeout[]>([]);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
+  // Safety fallback: if players array is empty, complete immediately
+  useEffect(() => {
+    if (players.length === 0) {
+      const fallbackTimer = setTimeout(() => onCompleteRef.current(), 100);
+      return () => clearTimeout(fallbackTimer);
+    }
+  }, [players.length]);
+
+  const handleSkip = () => {
+    timersRef.current.forEach(t => clearTimeout(t));
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    onCompleteRef.current();
+  };
+
   const stayingPlayers = players.filter(p => p.decision === 'RESTE');
   const descendingPlayers = players.filter(p => p.decision === 'DESCENDS');
 
   useEffect(() => {
-    if (hasStartedRef.current) return;
+    if (hasStartedRef.current || players.length === 0) return;
     hasStartedRef.current = true;
-
-    let intervalRef: ReturnType<typeof setInterval> | null = null;
     
-    const introTimer = setTimeout(() => setPhase('sorting'), 800);
+    const t1 = setTimeout(() => setPhase('sorting'), 800);
+    timersRef.current.push(t1);
 
-    const sortingTimer = setTimeout(() => {
+    const t2 = setTimeout(() => {
       let index = 0;
-      intervalRef = setInterval(() => {
+      intervalRef.current = setInterval(() => {
         if (index < players.length) {
           setVisiblePlayers(prev => [...prev, players[index].id]);
           index++;
         } else {
-          if (intervalRef) clearInterval(intervalRef);
+          if (intervalRef.current) clearInterval(intervalRef.current);
         }
       }, 120);
     }, 800);
+    timersRef.current.push(t2);
 
     const totalTime = 800 + (players.length * 120) + 1200;
-    const doneTimer = setTimeout(() => setPhase('done'), totalTime);
-    const completeTimer = setTimeout(() => onCompleteRef.current(), totalTime + 400);
+    const t3 = setTimeout(() => setPhase('done'), totalTime);
+    const t4 = setTimeout(() => onCompleteRef.current(), totalTime + 400);
+    timersRef.current.push(t3, t4);
 
     return () => {
-      clearTimeout(introTimer);
-      clearTimeout(sortingTimer);
-      clearTimeout(doneTimer);
-      clearTimeout(completeTimer);
-      if (intervalRef) clearInterval(intervalRef);
+      timersRef.current.forEach(t => clearTimeout(t));
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [players.length]);
 
@@ -374,6 +422,8 @@ export function RivieresPlayerSortPlayerAnimation({
           </div>
         )}
       </div>
+
+      <SkipButton onSkip={handleSkip} />
     </div>
   );
 }
@@ -386,14 +436,22 @@ interface RivieresMancheChangeAnimationProps {
 
 export function RivieresMancheChangeAnimation({ manche, onComplete }: RivieresMancheChangeAnimationProps) {
   const onCompleteRef = useRef(onComplete);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
+  const handleSkip = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    onCompleteRef.current();
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => onCompleteRef.current(), 2500);
-    return () => clearTimeout(timer);
+    timerRef.current = setTimeout(() => onCompleteRef.current(), 2500);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -425,6 +483,8 @@ export function RivieresMancheChangeAnimation({ manche, onComplete }: RivieresMa
         <h1 className="text-4xl font-bold text-[#D4AF37] mb-2">MANCHE {manche}</h1>
         <p className="text-xl text-[#E8E8E8]">Nouvelle traversée !</p>
       </div>
+
+      <SkipButton onSkip={handleSkip} />
     </div>
   );
 }
