@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target, MessageSquare, Package, Activity, Syringe, Vote, Skull, RefreshCw, BookOpen } from 'lucide-react';
+import { Target, MessageSquare, Package, Activity, Syringe, Vote, Skull, RefreshCw, BookOpen, Eye, EyeOff } from 'lucide-react';
 import { INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { InfectionActionPanel } from './InfectionActionPanel';
 import { InfectionVotePanel } from './InfectionVotePanel';
@@ -77,6 +77,7 @@ export function PlayerInfectionDashboard({ game, player, onLeave, animationsEnab
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [activeTab, setActiveTab] = useState('actions');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRoleHidden, setIsRoleHidden] = useState(false);
   
   // Role reveal animation state
   const [showRoleReveal, setShowRoleReveal] = useState(false);
@@ -243,9 +244,19 @@ export function PlayerInfectionDashboard({ game, player, onLeave, animationsEnab
             <div className="flex items-center gap-2 text-sm">
               <span className="text-[#9CA3AF]">{player.display_name}</span>
               {roleInfo && (
-                <Badge style={{ backgroundColor: `${roleInfo.color}20`, color: roleInfo.color }}>
-                  {roleInfo.name}
-                </Badge>
+                <button
+                  onClick={() => setIsRoleHidden(!isRoleHidden)}
+                  className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  <Badge style={{ backgroundColor: `${roleInfo.color}20`, color: roleInfo.color }}>
+                    {isRoleHidden ? '•••' : roleInfo.name}
+                  </Badge>
+                  {isRoleHidden ? (
+                    <EyeOff className="h-3 w-3 text-[#6B7280]" />
+                  ) : (
+                    <Eye className="h-3 w-3 text-[#6B7280]" />
+                  )}
+                </button>
               )}
             </div>
           </div>
