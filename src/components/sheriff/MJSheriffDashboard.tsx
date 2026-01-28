@@ -150,9 +150,9 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   
   // Game settings state
   const [initialPool, setInitialPool] = useState(100);
-  const [poolCostPerPlayer, setPoolCostPerPlayer] = useState(10);
+  const [poolCostPerPlayer, setPoolCostPerPlayer] = useState(5);
   const [poolFloorPercent, setPoolFloorPercent] = useState(40);
-  const [visaPvicPercent, setVisaPvicPercent] = useState(20);
+  const [visaPvicPercent, setVisaPvicPercent] = useState(50);
   const [duelMaxImpact, setDuelMaxImpact] = useState(10);
   
   // Bot decisions state
