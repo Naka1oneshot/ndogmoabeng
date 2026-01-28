@@ -109,7 +109,7 @@ export function ForetRulesOverlay({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex flex-col bg-[#0B1020]"
+        className="fixed inset-0 z-[60] flex flex-col bg-[#0B1020]"
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}

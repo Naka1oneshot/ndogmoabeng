@@ -94,7 +94,7 @@ export function SheriffRulesOverlay({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex flex-col bg-[#1A1510]"
+        className="fixed inset-0 z-[60] flex flex-col bg-[#1A1510]"
       >
         {/* Watermark */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
