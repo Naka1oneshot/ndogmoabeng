@@ -11,6 +11,20 @@ export function InfectionVictoryTransition({ winner, onComplete }: InfectionVict
   const [countdown, setCountdown] = useState(5);
   const [phase, setPhase] = useState<'announce' | 'countdown' | 'reveal'>('announce');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const timersRef = useRef<NodeJS.Timeout[]>([]);
+
+  const handleSkip = () => {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    onCompleteRef.current();
+  };
 
   // Play transition sound
   useEffect(() => {
@@ -37,7 +51,8 @@ export function InfectionVictoryTransition({ winner, onComplete }: InfectionVict
   // Phase transitions
   useEffect(() => {
     const announceTimer = setTimeout(() => setPhase('countdown'), 2000);
-    return () => clearTimeout(announceTimer);
+    timersRef.current.push(announceTimer);
+    return () => {};
   }, []);
 
   // Countdown logic
@@ -46,13 +61,15 @@ export function InfectionVictoryTransition({ winner, onComplete }: InfectionVict
 
     if (countdown <= 0) {
       setPhase('reveal');
-      setTimeout(onComplete, 1000);
+      const t = setTimeout(() => onCompleteRef.current(), 1000);
+      timersRef.current.push(t);
       return;
     }
 
     const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [phase, countdown, onComplete]);
+    timersRef.current.push(timer);
+    return () => {};
+  }, [phase, countdown]);
 
   // Determine winner display
   const getWinnerDisplay = () => {
@@ -198,6 +215,15 @@ export function InfectionVictoryTransition({ winner, onComplete }: InfectionVict
         }`}
         style={{ backgroundColor: winnerColor }}
       />
+
+      {/* Skip button */}
+      <button
+        onClick={handleSkip}
+        className="absolute bottom-8 right-8 text-sm transition-colors z-10"
+        style={{ color: INFECTION_COLORS.textSecondary }}
+      >
+        Passer →
+      </button>
     </div>
   );
 }

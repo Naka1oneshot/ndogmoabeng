@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Skull, Heart, AlertTriangle, Trophy, User, Timer } from 'lucide-react';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS } from '../InfectionTheme';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,21 @@ export function InfectionDeathRevealAnimation({
   
   const deathCount = deadPlayers.length;
 
+  // Refs for stable callbacks and timer cleanup
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const timersRef = useRef<NodeJS.Timeout[]>([]);
+  const intervalsRef = useRef<NodeJS.Timeout[]>([]);
+
+  const handleSkip = () => {
+    timersRef.current.forEach(clearTimeout);
+    intervalsRef.current.forEach(clearInterval);
+    timersRef.current = [];
+    intervalsRef.current = [];
+    setPhase('hidden');
+    onCompleteRef.current();
+  };
+
   // Roles that show PVic immediately
   const pvicRoles = ['BA', 'KK', 'AE'];
   const shouldShowPvic = (roleCode: string | null) => {
@@ -52,7 +67,8 @@ export function InfectionDeathRevealAnimation({
       // Phase 2: Count up dramatically (1.5s)
       if (deathCount === 0) {
         // Skip counting if no deaths
-        setTimeout(() => setPhase('reveal'), 500);
+        const t = setTimeout(() => setPhase('reveal'), 500);
+        timersRef.current.push(t);
       } else {
         let count = 0;
         const countInterval = setInterval(() => {
@@ -60,14 +76,21 @@ export function InfectionDeathRevealAnimation({
           setCountDisplay(count);
           if (count >= deathCount) {
             clearInterval(countInterval);
-            setTimeout(() => setPhase('reveal'), 800);
+            const t = setTimeout(() => setPhase('reveal'), 800);
+            timersRef.current.push(t);
           }
         }, Math.max(150, 1000 / deathCount));
+        intervalsRef.current.push(countInterval);
       }
     }, 2000);
 
+    timersRef.current.push(suspenseTimer);
+
     return () => {
-      clearTimeout(suspenseTimer);
+      timersRef.current.forEach(clearTimeout);
+      intervalsRef.current.forEach(clearInterval);
+      timersRef.current = [];
+      intervalsRef.current = [];
     };
   }, [show, deathCount]);
 
@@ -100,28 +123,32 @@ export function InfectionDeathRevealAnimation({
     if (phase === 'details') {
       const exitTimer = setTimeout(() => {
         setPhase('exiting');
-        setTimeout(() => {
+        const finalTimer = setTimeout(() => {
           setPhase('hidden');
-          onComplete();
+          onCompleteRef.current();
         }, 500);
+        timersRef.current.push(finalTimer);
       }, Math.max(3000, deathCount * 1500));
 
-      return () => clearTimeout(exitTimer);
+      timersRef.current.push(exitTimer);
+      return () => {};
     }
     
     if (phase === 'reveal' && deathCount === 0) {
       // No deaths - quick exit
       const exitTimer = setTimeout(() => {
         setPhase('exiting');
-        setTimeout(() => {
+        const finalTimer = setTimeout(() => {
           setPhase('hidden');
-          onComplete();
+          onCompleteRef.current();
         }, 500);
+        timersRef.current.push(finalTimer);
       }, 2500);
 
-      return () => clearTimeout(exitTimer);
+      timersRef.current.push(exitTimer);
+      return () => {};
     }
-  }, [phase, deathCount, onComplete]);
+  }, [phase, deathCount]);
 
   if (phase === 'hidden') return null;
 
@@ -328,6 +355,15 @@ export function InfectionDeathRevealAnimation({
       {phase === 'suspense' && renderSuspensePhase()}
       {phase === 'counting' && renderCountingPhase()}
       {(phase === 'reveal' || phase === 'details') && renderRevealPhase()}
+
+      {/* Skip button */}
+      <button
+        onClick={handleSkip}
+        className="absolute bottom-8 right-8 text-sm transition-colors z-10"
+        style={{ color: INFECTION_COLORS.textMuted }}
+      >
+        Passer →
+      </button>
     </div>
   );
 }

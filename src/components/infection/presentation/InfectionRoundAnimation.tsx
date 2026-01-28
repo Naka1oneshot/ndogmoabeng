@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Skull, Heart, AlertTriangle, Sparkles } from 'lucide-react';
 import { INFECTION_COLORS } from '../InfectionTheme';
 
@@ -11,6 +11,17 @@ interface InfectionRoundAnimationProps {
 export function InfectionRoundAnimation({ show, deathCount, onComplete }: InfectionRoundAnimationProps) {
   const [phase, setPhase] = useState<'entering' | 'main' | 'exiting' | 'hidden'>('hidden');
   const [bloodDrops, setBloodDrops] = useState<{ id: number; x: number; delay: number }[]>([]);
+  
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const timersRef = useRef<NodeJS.Timeout[]>([]);
+
+  const handleSkip = () => {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+    setPhase('hidden');
+    onCompleteRef.current();
+  };
 
   useEffect(() => {
     if (show) {
@@ -31,18 +42,19 @@ export function InfectionRoundAnimation({ show, deathCount, onComplete }: Infect
       const mainTimer = setTimeout(() => setPhase('exiting'), deathCount > 0 ? 2000 : 1500);
       const exitTimer = setTimeout(() => {
         setPhase('hidden');
-        onComplete();
+        onCompleteRef.current();
       }, deathCount > 0 ? 2300 : 1800);
 
+      timersRef.current = [enterTimer, mainTimer, exitTimer];
+
       return () => {
-        clearTimeout(enterTimer);
-        clearTimeout(mainTimer);
-        clearTimeout(exitTimer);
+        timersRef.current.forEach(clearTimeout);
+        timersRef.current = [];
       };
     } else {
       setPhase('hidden');
     }
-  }, [show, deathCount, onComplete]);
+  }, [show, deathCount]);
 
   if (phase === 'hidden') return null;
 
@@ -206,6 +218,15 @@ export function InfectionRoundAnimation({ show, deathCount, onComplete }: Infect
       >
         {renderContent()}
       </div>
+
+      {/* Skip button */}
+      <button
+        onClick={handleSkip}
+        className="absolute bottom-8 right-8 text-sm transition-colors z-10"
+        style={{ color: INFECTION_COLORS.textMuted }}
+      >
+        Passer →
+      </button>
     </div>
   );
 }

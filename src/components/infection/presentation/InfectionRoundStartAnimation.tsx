@@ -28,6 +28,16 @@ export function InfectionRoundStartAnimation({ show, manche, onComplete }: Infec
   const onCompleteRef = React.useRef(onComplete);
   onCompleteRef.current = onComplete;
 
+  // Store timer refs for cleanup on skip
+  const timersRef = React.useRef<NodeJS.Timeout[]>([]);
+
+  const handleSkip = () => {
+    // Clear all pending timers
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+    onCompleteRef.current();
+  };
+
   useEffect(() => {
     if (!show) {
       setPhase('title');
@@ -45,10 +55,11 @@ export function InfectionRoundStartAnimation({ show, manche, onComplete }: Infec
       onCompleteRef.current();
     }, 2600);
 
+    timersRef.current = [titleTimer, debateTimer, completeTimer];
+
     return () => {
-      clearTimeout(titleTimer);
-      clearTimeout(debateTimer);
-      clearTimeout(completeTimer);
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
     };
   }, [show]);
 
@@ -175,6 +186,15 @@ export function InfectionRoundStartAnimation({ show, manche, onComplete }: Infec
                 />
               ))}
             </motion.div>
+
+            {/* Skip button */}
+            <button
+              onClick={handleSkip}
+              className="mt-8 text-sm transition-colors"
+              style={{ color: INFECTION_COLORS.textMuted }}
+            >
+              Passer →
+            </button>
           </div>
         </motion.div>
       )}
