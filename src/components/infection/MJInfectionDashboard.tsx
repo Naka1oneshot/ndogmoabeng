@@ -10,9 +10,10 @@ import {
   ArrowLeft, Users, Syringe, Target, MessageSquare, 
   Activity, Play, Lock, CheckCircle, Settings, Skull,
   RefreshCw, Copy, Check, UserX, Loader2, Pencil, Save, X,
-  Bot, Trash2, Zap, ChevronDown
+  Bot, Trash2, Zap, ChevronDown, BookOpen
 } from 'lucide-react';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
+import { InfectionRulesOverlay } from './rules/InfectionRulesOverlay';
 import { toast } from 'sonner';
 import { MJActionsTab } from './MJActionsTab';
 import { MJChatsTab } from './MJChatsTab';
@@ -124,6 +125,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   
   // Role assignment state (for pre-game configuration)
   const [roleAssignments, setRoleAssignments] = useState<Array<{ playerId: string; roleCode: string | null }>>([]);
+  const [showRulesOverlay, setShowRulesOverlay] = useState(false);
 
   // Presence helper
   const getPresenceBadge = (lastSeen: string | null) => {
@@ -518,6 +520,14 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   // Lobby view
   if (game.status === 'LOBBY') {
     return (
+      <>
+      <InfectionRulesOverlay 
+        open={showRulesOverlay} 
+        onClose={() => setShowRulesOverlay(false)}
+        userRole="HOST"
+        gameId={game.id}
+        sessionGameId={game.current_session_game_id || undefined}
+      />
       <div className={theme.container}>
       <div className={theme.header}>
           <div className="flex items-center justify-between gap-2 p-3 sm:p-4">
@@ -530,10 +540,20 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
                 <p className="text-xs sm:text-sm text-[#9CA3AF]">Code: {game.join_code}</p>
               </div>
             </div>
-            <Badge className="bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/30 shrink-0">
-              <Syringe className="h-3 w-3 sm:mr-1" />
-              <span className="hidden sm:inline">INFECTION</span>
-            </Badge>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowRulesOverlay(true)}
+                className="text-[#9CA3AF] hover:text-[#D4AF37]"
+              >
+                <BookOpen className="h-4 w-4" />
+              </Button>
+              <Badge className="bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/30">
+                <Syringe className="h-3 w-3 sm:mr-1" />
+                <span className="hidden sm:inline">INFECTION</span>
+              </Badge>
+            </div>
           </div>
           
           {/* Adventure Progress */}
