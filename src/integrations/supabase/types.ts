@@ -1162,34 +1162,55 @@ export type Database = {
       }
       game_types: {
         Row: {
+          clan: string | null
           code: string
           created_at: string
           default_config: Json | null
           default_starting_tokens: number | null
           description: string | null
+          image_url: string | null
           is_active: boolean
+          lieu: string | null
+          min_players: number | null
           name: string
+          objet_cle: string | null
+          personnages: string[] | null
           status: Database["public"]["Enums"]["game_type_status"]
+          tagline: string | null
         }
         Insert: {
+          clan?: string | null
           code: string
           created_at?: string
           default_config?: Json | null
           default_starting_tokens?: number | null
           description?: string | null
+          image_url?: string | null
           is_active?: boolean
+          lieu?: string | null
+          min_players?: number | null
           name: string
+          objet_cle?: string | null
+          personnages?: string[] | null
           status?: Database["public"]["Enums"]["game_type_status"]
+          tagline?: string | null
         }
         Update: {
+          clan?: string | null
           code?: string
           created_at?: string
           default_config?: Json | null
           default_starting_tokens?: number | null
           description?: string | null
+          image_url?: string | null
           is_active?: boolean
+          lieu?: string | null
+          min_players?: number | null
           name?: string
+          objet_cle?: string | null
+          personnages?: string[] | null
           status?: Database["public"]["Enums"]["game_type_status"]
+          tagline?: string | null
         }
         Relationships: []
       }
