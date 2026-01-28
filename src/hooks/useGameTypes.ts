@@ -14,6 +14,7 @@ export interface GameTypeData {
   min_players: number;
   is_active: boolean;
   status: string;
+  homepage_order: number | null;
 }
 
 export function useGameTypes() {
@@ -26,7 +27,7 @@ export function useGameTypes() {
       setLoading(true);
       const { data, error } = await supabase
         .from('game_types')
-        .select('code, name, description, tagline, lieu, clan, personnages, objet_cle, image_url, min_players, is_active, status')
+        .select('code, name, description, tagline, lieu, clan, personnages, objet_cle, image_url, min_players, is_active, status, homepage_order')
         .eq('is_active', true)
         .order('name');
 

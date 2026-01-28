@@ -29,6 +29,7 @@ export function GameTypeEditModal({ open, onClose, gameType, onSaved }: GameType
   const [objetCle, setObjetCle] = useState('');
   const [minPlayers, setMinPlayers] = useState(2);
   const [imageUrl, setImageUrl] = useState('');
+  const [homepageOrder, setHomepageOrder] = useState<number | null>(null);
 
   useEffect(() => {
     if (gameType) {
@@ -41,6 +42,7 @@ export function GameTypeEditModal({ open, onClose, gameType, onSaved }: GameType
       setObjetCle(gameType.objet_cle || '');
       setMinPlayers(gameType.min_players || 2);
       setImageUrl(gameType.image_url || '');
+      setHomepageOrder(gameType.homepage_order);
     }
   }, [gameType]);
 
@@ -100,6 +102,7 @@ export function GameTypeEditModal({ open, onClose, gameType, onSaved }: GameType
           objet_cle: objetCle || null,
           min_players: minPlayers,
           image_url: imageUrl || null,
+          homepage_order: homepageOrder,
         })
         .eq('code', gameType.code);
 
@@ -244,6 +247,24 @@ export function GameTypeEditModal({ open, onClose, gameType, onSaved }: GameType
               onChange={(e) => setObjetCle(e.target.value)}
               placeholder="Ex: L'Essence de Ndogmoabeng"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="homepageOrder">Position sur l'accueil</Label>
+            <select
+              id="homepageOrder"
+              value={homepageOrder ?? ''}
+              onChange={(e) => setHomepageOrder(e.target.value ? parseInt(e.target.value) : null)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="">Non affiché sur l'accueil</option>
+              <option value="1">1ère position</option>
+              <option value="2">2ème position</option>
+              <option value="3">3ème position</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Sélectionnez une position pour afficher ce jeu sur la page d'accueil
+            </p>
           </div>
         </div>
 

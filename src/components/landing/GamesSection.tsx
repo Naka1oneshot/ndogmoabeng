@@ -13,8 +13,6 @@ import { SheriffRulesOverlay } from '@/components/sheriff/rules/SheriffRulesOver
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { GameTypeData } from '@/hooks/useGameTypes';
 
-const MAX_GAMES_DISPLAYED = 3;
-
 export function GamesSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -27,8 +25,13 @@ export function GamesSection() {
   const [sheriffRulesOpen, setSheriffRulesOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<GameTypeData | null>(null);
 
-  const displayedGames = gameTypes.slice(0, MAX_GAMES_DISPLAYED);
-  const hasMoreGames = gameTypes.length > MAX_GAMES_DISPLAYED;
+  // Filter games with homepage_order set and sort by order
+  const homepageGames = gameTypes
+    .filter(game => game.homepage_order !== null)
+    .sort((a, b) => (a.homepage_order || 0) - (b.homepage_order || 0))
+    .slice(0, 3);
+  
+  const hasMoreGames = gameTypes.length > 3;
 
   const handleCreateGame = (gameCode: string) => {
     if (user) {
@@ -94,9 +97,9 @@ export function GamesSection() {
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : (
+          ) : homepageGames.length > 0 ? (
             <div className="grid md:grid-cols-3 gap-8">
-              {displayedGames.map((game) => (
+              {homepageGames.map((game) => (
                 <GameCard
                   key={game.code}
                   game={game}
@@ -106,6 +109,13 @@ export function GamesSection() {
                   isAdmin={isAdminOrSuper}
                 />
               ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>Aucun jeu sélectionné pour l'accueil.</p>
+              {isAdminOrSuper && (
+                <p className="text-sm mt-2">Éditez les jeux pour définir leur position sur l'accueil.</p>
+              )}
             </div>
           )}
 
