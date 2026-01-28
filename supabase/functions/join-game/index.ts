@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { validateJoinGameInput, generateSecurePlayerToken } from "../_shared/validation.ts";
+import { validateJoinGameInput, generateSecurePlayerToken, normalizeClan } from "../_shared/validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -605,7 +605,9 @@ serve(async (req) => {
     const playerToken = generatePlayerToken();
 
     // Determine if player can have clan benefits
-    const effectiveClan = hasClanBenefits ? (clan || null) : null;
+    // FIX: Normalize clan name (e.g., 'Akande' -> 'Akandé')
+    const normalizedClan = normalizeClan(clan);
+    const effectiveClan = hasClanBenefits ? normalizedClan : null;
     const shouldLockClan = lockClan && effectiveClan !== null;
     
     // Insert new player with starting tokens from game

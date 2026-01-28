@@ -23,16 +23,28 @@ export const VALIDATION_LIMITS = {
   GENERAL_TEXT_MAX: 200,
 };
 
-// Allowed clans list
+// Allowed clans list - includes both accented and non-accented for compatibility
 export const ALLOWED_CLANS = [
   'Aseyra',
   'Ezkar', 
   'Zoulous',
   'Akila',
   'Keryndes',
-  'Akande',
+  'Akandé', // Canonical (with accent)
+  'Akande', // Legacy (without accent) - will be normalized
   'Royaux',
 ];
+
+/**
+ * Normalize clan name to canonical form
+ * - 'Akande' -> 'Akandé'
+ */
+export function normalizeClan(clan: string | null | undefined): string | null {
+  if (!clan) return null;
+  const c = clan.trim();
+  if (c === 'Akande') return 'Akandé';
+  return c;
+}
 
 /**
  * Validates and sanitizes a string input

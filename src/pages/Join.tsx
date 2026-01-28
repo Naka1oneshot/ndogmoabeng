@@ -40,7 +40,7 @@ const CLANS = [
   { value: 'Royaux', label: 'Maison Royale', image: maisonRoyaleImg },
   { value: 'Zoulous', label: 'Fraternité Zoulous', image: fraterniteZoulouImg },
   { value: 'Keryndes', label: 'Maison des Keryndes', image: maisonKeryndesImg },
-  { value: 'Akande', label: 'Akandé', image: akandeImg },
+  { value: 'Akandé', label: 'Akandé', image: akandeImg }, // Canonical value with accent
   { value: 'Aseyra', label: "Cercle d'Aséyra", image: cercleAseyraImg },
   { value: 'Akila', label: "Les Sources d'Akila", image: sourcesAkilaImg },
   { value: 'Ezkar', label: 'Ezkar', image: ezkarImg },

@@ -435,7 +435,15 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${game.id}` },
         (payload) => {
-          setGame(prev => ({ ...prev, ...payload.new }));
+          // FIX: Update local game state immediately for lobby->game transition
+          console.log('[MJDashboard] games UPDATE received:', payload.new);
+          if (payload.new && typeof payload.new === 'object' && 'status' in payload.new) {
+            setGame(prev => ({ ...prev, ...payload.new as Game }));
+          } else {
+            // Fallback: refetch if payload is incomplete
+            console.log('[MJDashboard] Payload incomplete, refetching game...');
+            fetchGame();
+          }
         }
       )
       .on(
