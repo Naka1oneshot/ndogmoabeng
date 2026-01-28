@@ -4,7 +4,17 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Map, Gamepad2, Plus, ChevronRight, Clock, Check, AlertTriangle, Lock, Crown } from 'lucide-react';
+import { Loader2, Map, Gamepad2, Plus, ChevronRight, Clock, Check, AlertTriangle, Lock, Crown, Pencil, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
@@ -59,6 +69,14 @@ export function AdventureSelector({
   const [newAdventureDesc, setNewAdventureDesc] = useState('');
   const [selectedSteps, setSelectedSteps] = useState<string[]>([]);
   const [creatingAdventure, setCreatingAdventure] = useState(false);
+  
+  // Admin edit/delete state
+  const [editingAdventure, setEditingAdventure] = useState<Adventure | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [deletingAdventure, setDeletingAdventure] = useState<Adventure | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -195,6 +213,84 @@ export function AdventureSelector({
     } finally {
       setCreatingAdventure(false);
     }
+  };
+
+  // Admin: Edit adventure
+  const handleEditAdventure = async () => {
+    if (!editingAdventure || !editName.trim()) return;
+    
+    setIsSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from('adventures')
+        .update({
+          name: editName.trim(),
+          description: editDesc.trim() || null,
+        })
+        .eq('id', editingAdventure.id);
+
+      if (error) throw error;
+
+      toast.success('Aventure mise à jour !');
+      setEditingAdventure(null);
+      fetchData();
+    } catch (error) {
+      console.error('Error updating adventure:', error);
+      toast.error('Erreur lors de la mise à jour');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  // Admin: Delete adventure
+  const handleDeleteAdventure = async () => {
+    if (!deletingAdventure) return;
+    
+    setIsDeleting(true);
+    try {
+      // First delete steps
+      const { error: stepsError } = await supabase
+        .from('adventure_steps')
+        .delete()
+        .eq('adventure_id', deletingAdventure.id);
+
+      if (stepsError) throw stepsError;
+
+      // Then delete adventure
+      const { error } = await supabase
+        .from('adventures')
+        .delete()
+        .eq('id', deletingAdventure.id);
+
+      if (error) throw error;
+
+      toast.success('Aventure supprimée !');
+      setDeletingAdventure(null);
+      
+      // Clear selection if deleted adventure was selected
+      if (selectedAdventureId === deletingAdventure.id) {
+        onAdventureSelect(null);
+      }
+      
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting adventure:', error);
+      toast.error('Erreur lors de la suppression');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openEditModal = (adventure: Adventure, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditName(adventure.name);
+    setEditDesc(adventure.description || '');
+    setEditingAdventure(adventure);
+  };
+
+  const openDeleteConfirm = (adventure: Adventure, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingAdventure(adventure);
   };
 
   const addStepToAdventure = (gameTypeCode: string) => {
@@ -392,24 +488,46 @@ export function AdventureSelector({
                     )}
                     
                     <div className="relative z-10">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-semibold ${isAdminOnly ? 'text-amber-900' : ''}`}>
-                          {adventure.name}
-                        </span>
-                        {isAdminOnly && (
-                          <Badge variant="outline" className="bg-amber-700/20 text-amber-800 border-amber-700/40 text-xs">
-                            <Crown className="h-3 w-3 mr-1" />
-                            Admin
-                          </Badge>
-                        )}
-                        {!canSelect && (
-                          <Lock className="h-4 w-4 text-amber-700/60" />
-                        )}
-                        {hasComingSoonGames && (
-                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Incomplet
-                          </Badge>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`font-semibold ${isAdminOnly ? 'text-amber-900' : ''}`}>
+                            {adventure.name}
+                          </span>
+                          {isAdminOnly && (
+                            <Badge variant="outline" className="bg-amber-700/20 text-amber-800 border-amber-700/40 text-xs">
+                              <Crown className="h-3 w-3 mr-1" />
+                              Admin
+                            </Badge>
+                          )}
+                          {!canSelect && (
+                            <Lock className="h-4 w-4 text-amber-700/60" />
+                          )}
+                          {hasComingSoonGames && (
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Incomplet
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {/* Admin actions */}
+                        {isAdminOrSuper && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={(e) => openEditModal(adventure, e)}
+                              className="p-1.5 rounded hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors"
+                              title="Modifier"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => openDeleteConfirm(adventure, e)}
+                              className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         )}
                       </div>
                       {adventure.description && (
@@ -582,6 +700,70 @@ export function AdventureSelector({
           </ForestButton>
         </div>
       )}
+
+      {/* Edit Adventure Modal */}
+      <AlertDialog open={!!editingAdventure} onOpenChange={(open) => !open && setEditingAdventure(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Modifier l'aventure</AlertDialogTitle>
+            <AlertDialogDescription>
+              Modifiez le nom et la description de cette aventure.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editName">Nom</Label>
+              <Input
+                id="editName"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Nom de l'aventure"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editDesc">Description</Label>
+              <Input
+                id="editDesc"
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                placeholder="Description (optionnelle)"
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSavingEdit}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleEditAdventure}
+              disabled={isSavingEdit || !editName.trim()}
+            >
+              {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enregistrer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={!!deletingAdventure} onOpenChange={(open) => !open && setDeletingAdventure(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'aventure ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer "<strong>{deletingAdventure?.name}</strong>" ? 
+              Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAdventure}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Supprimer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
