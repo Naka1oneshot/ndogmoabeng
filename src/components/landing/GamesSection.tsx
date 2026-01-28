@@ -8,6 +8,7 @@ import { ForestButton } from '@/components/ui/ForestButton';
 import { GameRulesSheet } from './GameRulesSheet';
 import { RivieresRulesOverlay } from '@/components/rivieres/rules/RivieresRulesOverlay';
 import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
+import { InfectionRulesOverlay } from '@/components/infection/rules/InfectionRulesOverlay';
 import { GAMES_DATA } from '@/data/ndogmoabengData';
 import { MapPin, Users, Gamepad2, UsersRound, BookOpen } from 'lucide-react';
 
@@ -33,6 +34,7 @@ export function GamesSection() {
   const { user } = useAuth();
   const [rivieresRulesOpen, setRivieresRulesOpen] = useState(false);
   const [foretRulesOpen, setForetRulesOpen] = useState(false);
+  const [infectionRulesOpen, setInfectionRulesOpen] = useState(false);
 
   const handleCreateGame = (gameCode: string) => {
     if (user) {
@@ -53,6 +55,10 @@ export function GamesSection() {
       setForetRulesOpen(true);
       return true;
     }
+    if (gameCode === 'INFECTION') {
+      setInfectionRulesOpen(true);
+      return true;
+    }
     return false; // Not handled, use default
   };
 
@@ -67,6 +73,12 @@ export function GamesSection() {
     <ForetRulesOverlay 
       open={foretRulesOpen} 
       onClose={() => setForetRulesOpen(false)}
+      userRole="PLAYER"
+      defaultMode="QUICK"
+    />
+    <InfectionRulesOverlay 
+      open={infectionRulesOpen} 
+      onClose={() => setInfectionRulesOpen(false)}
       userRole="PLAYER"
       defaultMode="QUICK"
     />
@@ -141,7 +153,7 @@ export function GamesSection() {
               </CardContent>
 
               <CardFooter className="flex flex-col gap-2">
-                {game.code === 'RIVIERES' || game.code === 'FORET' ? (
+                {game.code === 'RIVIERES' || game.code === 'FORET' || game.code === 'INFECTION' ? (
                   <Button 
                     variant="outline" 
                     size="sm" 

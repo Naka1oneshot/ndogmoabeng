@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target, MessageSquare, Package, Activity, Syringe, Vote, Skull, RefreshCw } from 'lucide-react';
+import { Target, MessageSquare, Package, Activity, Syringe, Vote, Skull, RefreshCw, BookOpen } from 'lucide-react';
 import { INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { InfectionActionPanel } from './InfectionActionPanel';
 import { InfectionVotePanel } from './InfectionVotePanel';
@@ -13,6 +13,7 @@ import { InfectionEventsPanel } from './InfectionEventsPanel';
 import { InfectionPrivateMessagesPanel } from './InfectionPrivateMessagesPanel';
 import { InfectionGameEndScreen } from './InfectionGameEndScreen';
 import { InfectionRoleRevealAnimation } from './InfectionRoleRevealAnimation';
+import { InfectionRulesOverlay } from './rules/InfectionRulesOverlay';
 
 // Role display info for the reveal animation
 const ROLE_INFO: Record<string, { name: string; team: string }> = {
@@ -79,6 +80,7 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
   // Role reveal animation state
   const [showRoleReveal, setShowRoleReveal] = useState(false);
   const hasShownRevealRef = useRef(false);
+  const [showRulesOverlay, setShowRulesOverlay] = useState(false);
   
   // Check if we should show the role reveal animation (first time entering with role assigned)
   useEffect(() => {
@@ -221,6 +223,14 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
   }
 
   return (
+    <>
+    <InfectionRulesOverlay 
+      open={showRulesOverlay} 
+      onClose={() => setShowRulesOverlay(false)}
+      userRole="PLAYER"
+      gameId={game.id}
+      sessionGameId={game.current_session_game_id || undefined}
+    />
     <div className={`${theme.container} flex flex-col h-screen`}>
       {/* Header */}
       <div className={`${theme.header} p-4`}>
@@ -237,6 +247,14 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowRulesOverlay(true)}
+              className="h-8 w-8 text-[#9CA3AF] hover:text-[#D4AF37]"
+            >
+              <BookOpen className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -309,5 +327,6 @@ export function PlayerInfectionDashboard({ game, player, onLeave }: PlayerInfect
         </TabsContent>
       </Tabs>
     </div>
+    </>
   );
 }
