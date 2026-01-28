@@ -171,11 +171,11 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, avatar_url')
-          .in('id', userIds);
+          .select('user_id, avatar_url')
+          .in('user_id', userIds);
         
         if (profiles) {
-          avatarMap = Object.fromEntries(profiles.map(p => [p.id, p.avatar_url]));
+          avatarMap = Object.fromEntries(profiles.map(p => [p.user_id, p.avatar_url]));
         }
       }
       
