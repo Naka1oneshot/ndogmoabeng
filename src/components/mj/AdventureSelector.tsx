@@ -304,6 +304,11 @@ export function AdventureSelector({
       toast.error('Ce type de jeu est déjà dans l\'aventure');
       return;
     }
+    // Sheriff cannot be in first position
+    if (gameTypeCode === 'SHERIFF' && selectedSteps.length === 0) {
+      toast.error('Le Shérif ne peut pas être le premier jeu d\'une aventure');
+      return;
+    }
     setSelectedSteps(prev => [...prev, gameTypeCode]);
   };
 
@@ -701,6 +706,8 @@ export function AdventureSelector({
                 .map((type) => {
                   const isAvailable = type.status === 'AVAILABLE';
                   const isComingSoon = type.status === 'COMING_SOON';
+                  // Sheriff cannot be first
+                  const isSheriffBlocked = type.code === 'SHERIFF' && selectedSteps.length === 0;
                   
                   return (
                     <ForestButton
@@ -708,12 +715,15 @@ export function AdventureSelector({
                       variant="outline"
                       size="sm"
                       onClick={() => addStepToAdventure(type.code)}
-                      className={isComingSoon ? 'border-amber-500/50 hover:border-amber-500' : ''}
+                      disabled={isSheriffBlocked}
+                      className={`${isComingSoon ? 'border-amber-500/50 hover:border-amber-500' : ''} ${isSheriffBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={isSheriffBlocked ? 'Le Shérif ne peut pas être le premier jeu' : undefined}
                     >
                       <Plus className="h-3 w-3 mr-1" />
                       {type.name}
                       {isComingSoon && <Clock className="h-3 w-3 ml-1 text-amber-500" />}
-                      {isAvailable && <Check className="h-3 w-3 ml-1 text-green-500" />}
+                      {isAvailable && !isSheriffBlocked && <Check className="h-3 w-3 ml-1 text-green-500" />}
+                      {isSheriffBlocked && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
                     </ForestButton>
                   );
                 })}
