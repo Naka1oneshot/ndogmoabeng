@@ -77,7 +77,7 @@ export function PlayerInfectionDashboard({ game, player, onLeave, animationsEnab
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [activeTab, setActiveTab] = useState('actions');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isRoleHidden, setIsRoleHidden] = useState(false);
+  const [isRoleHidden, setIsRoleHidden] = useState(true);
   
   // Role reveal animation state
   const [showRoleReveal, setShowRoleReveal] = useState(false);

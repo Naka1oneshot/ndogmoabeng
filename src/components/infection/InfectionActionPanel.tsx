@@ -606,6 +606,8 @@ export function InfectionActionPanel({
       {/* Global Validation Button */}
       <div className="p-4 bg-[#1A2235] rounded-lg border border-[#2AB3A6]/50">
         <GlobalValidationButton 
+          gameId={gameId}
+          sessionGameId={sessionGameId}
           player={player}
           manche={manche}
           inputs={inputs}
@@ -619,6 +621,8 @@ export function InfectionActionPanel({
 
 // Component for global validation button
 interface GlobalValidationButtonProps {
+  gameId: string;
+  sessionGameId: string;
   player: Player;
   manche: number;
   inputs: InfectionInput;
@@ -626,8 +630,9 @@ interface GlobalValidationButtonProps {
   loading: boolean;
 }
 
-function GlobalValidationButton({ player, manche, inputs, isLocked, loading }: GlobalValidationButtonProps) {
+function GlobalValidationButton({ gameId, sessionGameId, player, manche, inputs, isLocked, loading }: GlobalValidationButtonProps) {
   const [validated, setValidated] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Check if all mandatory choices are made
   const areMandatoryChoicesMade = (): boolean => {
@@ -641,7 +646,40 @@ function GlobalValidationButton({ player, manche, inputs, isLocked, loading }: G
     return true;
   };
 
-  const canValidate = areMandatoryChoicesMade() && !isLocked && !loading;
+  const handleValidate = async () => {
+    setIsSubmitting(true);
+    try {
+      // Ensure a record exists in infection_inputs by submitting CORRUPTION with current value
+      // This creates/updates the record which the presentation view uses to track validation
+      const { error } = await supabase.functions.invoke('infection-submit-action', {
+        body: {
+          gameId,
+          sessionGameId,
+          manche,
+          playerId: player.id,
+          playerNum: player.player_number,
+          actionType: 'CORRUPTION',
+          amount: inputs.corruption_amount || 0,
+        },
+      });
+
+      if (error) {
+        console.error('[GlobalValidationButton] Error:', error);
+        toast.error('Erreur lors de la validation');
+        return;
+      }
+
+      setValidated(true);
+      toast.success('Choix validés !');
+    } catch (err) {
+      console.error('[GlobalValidationButton] Exception:', err);
+      toast.error('Erreur lors de la validation');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const canValidate = areMandatoryChoicesMade() && !isLocked && !loading && !isSubmitting;
 
   if (isLocked) {
     return (
@@ -664,12 +702,18 @@ function GlobalValidationButton({ player, manche, inputs, isLocked, loading }: G
   return (
     <div className="space-y-2">
       <Button
-        onClick={() => setValidated(true)}
+        onClick={handleValidate}
         disabled={!canValidate}
         className="w-full bg-[#2AB3A6] hover:bg-[#2AB3A6]/80 text-white disabled:opacity-50"
       >
-        <Check className="h-4 w-4 mr-2" />
-        Valider mes choix
+        {isSubmitting ? (
+          <>Validation...</>
+        ) : (
+          <>
+            <Check className="h-4 w-4 mr-2" />
+            Valider mes choix
+          </>
+        )}
       </Button>
       {!areMandatoryChoicesMade() && (
         <p className="text-xs text-[#D4AF37] text-center">
