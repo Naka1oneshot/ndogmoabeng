@@ -178,6 +178,17 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
   }, [game.id]);
 
   const fetchData = async () => {
+    // First, fetch the latest game state to get current manche_active and session_game_id
+    // This ensures we always use fresh data, not stale props
+    const { data: latestGame } = await supabase
+      .from('games')
+      .select('manche_active, current_session_game_id, status, phase')
+      .eq('id', game.id)
+      .maybeSingle();
+
+    const currentManche = latestGame?.manche_active ?? game.manche_active;
+    const currentSessionGameId = latestGame?.current_session_game_id ?? game.current_session_game_id;
+
     // Fetch players
     const { data: playersData } = await supabase
       .from('game_players')
@@ -190,18 +201,23 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
       setPlayers(playersData as Player[]);
     }
 
-    // Fetch current round state
-    if (game.current_session_game_id && game.manche_active) {
+    // Fetch current round state using fresh game data
+    if (currentSessionGameId && currentManche) {
       const { data: roundData } = await supabase
         .from('infection_round_state')
         .select('*')
-        .eq('session_game_id', game.current_session_game_id)
-        .eq('manche', game.manche_active)
+        .eq('session_game_id', currentSessionGameId)
+        .eq('manche', currentManche)
         .maybeSingle();
 
       if (roundData) {
         setRoundState(roundData as RoundState);
+      } else {
+        // Reset round state if no data found for current manche
+        setRoundState(null);
       }
+    } else {
+      setRoundState(null);
     }
 
     setLoading(false);
