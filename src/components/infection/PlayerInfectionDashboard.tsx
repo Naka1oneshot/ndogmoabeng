@@ -248,7 +248,10 @@ export function PlayerInfectionDashboard({ game, player, onLeave, animationsEnab
                   onClick={() => setIsRoleHidden(!isRoleHidden)}
                   className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
                 >
-                  <Badge style={{ backgroundColor: `${roleInfo.color}20`, color: roleInfo.color }}>
+                  <Badge style={{ 
+                    backgroundColor: isRoleHidden ? '#374151' : `${roleInfo.color}20`, 
+                    color: isRoleHidden ? '#9CA3AF' : roleInfo.color 
+                  }}>
                     {isRoleHidden ? '•••' : roleInfo.name}
                   </Badge>
                   {isRoleHidden ? (
