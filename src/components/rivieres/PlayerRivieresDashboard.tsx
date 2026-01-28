@@ -268,49 +268,10 @@ export function PlayerRivieresDashboard({
         })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'river_level_history', filter: `session_game_id=eq.${sessionGameId}` },
         async (payload) => {
-          // Level resolved - trigger resolve animation and refetch
+          // Level resolved - trigger resolve animation (PlayerSort already shown after Lock)
           const newLevel = payload.new as RiverLevelHistory;
           if (newLevel && !resolveAnimationTriggeredRef.current) {
             resolveAnimationTriggeredRef.current = true;
-            
-            // Fetch player sort data for animation
-            const { data: decisionsData } = await supabase
-              .from('river_decisions')
-              .select('player_id, player_num, decision')
-              .eq('session_game_id', sessionGameId)
-              .eq('manche', newLevel.manche)
-              .eq('niveau', newLevel.niveau)
-              .eq('status', 'LOCKED');
-              
-            const { data: playersData } = await supabase
-              .from('game_players')
-              .select('id, display_name, user_id')
-              .eq('game_id', gameId)
-              .eq('status', 'ACTIVE')
-              .eq('is_host', false);
-              
-            // Get avatars
-            const userIds = (playersData || []).filter(p => p.user_id).map(p => p.user_id);
-            let avatarMap = new Map<string, string>();
-            if (userIds.length > 0) {
-              const { data: profilesData } = await supabase
-                .from('profiles')
-                .select('user_id, avatar_url')
-                .in('user_id', userIds);
-              if (profilesData) {
-                avatarMap = new Map(profilesData.map(p => [p.user_id, p.avatar_url]));
-              }
-            }
-            
-            const sortData = (decisionsData || []).map(d => {
-              const player = (playersData || []).find(p => p.id === d.player_id);
-              return {
-                id: d.player_id,
-                display_name: player?.display_name ?? `Joueur ${d.player_num}`,
-                avatar_url: player?.user_id ? (avatarMap.get(player.user_id) || null) : null,
-                decision: d.decision as 'RESTE' | 'DESCENDS',
-              };
-            });
             
             setResolveData({
               danger: newLevel.danger_effectif,
@@ -319,7 +280,6 @@ export function PlayerRivieresDashboard({
               niveau: newLevel.niveau,
               manche: newLevel.manche,
             });
-            setPlayerSortData(sortData);
             setShowResolveAnimation(true);
           }
           fetchData();
@@ -328,6 +288,7 @@ export function PlayerRivieresDashboard({
   };
 
   // Detect lock animation (when own decision goes from DRAFT to LOCKED)
+  // Also fetch player sort data at this point for the chained animation
   useEffect(() => {
     if (!initialLoadDoneRef.current) {
       // Skip animation on initial load
@@ -338,13 +299,59 @@ export function PlayerRivieresDashboard({
       return;
     }
 
+    const fetchPlayerSortDataAndShowLock = async () => {
+      if (!state) return;
+      
+      // Fetch player sort data NOW before showing lock animation
+      const { data: decisionsData } = await supabase
+        .from('river_decisions')
+        .select('player_id, player_num, decision')
+        .eq('session_game_id', sessionGameId)
+        .eq('manche', state.manche_active)
+        .eq('niveau', state.niveau_active)
+        .eq('status', 'LOCKED');
+        
+      const { data: playersData } = await supabase
+        .from('game_players')
+        .select('id, display_name, user_id')
+        .eq('game_id', gameId)
+        .eq('status', 'ACTIVE')
+        .eq('is_host', false);
+        
+      // Get avatars
+      const userIds = (playersData || []).filter(p => p.user_id).map(p => p.user_id);
+      let avatarMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, avatar_url')
+          .in('user_id', userIds);
+        if (profilesData) {
+          avatarMap = new Map(profilesData.map(p => [p.user_id, p.avatar_url]));
+        }
+      }
+      
+      const sortData = (decisionsData || []).map(d => {
+        const player = (playersData || []).find(p => p.id === d.player_id);
+        return {
+          id: d.player_id,
+          display_name: player?.display_name ?? `Joueur ${d.player_num}`,
+          avatar_url: player?.user_id ? (avatarMap.get(player.user_id) || null) : null,
+          decision: d.decision as 'RESTE' | 'DESCENDS',
+        };
+      });
+      
+      setPlayerSortData(sortData);
+      setShowLockAnimation(true);
+    };
+
     if (currentDecision?.status === 'LOCKED' && prevDecisionStatusRef.current === 'DRAFT' && !lockAnimationTriggeredRef.current) {
       lockAnimationTriggeredRef.current = true;
-      setShowLockAnimation(true);
+      fetchPlayerSortDataAndShowLock();
     }
     
     prevDecisionStatusRef.current = currentDecision?.status ?? null;
-  }, [currentDecision?.status]);
+  }, [currentDecision?.status, state, sessionGameId, gameId]);
 
   // Detect manche change
   useEffect(() => {
@@ -508,21 +515,24 @@ export function PlayerRivieresDashboard({
                     (!currentDecision || currentDecision.status === 'DRAFT');
   const isLocked = currentDecision?.status === 'LOCKED';
 
-  // Animation handlers
+  // Animation handlers - Order: Lock → PlayerSort → (then Resolve triggered separately)
   const handleLockComplete = () => {
     setShowLockAnimation(false);
-  };
-
-  const handleResolveComplete = () => {
-    setShowResolveAnimation(false);
-    // Show player sort after resolve
+    // Chain to player sort animation (like presentation view)
     if (playerSortData.length > 0) {
       setShowPlayerSortAnimation(true);
     }
   };
 
+  const handleResolveComplete = () => {
+    setShowResolveAnimation(false);
+    // Don't show player sort here - it's shown after Lock
+  };
+
   const handlePlayerSortComplete = () => {
     setShowPlayerSortAnimation(false);
+    // Reset lock trigger so it can fire again for next level
+    lockAnimationTriggeredRef.current = false;
   };
 
   const handleMancheComplete = () => {
