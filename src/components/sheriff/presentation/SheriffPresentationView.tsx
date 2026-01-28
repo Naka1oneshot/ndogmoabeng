@@ -746,6 +746,16 @@ function DuelsPhaseDisplay({
   const player1 = currentDuel ? getPlayer(currentDuel.player1_number) : null;
   const player2 = currentDuel ? getPlayer(currentDuel.player2_number) : null;
   
+  // Helper to get initials from display name
+  const getInitials = (name: string | undefined) => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+  
   return (
     <div className="grid grid-cols-12 gap-4 h-full">
       {/* Center: Current Duel */}
@@ -779,7 +789,7 @@ function DuelsPhaseDisplay({
                   />
                 ) : (
                   <div className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full bg-gradient-to-br from-[#D4AF37]/40 to-[#8B4513]/40 flex items-center justify-center mb-4 border-4 lg:border-[6px] border-[#D4AF37] text-4xl lg:text-6xl xl:text-7xl font-bold text-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20">
-                    {player1?.display_name ? (player1.display_name.split(' ').length >= 2 ? player1.display_name.split(' ')[0][0] + player1.display_name.split(' ').slice(-1)[0][0] : player1.display_name.slice(0, 2)).toUpperCase() : player1?.player_number}
+                    {getInitials(player1?.display_name)}
                   </div>
                 )}
                 <div className="text-xl lg:text-2xl xl:text-3xl font-bold text-white">{player1?.display_name}</div>
@@ -809,7 +819,7 @@ function DuelsPhaseDisplay({
                   />
                 ) : (
                   <div className="h-32 w-32 lg:h-44 lg:w-44 xl:h-52 xl:w-52 rounded-full bg-gradient-to-br from-[#D4AF37]/40 to-[#8B4513]/40 flex items-center justify-center mb-4 border-4 lg:border-[6px] border-[#D4AF37] text-4xl lg:text-6xl xl:text-7xl font-bold text-[#D4AF37] shadow-2xl shadow-[#D4AF37]/20">
-                    {player2?.display_name ? (player2.display_name.split(' ').length >= 2 ? player2.display_name.split(' ')[0][0] + player2.display_name.split(' ').slice(-1)[0][0] : player2.display_name.slice(0, 2)).toUpperCase() : player2?.player_number}
+                    {getInitials(player2?.display_name)}
                   </div>
                 )}
                 <div className="text-xl lg:text-2xl xl:text-3xl font-bold text-white">{player2?.display_name}</div>
