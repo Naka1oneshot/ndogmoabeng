@@ -41,8 +41,8 @@ Deno.serve(async (req) => {
 
     // Get config values
     const config = (roundState.bot_config as { visa_pvic_percent?: number; cost_per_player?: number } | null) || {};
-    const visaPvicPercent = config.visa_pvic_percent || 20;
-    const poolCostPerPlayer = config.cost_per_player || 10;
+    const visaPvicPercent = config.visa_pvic_percent || 50;
+    const poolCostPerPlayer = config.cost_per_player || 5;
 
     // Get player's current pvic for visa cost calculation
     const { data: player } = await supabase

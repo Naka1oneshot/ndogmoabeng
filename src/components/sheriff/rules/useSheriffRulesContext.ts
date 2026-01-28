@@ -27,8 +27,8 @@ export interface SheriffRulesContextData {
 }
 
 const DEMO_DATA: SheriffRulesContextData = {
-  visaPvicPercent: 20,
-  costPerPlayer: 10,
+  visaPvicPercent: 50,
+  costPerPlayer: 5,
   floorPercent: 40,
   gainPerIllegalFound: 10,
   lossSearchNoIllegal: 50,

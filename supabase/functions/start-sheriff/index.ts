@@ -22,9 +22,9 @@ Deno.serve(async (req) => {
 
     // Use provided values or defaults
     const commonPoolInitial = typeof initialPool === 'number' && initialPool >= 0 ? initialPool : 100;
-    const costPerPlayer = typeof poolCostPerPlayer === 'number' && poolCostPerPlayer > 0 ? poolCostPerPlayer : 10;
+    const costPerPlayer = typeof poolCostPerPlayer === 'number' && poolCostPerPlayer > 0 ? poolCostPerPlayer : 5;
     const floorPercent = typeof poolFloorPercent === 'number' && poolFloorPercent >= 0 ? poolFloorPercent : 40;
-    const pvicPercent = typeof visaPvicPercent === 'number' && visaPvicPercent > 0 ? visaPvicPercent : 20;
+    const pvicPercent = typeof visaPvicPercent === 'number' && visaPvicPercent > 0 ? visaPvicPercent : 50;
     const maxDuelImpact = typeof duelMaxImpact === 'number' && duelMaxImpact > 0 ? duelMaxImpact : 10;
 
     const supabase = createClient(

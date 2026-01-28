@@ -25,8 +25,8 @@ export interface SheriffBotConfig {
 
 // Default config values
 export const DEFAULT_SHERIFF_CONFIG: Required<SheriffBotConfig> = {
-  visa_pvic_percent: 20,
-  cost_per_player: 10,
+  visa_pvic_percent: 50,
+  cost_per_player: 5,
   duel_search_legal_penalty: 50,
   duel_illegal_found_bonus: 10,
   duel_illegal_pass_bonus: 10,
