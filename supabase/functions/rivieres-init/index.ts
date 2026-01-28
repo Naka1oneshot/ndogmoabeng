@@ -200,6 +200,13 @@ serve(async (req) => {
       .update({ status: "RUNNING", started_at: new Date().toISOString(), phase: "DECISIONS" })
       .eq("id", session_game_id);
 
+    // CRITICAL: Also update the main game status to IN_GAME
+    // Use OPEN phase which is valid for games table constraint
+    await supabase
+      .from("games")
+      .update({ status: "IN_GAME", phase: "OPEN" })
+      .eq("id", gameId);
+
     return new Response(
       JSON.stringify({ 
         success: true, 
