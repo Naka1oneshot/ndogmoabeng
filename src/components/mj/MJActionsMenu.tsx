@@ -68,7 +68,7 @@ export function MJActionsMenu({
   const [simulatingGame, setSimulatingGame] = useState(false);
   const [simulationProgress, setSimulationProgress] = useState('');
 
-  const isForet = gameTypeCode === 'FORET' || !gameTypeCode;
+  const isForet = gameTypeCode === 'FORET';
   const isInGame = gameStatus === 'IN_GAME';
   const isEnded = gameStatus === 'ENDED' || gameStatus === 'FINISHED';
 
