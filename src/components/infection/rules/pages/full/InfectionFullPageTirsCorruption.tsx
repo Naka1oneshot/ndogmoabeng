@@ -22,40 +22,46 @@ export function InfectionFullPageTirsCorruption({ context, replayNonce }: Props)
   const [pvAmount, setPvAmount] = useState(0);
 
   const computeCorruptionResult = (): CorruptionResult => {
-    // Logique de corruption selon les seuils:
-    // - Par défaut: sabotage actif (AE a identifié BA)
-    // - Non-PV peuvent payer ≥10 pour désactiver
-    // - PV peuvent payer ≥15 pour réactiver (override)
+    // Logique de corruption selon les 4 cas:
+    // Cas 1: Non-PV >= 10 ET PV < 15 → Sabotage OFF, Non-PV → AE, PV remboursés
+    // Cas 2: Non-PV >= 10 ET PV >= 15 → Sabotage ON (PV override), PV → AE, Non-PV remboursés
+    // Cas 3: Non-PV < 10 ET PV >= 15 → Sabotage ON, PV → AE, Non-PV remboursés
+    // Cas 4: Non-PV < 10 ET PV < 15 → Sabotage ON (défaut), tous remboursés, AE +10 fixe
     
-    // Cas 1: PV >= 15 (override) → Sabotage ON, PV payent, Non-PV remboursés
-    if (pvAmount >= 15) {
+    const nonPvReachThreshold = nonPvAmount >= 10;
+    const pvReachThreshold = pvAmount >= 15;
+    
+    // Cas 2 & 3: PV >= 15 → Sabotage ON, PV tokens → AE, Non-PV remboursés
+    if (pvReachThreshold) {
       return {
         sabotageActive: true,
         aeBonus: pvAmount,
         nonPvReimbursed: nonPvAmount,
         pvReimbursed: 0,
-        explanation: 'PV ont atteint le seuil override (≥15). Sabotage réactivé. Non-PV remboursés.'
+        explanation: nonPvReachThreshold 
+          ? 'Cas 2 : Non-PV ≥ 10 mais PV ≥ 15 (override). Sabotage réactivé. Jetons PV → AE, Non-PV remboursés.'
+          : 'Cas 3 : Non-PV < 10 et PV ≥ 15. Sabotage actif. Jetons PV → AE, Non-PV remboursés.'
       };
     }
     
-    // Cas 2: Non-PV >= 10 (et PV < 15) → Sabotage OFF, Non-PV convertis en PVic, PV remboursés
-    if (nonPvAmount >= 10) {
+    // Cas 1: Non-PV >= 10 ET PV < 15 → Sabotage OFF, Non-PV → AE, PV remboursés
+    if (nonPvReachThreshold) {
       return {
         sabotageActive: false,
         aeBonus: nonPvAmount,
         nonPvReimbursed: 0,
         pvReimbursed: pvAmount,
-        explanation: 'Non-PV ont atteint le seuil (≥10) et PV n\'ont pas contré (< 15). Sabotage annulé. Jetons Non-PV → AE, PV remboursés.'
+        explanation: 'Cas 1 : Non-PV ≥ 10 et PV < 15. Sabotage annulé. Jetons Non-PV → AE, PV remboursés.'
       };
     }
     
-    // Cas 3: Aucun seuil atteint → Sabotage ON (défaut), tous les jetons vont à AE
+    // Cas 4: Aucun seuil atteint → Sabotage ON (défaut), tous remboursés, AE +10 PVic fixe
     return {
       sabotageActive: true,
-      aeBonus: nonPvAmount + pvAmount,
-      nonPvReimbursed: 0,
-      pvReimbursed: 0,
-      explanation: 'Non-PV n\'ont pas atteint le seuil (< 10). Sabotage reste actif par défaut. Tous les jetons → AE.'
+      aeBonus: 10,
+      nonPvReimbursed: nonPvAmount,
+      pvReimbursed: pvAmount,
+      explanation: 'Cas 4 : Aucun seuil atteint (Non-PV < 10, PV < 15). Sabotage actif par défaut. Tous remboursés, AE gagne +10 PVic.'
     };
   };
 
@@ -120,16 +126,20 @@ export function InfectionFullPageTirsCorruption({ context, replayNonce }: Props)
           
           <div className="grid gap-2">
             <div className="bg-[#0B0E14] rounded p-2 border-l-2 border-[#2AB3A6]">
-              <span className="text-[#2AB3A6] font-medium">Non-PV paient ≥10 jetons</span>
-              <span className="text-[#6B7280]"> → Annule le sabotage, Non-PV remboursés, jetons PV → AE</span>
+              <span className="text-[#2AB3A6] font-medium">Cas 1 : Non-PV ≥ 10 ET PV &lt; 15</span>
+              <p className="text-[#6B7280] text-xs mt-1">→ Sabotage <strong className="text-[#2AB3A6]">ANNULÉ</strong>. Jetons Non-PV → AE. PV remboursés.</p>
             </div>
             <div className="bg-[#0B0E14] rounded p-2 border-l-2 border-[#B00020]">
-              <span className="text-[#B00020] font-medium">PV paient ≥15 jetons (override)</span>
-              <span className="text-[#6B7280]"> → Réactive le sabotage, Non-PV remboursés, jetons PV → AE</span>
+              <span className="text-[#B00020] font-medium">Cas 2 : Non-PV ≥ 10 ET PV ≥ 15</span>
+              <p className="text-[#6B7280] text-xs mt-1">→ PV contrent (override). Sabotage <strong className="text-[#B00020]">ACTIF</strong>. Jetons PV → AE. Non-PV remboursés.</p>
+            </div>
+            <div className="bg-[#0B0E14] rounded p-2 border-l-2 border-[#E6A23C]">
+              <span className="text-[#E6A23C] font-medium">Cas 3 : Non-PV &lt; 10 ET PV ≥ 15</span>
+              <p className="text-[#6B7280] text-xs mt-1">→ Sabotage <strong className="text-[#B00020]">ACTIF</strong>. Jetons PV → AE. Non-PV remboursés.</p>
             </div>
             <div className="bg-[#0B0E14] rounded p-2 border-l-2 border-[#6B7280]">
-              <span className="text-[#9CA3AF] font-medium">Aucun seuil atteint</span>
-              <span className="text-[#6B7280]"> → Sabotage reste actif, tous les jetons → AE</span>
+              <span className="text-[#9CA3AF] font-medium">Cas 4 : Non-PV &lt; 10 ET PV &lt; 15</span>
+              <p className="text-[#6B7280] text-xs mt-1">→ Aucun seuil atteint. Sabotage <strong className="text-[#B00020]">ACTIF</strong> (défaut). Tous remboursés. AE gagne <strong className="text-[#D4AF37]">+10 PVic</strong>.</p>
             </div>
           </div>
         </div>
