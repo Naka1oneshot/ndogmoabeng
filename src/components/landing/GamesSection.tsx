@@ -11,7 +11,7 @@ import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
 import { InfectionRulesOverlay } from '@/components/infection/rules/InfectionRulesOverlay';
 import { SheriffRulesOverlay } from '@/components/sheriff/rules/SheriffRulesOverlay';
 import { GAMES_DATA } from '@/data/ndogmoabengData';
-import { MapPin, Users, Gamepad2, UsersRound, BookOpen } from 'lucide-react';
+import { MapPin, Users, Gamepad2, UsersRound, BookOpen, ArrowRight } from 'lucide-react';
 
 import rivieresImage from '@/assets/games/rivieres-ndogmoabeng.png';
 import foretImage from '@/assets/games/foret-ndogmoabeng.png';
@@ -30,6 +30,9 @@ const GAME_IMAGE_POSITIONS: Record<string, string> = {
   INFECTION: 'object-center',
 };
 
+// Limiter à 3 jeux sur l'accueil
+const MAX_GAMES_DISPLAYED = 3;
+
 export function GamesSection() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -37,6 +40,10 @@ export function GamesSection() {
   const [foretRulesOpen, setForetRulesOpen] = useState(false);
   const [infectionRulesOpen, setInfectionRulesOpen] = useState(false);
   const [sheriffRulesOpen, setSheriffRulesOpen] = useState(false);
+
+  // Filtrer les jeux à afficher (max 3, exclure SHERIFF pour l'instant si besoin)
+  const displayedGames = GAMES_DATA.slice(0, MAX_GAMES_DISPLAYED);
+  const hasMoreGames = GAMES_DATA.length > MAX_GAMES_DISPLAYED;
 
   const handleCreateGame = (gameCode: string) => {
     if (user) {
@@ -101,12 +108,12 @@ export function GamesSection() {
             Nos Jeux
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Trois expériences uniques au cœur de l'univers de Ndogmoabeng
+            Découvrez nos expériences uniques au cœur de l'univers de Ndogmoabeng
           </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
-          {GAMES_DATA.filter((game) => game.code !== 'SHERIFF').map((game) => (
+          {displayedGames.map((game) => (
             <Card 
               key={game.id} 
               className="card-gradient border-border/50 hover:border-primary/50 transition-colors group overflow-hidden"
@@ -165,7 +172,7 @@ export function GamesSection() {
               </CardContent>
 
               <CardFooter className="flex flex-col gap-2">
-                {game.code === 'RIVIERES' || game.code === 'FORET' || game.code === 'INFECTION' ? (
+                {game.code === 'RIVIERES' || game.code === 'FORET' || game.code === 'INFECTION' || game.code === 'SHERIFF' ? (
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -194,6 +201,20 @@ export function GamesSection() {
             </Card>
           ))}
         </div>
+
+        {/* Bouton voir tous les jeux */}
+        {hasMoreGames && (
+          <div className="text-center mt-10">
+            <ForestButton 
+              variant="outline"
+              onClick={() => navigate('/jeux')}
+              className="gap-2"
+            >
+              Voir tous les jeux
+              <ArrowRight className="h-4 w-4" />
+            </ForestButton>
+          </div>
+        )}
       </div>
     </section>
     </>
