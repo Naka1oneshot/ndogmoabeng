@@ -15,6 +15,7 @@ import { lazy, Suspense, memo } from "react";
 
 // Lazy load all pages for better code splitting
 const Index = lazy(() => import("./pages/Index"));
+const Games = lazy(() => import("./pages/Games"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Login = lazy(() => import("./pages/Login"));
 const MJ = lazy(() => import("./pages/MJ"));
@@ -61,6 +62,7 @@ const AppRoutes = memo(function AppRoutes() {
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
         <Route path="/" element={<Index />} />
+        <Route path="/jeux" element={<Games />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/login" element={<Login />} />
         <Route path="/mj" element={<MJ />} />
