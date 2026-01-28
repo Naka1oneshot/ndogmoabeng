@@ -58,8 +58,8 @@ export function InfectionActionPanel({
     oc_lookup_target_num: null,
     ezkar_antidote_target_num: null,
   });
-  const [hasShotThisRound, setHasShotThisRound] = useState(false);
-  const [hasUsedBullet, setHasUsedBullet] = useState(false);
+  const [currentShotTarget, setCurrentShotTarget] = useState<number | null>(null);
+  const [hasUsedBulletPreviousRound, setHasUsedBulletPreviousRound] = useState(false);
   const [bulletCount, setBulletCount] = useState(0);
   const [alreadyResearchedTargets, setAlreadyResearchedTargets] = useState<number[]>([]);
   const [isValidated, setIsValidated] = useState(false);
@@ -120,12 +120,16 @@ export function InfectionActionPanel({
     // Check for shots this round
     const { data: shots } = await supabase
       .from('infection_shots')
-      .select('id')
+      .select('id, target_num')
       .eq('session_game_id', sessionGameId)
       .eq('manche', manche)
       .eq('shooter_num', player.player_number);
 
-    setHasShotThisRound(shots && shots.length > 0);
+    if (shots && shots.length > 0) {
+      setCurrentShotTarget(shots[0].target_num);
+    } else {
+      setCurrentShotTarget(null);
+    }
 
     // Check bullet count
     const bulletType = player.role_code === 'BA' ? 'Balle BA' : 'Balle PV';
@@ -139,14 +143,15 @@ export function InfectionActionPanel({
 
     setBulletCount(ammo?.quantite || 0);
 
-    // For PV, check if they've ever shot
+    // For PV, check if they've shot in a PREVIOUS round (locked, can't change)
     if (player.role_code === 'PV') {
-      const { data: allShots } = await supabase
+      const { data: previousShots } = await supabase
         .from('infection_shots')
         .select('id')
         .eq('session_game_id', sessionGameId)
-        .eq('shooter_num', player.player_number);
-      setHasUsedBullet(allShots && allShots.length > 0);
+        .eq('shooter_num', player.player_number)
+        .lt('manche', manche);
+      setHasUsedBulletPreviousRound(previousShots && previousShots.length > 0);
     }
   };
 
@@ -196,7 +201,7 @@ export function InfectionActionPanel({
     }
   };
 
-  const submitShot = async (targetNum: number) => {
+  const submitShot = async (targetNum: number | null) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('infection-submit-shot', {
@@ -206,14 +211,15 @@ export function InfectionActionPanel({
           manche,
           shooterNum: player.player_number,
           shooterRole: player.role_code,
-          targetNum,
+          targetNum, // null means cancel the shot
         },
       });
 
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Failed to submit');
 
-      toast.success('Tir enregistré!');
+      toast.success(targetNum === null ? 'Tir annulé' : 'Tir enregistré!');
+      setCurrentShotTarget(targetNum);
       loadInventoryState();
     } catch (err: any) {
       toast.error(err.message || 'Erreur');
@@ -257,17 +263,28 @@ export function InfectionActionPanel({
             Bras Armé — Tirer
           </h3>
           <p className="text-sm text-[#6B7280] mb-3">
-            Balles disponibles: {bulletCount}/2
+            Balles disponibles: {bulletCount + (currentShotTarget !== null ? 1 : 0)}/2
           </p>
-          {hasShotThisRound ? (
-            <p className="text-[#2AB3A6]">✓ Tir enregistré pour cette manche</p>
-          ) : bulletCount > 0 ? (
-            <div className="flex gap-2">
-              <Select onValueChange={(v) => submitShot(parseInt(v))} disabled={loading}>
-                <SelectTrigger className="flex-1 bg-[#0B0E14] border-[#2D3748]">
+          {(bulletCount > 0 || currentShotTarget !== null) ? (
+            <>
+              <Select 
+                value={currentShotTarget !== null ? String(currentShotTarget) : ''} 
+                onValueChange={(v) => {
+                  if (v === NO_ACTION_VALUE) {
+                    submitShot(null);
+                  } else {
+                    submitShot(parseInt(v));
+                  }
+                }} 
+                disabled={loading}
+              >
+                <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
                   <SelectValue placeholder="Choisir une cible..." />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1A2235] border-[#2D3748]">
+                  <SelectItem value={NO_ACTION_VALUE} className="text-[#6B7280]">
+                    — Ne pas tirer —
+                  </SelectItem>
                   {alivePlayers.map((p) => (
                     <SelectItem key={p.player_number} value={String(p.player_number)}>
                       #{p.player_number} - {p.display_name}
@@ -275,7 +292,12 @@ export function InfectionActionPanel({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+              {currentShotTarget !== null && (
+                <p className="text-xs text-[#B00020] mt-2">
+                  ✓ Cible: #{currentShotTarget}
+                </p>
+              )}
+            </>
           ) : (
             <p className="text-[#6B7280]">Aucune balle disponible</p>
           )}
@@ -318,21 +340,41 @@ export function InfectionActionPanel({
               <Skull className="h-4 w-4" />
               Tirer (1 balle pour la partie)
             </h3>
-            {hasUsedBullet || hasShotThisRound ? (
-              <p className="text-[#6B7280]">Balle déjà utilisée</p>
-            ) : bulletCount > 0 ? (
-              <Select onValueChange={(v) => submitShot(parseInt(v))} disabled={loading}>
-                <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
-                  <SelectValue placeholder="Choisir une cible..." />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1A2235] border-[#2D3748]">
-                  {alivePlayers.map((p) => (
-                    <SelectItem key={p.player_number} value={String(p.player_number)}>
-                      #{p.player_number} - {p.display_name}
+            {hasUsedBulletPreviousRound ? (
+              <p className="text-[#6B7280]">Balle déjà utilisée dans une manche précédente</p>
+            ) : (bulletCount > 0 || currentShotTarget !== null) ? (
+              <>
+                <Select 
+                  value={currentShotTarget !== null ? String(currentShotTarget) : ''} 
+                  onValueChange={(v) => {
+                    if (v === NO_ACTION_VALUE) {
+                      submitShot(null);
+                    } else {
+                      submitShot(parseInt(v));
+                    }
+                  }} 
+                  disabled={loading}
+                >
+                  <SelectTrigger className="bg-[#0B0E14] border-[#2D3748]">
+                    <SelectValue placeholder="Choisir une cible..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1A2235] border-[#2D3748]">
+                    <SelectItem value={NO_ACTION_VALUE} className="text-[#6B7280]">
+                      — Ne pas tirer —
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {alivePlayers.map((p) => (
+                      <SelectItem key={p.player_number} value={String(p.player_number)}>
+                        #{p.player_number} - {p.display_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {currentShotTarget !== null && (
+                  <p className="text-xs text-[#B00020] mt-2">
+                    ✓ Cible: #{currentShotTarget}
+                  </p>
+                )}
+              </>
             ) : (
               <p className="text-[#6B7280]">Aucune balle disponible</p>
             )}
