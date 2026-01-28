@@ -114,7 +114,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // If odd number of players, one player doesn't have a duel (that's ok)
+    // If odd number of players, one player doesn't have a duel
+    // Store this unpaired player for the final duel
+    const unpairedPlayerNum = shuffled.find(num => !used.has(num)) || null;
+
     // Insert duels
     const duelsInsert = duels.map((d, idx) => ({
       game_id: gameId,
@@ -123,6 +126,7 @@ Deno.serve(async (req) => {
       player1_number: d.player1,
       player2_number: d.player2,
       status: 'PENDING',
+      is_final: false,
     }));
 
     if (duelsInsert.length > 0) {
@@ -133,14 +137,16 @@ Deno.serve(async (req) => {
       if (insertError) throw insertError;
     }
 
-    // Update round state with pool spent
+    // Update round state with pool spent and unpaired player
     const { error: stateError } = await supabase
       .from('sheriff_round_state')
       .update({
         phase: 'DUELS',
         total_duels: duels.length,
-        current_duel_order: null, // Will be set when first duel is activated
+        current_duel_order: null,
         common_pool_spent: totalPoolSpent,
+        unpaired_player_num: unpairedPlayerNum,
+        final_duel_status: unpairedPlayerNum ? 'NONE' : null,
         updated_at: new Date().toISOString(),
       })
       .eq('session_game_id', sessionGameId);
