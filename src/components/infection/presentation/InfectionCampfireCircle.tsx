@@ -21,23 +21,46 @@ interface InfectionCampfireCircleProps {
 }
 
 export function InfectionCampfireCircle({ players, avatarUrls, isMobile }: InfectionCampfireCircleProps) {
+  // Shuffle players randomly but keep stable during session (seeded by player IDs)
+  const shuffledPlayers = useMemo(() => {
+    if (players.length === 0) return [];
+    
+    // Create a stable seed from player IDs to keep shuffle consistent
+    const seed = players.map(p => p.id).sort().join('').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    
+    // Simple seeded random using the seed
+    const seededRandom = (index: number) => {
+      const x = Math.sin(seed + index) * 10000;
+      return x - Math.floor(x);
+    };
+    
+    // Fisher-Yates shuffle with seeded random
+    const shuffled = [...players];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(seededRandom(i) * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    return shuffled;
+  }, [players]);
+
   // Calculate positions for players in a circle
   const playerPositions = useMemo(() => {
-    const count = players.length;
+    const count = shuffledPlayers.length;
     if (count === 0) return [];
 
     // Circle parameters - responsive sizing
     const baseRadius = isMobile ? 35 : 38; // percentage of container
     const radius = Math.max(baseRadius - count * 0.5, isMobile ? 28 : 32);
 
-    return players.map((player, index) => {
+    return shuffledPlayers.map((player, index) => {
       // Start from top (-90 degrees) and go clockwise
       const angle = ((index / count) * 360 - 90) * (Math.PI / 180);
       const x = 50 + radius * Math.cos(angle);
       const y = 50 + radius * Math.sin(angle);
       return { player, x, y, angle: (index / count) * 360 - 90 };
     });
-  }, [players, isMobile]);
+  }, [shuffledPlayers, isMobile]);
 
   const getAvatarUrl = (player: Player) => {
     if (player.user_id && avatarUrls.has(player.user_id)) {

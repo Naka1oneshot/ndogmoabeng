@@ -185,13 +185,13 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, avatar_url')
-          .in('id', userIds);
+          .select('user_id, avatar_url')
+          .in('user_id', userIds);
 
         if (profiles) {
           profiles.forEach(profile => {
-            if (profile.avatar_url) {
-              avatarMap.set(profile.id, profile.avatar_url);
+            if (profile.avatar_url && profile.user_id) {
+              avatarMap.set(profile.user_id, profile.avatar_url);
             }
           });
           setAvatarUrls(avatarMap);
