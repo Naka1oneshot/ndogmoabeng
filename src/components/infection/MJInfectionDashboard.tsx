@@ -879,6 +879,7 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
           />
         )}
       </div>
+      </>
     );
   }
 
