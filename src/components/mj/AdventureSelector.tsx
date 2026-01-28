@@ -412,7 +412,9 @@ export function AdventureSelector({
         <div className="space-y-2">
           <Label>Type de jeu</Label>
           <div className="grid gap-2">
-            {gameTypes.map((type) => {
+            {gameTypes
+              .filter(type => type.code !== 'SHERIFF') // Sheriff is adventure-only
+              .map((type) => {
               const isAvailable = type.status === 'AVAILABLE';
               const isComingSoon = type.status === 'COMING_SOON';
               
