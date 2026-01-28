@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { MJPlayersTab } from '@/components/mj/MJPlayersTab';
 import { MJBetsTab } from '@/components/mj/MJBetsTab';
 import { MJPhase2Tab } from '@/components/mj/MJPhase2Tab';
@@ -9,9 +11,10 @@ import { MJMonstersConfigTab } from '@/components/mj/MJMonstersConfigTab';
 import { MJItemsShopTab } from '@/components/mj/MJItemsShopTab';
 import { MJShopPhaseTab } from '@/components/mj/MJShopPhaseTab';
 import MJTeamChatViewer from '@/components/mj/MJTeamChatViewer';
+import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
 import {
   Users, Coins, Package, MessageSquare,
-  Bug, Store, Swords, Target
+  Bug, Store, Swords, Target, BookOpen
 } from 'lucide-react';
 
 interface Game {
@@ -41,8 +44,24 @@ interface MJForetDashboardProps {
 }
 
 export function MJForetDashboard({ game, isAdventure, onNextGame, onGameUpdate }: MJForetDashboardProps) {
+  const [showRulesOverlay, setShowRulesOverlay] = useState(false);
+
   return (
-    <Tabs defaultValue="players" className="w-full">
+    <>
+      {/* Rules button */}
+      <div className="flex justify-end mb-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowRulesOverlay(true)}
+          className="gap-2"
+        >
+          <BookOpen className="h-4 w-4" />
+          Règles du jeu
+        </Button>
+      </div>
+
+      <Tabs defaultValue="players" className="w-full">
       {/* Primary tabs - 4 cols on mobile, 8 on desktop */}
       <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto">
         <TabsTrigger value="players" className="flex items-center gap-1 py-2 px-1 sm:px-3">
@@ -123,5 +142,15 @@ export function MJForetDashboard({ game, isAdventure, onNextGame, onGameUpdate }
         </div>
       </TabsContent>
     </Tabs>
+
+    {/* Rules Overlay */}
+    <ForetRulesOverlay
+      open={showRulesOverlay}
+      onClose={() => setShowRulesOverlay(false)}
+      gameId={game.id}
+      sessionGameId={game.current_session_game_id || undefined}
+      userRole="MJ"
+    />
+  </>
   );
 }
