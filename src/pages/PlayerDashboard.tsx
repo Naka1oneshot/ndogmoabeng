@@ -2,38 +2,20 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { useGameTheme } from '@/contexts/ThemeContext';
-import { Loader2, LogOut, Swords, MessageSquare, Package, Zap, Clock, ShoppingBag, Users, BookOpen, ChevronUp, ChevronDown } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Loader2, LogOut, Clock, Zap } from 'lucide-react';
 import { ForestButton } from '@/components/ui/ForestButton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { GameStartAnimation } from '@/components/game/GameStartAnimation';
 import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
-import { CombatHistorySummarySheet } from '@/components/mj/presentation/CombatHistorySummarySheet';
-import { usePresentationAnimations, PhaseTransitionOverlay, CoupDeGraceOverlay } from '@/components/game/PresentationAnimations';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic } from '@/hooks/useAdventureCinematic';
-import { ForetAutoCountdownOverlay } from '@/components/foret/ForetAutoCountdownOverlay';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
-import { EventsFeed } from '@/components/player/EventsFeed';
-import { BattlefieldView } from '@/components/player/BattlefieldView';
-import { PlayerInventory } from '@/components/player/PlayerInventory';
-import { PhasePanel } from '@/components/player/PhasePanel';
-import { ResultsPanel } from '@/components/player/ResultsPanel';
-import { PositionsRankingPanel } from '@/components/player/PositionsRankingPanel';
-import { CombatResultsPanel } from '@/components/player/CombatResultsPanel';
-import { ForestFinalRanking } from '@/components/player/ForestFinalRanking';
-import { PlayerActionTabs } from '@/components/player/PlayerActionTabs';
-import { MancheSelector } from '@/components/player/MancheSelector';
-import { ItemsCatalogPanel } from '@/components/player/ItemsCatalogPanel';
-import TeamChat from '@/components/player/TeamChat';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { PlayerRivieresDashboard } from '@/components/rivieres/PlayerRivieresDashboard';
 import { PlayerInfectionDashboard } from '@/components/infection/PlayerInfectionDashboard';
 import { PlayerSheriffDashboard } from '@/components/sheriff/PlayerSheriffDashboard';
+import { PlayerForetDashboard } from '@/components/foret/dashboard/PlayerForetDashboard';
 import LobbyWaitingRoom from '@/components/lobby/LobbyWaitingRoom';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
@@ -78,17 +60,11 @@ export default function PlayerDashboard() {
   const navigate = useNavigate();
   const { gameId } = useParams<{ gameId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const isMobile = useIsMobile();
 
   const [game, setGame] = useState<Game | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [initError, setInitError] = useState<string | null>(null); // Delayed error display
-  const [mobileTab, setMobileTab] = useState('battle');
-  const [selectedManche, setSelectedManche] = useState<number>(1);
-  const [unreadChatCount, setUnreadChatCount] = useState(0);
-  const [showCatalog, setShowCatalog] = useState(false);
   const initRetryCountRef = useRef(0);
   const initErrorTimerRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -107,51 +83,7 @@ export default function PlayerDashboard() {
   const previousStepIndexRef = useRef<number | null>(null);
 
   const isAdventure = game?.mode === 'ADVENTURE' && game?.adventure_id;
-  const isLaCarteTrouvee = isAdventure && game?.adventure_id === LA_CARTE_TROUVEE_ID;
   const isForetGame = game?.selected_game_type_code === 'FORET';
-
-  // Forêt Auto Mode countdown state (read-only for players)
-  const [foretAutoCountdown, setForetAutoCountdown] = useState<{ type: string | null; endsAt: Date | null }>({ type: null, endsAt: null });
-
-  // Subscribe to auto countdown updates for FORET
-  useEffect(() => {
-    if (!isForetGame || !game?.current_session_game_id) return;
-
-    const fetchAutoState = async () => {
-      const { data } = await supabase
-        .from('session_games')
-        .select('auto_countdown_type, auto_countdown_ends_at')
-        .eq('id', game.current_session_game_id!)
-        .single();
-      
-      if (data) {
-        setForetAutoCountdown({
-          type: data.auto_countdown_type,
-          endsAt: data.auto_countdown_ends_at ? new Date(data.auto_countdown_ends_at) : null,
-        });
-      }
-    };
-
-    fetchAutoState();
-
-    const channel = supabase
-      .channel(`player-foret-auto-${game.current_session_game_id}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'session_games',
-        filter: `id=eq.${game.current_session_game_id}`,
-      }, (payload) => {
-        const data = payload.new as { auto_countdown_type: string | null; auto_countdown_ends_at: string | null };
-        setForetAutoCountdown({
-          type: data.auto_countdown_type,
-          endsAt: data.auto_countdown_ends_at ? new Date(data.auto_countdown_ends_at) : null,
-        });
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [isForetGame, game?.current_session_game_id]);
 
   // Adventure cinematic hook - enabled for ANY adventure mode
   const isAnyAdventure = game?.mode === 'ADVENTURE';
@@ -161,30 +93,9 @@ export default function PlayerDashboard() {
     currentBroadcastId: cinematicBroadcastId,
     closeOverlay: closeCinematic,
     replayLocal: replayCinematic,
-    debugState: cinematicDebugState,
   } = useAdventureCinematic(isAnyAdventure ? game?.id : undefined, {
     enabled: isAnyAdventure,
   });
-
-  // Presentation animations (phase transitions, coup de grâce)
-  const {
-    showPhaseTransition,
-    phaseTransitionText,
-    showCoupDeGrace,
-    coupDeGraceInfo,
-  } = usePresentationAnimations({
-    gameId: gameId || '',
-    sessionGameId: game?.current_session_game_id || null,
-    phase: game?.phase || '',
-    enabled: isForetGame && game?.status === 'IN_GAME',
-  });
-
-  // Auto-reset to current manche when game.manche_active changes
-  useEffect(() => {
-    if (game?.manche_active) {
-      setSelectedManche(game.manche_active);
-    }
-  }, [game?.manche_active]);
 
   // Detect game start transition for FORET animation
   useEffect(() => {
@@ -206,7 +117,6 @@ export default function PlayerDashboard() {
     const currentStepIndex = game.current_step_index ?? 1;
     
     if (previousStepIndexRef.current !== null && previousStepIndexRef.current < currentStepIndex) {
-      // Step changed - fetch game types and show animation
       const fetchGameTypes = async () => {
         const { data: steps } = await supabase
           .from('adventure_steps')
@@ -286,10 +196,8 @@ export default function PlayerDashboard() {
       return;
     }
 
-    // Check if token is passed via URL query param (reconnection link)
     const tokenFromUrl = searchParams.get('token');
     if (tokenFromUrl) {
-      // Store the token in localStorage and remove from URL
       localStorage.setItem(`${PLAYER_TOKEN_PREFIX}${gameId}`, tokenFromUrl);
       setSearchParams({}, { replace: true });
       validateAndFetch(tokenFromUrl);
@@ -313,11 +221,8 @@ export default function PlayerDashboard() {
       });
 
       if (validateError || !data?.valid) {
-        // Check if we should retry silently
         if (!isRetry && initRetryCountRef.current < 2) {
           initRetryCountRef.current++;
-          console.log('[PlayerDashboard] Validation failed, retrying silently...', initRetryCountRef.current);
-          // Wait a bit and retry
           setTimeout(() => validateAndFetch(playerToken, true), 800);
           return;
         }
@@ -334,7 +239,6 @@ export default function PlayerDashboard() {
         return;
       }
 
-      // Clear any pending error timer
       if (initErrorTimerRef.current) {
         clearTimeout(initErrorTimerRef.current);
         initErrorTimerRef.current = null;
@@ -358,20 +262,18 @@ export default function PlayerDashboard() {
 
       setGame(data.game as Game);
       setLoading(false);
-      setError(''); // Clear any error
+      setError('');
 
       subscribeToUpdates(playerToken);
     } catch (err) {
       console.error('Validation error:', err);
       
-      // Don't show error immediately - wait and see if a retry succeeds
       if (!isRetry && initRetryCountRef.current < 2) {
         initRetryCountRef.current++;
         setTimeout(() => validateAndFetch(playerToken, true), 800);
         return;
       }
       
-      // After retries failed, still delay the error display
       if (!initErrorTimerRef.current) {
         initErrorTimerRef.current = setTimeout(() => {
           setError('Erreur de validation');
@@ -430,7 +332,6 @@ export default function PlayerDashboard() {
             player_number?: number;
           };
 
-          // Check if current player was removed
           if (updatedPlayer.status === 'REMOVED') {
             const { data } = await supabase.functions.invoke('validate-player', {
               body: { gameId, playerToken },
@@ -444,10 +345,8 @@ export default function PlayerDashboard() {
             }
           }
 
-          // Update player stats if it's our player
           setPlayer((prev) => {
             if (!prev) return prev;
-            // Check if this update is for our player by comparing player_number
             if (updatedPlayer.player_number === prev.playerNumber) {
               return {
                 ...prev,
@@ -475,6 +374,7 @@ export default function PlayerDashboard() {
     navigate('/');
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -483,6 +383,7 @@ export default function PlayerDashboard() {
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
@@ -508,8 +409,6 @@ export default function PlayerDashboard() {
     />
   ) : null;
 
-  // Debug panel REMOVED for players - only visible for MJ
-
   // Lobby view
   if (game.status === 'LOBBY') {
     return (
@@ -519,7 +418,6 @@ export default function PlayerDashboard() {
         <PlayerHeader game={game} player={player} />
         <main className="flex-1 p-4">
           <div className="max-w-4xl mx-auto space-y-4">
-            {/* Header card */}
             <div className="card-gradient rounded-lg border border-border p-6 text-center">
               <Clock className="h-10 w-10 text-primary mx-auto mb-3 animate-pulse" />
               <h2 className="font-display text-xl mb-2">Salle d'attente</h2>
@@ -531,14 +429,12 @@ export default function PlayerDashboard() {
               </p>
             </div>
 
-            {/* Players list and Chat */}
             <LobbyWaitingRoom
               gameId={game.id}
               playerNum={player.playerNumber}
               playerName={player.displayName}
             />
 
-            {/* Leave button */}
             <div className="text-center">
               <button
                 type="button"
@@ -567,10 +463,10 @@ export default function PlayerDashboard() {
             <h2 className="font-display text-xl mb-2">Partie terminée</h2>
             <p className="text-muted-foreground mb-4">Merci d'avoir joué !</p>
             <div className="flex gap-4 justify-center text-sm">
-              <div className="bg-yellow-500/10 text-yellow-500 px-4 py-2 rounded">
+              <div className="bg-primary/10 text-primary px-4 py-2 rounded">
                 {player.jetons} jetons
               </div>
-              <div className="bg-amber-500/10 text-amber-500 px-4 py-2 rounded">
+              <div className="bg-accent/50 text-accent-foreground px-4 py-2 rounded">
                 {player.recompenses} récompenses
               </div>
             </div>
@@ -642,7 +538,7 @@ export default function PlayerDashboard() {
     return (
       <>
         {cinematicOverlay}
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0B1020] via-[#151B2D] to-[#0B1020]">
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-[hsl(var(--background))] via-[hsl(var(--secondary))] to-[hsl(var(--background))]">
           <PlayerHeader game={game} player={player} />
           <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
             <PlayerRivieresDashboard
@@ -709,281 +605,31 @@ export default function PlayerDashboard() {
     );
   }
 
-  // Start animation overlay for FORET
-  if (showStartAnimation) {
+  // FORET Dashboard - using dedicated component
+  if (game.selected_game_type_code === 'FORET') {
     return (
-      <GameStartAnimation 
-        gameType="FORET" 
-        playerName={player.displayName} 
-        isMJ={false} 
-      />
+      <>
+        {cinematicOverlay}
+        <PlayerForetDashboard
+          game={game}
+          player={player}
+          onLeaveGame={handleLeave}
+          showStartAnimation={showStartAnimation}
+        />
+      </>
     );
   }
 
-  if (!isMobile) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        {/* Phase Transition Animation Overlay */}
-        <PhaseTransitionOverlay show={showPhaseTransition} text={phaseTransitionText} />
-        
-        {/* Coup de Grâce Animation Overlay */}
-        <CoupDeGraceOverlay show={showCoupDeGrace} info={coupDeGraceInfo} />
-        
-        {/* Forêt Auto Mode Countdown Overlay */}
-        {isForetGame && foretAutoCountdown.type && (
-          <ForetAutoCountdownOverlay
-            countdownEndsAt={foretAutoCountdown.endsAt}
-            countdownType={foretAutoCountdown.type}
-          />
-        )}
-        
-        <PlayerHeader game={game} player={player} onLeaveGame={handleLeave} />
-
-        <main className="flex-1 p-4">
-          <div className="max-w-7xl mx-auto grid grid-cols-3 gap-4 h-[calc(100vh-120px)]">
-            {/* Left column: Events + Team Chat */}
-            <div className="flex flex-col overflow-hidden h-full">
-              <EventsFeed gameId={game.id} className="flex-1 min-h-0 overflow-hidden" />
-              {player.mateNum && (
-                <div className="h-64 flex-shrink-0 mt-4 card-gradient rounded-lg border border-border overflow-hidden relative">
-                  {unreadChatCount > 0 && (
-                    <div className="absolute top-2 right-2 z-10 bg-destructive text-destructive-foreground text-xs font-bold px-2 py-1 rounded-full animate-pulse">
-                      {unreadChatCount} nouveau{unreadChatCount > 1 ? 'x' : ''} message{unreadChatCount > 1 ? 's' : ''}
-                    </div>
-                  )}
-                  <TeamChat
-                    gameId={game.id}
-                    playerNum={player.playerNumber}
-                    playerName={player.displayName}
-                    mateNum={player.mateNum}
-                    onUnreadChange={setUnreadChatCount}
-                    isVisible={true}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Center column: Battlefield + Results */}
-            <div className="space-y-4 overflow-auto">
-              <BattlefieldView gameId={game.id} sessionGameId={game.current_session_game_id} />
-              
-              {/* Forest Final Ranking */}
-              <ForestFinalRanking 
-                gameId={game.id} 
-                sessionGameId={game.current_session_game_id}
-                currentPlayerNumber={player.playerNumber}
-              />
-              
-              {/* Manche Selector + History Button */}
-              <div className="card-gradient rounded-lg border border-border p-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Historique</span>
-                  <MancheSelector
-                    currentManche={game.manche_active}
-                    selectedManche={selectedManche}
-                    onMancheChange={setSelectedManche}
-                  />
-                </div>
-                <CombatHistorySummarySheet gameId={game.id} sessionGameId={game.current_session_game_id} />
-              </div>
-
-              <PositionsRankingPanel 
-                game={game} 
-                currentPlayerNumber={player.playerNumber}
-                selectedManche={selectedManche}
-                sessionGameId={game.current_session_game_id}
-              />
-              <CombatResultsPanel game={game} selectedManche={selectedManche} sessionGameId={game.current_session_game_id} />
-              <ResultsPanel
-                gameId={game.id}
-                sessionGameId={game.current_session_game_id}
-                manche={game.manche_active}
-                selectedManche={selectedManche}
-                phase={game.phase}
-                phaseLocked={game.phase_locked}
-              />
-            </div>
-
-            {/* Right column: Inventory + Catalog + Phase */}
-            <div className="space-y-4 overflow-auto">
-              <PlayerInventory
-                gameId={game.id}
-                sessionGameId={game.current_session_game_id}
-                playerNumber={player.playerNumber}
-                jetons={player.jetons}
-                recompenses={player.recompenses}
-                clan={player.clan}
-                mateNum={player.mateNum}
-              />
-              
-              {/* Collapsible Catalog Toggle */}
-              <Collapsible open={showCatalog} onOpenChange={setShowCatalog}>
-                <div className="card-gradient rounded-lg border border-border">
-                  <CollapsibleTrigger asChild>
-                    <button className="w-full flex items-center justify-between p-3 hover:bg-accent/50 transition-colors rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-primary" />
-                        <span className="font-medium text-sm">Catalogue des Objets</span>
-                      </div>
-                      {showCatalog ? (
-                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="p-4 pt-0">
-                      <ItemsCatalogPanel playerClan={player.clan} />
-                    </div>
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
-              
-              <PlayerActionTabs game={game} player={player} />
-            </div>
-          </div>
-        </main>
-
-      </div>
-    );
-  }
-
-  // In-game view - Mobile with tabs
+  // Fallback - should never reach here if IMPLEMENTED_GAME_TYPES is correct
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Phase Transition Animation Overlay */}
-      <PhaseTransitionOverlay show={showPhaseTransition} text={phaseTransitionText} />
-      
-      {/* Coup de Grâce Animation Overlay */}
-      <CoupDeGraceOverlay show={showCoupDeGrace} info={coupDeGraceInfo} />
-      
-      <PlayerHeader game={game} player={player} onLeaveGame={handleLeave} />
-
-      <main className="flex-1 pb-16">
-        <Tabs value={mobileTab} onValueChange={setMobileTab} className="h-full">
-          <TabsContent value="battle" className="p-4 space-y-4 mt-0">
-            <BattlefieldView gameId={game.id} sessionGameId={game.current_session_game_id} />
-            
-            {/* Forest Final Ranking - Mobile */}
-            <ForestFinalRanking 
-              gameId={game.id} 
-              sessionGameId={game.current_session_game_id}
-              currentPlayerNumber={player.playerNumber}
-            />
-            
-            {/* Manche Selector + History Button - Mobile */}
-            <div className="card-gradient rounded-lg border border-border p-3 flex items-center justify-between gap-2">
-              <MancheSelector
-                currentManche={game.manche_active}
-                selectedManche={selectedManche}
-                onMancheChange={setSelectedManche}
-              />
-              <CombatHistorySummarySheet gameId={game.id} sessionGameId={game.current_session_game_id} />
-            </div>
-
-            <PositionsRankingPanel 
-              game={game} 
-              currentPlayerNumber={player.playerNumber}
-              selectedManche={selectedManche}
-              sessionGameId={game.current_session_game_id}
-            />
-            <CombatResultsPanel game={game} selectedManche={selectedManche} sessionGameId={game.current_session_game_id} />
-            <ResultsPanel
-              gameId={game.id}
-              sessionGameId={game.current_session_game_id}
-              manche={game.manche_active}
-              selectedManche={selectedManche}
-              phase={game.phase}
-              phaseLocked={game.phase_locked}
-            />
-          </TabsContent>
-
-          <TabsContent value="events" className="p-4 mt-0">
-            <EventsFeed gameId={game.id} />
-          </TabsContent>
-
-          <TabsContent value="inventory" className="p-4 mt-0 space-y-4">
-            <PlayerInventory
-              gameId={game.id}
-              sessionGameId={game.current_session_game_id}
-              playerNumber={player.playerNumber}
-              jetons={player.jetons}
-              recompenses={player.recompenses}
-              clan={player.clan}
-              mateNum={player.mateNum}
-            />
-            <div className="card-gradient rounded-lg border border-border p-4">
-              <ItemsCatalogPanel playerClan={player.clan} />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="phase" className="p-4 mt-0 space-y-4">
-            <PlayerActionTabs game={game} player={player} />
-          </TabsContent>
-
-          {player.mateNum && (
-            <TabsContent value="chat" className="p-4 mt-0 h-[calc(100vh-180px)]">
-              <div className="h-full card-gradient rounded-lg border border-border overflow-hidden">
-                <TeamChat
-                  gameId={game.id}
-                  playerNum={player.playerNumber}
-                  playerName={player.displayName}
-                  mateNum={player.mateNum}
-                  onUnreadChange={setUnreadChatCount}
-                  isVisible={mobileTab === 'chat'}
-                />
-              </div>
-            </TabsContent>
-          )}
-
-          {/* Fixed bottom tabs */}
-          <TabsList className={`fixed bottom-0 left-0 right-0 h-14 grid ${player.mateNum ? 'grid-cols-5' : 'grid-cols-4'} bg-background/95 backdrop-blur border-t border-border rounded-none`}>
-            <TabsTrigger
-              value="battle"
-              className="flex flex-col items-center gap-1 data-[state=active]:bg-primary/10"
-            >
-              <Swords className="h-4 w-4" />
-              <span className="text-xs">Bataille</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="events"
-              className="flex flex-col items-center gap-1 data-[state=active]:bg-primary/10"
-            >
-              <MessageSquare className="h-4 w-4" />
-              <span className="text-xs">Événements</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="inventory"
-              className="flex flex-col items-center gap-1 data-[state=active]:bg-primary/10"
-            >
-              <Package className="h-4 w-4" />
-              <span className="text-xs">Inventaire</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="phase"
-              className="flex flex-col items-center gap-1 data-[state=active]:bg-primary/10"
-            >
-              <Zap className="h-4 w-4" />
-              <span className="text-xs">Phase</span>
-            </TabsTrigger>
-            {player.mateNum && (
-              <TabsTrigger
-                value="chat"
-                className="flex flex-col items-center gap-1 data-[state=active]:bg-primary/10 relative"
-              >
-                <Users className="h-4 w-4" />
-                <span className="text-xs">Chat</span>
-                {unreadChatCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-1">
-                    {unreadChatCount > 99 ? '99+' : unreadChatCount}
-                  </span>
-                )}
-              </TabsTrigger>
-            )}
-          </TabsList>
-        </Tabs>
-      </main>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-4 bg-background">
+      <div className="flex items-center gap-3 text-muted-foreground">
+        <Zap className="h-8 w-8" />
+        <span className="text-xl font-semibold">Type de jeu non pris en charge</span>
+      </div>
+      <ForestButton onClick={() => navigate('/')}>
+        Retour à l'accueil
+      </ForestButton>
     </div>
   );
 }
