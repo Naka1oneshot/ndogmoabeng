@@ -5,6 +5,7 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { Button } from '@/components/ui/button';
 import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
+import { AnimationToggle } from '@/components/player/AnimationToggle';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface Game {
@@ -28,6 +29,8 @@ interface PlayerHeaderProps {
   game: Game;
   player: Player;
   onLeaveGame?: () => void;
+  animationsEnabled?: boolean;
+  onToggleAnimations?: () => void;
 }
 
 const phaseLabels: Record<string, string> = {
@@ -38,9 +41,10 @@ const phaseLabels: Record<string, string> = {
   RESOLUTION: 'Résolution',
 };
 
-export function PlayerHeader({ game, player, onLeaveGame }: PlayerHeaderProps) {
+export function PlayerHeader({ game, player, onLeaveGame, animationsEnabled, onToggleAnimations }: PlayerHeaderProps) {
   const [rulesOpen, setRulesOpen] = useState(false);
   const isForet = game.selected_game_type_code === 'FORET';
+  const showAnimationToggle = animationsEnabled !== undefined && onToggleAnimations !== undefined;
 
   return (
     <>
@@ -79,6 +83,9 @@ export function PlayerHeader({ game, player, onLeaveGame }: PlayerHeaderProps) {
                   <BookOpen className="h-4 w-4" />
                   <span className="hidden sm:inline ml-1">Règles</span>
                 </Button>
+              )}
+              {showAnimationToggle && (
+                <AnimationToggle enabled={animationsEnabled} onToggle={onToggleAnimations} />
               )}
               <ThemeToggle />
               <UserAvatarButton size="sm" onLeaveGame={onLeaveGame} />
