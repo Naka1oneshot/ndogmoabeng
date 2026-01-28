@@ -683,8 +683,9 @@ Deno.serve(async (req) => {
       .filter(p => {
         const scheduledToContaminate = p.will_contaminate_at_manche === manche;
         
-        // Exception: immune_permanent players don't spread
-        if (p.immune_permanent) return false;
+        // FIXED: immune_permanent players STILL contaminate, they just don't die
+        // The immune_permanent flag means: won't die from virus, but still spreads it
+        // Previously this was incorrectly returning false for immune_permanent
         
         return scheduledToContaminate;
       })
