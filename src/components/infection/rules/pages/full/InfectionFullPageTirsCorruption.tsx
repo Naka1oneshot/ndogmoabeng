@@ -38,14 +38,14 @@ export function InfectionFullPageTirsCorruption({ context, replayNonce }: Props)
       };
     }
     
-    // Cas 2: Non-PV >= 10 (et PV < 15) → Sabotage OFF, PV convertis en PVic, Non-PV remboursés
+    // Cas 2: Non-PV >= 10 (et PV < 15) → Sabotage OFF, Non-PV convertis en PVic, PV remboursés
     if (nonPvAmount >= 10) {
       return {
         sabotageActive: false,
-        aeBonus: pvAmount,
-        nonPvReimbursed: nonPvAmount,
-        pvReimbursed: 0,
-        explanation: 'Non-PV ont atteint le seuil (≥10) et PV n\'ont pas contré (< 15). Sabotage annulé. Non-PV remboursés, jetons PV → AE.'
+        aeBonus: nonPvAmount,
+        nonPvReimbursed: 0,
+        pvReimbursed: pvAmount,
+        explanation: 'Non-PV ont atteint le seuil (≥10) et PV n\'ont pas contré (< 15). Sabotage annulé. Jetons Non-PV → AE, PV remboursés.'
       };
     }
     
