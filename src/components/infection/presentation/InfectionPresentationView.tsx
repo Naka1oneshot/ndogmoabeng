@@ -575,8 +575,11 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       ) : (
         /* Desktop Layout */
         <div className="pt-14 h-full grid grid-cols-12 gap-4 p-4">
-          {/* Left Panel - Pending Validation + Role Roster */}
+          {/* Left Panel - Role Roster + Pending Validation */}
           <div className="col-span-2 flex flex-col gap-4 h-full overflow-hidden">
+            <div className="flex-shrink-0">
+              <InfectionRoleRoster roleStats={roleStats} isMobile={false} />
+            </div>
             <div className="flex-1 min-h-0">
               <InfectionValidationStatusPanel
                 players={players}
@@ -585,9 +588,6 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
                 type="pending"
                 isMobile={false}
               />
-            </div>
-            <div className="flex-shrink-0">
-              <InfectionRoleRoster roleStats={roleStats} isMobile={false} />
             </div>
           </div>
 
@@ -621,17 +621,8 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
             </div>
           </div>
 
-          {/* Right Panel - Validated + Stats */}
+          {/* Right Panel - Stats + Validated */}
           <div className="col-span-2 flex flex-col gap-4 h-full overflow-hidden">
-            <div className="flex-1 min-h-0">
-              <InfectionValidationStatusPanel
-                players={players}
-                validatedPlayerIds={validatedPlayerIds}
-                avatarUrls={avatarUrls}
-                type="validated"
-                isMobile={false}
-              />
-            </div>
             <div className="flex-shrink-0">
               <InfectionStatsPanel
                 totalPlayers={totalPlayers}
@@ -639,6 +630,15 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
                 deadPlayers={deadPlayers}
                 currentManche={currentManche}
                 roundStates={roundStates}
+                isMobile={false}
+              />
+            </div>
+            <div className="flex-1 min-h-0">
+              <InfectionValidationStatusPanel
+                players={players}
+                validatedPlayerIds={validatedPlayerIds}
+                avatarUrls={avatarUrls}
+                type="validated"
                 isMobile={false}
               />
             </div>
