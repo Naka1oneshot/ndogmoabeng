@@ -152,12 +152,13 @@ export function PNLCompactView({ pnlData }: Props) {
                 return (
                   <div key={itemIdx} className="px-4 py-2 flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">{item.label}</span>
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className="text-muted-foreground">
-                        {formatCurrency(projected)}
-                      </span>
+                    <div className="flex items-center gap-2 text-sm">
                       <span className="font-medium">
                         {formatCurrency(item.real)}
+                      </span>
+                      <span className="text-muted-foreground">/</span>
+                      <span className="text-muted-foreground">
+                        {formatCurrency(projected)}
                       </span>
                       {item.ecart !== 0 && (
                         <span className={cn(
@@ -174,12 +175,13 @@ export function PNLCompactView({ pnlData }: Props) {
               {section.total && (
                 <div className="px-4 py-3 bg-muted/50 flex items-center justify-between font-medium">
                   <span className="text-sm">{section.total.label}</span>
-                  <div className="flex items-center gap-3 text-sm">
-                    <span className="text-muted-foreground">
-                      {formatCurrency(getProjectedValue(section.total))}
-                    </span>
+                  <div className="flex items-center gap-2 text-sm">
                     <span className="font-bold">
                       {formatCurrency(section.total.real)}
+                    </span>
+                    <span className="text-muted-foreground">/</span>
+                    <span className="text-muted-foreground">
+                      {formatCurrency(getProjectedValue(section.total))}
                     </span>
                     {section.total.ecart !== 0 && (
                       <span className={cn(
