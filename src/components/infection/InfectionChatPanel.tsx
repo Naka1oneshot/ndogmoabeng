@@ -3,8 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, Users, Syringe, FlaskConical, Send } from 'lucide-react';
+import { MessageSquare, Users, Syringe, FlaskConical, Send, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
 
 interface Player {
   id: string;
@@ -38,9 +39,13 @@ export function InfectionChatPanel({
   const [activeChannel, setActiveChannel] = useState('PUBLIC');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { chatConfig, loading: settingsLoading } = useSystemSettings();
 
   const canAccessPV = player.role_code === 'PV';
   const canAccessSY = player.role_code === 'SY';
+  
+  // Check if in-game chat is enabled
+  const isChatDisabled = !settingsLoading && !chatConfig.ingame_chat_enabled;
 
   useEffect(() => {
     fetchMessages();
@@ -143,6 +148,19 @@ export function InfectionChatPanel({
       default: return '#D4AF37';
     }
   };
+
+  // If chat is disabled, show a message
+  if (isChatDisabled) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center text-center p-8">
+        <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+        <p className="text-muted-foreground font-medium">Chat temporairement désactivé</p>
+        <p className="text-sm text-muted-foreground/70 mt-2">
+          Le chat in-game a été désactivé par les administrateurs
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">

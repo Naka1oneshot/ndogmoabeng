@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, MessageCircle } from 'lucide-react';
+import { Send, MessageCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
 
 interface LobbyChatProps {
   gameId: string;
@@ -33,6 +34,10 @@ const LobbyChat: React.FC<LobbyChatProps> = ({
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const shouldScrollRef = useRef(false);
+  const { chatConfig, loading: settingsLoading } = useSystemSettings();
+
+  // Check if lobby chat is enabled
+  const isChatDisabled = !settingsLoading && !chatConfig.lobby_chat_enabled;
 
   const scrollToBottom = useCallback(() => {
     if (shouldScrollRef.current && messagesEndRef.current) {
@@ -112,6 +117,22 @@ const LobbyChat: React.FC<LobbyChatProps> = ({
   };
 
   const hasFlexHeight = maxHeight === 'none';
+
+  // If chat is disabled, show a message
+  if (isChatDisabled) {
+    return (
+      <div className={`flex flex-col ${hasFlexHeight ? 'h-full' : ''}`}>
+        <div className="flex items-center gap-2 p-3 border-b border-border/50 bg-card/50">
+          <MessageCircle className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-muted-foreground">Chat Salle d'attente</span>
+        </div>
+        <div className="flex flex-col items-center justify-center p-6 text-center text-muted-foreground">
+          <AlertCircle className="h-8 w-8 mb-2 opacity-50" />
+          <p className="text-sm">Le chat est temporairement désactivé</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex flex-col ${hasFlexHeight ? 'h-full' : ''}`}>

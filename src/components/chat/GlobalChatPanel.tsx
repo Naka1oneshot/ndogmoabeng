@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useFriendChat } from '@/hooks/useFriendChat';
 import { useFriendships } from '@/hooks/useFriendships';
 import { useAuth } from '@/hooks/useAuth';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -26,6 +27,7 @@ import { FloatingChatBubble } from './FloatingChatBubble';
 export function GlobalChatPanel() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { chatConfig, loading: settingsLoading } = useSystemSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -76,7 +78,11 @@ export function GlobalChatPanel() {
     navigate(`/join/${joinCode}`);
   };
 
+  // Don't render anything if general chat is disabled or no user
   if (!user) return null;
+  if (!settingsLoading && !chatConfig.general_chat_enabled) {
+    return null;
+  }
 
   return (
     <>
