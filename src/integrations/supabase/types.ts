@@ -2617,6 +2617,12 @@ export type Database = {
         Row: {
           address: string | null
           avatar_url: string | null
+          clan_affinity_completed_at: string | null
+          clan_affinity_details: Json | null
+          clan_affinity_id: string | null
+          clan_affinity_quiz_version: number
+          clan_affinity_scores: Json | null
+          clan_affinity_seed: string | null
           created_at: string
           display_name: string
           first_name: string
@@ -2634,6 +2640,12 @@ export type Database = {
         Insert: {
           address?: string | null
           avatar_url?: string | null
+          clan_affinity_completed_at?: string | null
+          clan_affinity_details?: Json | null
+          clan_affinity_id?: string | null
+          clan_affinity_quiz_version?: number
+          clan_affinity_scores?: Json | null
+          clan_affinity_seed?: string | null
           created_at?: string
           display_name: string
           first_name: string
@@ -2651,6 +2663,12 @@ export type Database = {
         Update: {
           address?: string | null
           avatar_url?: string | null
+          clan_affinity_completed_at?: string | null
+          clan_affinity_details?: Json | null
+          clan_affinity_id?: string | null
+          clan_affinity_quiz_version?: number
+          clan_affinity_scores?: Json | null
+          clan_affinity_seed?: string | null
           created_at?: string
           display_name?: string
           first_name?: string

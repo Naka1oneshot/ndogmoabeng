@@ -251,7 +251,8 @@ export default function Auth() {
         }
       }
       
-      navigate(from);
+      // Redirect to onboarding quiz for new users
+      navigate('/onboarding/clan-quiz', { replace: true });
     } finally {
       setLoading(false);
     }

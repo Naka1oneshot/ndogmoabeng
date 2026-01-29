@@ -60,12 +60,13 @@ import { ChangePasswordSection } from '@/components/profile/ChangePasswordSectio
 import { LoginHistorySection } from '@/components/profile/LoginHistorySection';
 import { SessionManagementSection } from '@/components/profile/SessionManagementSection';
 import { ActiveGamesSection } from '@/components/profile/ActiveGamesSection';
+import { ClanAffinitySection } from '@/components/profile/ClanAffinitySection';
 
 export default function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading, signOut } = useAuth();
-  const { profile, stats, currentGames, loading, canChangeDisplayName, updateProfile, uploadAvatar, leaveGame, deleteGame } = useUserProfile();
+  const { profile, stats, currentGames, loading, canChangeDisplayName, updateProfile, uploadAvatar, leaveGame, deleteGame, refetch } = useUserProfile();
   const { isSuperAdmin, isAdmin, loading: roleLoading } = useUserRole();
   
   const [isEditing, setIsEditing] = useState(false);
@@ -308,6 +309,15 @@ export default function Profile() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Clan Affinity Section */}
+        <ClanAffinitySection
+          clanAffinityId={profile?.clan_affinity_id || null}
+          clanAffinityScores={profile?.clan_affinity_scores || null}
+          clanAffinityDetails={profile?.clan_affinity_details || null}
+          clanAffinityCompletedAt={profile?.clan_affinity_completed_at || null}
+          onRefresh={refetch}
+        />
 
         {/* Subscription Section */}
         <SubscriptionSection />

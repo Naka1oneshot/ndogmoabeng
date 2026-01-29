@@ -15,6 +15,13 @@ export interface UserProfile {
   last_display_name_change: string | null;
   created_at: string;
   updated_at: string;
+  // Clan affinity quiz fields
+  clan_affinity_id: string | null;
+  clan_affinity_scores: any | null;
+  clan_affinity_details: any | null;
+  clan_affinity_completed_at: string | null;
+  clan_affinity_quiz_version: number;
+  clan_affinity_seed: string | null;
 }
 
 export interface UserGameStats {
