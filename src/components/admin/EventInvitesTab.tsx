@@ -133,19 +133,32 @@ export function EventInvitesTab({ eventId, event }: Props) {
 
   const stats = getStats();
 
-  const filteredInvites = invites.filter(invite => {
-    const matchesSearch = 
-      invite.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      invite.phone?.toLowerCase().includes(search.toLowerCase()) ||
-      invite.pack_label?.toLowerCase().includes(search.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'paid_online' && invite.invite_status === 'paid' && invite.registration?.payment_status === 'paid') ||
-      (statusFilter === 'paid_cash' && invite.invite_status === 'paid' && (!invite.registration || invite.registration.payment_status !== 'paid')) ||
-      invite.invite_status === statusFilter;
+  // Status order for sorting
+  const STATUS_ORDER: Record<InviteStatus, number> = {
+    paid: 1,
+    confirmed_unpaid: 2,
+    pending: 3,
+    free: 4,
+    declined: 5,
+    not_invited_yet: 6,
+    not_invited: 7,
+  };
 
-    return matchesSearch && matchesStatus;
-  });
+  const filteredInvites = invites
+    .filter(invite => {
+      const matchesSearch = 
+        invite.full_name.toLowerCase().includes(search.toLowerCase()) ||
+        invite.phone?.toLowerCase().includes(search.toLowerCase()) ||
+        invite.pack_label?.toLowerCase().includes(search.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || 
+        (statusFilter === 'paid_online' && invite.invite_status === 'paid' && invite.registration?.payment_status === 'paid') ||
+        (statusFilter === 'paid_cash' && invite.invite_status === 'paid' && (!invite.registration || invite.registration.payment_status !== 'paid')) ||
+        invite.invite_status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => STATUS_ORDER[a.invite_status] - STATUS_ORDER[b.invite_status]);
 
   const handleSubmit = async () => {
     try {

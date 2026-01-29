@@ -225,17 +225,26 @@ export function useEventInvites(eventId: string | null) {
     const paid = invites.filter(i => i.invite_status === 'paid');
     const paidOnline = paid.filter(i => i.registration?.payment_status === 'paid');
     const paidCash = paid.filter(i => !i.registration || i.registration.payment_status !== 'paid');
+    const confirmedUnpaid = invites.filter(i => i.invite_status === 'confirmed_unpaid');
+    const pending = invites.filter(i => i.invite_status === 'pending');
+    
+    // Only count paid, confirmed_unpaid, and pending for total and revenue
+    const countedInvites = invites.filter(i => 
+      i.invite_status === 'paid' || 
+      i.invite_status === 'confirmed_unpaid' || 
+      i.invite_status === 'pending'
+    );
 
     return {
-      total: invites.length,
+      total: countedInvites.length,
       paid: paid.length,
       paidOnline: paidOnline.length,
       paidCash: paidCash.length,
-      confirmedUnpaid: invites.filter(i => i.invite_status === 'confirmed_unpaid').length,
-      pending: invites.filter(i => i.invite_status === 'pending').length,
+      confirmedUnpaid: confirmedUnpaid.length,
+      pending: pending.length,
       free: invites.filter(i => i.invite_status === 'free').length,
       declined: invites.filter(i => i.invite_status === 'declined').length,
-      totalRevenue: invites.reduce((sum, i) => sum + (i.contributed_amount || 0), 0),
+      totalRevenue: countedInvites.reduce((sum, i) => sum + (i.contributed_amount || 0), 0),
       totalParking: invites.reduce((sum, i) => sum + (i.parking_amount || 0), 0),
     };
   }
