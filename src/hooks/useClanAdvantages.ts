@@ -104,11 +104,14 @@ export function useClanAdvantages() {
           'ezkar': [],
         };
       }
-      result[adv.game_code][adv.clan_id].push({
-        title: adv.title,
-        description: adv.description,
-        source: adv.source || '',
-      });
+      const clanId = adv.clan_id as ClanId;
+      if (result[adv.game_code][clanId]) {
+        result[adv.game_code][clanId].push({
+          title: adv.title,
+          description: adv.description,
+          source: adv.source || '',
+        });
+      }
     }
     
     return result;
