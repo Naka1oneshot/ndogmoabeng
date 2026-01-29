@@ -244,10 +244,10 @@ export function useEventInvites(eventId: string | null) {
     const confirmedRevenue = confirmedUnpaid.reduce((sum, i) => sum + (i.contributed_amount || 0), 0);
     
     // Revenue from pending guests (prorated at 50%)
-    const pendingRevenue = pending.reduce((sum, i) => sum + (i.contributed_amount || 0), 0) * 0.5;
+    const pendingRevenueProrated = pending.reduce((sum, i) => sum + (i.contributed_amount || 0), 0) * 0.5;
     
-    // Projected revenue = confirmed + pending at 50%
-    const projectedRevenue = confirmedRevenue + pendingRevenue;
+    // Projected revenue = paid + confirmed + pending at 50%
+    const projectedRevenue = paidRevenue + confirmedRevenue + pendingRevenueProrated;
 
     return {
       total: countedInvites.length,
