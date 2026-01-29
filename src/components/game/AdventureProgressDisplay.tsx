@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { Swords, Droplets, Bug, ChevronRight, Shield, Map } from 'lucide-react';
+import { Swords, Droplets, Bug, ChevronRight, Shield, Map, Heart } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -13,11 +13,12 @@ interface AdventureProgressDisplayProps {
   showTitle?: boolean;
 }
 
-const GAME_INFO: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  RIVIERES: { label: 'Rivières', icon: Droplets, color: 'text-blue-400' },
-  FORET: { label: 'Forêt', icon: Swords, color: 'text-emerald-400' },
-  INFECTION: { label: 'Infection', icon: Bug, color: 'text-red-400' },
-  SHERIFF: { label: 'Shérif', icon: Shield, color: 'text-amber-400' },
+export const GAME_TYPE_INFO: Record<string, { label: string; fullName: string; icon: React.ElementType; color: string }> = {
+  RIVIERES: { label: 'Rivières', fullName: 'Les Rivières de Ndogmoabeng', icon: Droplets, color: 'text-blue-400' },
+  FORET: { label: 'Forêt', fullName: 'La Forêt de Ndogmoabeng', icon: Swords, color: 'text-emerald-400' },
+  INFECTION: { label: 'Infection', fullName: 'Infection', icon: Bug, color: 'text-red-400' },
+  SHERIFF: { label: 'Shérif', fullName: 'Le Shérif de Ndogmoabeng', icon: Shield, color: 'text-amber-400' },
+  LION: { label: 'Lion', fullName: 'Le CŒUR du Lion', icon: Heart, color: 'text-rose-400' },
 };
 
 // Default trilogy order
@@ -90,7 +91,7 @@ export function AdventureProgressDisplay({
   if (!isAdventure) {
     // Single game mode
     const gameCode = currentGameTypeCode || 'FORET';
-    const gameInfo = GAME_INFO[gameCode] || GAME_INFO.FORET;
+    const gameInfo = GAME_TYPE_INFO[gameCode] || GAME_TYPE_INFO.FORET;
     const Icon = gameInfo.icon;
 
     return (
@@ -124,8 +125,8 @@ export function AdventureProgressDisplay({
         </span>
       </div>
       <div className="flex items-center gap-1 flex-wrap">
-        {gamesOrder.map((gameCode, index) => {
-          const gameInfo = GAME_INFO[gameCode] || { label: gameCode, icon: Swords, color: 'text-muted-foreground' };
+      {gamesOrder.map((gameCode, index) => {
+          const gameInfo = GAME_TYPE_INFO[gameCode] || { label: gameCode, fullName: gameCode, icon: Swords, color: 'text-muted-foreground' };
           const Icon = gameInfo.icon;
 
           const isPast = index < adjustedCurrentIndex;
