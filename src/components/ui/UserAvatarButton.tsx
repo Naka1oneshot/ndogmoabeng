@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useChatVisibility } from '@/contexts/ChatContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, LogOut, DoorOpen, MessageCircle } from 'lucide-react';
+import { User, LogOut, DoorOpen, MessageCircle, Sparkles } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { CLAN_MAP, CLAN_CODES, type ClanCode } from '@/components/clanAffinityQuiz/quizData';
 
 interface UserAvatarButtonProps {
   size?: 'sm' | 'md' | 'lg';
@@ -74,7 +75,29 @@ export function UserAvatarButton({ size = 'md', className = '', onLeaveGame }: U
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="w-56">
+        {/* Quiz CTA or Affinity badge */}
+        {!profile?.clan_affinity_completed_at ? (
+          <DropdownMenuItem 
+            onClick={() => navigate('/onboarding/clan-quiz')} 
+            className="cursor-pointer text-primary font-medium"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Faire mon test d'affinités
+          </DropdownMenuItem>
+        ) : (
+          <div className="px-2 py-1.5 text-sm text-muted-foreground flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span>Affinité : </span>
+            <span className="font-medium text-foreground">
+              {(() => {
+                const code = CLAN_CODES.find(c => CLAN_MAP[c].id === profile.clan_affinity_id);
+                return code ? CLAN_MAP[code].label : profile.clan_affinity_id;
+              })()}
+            </span>
+          </div>
+        )}
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
           <User className="mr-2 h-4 w-4" />
           Profil

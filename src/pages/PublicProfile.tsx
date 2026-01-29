@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Trophy, Gamepad2, Star, Users, Swords, Calendar, Play } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { PublicClanAffinityCard } from '@/components/profile/PublicClanAffinityCard';
 
 export default function PublicProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -125,7 +126,12 @@ export default function PublicProfile() {
           </Card>
         </div>
 
-        {/* Comparison Card (only if logged in and not own profile) */}
+        {/* Clan Affinity Card */}
+        <PublicClanAffinityCard
+          clanAffinityId={profile.clan_affinity_id}
+          clanAffinityScores={profile.clan_affinity_scores}
+          clanAffinityCompletedAt={profile.clan_affinity_completed_at}
+        />
         {comparison && user && !isOwnProfile && (
           <Card>
             <CardHeader>

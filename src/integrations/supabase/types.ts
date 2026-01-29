@@ -3951,6 +3951,9 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: {
           avatar_url: string
+          clan_affinity_completed_at: string
+          clan_affinity_id: string
+          clan_affinity_scores: Json
           created_at: string
           display_name: string
           games_played: number
