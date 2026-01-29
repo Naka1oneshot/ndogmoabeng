@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SystemSettingsTab } from '@/components/admin/SystemSettingsTab';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   AlertDialog,
@@ -43,7 +44,8 @@ import {
   ShieldAlert,
   ShieldCheck,
   History,
-  Calendar
+  Calendar,
+  Settings
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -585,7 +587,7 @@ export default function AdminSubscriptions() {
 
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         <Tabs defaultValue="tokens" className="space-y-6">
-          <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
             <TabsTrigger value="tokens" className="flex items-center gap-2">
               <Zap className="w-4 h-4" />
               <span className="hidden sm:inline">Tokens NDG</span>
@@ -601,6 +603,13 @@ export default function AdminSubscriptions() {
                 <Crown className="w-4 h-4" />
                 <span className="hidden sm:inline">Rôles</span>
                 <span className="sm:hidden">Rôles</span>
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="system" className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Système</span>
+                <span className="sm:hidden">Sys.</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -1113,6 +1122,13 @@ export default function AdminSubscriptions() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+          )}
+
+          {/* SYSTEM TAB - Super Admin Only */}
+          {isSuperAdmin && (
+            <TabsContent value="system" className="space-y-6">
+              <SystemSettingsTab />
             </TabsContent>
           )}
         </Tabs>

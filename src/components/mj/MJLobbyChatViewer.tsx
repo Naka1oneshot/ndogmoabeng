@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Users, Send, Crown } from 'lucide-react';
+import { MessageCircle, Users, Send, Crown, AlertCircle } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
 
 interface MJLobbyChatViewerProps {
   gameId: string;
@@ -25,6 +26,10 @@ const MJLobbyChatViewer: React.FC<MJLobbyChatViewerProps> = ({ gameId }) => {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { chatConfig, loading: settingsLoading } = useSystemSettings();
+
+  // Check if lobby chat is enabled
+  const isChatDisabled = !settingsLoading && !chatConfig.lobby_chat_enabled;
 
   const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
@@ -103,6 +108,22 @@ const MJLobbyChatViewer: React.FC<MJLobbyChatViewerProps> = ({ gameId }) => {
       handleSend();
     }
   };
+
+  // If chat is disabled, show a compact message
+  if (isChatDisabled) {
+    return (
+      <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-muted-foreground" />
+          <span className="font-medium text-muted-foreground">Chat Salle d'attente</span>
+          <Badge variant="outline" className="ml-2 text-muted-foreground">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Désactivé
+          </Badge>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
