@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
+import { AdventureProgressDisplay, GAME_TYPE_INFO } from '@/components/game/AdventureProgressDisplay';
 import { User, AlertCircle, Loader2, Smartphone, Users, Ban, Coins, Lock, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDeviceId } from '@/hooks/useDeviceId';
@@ -287,7 +287,9 @@ export default function JoinAnonymous() {
             <img src={logoNdogmoabeng} alt="Ndogmoabeng" className="w-full h-full object-contain" />
           </Link>
           <h1 className="font-display text-2xl text-glow mb-2">
-            La Forêt de Ndogmoabeng
+            {game?.selected_game_type_code 
+              ? (GAME_TYPE_INFO[game.selected_game_type_code]?.fullName || 'Ndogmoabeng')
+              : 'La Forêt de Ndogmoabeng'}
           </h1>
           <p className="text-muted-foreground">
             Rejoindre une partie
