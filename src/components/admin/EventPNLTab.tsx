@@ -162,7 +162,20 @@ export function EventPNLTab({ eventId }: Props) {
                       {!row.isHeader && formatCurrency(row.optimiste)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {!row.isHeader && formatCurrency(row.real)}
+                      {!row.isHeader && (
+                        row.indent ? (
+                          <span>
+                            {formatCurrency(row.real)}
+                            <span className="text-muted-foreground font-normal"> / </span>
+                            <span className="text-muted-foreground font-normal">
+                              {formatCurrency(
+                                scenarioActive === 'pessimiste' ? row.pessimiste :
+                                scenarioActive === 'probable' ? row.probable : row.optimiste
+                              )}
+                            </span>
+                          </span>
+                        ) : formatCurrency(row.real)
+                      )}
                     </TableCell>
                     <TableCell className={cn(
                       "text-right",
