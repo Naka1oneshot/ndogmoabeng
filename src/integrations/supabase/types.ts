@@ -266,6 +266,42 @@ export type Database = {
           },
         ]
       }
+      clan_advantages: {
+        Row: {
+          clan_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          game_code: string
+          id: string
+          source: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          clan_id: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          game_code: string
+          id?: string
+          source?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          clan_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          game_code?: string
+          id?: string
+          source?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       combat_config: {
         Row: {
           categorie: string | null
