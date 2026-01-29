@@ -1096,8 +1096,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         />
       )}
 
-      {/* LION Dashboard */}
-      {game.selected_game_type_code === 'LION' && game.current_session_game_id && (
+      {/* LION Dashboard - In-game mode (only when game has actually started) */}
+      {game.selected_game_type_code === 'LION' && game.current_session_game_id && game.status !== 'LOBBY' && (
         <MJLionDashboard
           game={{
             id: game.id,
@@ -1106,6 +1106,28 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           }}
           onPresentationMode={() => window.open(`/presentation/${game.id}`, '_blank')}
         />
+      )}
+
+      {/* LION Lobby - Show player management when game is in LOBBY status */}
+      {game.selected_game_type_code === 'LION' && game.status === 'LOBBY' && (
+        <Tabs defaultValue="players" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="players" className="flex items-center gap-1">
+              <Users className="h-4 w-4" />
+              <span>Joueurs</span>
+            </TabsTrigger>
+            <TabsTrigger value="events" className="flex items-center gap-1">
+              <MessageSquare className="h-4 w-4" />
+              <span>Événements</span>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="players">
+            <MJPlayersTab game={game} onGameUpdate={fetchGame} />
+          </TabsContent>
+          <TabsContent value="events">
+            <MJEventsTab game={game} />
+          </TabsContent>
+        </Tabs>
       )}
     </div>
     </>

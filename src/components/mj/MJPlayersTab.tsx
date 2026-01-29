@@ -59,6 +59,7 @@ interface Game {
   current_session_game_id?: string | null;
   mode?: string;
   adventure_id?: string | null;
+  selected_game_type_code?: string | null;
 }
 
 interface AdventureScore {
@@ -520,15 +521,93 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
   const handleStartGame = async () => {
     setStarting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('start-game', {
-        body: { gameId: game.id },
-      });
+      // Determine which start function to call based on game type
+      const gameTypeCode = game.selected_game_type_code;
+      let functionName = 'start-game'; // Default for FORET
+      
+      if (gameTypeCode === 'LION') {
+        // For LION, we need to create the session_game first if it doesn't exist
+        if (!game.current_session_game_id) {
+          // Create session_game for LION
+          const { data: sessionGame, error: sessionError } = await supabase
+            .from('session_games')
+            .insert({
+              session_id: game.id,
+              game_type_code: 'LION',
+              status: 'WAITING',
+              step_index: 0
+            })
+            .select('id')
+            .single();
+          
+          if (sessionError) throw sessionError;
+          
+          // Update game with the session_game_id
+          await supabase
+            .from('games')
+            .update({ current_session_game_id: sessionGame.id })
+            .eq('id', game.id);
+          
+          // Now call start-lion with the new session_game_id
+          const { data, error } = await supabase.functions.invoke('start-lion', {
+            body: { session_game_id: sessionGame.id },
+          });
 
-      if (error || !data?.success) {
-        throw new Error(data?.error || 'Erreur lors du démarrage');
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+
+          toast.success(`🦁 Le CŒUR du Lion commence !`);
+        } else {
+          // Session game already exists, just start
+          const { data, error } = await supabase.functions.invoke('start-lion', {
+            body: { session_game_id: game.current_session_game_id },
+          });
+
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+
+          toast.success(`🦁 Le CŒUR du Lion commence !`);
+        }
+      } else if (gameTypeCode === 'RIVIERES') {
+        functionName = 'rivieres-init';
+        const { data, error } = await supabase.functions.invoke(functionName, {
+          body: { gameId: game.id },
+        });
+        if (error || !data?.success) {
+          throw new Error(data?.error || 'Erreur lors du démarrage');
+        }
+        toast.success(`🌊 Les Rivières commencent avec ${data.playerCount || 0} joueurs !`);
+      } else if (gameTypeCode === 'INFECTION') {
+        functionName = 'start-infection';
+        const { data, error } = await supabase.functions.invoke(functionName, {
+          body: { gameId: game.id },
+        });
+        if (error || !data?.success) {
+          throw new Error(data?.error || 'Erreur lors du démarrage');
+        }
+        toast.success(`🦠 Infection commence !`);
+      } else if (gameTypeCode === 'SHERIFF') {
+        functionName = 'start-sheriff';
+        const { data, error } = await supabase.functions.invoke(functionName, {
+          body: { gameId: game.id },
+        });
+        if (error || !data?.success) {
+          throw new Error(data?.error || 'Erreur lors du démarrage');
+        }
+        toast.success(`🤠 Le Shérif commence !`);
+      } else {
+        // Default: FORET
+        const { data, error } = await supabase.functions.invoke('start-game', {
+          body: { gameId: game.id },
+        });
+
+        if (error || !data?.success) {
+          throw new Error(data?.error || 'Erreur lors du démarrage');
+        }
+
+        toast.success(`La partie commence avec ${data.playerCount} joueurs !`);
       }
-
-      toast.success(`La partie commence avec ${data.playerCount} joueurs !`);
+      
       onGameUpdate();
     } catch (error: any) {
       console.error('Error starting game:', error);
@@ -827,14 +906,32 @@ export function MJPlayersTab({ game, onGameUpdate }: MJPlayersTabProps) {
         {/* Actions principales - Lobby */}
         {isLobby && (
           <div className="flex flex-wrap gap-3 items-center">
-            <ForestButton
-              onClick={handleStartGame}
-              disabled={starting || activePlayers.length === 0}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {starting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-              Démarrer la partie ({activePlayers.length} joueurs)
-            </ForestButton>
+            {/* Start button - with game-type specific requirements */}
+            {(() => {
+              const isLion = game.selected_game_type_code === 'LION';
+              const minPlayers = isLion ? 2 : 1;
+              const maxPlayers = isLion ? 2 : undefined;
+              const playerCount = activePlayers.length;
+              const canStart = isLion 
+                ? playerCount === 2 
+                : playerCount >= minPlayers;
+              const buttonLabel = isLion
+                ? playerCount === 2 
+                  ? '🦁 Démarrer le CŒUR du Lion' 
+                  : `⚠️ ${2 - playerCount} joueur(s) manquant(s)`
+                : `Démarrer la partie (${playerCount} joueurs)`;
+              
+              return (
+                <ForestButton
+                  onClick={handleStartGame}
+                  disabled={starting || !canStart}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {starting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                  {buttonLabel}
+                </ForestButton>
+              );
+            })()}
             
             {/* Add bots - Admin only */}
             {isAdminOrSuper && (
