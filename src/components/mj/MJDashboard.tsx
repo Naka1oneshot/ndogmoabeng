@@ -19,6 +19,7 @@ import { MJRivieresDashboard } from '@/components/rivieres/MJRivieresDashboard';
 import { MJInfectionDashboard } from '@/components/infection/MJInfectionDashboard';
 import { MJSheriffDashboard } from '@/components/sheriff/MJSheriffDashboard';
 import { MJForetDashboard } from '@/components/foret/dashboard/MJForetDashboard';
+import { MJLionDashboard } from '@/components/lion/MJLionDashboard';
 import { MJActionsMenu } from './MJActionsMenu';
 import { LandscapeModePrompt } from './LandscapeModePrompt';
 import { ForetAutoModeToggle } from '@/components/foret/ForetAutoModeToggle';
@@ -37,7 +38,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 
 // Implemented game types
-const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION', 'SHERIFF'];
+const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION', 'SHERIFF', 'LION'];
 
 
 interface Game {
@@ -1092,6 +1093,18 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           isAdventure={!!isAdventure}
           onNextGame={isAdventure ? handleNextSessionGame : undefined}
           onGameUpdate={fetchGame}
+        />
+      )}
+
+      {/* LION Dashboard */}
+      {game.selected_game_type_code === 'LION' && game.current_session_game_id && (
+        <MJLionDashboard
+          game={{
+            id: game.id,
+            current_session_game_id: game.current_session_game_id,
+            name: game.name,
+          }}
+          onPresentationMode={() => window.open(`/presentation/${game.id}`, '_blank')}
         />
       )}
     </div>

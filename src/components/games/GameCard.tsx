@@ -11,12 +11,14 @@ import rivieresImage from '@/assets/games/rivieres-ndogmoabeng.png';
 import foretImage from '@/assets/games/foret-ndogmoabeng.png';
 import infectionImage from '@/assets/games/infection-ndogmoabeng.png';
 import villageImage from '@/assets/games/village-ndogmoabeng.png';
+import lionImage from '@/assets/games/lion-ndogmoabeng.png';
 
 const STATIC_IMAGES: Record<string, string> = {
   RIVIERES: rivieresImage,
   FORET: foretImage,
   INFECTION: infectionImage,
   SHERIFF: villageImage,
+  LION: lionImage,
 };
 
 const IMAGE_POSITIONS: Record<string, string> = {
@@ -24,6 +26,7 @@ const IMAGE_POSITIONS: Record<string, string> = {
   FORET: 'object-center',
   INFECTION: 'object-center',
   SHERIFF: 'object-center',
+  LION: 'object-center',
 };
 
 interface GameCardProps {

@@ -6,6 +6,7 @@ import { ForetPresentationView } from "@/components/foret/presentation/ForetPres
 import { RivieresPresentationView } from "@/components/rivieres/presentation/RivieresPresentationView";
 import { InfectionPresentationView } from "@/components/infection/presentation/InfectionPresentationView";
 import { SheriffPresentationView } from "@/components/sheriff/presentation/SheriffPresentationView";
+import { LionPresentationView } from "@/components/lion/presentation/LionPresentationView";
 import { AdventureCinematicDebugPanel } from "@/components/adventure/AdventureCinematicDebugPanel";
 import { CinematicButton } from "@/components/adventure/CinematicButton";
 import { useAdventureCinematic } from "@/hooks/useAdventureCinematic";
@@ -231,6 +232,17 @@ const Presentation = () => {
         {cinematicButton}
         {debugPanel}
         <ForetPresentationView game={game} onClose={() => window.close()} />
+      </>
+    );
+  }
+
+  // LION presentation
+  if (game.selected_game_type_code === 'LION') {
+    return (
+      <>
+        {cinematicButton}
+        {debugPanel}
+        <LionPresentationView game={game} onClose={() => window.close()} />
       </>
     );
   }

@@ -17,12 +17,13 @@ import { PlayerRivieresDashboard } from '@/components/rivieres/PlayerRivieresDas
 import { PlayerInfectionDashboard } from '@/components/infection/PlayerInfectionDashboard';
 import { PlayerSheriffDashboard } from '@/components/sheriff/PlayerSheriffDashboard';
 import { PlayerForetDashboard } from '@/components/foret/dashboard/PlayerForetDashboard';
+import { PlayerLionDashboard } from '@/components/lion/PlayerLionDashboard';
 import LobbyWaitingRoom from '@/components/lobby/LobbyWaitingRoom';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
 // Implemented game types
-const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION', 'SHERIFF'];
+const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION', 'SHERIFF', 'LION'];
 
 interface Game {
   id: string;
@@ -623,6 +624,26 @@ export default function PlayerDashboard() {
           onLeaveGame={handleLeave}
           showStartAnimation={showStartAnimation && animationsEnabled}
           animationsEnabled={animationsEnabled}
+        />
+      </>
+    );
+  }
+
+  // LION Dashboard
+  if (game.selected_game_type_code === 'LION' && game.current_session_game_id) {
+    return (
+      <>
+        {cinematicOverlay}
+        <PlayerLionDashboard
+          game={{
+            id: game.id,
+            current_session_game_id: game.current_session_game_id,
+          }}
+          player={{
+            id: player.id,
+            display_name: player.displayName,
+            user_id: null, // Anonymous players
+          }}
         />
       </>
     );

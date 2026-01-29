@@ -9,6 +9,7 @@ import { RivieresRulesOverlay } from '@/components/rivieres/rules/RivieresRulesO
 import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
 import { InfectionRulesOverlay } from '@/components/infection/rules/InfectionRulesOverlay';
 import { SheriffRulesOverlay } from '@/components/sheriff/rules/SheriffRulesOverlay';
+import { LionRulesOverlay } from '@/components/lion/rules/LionRulesOverlay';
 import { LandingNavbar } from '@/components/landing/LandingNavbar';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 import { MobileBottomBar } from '@/components/landing/MobileBottomBar';
@@ -26,6 +27,7 @@ export default function Games() {
   const [foretRulesOpen, setForetRulesOpen] = useState(false);
   const [infectionRulesOpen, setInfectionRulesOpen] = useState(false);
   const [sheriffRulesOpen, setSheriffRulesOpen] = useState(false);
+  const [lionRulesOpen, setLionRulesOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<GameTypeData | null>(null);
 
   const handleCreateGame = (gameCode: string) => {
@@ -41,6 +43,7 @@ export default function Games() {
     else if (gameCode === 'FORET') setForetRulesOpen(true);
     else if (gameCode === 'INFECTION') setInfectionRulesOpen(true);
     else if (gameCode === 'SHERIFF') setSheriffRulesOpen(true);
+    else if (gameCode === 'LION') setLionRulesOpen(true);
   };
 
   return (
@@ -66,6 +69,12 @@ export default function Games() {
       <SheriffRulesOverlay 
         open={sheriffRulesOpen} 
         onClose={() => setSheriffRulesOpen(false)}
+        role="PLAYER"
+        defaultMode="QUICK"
+      />
+      <LionRulesOverlay 
+        open={lionRulesOpen} 
+        onClose={() => setLionRulesOpen(false)}
         role="PLAYER"
         defaultMode="QUICK"
       />

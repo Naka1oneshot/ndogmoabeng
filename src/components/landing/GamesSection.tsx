@@ -10,6 +10,7 @@ import { RivieresRulesOverlay } from '@/components/rivieres/rules/RivieresRulesO
 import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
 import { InfectionRulesOverlay } from '@/components/infection/rules/InfectionRulesOverlay';
 import { SheriffRulesOverlay } from '@/components/sheriff/rules/SheriffRulesOverlay';
+import { LionRulesOverlay } from '@/components/lion/rules/LionRulesOverlay';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { GameTypeData } from '@/hooks/useGameTypes';
 
@@ -23,6 +24,7 @@ export function GamesSection() {
   const [foretRulesOpen, setForetRulesOpen] = useState(false);
   const [infectionRulesOpen, setInfectionRulesOpen] = useState(false);
   const [sheriffRulesOpen, setSheriffRulesOpen] = useState(false);
+  const [lionRulesOpen, setLionRulesOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<GameTypeData | null>(null);
 
   // Filter games with homepage_order set and sort by order
@@ -46,6 +48,7 @@ export function GamesSection() {
     else if (gameCode === 'FORET') setForetRulesOpen(true);
     else if (gameCode === 'INFECTION') setInfectionRulesOpen(true);
     else if (gameCode === 'SHERIFF') setSheriffRulesOpen(true);
+    else if (gameCode === 'LION') setLionRulesOpen(true);
   };
 
   return (
@@ -71,6 +74,12 @@ export function GamesSection() {
       <SheriffRulesOverlay 
         open={sheriffRulesOpen} 
         onClose={() => setSheriffRulesOpen(false)}
+        role="PLAYER"
+        defaultMode="QUICK"
+      />
+      <LionRulesOverlay 
+        open={lionRulesOpen} 
+        onClose={() => setLionRulesOpen(false)}
         role="PLAYER"
         defaultMode="QUICK"
       />
