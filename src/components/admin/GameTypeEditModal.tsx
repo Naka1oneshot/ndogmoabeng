@@ -4,10 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Upload, X } from 'lucide-react';
+import { Loader2, Upload, X, ChevronDown } from 'lucide-react';
 import { GameTypeData } from '@/hooks/useGameTypes';
+import { CLANS_DATA } from '@/data/ndogmoabengData';
 
 interface GameTypeEditModalProps {
   open: boolean;
@@ -24,7 +27,7 @@ export function GameTypeEditModal({ open, onClose, gameType, onSaved }: GameType
   const [description, setDescription] = useState('');
   const [tagline, setTagline] = useState('');
   const [lieu, setLieu] = useState('');
-  const [clan, setClan] = useState('');
+  const [clan, setClan] = useState<string[]>([]);
   const [personnages, setPersonnages] = useState('');
   const [objetCle, setObjetCle] = useState('');
   const [minPlayers, setMinPlayers] = useState(2);
@@ -37,7 +40,7 @@ export function GameTypeEditModal({ open, onClose, gameType, onSaved }: GameType
       setDescription(gameType.description || '');
       setTagline(gameType.tagline || '');
       setLieu(gameType.lieu || '');
-      setClan(gameType.clan || '');
+      setClan(gameType.clan ? gameType.clan.split(', ').filter(c => c.trim()) : []);
       setPersonnages(gameType.personnages?.join(', ') || '');
       setObjetCle(gameType.objet_cle || '');
       setMinPlayers(gameType.min_players || 2);
@@ -97,7 +100,7 @@ export function GameTypeEditModal({ open, onClose, gameType, onSaved }: GameType
           description: description || null,
           tagline: tagline || null,
           lieu: lieu || null,
-          clan: clan || null,
+          clan: clan.length > 0 ? clan.join(', ') : null,
           personnages: personnagesArray.length > 0 ? personnagesArray : null,
           objet_cle: objetCle || null,
           min_players: minPlayers,
@@ -208,13 +211,67 @@ export function GameTypeEditModal({ open, onClose, gameType, onSaved }: GameType
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="clan">Clan</Label>
-              <Input
-                id="clan"
-                value={clan}
-                onChange={(e) => setClan(e.target.value)}
-                placeholder="Ex: Maison Royale"
-              />
+              <Label>Clans avec avantages</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between font-normal"
+                  >
+                    {clan.length > 0 
+                      ? `${clan.length} clan${clan.length > 1 ? 's' : ''} sélectionné${clan.length > 1 ? 's' : ''}`
+                      : "Sélectionner les clans..."
+                    }
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-2" align="start">
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {CLANS_DATA.map((clanData) => (
+                      <div
+                        key={clanData.id}
+                        className="flex items-center space-x-2 p-2 rounded hover:bg-muted cursor-pointer"
+                        onClick={() => {
+                          setClan(prev => 
+                            prev.includes(clanData.name)
+                              ? prev.filter(c => c !== clanData.name)
+                              : [...prev, clanData.name]
+                          );
+                        }}
+                      >
+                        <Checkbox
+                          checked={clan.includes(clanData.name)}
+                          onCheckedChange={(checked) => {
+                            setClan(prev => 
+                              checked
+                                ? [...prev, clanData.name]
+                                : prev.filter(c => c !== clanData.name)
+                            );
+                          }}
+                        />
+                        <span className="text-sm">{clanData.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {clan.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {clan.map((c) => (
+                    <span
+                      key={c}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-primary/10 text-primary rounded-full"
+                    >
+                      {c}
+                      <X
+                        className="h-3 w-3 cursor-pointer hover:text-destructive"
+                        onClick={() => setClan(prev => prev.filter(cl => cl !== c))}
+                      />
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
