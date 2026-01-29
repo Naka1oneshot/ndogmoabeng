@@ -23,7 +23,9 @@ export interface PNLData {
     profitReal: number;
     revenueProjected: number;
     costProjected: number;
+    costProjectedAdjusted: number; // Projected cost adjusted with budget overruns
     profitProjected: number;
+    profitProjectedAdjusted: number; // Projected profit adjusted with budget overruns
   };
 }
 
@@ -52,7 +54,7 @@ export function useEventPNL(eventId: string | null) {
       optimiste: settings?.parking_optimiste || 0,
     };
 
-    const revenueProjected = {
+    const inscriptionRevenueProjected = {
       pessimiste: inscriptionsProjected.pessimiste * inscriptionPrice,
       probable: inscriptionsProjected.probable * inscriptionPrice,
       optimiste: inscriptionsProjected.optimiste * inscriptionPrice,
@@ -89,11 +91,11 @@ export function useEventPNL(eventId: string | null) {
 
     rows.push({
       label: 'Inscriptions',
-      pessimiste: revenueProjected.pessimiste,
-      probable: revenueProjected.probable,
-      optimiste: revenueProjected.optimiste,
+      pessimiste: inscriptionRevenueProjected.pessimiste,
+      probable: inscriptionRevenueProjected.probable,
+      optimiste: inscriptionRevenueProjected.optimiste,
       real: revenueReal,
-      ecart: revenueReal - revenueProjected[scenarioActive],
+      ecart: revenueReal - inscriptionRevenueProjected[scenarioActive],
       indent: 1,
     });
 
@@ -107,9 +109,9 @@ export function useEventPNL(eventId: string | null) {
       indent: 1,
     });
 
-    const totalRevenuePess = revenueProjected.pessimiste + parkingRevenueProjected.pessimiste;
-    const totalRevenueProb = revenueProjected.probable + parkingRevenueProjected.probable;
-    const totalRevenueOpt = revenueProjected.optimiste + parkingRevenueProjected.optimiste;
+    const totalRevenuePess = inscriptionRevenueProjected.pessimiste + parkingRevenueProjected.pessimiste;
+    const totalRevenueProb = inscriptionRevenueProjected.probable + parkingRevenueProjected.probable;
+    const totalRevenueOpt = inscriptionRevenueProjected.optimiste + parkingRevenueProjected.optimiste;
     const totalRevenueReal = revenueReal + parkingReal;
 
     rows.push({
@@ -206,6 +208,20 @@ export function useEventPNL(eventId: string | null) {
       });
     }
 
+    // Calculate adjusted projected cost: for each expense type, take max(projected, real)
+    // This accounts for budget overruns that have already occurred
+    let costProjectedAdjusted = 0;
+    Object.entries(budgetSummary.byType).forEach(([_, amounts]) => {
+      const projected = scenarioActive === 'pessimiste' ? amounts.pessimiste : scenarioActive === 'probable' ? amounts.probable : amounts.optimiste;
+      // If real cost exceeds projected, use real (budget was exceeded)
+      // Otherwise use projected (we still expect to pay the projected amount)
+      costProjectedAdjusted += Math.max(projected, amounts.real);
+    });
+
+    const revenueProjected = scenarioActive === 'pessimiste' ? totalRevenuePess : scenarioActive === 'probable' ? totalRevenueProb : totalRevenueOpt;
+    const costProjected = scenarioActive === 'pessimiste' ? costs.pessimiste : scenarioActive === 'probable' ? costs.probable : costs.optimiste;
+    const profitProjectedAdjusted = revenueProjected - costProjectedAdjusted;
+
     return {
       rows,
       scenarioActive,
@@ -213,12 +229,14 @@ export function useEventPNL(eventId: string | null) {
         revenueReal: totalRevenueReal,
         costReal: costs.real,
         profitReal,
-        revenueProjected: scenarioActive === 'pessimiste' ? totalRevenuePess : scenarioActive === 'probable' ? totalRevenueProb : totalRevenueOpt,
-        costProjected: scenarioActive === 'pessimiste' ? costs.pessimiste : scenarioActive === 'probable' ? costs.probable : costs.optimiste,
+        revenueProjected,
+        costProjected,
+        costProjectedAdjusted,
         profitProjected,
+        profitProjectedAdjusted,
       },
     };
-  }, [event, expenses, settings, invites, getStats, getBudgetSummary]);
+  }, [expenses, settings, invites, getStats, getBudgetSummary]);
 
   function exportToCSV() {
     if (pnlData.rows.length === 0) return;
