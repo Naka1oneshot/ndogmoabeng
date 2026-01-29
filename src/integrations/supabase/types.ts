@@ -1665,6 +1665,284 @@ export type Database = {
         }
         Relationships: []
       }
+      lion_decks: {
+        Row: {
+          created_at: string
+          id: string
+          owner_player_id: string
+          remaining_cards: number[]
+          session_game_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_player_id: string
+          remaining_cards?: number[]
+          session_game_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_player_id?: string
+          remaining_cards?: number[]
+          session_game_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lion_decks_owner_player_id_fkey"
+            columns: ["owner_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lion_decks_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lion_game_state: {
+        Row: {
+          active_player_id: string
+          auto_resolve: boolean
+          created_at: string
+          game_id: string
+          guesser_player_id: string
+          id: string
+          session_game_id: string
+          status: string
+          sudden_pair_index: number
+          timer_active_seconds: number
+          timer_enabled: boolean
+          timer_guess_seconds: number
+          turn_index: number
+          updated_at: string
+          winner_player_id: string | null
+        }
+        Insert: {
+          active_player_id: string
+          auto_resolve?: boolean
+          created_at?: string
+          game_id: string
+          guesser_player_id: string
+          id?: string
+          session_game_id: string
+          status?: string
+          sudden_pair_index?: number
+          timer_active_seconds?: number
+          timer_enabled?: boolean
+          timer_guess_seconds?: number
+          turn_index?: number
+          updated_at?: string
+          winner_player_id?: string | null
+        }
+        Update: {
+          active_player_id?: string
+          auto_resolve?: boolean
+          created_at?: string
+          game_id?: string
+          guesser_player_id?: string
+          id?: string
+          session_game_id?: string
+          status?: string
+          sudden_pair_index?: number
+          timer_active_seconds?: number
+          timer_enabled?: boolean
+          timer_guess_seconds?: number
+          turn_index?: number
+          updated_at?: string
+          winner_player_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lion_game_state_active_player_id_fkey"
+            columns: ["active_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lion_game_state_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lion_game_state_guesser_player_id_fkey"
+            columns: ["guesser_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lion_game_state_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: true
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lion_game_state_winner_player_id_fkey"
+            columns: ["winner_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lion_hands: {
+        Row: {
+          created_at: string
+          id: string
+          owner_player_id: string
+          remaining_cards: number[]
+          session_game_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_player_id: string
+          remaining_cards?: number[]
+          session_game_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_player_id?: string
+          remaining_cards?: number[]
+          session_game_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lion_hands_owner_player_id_fkey"
+            columns: ["owner_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lion_hands_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lion_turns: {
+        Row: {
+          active_card: number | null
+          active_locked: boolean
+          active_locked_at: string | null
+          active_player_id: string
+          created_at: string
+          d: number | null
+          dealer_card: number
+          dealer_owner_player_id: string
+          guess_choice: string | null
+          guess_locked: boolean
+          guess_locked_at: string | null
+          guesser_player_id: string
+          id: string
+          is_sudden_death: boolean
+          pvic_delta_active: number
+          pvic_delta_guesser: number
+          resolved: boolean
+          resolved_at: string | null
+          session_game_id: string
+          sudden_pair_index: number
+          turn_index: number
+          updated_at: string
+        }
+        Insert: {
+          active_card?: number | null
+          active_locked?: boolean
+          active_locked_at?: string | null
+          active_player_id: string
+          created_at?: string
+          d?: number | null
+          dealer_card: number
+          dealer_owner_player_id: string
+          guess_choice?: string | null
+          guess_locked?: boolean
+          guess_locked_at?: string | null
+          guesser_player_id: string
+          id?: string
+          is_sudden_death?: boolean
+          pvic_delta_active?: number
+          pvic_delta_guesser?: number
+          resolved?: boolean
+          resolved_at?: string | null
+          session_game_id: string
+          sudden_pair_index?: number
+          turn_index: number
+          updated_at?: string
+        }
+        Update: {
+          active_card?: number | null
+          active_locked?: boolean
+          active_locked_at?: string | null
+          active_player_id?: string
+          created_at?: string
+          d?: number | null
+          dealer_card?: number
+          dealer_owner_player_id?: string
+          guess_choice?: string | null
+          guess_locked?: boolean
+          guess_locked_at?: string | null
+          guesser_player_id?: string
+          id?: string
+          is_sudden_death?: boolean
+          pvic_delta_active?: number
+          pvic_delta_guesser?: number
+          resolved?: boolean
+          resolved_at?: string | null
+          session_game_id?: string
+          sudden_pair_index?: number
+          turn_index?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lion_turns_active_player_id_fkey"
+            columns: ["active_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lion_turns_dealer_owner_player_id_fkey"
+            columns: ["dealer_owner_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lion_turns_guesser_player_id_fkey"
+            columns: ["guesser_player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lion_turns_session_game_id_fkey"
+            columns: ["session_game_id"]
+            isOneToOne: false
+            referencedRelation: "session_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lobby_chat_messages: {
         Row: {
           created_at: string
