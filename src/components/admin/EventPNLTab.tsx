@@ -80,7 +80,7 @@ export function EventPNLTab({ eventId }: Props) {
               {formatCurrency(pnlData.summary.costReal)}
             </div>
             <div className="text-xs text-muted-foreground">
-              {SCENARIO_LABELS[scenarioActive]}: {formatCurrency(pnlData.summary.costProjected)}
+              {SCENARIO_LABELS[scenarioActive]}: {formatCurrency(pnlData.summary.costProjectedAdjusted)}
             </div>
           </CardContent>
         </Card>
@@ -102,7 +102,7 @@ export function EventPNLTab({ eventId }: Props) {
               {formatCurrency(pnlData.summary.profitReal)}
             </div>
             <div className="text-xs text-muted-foreground">
-              {SCENARIO_LABELS[scenarioActive]}: {formatCurrency(pnlData.summary.profitProjected)}
+              {SCENARIO_LABELS[scenarioActive]}: {formatCurrency(pnlData.summary.profitProjectedAdjusted)}
             </div>
           </CardContent>
         </Card>

@@ -86,15 +86,15 @@ export function PNLCompactView({ pnlData }: Props) {
                   {formatCurrency(summary.costReal)}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {SCENARIO_LABELS[scenarioActive]}: {formatCurrency(summary.costProjected)}
+                  {SCENARIO_LABELS[scenarioActive]}: {formatCurrency(summary.costProjectedAdjusted)}
                 </div>
               </div>
               <div className={cn(
                 "text-sm font-medium",
-                summary.costReal <= summary.costProjected ? "text-green-600" : "text-red-600"
+                summary.costReal <= summary.costProjectedAdjusted ? "text-green-600" : "text-red-600"
               )}>
-                {summary.costProjected - summary.costReal >= 0 ? '+' : ''}
-                {formatCurrency(summary.costProjected - summary.costReal)}
+                {summary.costProjectedAdjusted - summary.costReal >= 0 ? '+' : ''}
+                {formatCurrency(summary.costProjectedAdjusted - summary.costReal)}
               </div>
             </div>
           </CardContent>
@@ -119,15 +119,15 @@ export function PNLCompactView({ pnlData }: Props) {
                   {formatCurrency(summary.profitReal)}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {SCENARIO_LABELS[scenarioActive]}: {formatCurrency(summary.profitProjected)}
+                  {SCENARIO_LABELS[scenarioActive]}: {formatCurrency(summary.profitProjectedAdjusted)}
                 </div>
               </div>
               <div className={cn(
                 "text-sm font-medium",
-                summary.profitReal >= summary.profitProjected ? "text-green-600" : "text-red-600"
+                summary.profitReal >= summary.profitProjectedAdjusted ? "text-green-600" : "text-red-600"
               )}>
-                {summary.profitReal >= summary.profitProjected ? '+' : ''}
-                {formatCurrency(summary.profitReal - summary.profitProjected)}
+                {summary.profitReal >= summary.profitProjectedAdjusted ? '+' : ''}
+                {formatCurrency(summary.profitReal - summary.profitProjectedAdjusted)}
               </div>
             </div>
           </CardContent>
