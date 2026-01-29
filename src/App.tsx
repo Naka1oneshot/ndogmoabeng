@@ -34,6 +34,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const PublicProfile = lazy(() => import("./pages/PublicProfile"));
 const Shop = lazy(() => import("./pages/Shop"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const OnboardingClanQuiz = lazy(() => import("./pages/OnboardingClanQuiz"));
 
 // Optimized QueryClient configuration
 const queryClient = new QueryClient({
@@ -81,6 +82,7 @@ const AppRoutes = memo(function AppRoutes() {
         <Route path="/profile/:userId" element={<PublicProfile />} />
         <Route path="/boutique" element={<Shop />} />
         <Route path="/presentation/:gameId" element={<Presentation />} />
+        <Route path="/onboarding/clan-quiz" element={<OnboardingClanQuiz />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
