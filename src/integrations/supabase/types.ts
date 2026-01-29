@@ -3884,6 +3884,17 @@ export type Database = {
           played_at: string
         }[]
       }
+      get_public_active_games: {
+        Args: { p_user_id: string }
+        Returns: {
+          game_id: string
+          game_name: string
+          game_status: string
+          game_type_code: string
+          game_type_name: string
+          player_count: number
+        }[]
+      }
       get_public_comparison: {
         Args: { p_target_user_id: string }
         Returns: {

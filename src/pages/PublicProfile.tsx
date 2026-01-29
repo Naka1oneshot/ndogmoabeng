@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Trophy, Gamepad2, Star, Users, Swords, Calendar } from 'lucide-react';
+import { ArrowLeft, Trophy, Gamepad2, Star, Users, Swords, Calendar, Play } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -14,7 +14,7 @@ export default function PublicProfile() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { profile, gameHistory, comparison, loading, error } = usePublicProfile(userId || null);
+  const { profile, gameHistory, activeGames, comparison, loading, error } = usePublicProfile(userId || null);
 
   const isOwnProfile = user?.id === userId;
 
@@ -184,6 +184,42 @@ export default function PublicProfile() {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Active Games */}
+        {activeGames.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Play className="h-5 w-5 text-primary" />
+                Parties en cours
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {activeGames.map((game) => (
+                <div
+                  key={game.game_id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{game.game_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {game.game_type_name || 'Type inconnu'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2 shrink-0">
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      {game.player_count}
+                    </Badge>
+                    <Badge className="bg-primary/20 text-primary border-primary/30">
+                      En cours
+                    </Badge>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
