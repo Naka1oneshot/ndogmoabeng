@@ -306,8 +306,12 @@ export function EventInvitesTab({ eventId, event }: Props) {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-primary">{stats.totalRevenue.toFixed(0)}€</div>
-            <div className="text-sm text-muted-foreground">Revenus</div>
+            <div className="text-2xl font-bold text-primary">
+              {stats.paidRevenue.toFixed(0)}€
+              <span className="text-muted-foreground font-normal text-lg"> / </span>
+              <span className="text-muted-foreground font-normal text-lg">{stats.projectedRevenue.toFixed(0)}€</span>
+            </div>
+            <div className="text-sm text-muted-foreground">Payé / Projeté</div>
           </CardContent>
         </Card>
       </div>

@@ -49,6 +49,8 @@ export interface InviteStats {
   declined: number;
   totalRevenue: number;
   totalParking: number;
+  paidRevenue: number;
+  projectedRevenue: number;
 }
 
 export function useEventInvites(eventId: string | null) {
@@ -235,6 +237,18 @@ export function useEventInvites(eventId: string | null) {
       i.invite_status === 'pending'
     );
 
+    // Revenue from paid guests only
+    const paidRevenue = paid.reduce((sum, i) => sum + (i.contributed_amount || 0), 0);
+    
+    // Revenue from confirmed guests
+    const confirmedRevenue = confirmedUnpaid.reduce((sum, i) => sum + (i.contributed_amount || 0), 0);
+    
+    // Revenue from pending guests (prorated at 50%)
+    const pendingRevenue = pending.reduce((sum, i) => sum + (i.contributed_amount || 0), 0) * 0.5;
+    
+    // Projected revenue = confirmed + pending at 50%
+    const projectedRevenue = confirmedRevenue + pendingRevenue;
+
     return {
       total: countedInvites.length,
       paid: paid.length,
@@ -246,6 +260,8 @@ export function useEventInvites(eventId: string | null) {
       declined: invites.filter(i => i.invite_status === 'declined').length,
       totalRevenue: countedInvites.reduce((sum, i) => sum + (i.contributed_amount || 0), 0),
       totalParking: invites.reduce((sum, i) => sum + (i.parking_amount || 0), 0),
+      paidRevenue,
+      projectedRevenue,
     };
   }
 
