@@ -9,6 +9,9 @@ export interface PublicProfile {
   games_won: number;
   total_rewards: number;
   created_at: string;
+  clan_affinity_id: string | null;
+  clan_affinity_scores: Record<string, number> | null;
+  clan_affinity_completed_at: string | null;
 }
 
 export interface PublicGameHistory {
