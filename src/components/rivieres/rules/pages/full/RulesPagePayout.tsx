@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Coins, Users, Calculator, ArrowDown, Sparkles } from 'lucide-react';
+import { Coins, Users, Calculator, ArrowDown, Sparkles, Loader2 } from 'lucide-react';
 import { RivieresRulesContextData, computePayoutPerPlayer } from '../../useRivieresRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface RulesPagePayoutProps {
   context: RivieresRulesContextData;
@@ -22,12 +24,36 @@ const itemVariants = {
 };
 
 export function RulesPagePayout({ context, replayNonce }: RulesPagePayoutProps) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('RIVIERES');
+  const section = getSection('full_payout');
+  const paragraphs = getParagraphs('full_payout');
+
   // Example calculations
   const examples = [
     { pot: 280, restants: 7, label: 'Beaucoup de restants' },
     { pot: 280, restants: 4, label: 'Équilibré' },
     { pot: 280, restants: 2, label: 'Peu de restants' },
   ];
+
+  // Extract dynamic content with fallbacks
+  const dynamicContent = useMemo(() => {
+    const formula = paragraphs.find(p => p.id === 'rf5_formula')?.text 
+      || 'La fonction <code class="text-[#D4AF37]">floor</code> arrondit à l\'entier inférieur. Les jetons restants après la division sont perdus.';
+    const whenDistributed = paragraphs.find(p => p.id === 'rf5_when')?.items 
+      || ['<strong>Niveaux 1-4 réussis :</strong> La cagnotte s\'accumule, pas de distribution', '<strong>Niveau 5 réussi :</strong> Les restants partagent la cagnotte + bonus (100 × restants)', '<strong>Chavirement :</strong> Les descendus partagent la cagnotte + <span class="text-amber-400">10 × leur niveau de descente</span> (individuel)'];
+    const level5Bonus = paragraphs.find(p => p.id === 'rf5_bonus')?.text 
+      || 'Au niveau 5 de chaque manche, un bonus total de <span class="text-[#D4AF37] font-bold">100 × nombre de restants</span> est ajouté à la cagnotte avant distribution. Chaque restant reçoit donc <span class="text-[#D4AF37] font-bold">+100 jetons</span> en plus de sa part de la cagnotte.';
+    
+    return { formula, whenDistributed, level5Bonus };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
   
   return (
     <motion.div
@@ -40,7 +66,7 @@ export function RulesPagePayout({ context, replayNonce }: RulesPagePayoutProps) 
       {/* Title */}
       <motion.div variants={itemVariants} className="text-center">
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Répartition des jetons
+          {section?.title || 'Répartition des jetons'}
         </h1>
         <p className="text-[#9CA3AF]">La cagnotte est distribuée uniquement au niveau 5 ou en cas de chavirement</p>
       </motion.div>
@@ -61,10 +87,10 @@ export function RulesPagePayout({ context, replayNonce }: RulesPagePayoutProps) 
           </p>
         </div>
         
-        <p className="text-[#9CA3AF] text-sm mt-4">
-          La fonction <code className="text-[#D4AF37]">floor</code> arrondit à l'entier inférieur. 
-          Les jetons restants après la division sont perdus.
-        </p>
+        <p 
+          className="text-[#9CA3AF] text-sm mt-4"
+          dangerouslySetInnerHTML={{ __html: dynamicContent.formula }}
+        />
       </motion.div>
 
       {/* Examples */}
@@ -120,9 +146,9 @@ export function RulesPagePayout({ context, replayNonce }: RulesPagePayoutProps) 
           <div>
             <h3 className="text-amber-400 font-bold mb-2">Quand la cagnotte est distribuée ?</h3>
             <ul className="text-[#E8E8E8] text-sm space-y-2">
-              <li>• <strong>Niveaux 1-4 réussis :</strong> La cagnotte s'accumule, pas de distribution</li>
-              <li>• <strong>Niveau 5 réussi :</strong> Les restants partagent la cagnotte + bonus (100 × restants)</li>
-              <li>• <strong>Chavirement :</strong> Les descendus partagent la cagnotte + <span className="text-amber-400">10 × leur niveau de descente</span> (individuel)</li>
+              {dynamicContent.whenDistributed.map((item, i) => (
+                <li key={i} dangerouslySetInnerHTML={{ __html: `• ${item}` }} />
+              ))}
             </ul>
             <p className="text-[#9CA3AF] text-xs mt-2 italic">
               Exemple : J1 descend niveau 1 (+10), J2 descend niveau 2 (+20), J3 descend niveau 3 (+30). Cagnotte 90, chavire niveau 4 → J1=40, J2=50, J3=60.
@@ -142,11 +168,10 @@ export function RulesPagePayout({ context, replayNonce }: RulesPagePayoutProps) 
           </div>
           <div>
             <h3 className="text-[#D4AF37] font-bold mb-2">Bonus du niveau 5</h3>
-            <p className="text-[#E8E8E8] text-sm">
-              Au niveau 5 de chaque manche, un bonus total de <span className="text-[#D4AF37] font-bold">100 × nombre de restants</span> est 
-              ajouté à la cagnotte avant distribution. Chaque restant reçoit donc <span className="text-[#D4AF37] font-bold">+100 jetons</span> en 
-              plus de sa part de la cagnotte.
-            </p>
+            <p 
+              className="text-[#E8E8E8] text-sm"
+              dangerouslySetInnerHTML={{ __html: dynamicContent.level5Bonus }}
+            />
             <p className="text-[#9CA3AF] text-xs mt-2">
               Exemple : 4 restants = bonus total de 400 jetons, soit +100 par joueur.
             </p>

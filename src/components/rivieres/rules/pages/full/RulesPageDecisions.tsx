@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Ship, Anchor, ArrowRight, CheckCircle, XCircle } from 'lucide-react';
+import { Ship, Anchor, ArrowRight, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { RivieresRulesContextData } from '../../useRivieresRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface RulesPageDecisionsProps {
   context: RivieresRulesContextData;
@@ -22,6 +24,26 @@ const itemVariants = {
 };
 
 export function RulesPageDecisions({ context, replayNonce }: RulesPageDecisionsProps) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('RIVIERES');
+  const section = getSection('full_decisions');
+  const paragraphs = getParagraphs('full_decisions');
+
+  // Extract dynamic content with fallbacks
+  const dynamicContent = useMemo(() => {
+    const keyInsight = paragraphs.find(p => p.id === 'rf3_insight')?.text 
+      || '<span class="text-[#D4AF37] font-bold">Clé du jeu :</span> Anticipez les décisions des autres joueurs. Si tout le monde descend, les mises seront faibles et le chavirement probable !';
+    
+    return { keyInsight };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -33,7 +55,7 @@ export function RulesPageDecisions({ context, replayNonce }: RulesPageDecisionsP
       {/* Title */}
       <motion.div variants={itemVariants} className="text-center">
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Rester vs Descendre
+          {section?.title || 'Rester vs Descendre'}
         </h1>
         <p className="text-[#9CA3AF]">Le dilemme central du jeu</p>
       </motion.div>
@@ -167,10 +189,10 @@ export function RulesPageDecisions({ context, replayNonce }: RulesPageDecisionsP
         className="flex items-center gap-4 bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-lg p-4"
       >
         <ArrowRight className="h-6 w-6 text-[#D4AF37] flex-shrink-0" />
-        <p className="text-[#E8E8E8]">
-          <span className="text-[#D4AF37] font-bold">Clé du jeu :</span> Anticipez les décisions des autres joueurs. 
-          Si tout le monde descend, les mises seront faibles et le chavirement probable !
-        </p>
+        <p 
+          className="text-[#E8E8E8]"
+          dangerouslySetInnerHTML={{ __html: dynamicContent.keyInsight }}
+        />
       </motion.div>
     </motion.div>
   );

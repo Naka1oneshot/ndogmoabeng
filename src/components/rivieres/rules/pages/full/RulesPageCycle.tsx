@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, ArrowRight, Clock, Repeat } from 'lucide-react';
+import { RotateCcw, ArrowRight, Clock, Repeat, Loader2 } from 'lucide-react';
 import { RivieresRulesContextData } from '../../useRivieresRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface RulesPageCycleProps {
   context: RivieresRulesContextData;
@@ -21,40 +23,50 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-const STEPS = [
-  {
-    num: 1,
-    title: 'Décision',
-    desc: 'Choisissez de RESTER sur le bateau ou de DESCENDRE à terre',
-    color: 'blue',
-  },
-  {
-    num: 2,
-    title: 'Mise',
-    desc: 'Si vous restez, misez des jetons qui rejoindront la cagnotte',
-    color: 'amber',
-  },
-  {
-    num: 3,
-    title: 'Verrouillage',
-    desc: 'Le MJ verrouille les décisions et révèle le danger',
-    color: 'purple',
-  },
-  {
-    num: 4,
-    title: 'Confrontation',
-    desc: 'Comparaison entre les mises totales et le danger',
-    color: 'red',
-  },
-  {
-    num: 5,
-    title: 'Résolution',
-    desc: 'Succès ou chavirement, distribution des jetons',
-    color: 'green',
-  },
+// Default steps - can be overridden by dynamic content
+const DEFAULT_STEPS = [
+  { num: 1, title: 'Décision', desc: 'Choisissez de RESTER sur le bateau ou de DESCENDRE à terre', color: 'blue' },
+  { num: 2, title: 'Mise', desc: 'Si vous restez, misez des jetons qui rejoindront la cagnotte', color: 'amber' },
+  { num: 3, title: 'Verrouillage', desc: 'Le MJ verrouille les décisions et révèle le danger', color: 'purple' },
+  { num: 4, title: 'Confrontation', desc: 'Comparaison entre les mises totales et le danger', color: 'red' },
+  { num: 5, title: 'Résolution', desc: 'Succès ou chavirement, distribution des jetons', color: 'green' },
 ];
 
 export function RulesPageCycle({ context, replayNonce }: RulesPageCycleProps) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('RIVIERES');
+  const section = getSection('full_cycle');
+  const paragraphs = getParagraphs('full_cycle');
+
+  // Extract dynamic content with fallbacks
+  const dynamicContent = useMemo(() => {
+    const steps = paragraphs.filter(p => p.id?.startsWith('rf2_step'))
+      .map((p, i) => {
+        const defaultStep = DEFAULT_STEPS[i] || DEFAULT_STEPS[0];
+        return {
+          num: i + 1,
+          title: p.text?.match(/<strong>([^<]+)<\/strong>/)?.[1] || defaultStep.title,
+          desc: p.text?.replace(/<[^>]+>/g, '') || defaultStep.desc,
+          color: defaultStep.color,
+        };
+      });
+    
+    const endOfManche = paragraphs.find(p => p.id === 'rf2_end')?.text 
+      || 'Après 5 niveaux (ou si tout le monde a chaviré), la manche se termine. Tous les joueurs reviennent sur le bateau pour la manche suivante avec leurs jetons actuels.';
+    
+    return { 
+      steps: steps.length > 0 ? steps : DEFAULT_STEPS,
+      endOfManche 
+    };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -66,7 +78,7 @@ export function RulesPageCycle({ context, replayNonce }: RulesPageCycleProps) {
       {/* Title */}
       <motion.div variants={itemVariants} className="text-center">
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Cycle de jeu
+          {section?.title || 'Cycle de jeu'}
         </h1>
         <p className="text-[#9CA3AF]">Chaque niveau suit le même déroulement</p>
       </motion.div>
@@ -105,7 +117,7 @@ export function RulesPageCycle({ context, replayNonce }: RulesPageCycleProps) {
         </h2>
         
         <div className="space-y-3">
-          {STEPS.map((step, index) => (
+          {dynamicContent.steps.map((step, index) => (
             <motion.div
               key={step.num}
               variants={itemVariants}
@@ -118,7 +130,7 @@ export function RulesPageCycle({ context, replayNonce }: RulesPageCycleProps) {
                 <h3 className={`text-${step.color}-400 font-bold mb-1`}>{step.title}</h3>
                 <p className="text-[#E8E8E8] text-sm">{step.desc}</p>
               </div>
-              {index < STEPS.length - 1 && (
+              {index < dynamicContent.steps.length - 1 && (
                 <ArrowRight className="h-4 w-4 text-[#9CA3AF] self-center ml-auto hidden sm:block" />
               )}
             </motion.div>
@@ -135,10 +147,10 @@ export function RulesPageCycle({ context, replayNonce }: RulesPageCycleProps) {
           <RotateCcw className="h-5 w-5 text-[#D4AF37]" />
           <h3 className="text-[#D4AF37] font-bold">Fin de manche</h3>
         </div>
-        <p className="text-[#E8E8E8] text-sm">
-          Après 5 niveaux (ou si tout le monde a chaviré), la manche se termine. 
-          Tous les joueurs reviennent sur le bateau pour la manche suivante avec leurs jetons actuels.
-        </p>
+        <p 
+          className="text-[#E8E8E8] text-sm"
+          dangerouslySetInnerHTML={{ __html: dynamicContent.endOfManche }}
+        />
       </motion.div>
     </motion.div>
   );
