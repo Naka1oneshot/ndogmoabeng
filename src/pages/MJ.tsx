@@ -78,6 +78,7 @@ const GameListItem = memo(function GameListItem({
   userId,
   deleting,
   onOpenDetail,
+  onOpenAdventureDashboard,
   onDelete,
 }: {
   game: Game;
@@ -85,6 +86,7 @@ const GameListItem = memo(function GameListItem({
   userId?: string;
   deleting: string | null;
   onOpenDetail: (game: Game) => void;
+  onOpenAdventureDashboard: (game: Game) => void;
   onDelete: (gameId: string) => void;
 }) {
   const gameTypeInfo = game.selected_game_type_code 
@@ -163,6 +165,17 @@ const GameListItem = memo(function GameListItem({
           </div>
         </div>
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {game.mode === 'ADVENTURE' && game.status === 'LOBBY' && (
+            <ForestButton
+              variant="outline"
+              size="sm"
+              className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+              onClick={() => onOpenAdventureDashboard(game)}
+            >
+              <Map className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Config</span>
+            </ForestButton>
+          )}
           <ForestButton
             variant="outline"
             size="sm"
@@ -717,6 +730,10 @@ export default function MJ() {
     navigate(`/mj/${game.id}`);
   };
 
+  const openAdventureDashboard = (game: Game) => {
+    navigate(`/mj/adventure/${game.id}`);
+  };
+
   if (authLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -994,6 +1011,7 @@ export default function MJ() {
                             userId={user?.id}
                             deleting={deleting}
                             onOpenDetail={openGameDetail}
+                            onOpenAdventureDashboard={openAdventureDashboard}
                             onDelete={handleDeleteGame}
                           />
                         ))}
@@ -1018,6 +1036,7 @@ export default function MJ() {
                             userId={user?.id}
                             deleting={deleting}
                             onOpenDetail={openGameDetail}
+                            onOpenAdventureDashboard={openAdventureDashboard}
                             onDelete={handleDeleteGame}
                           />
                         ))}
@@ -1048,6 +1067,7 @@ export default function MJ() {
                               userId={user?.id}
                               deleting={deleting}
                               onOpenDetail={openGameDetail}
+                              onOpenAdventureDashboard={openAdventureDashboard}
                               onDelete={handleDeleteGame}
                             />
                           ))}

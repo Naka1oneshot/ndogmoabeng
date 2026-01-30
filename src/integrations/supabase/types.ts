@@ -107,6 +107,45 @@ export type Database = {
         }
         Relationships: []
       }
+      adventure_game_configs: {
+        Row: {
+          adventure_id: string | null
+          config: Json
+          created_at: string | null
+          game_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          adventure_id?: string | null
+          config?: Json
+          created_at?: string | null
+          game_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          adventure_id?: string | null
+          config?: Json
+          created_at?: string | null
+          game_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adventure_game_configs_adventure_id_fkey"
+            columns: ["adventure_id"]
+            isOneToOne: false
+            referencedRelation: "adventures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "adventure_game_configs_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: true
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       adventure_scores: {
         Row: {
           breakdown: Json | null
@@ -1020,6 +1059,7 @@ export type Database = {
           clan_token_used: boolean | null
           device_id: string | null
           display_name: string
+          finished_at: string | null
           game_id: string
           has_antibodies: boolean | null
           id: string
@@ -1054,6 +1094,7 @@ export type Database = {
           clan_token_used?: boolean | null
           device_id?: string | null
           display_name: string
+          finished_at?: string | null
           game_id: string
           has_antibodies?: boolean | null
           id?: string
@@ -1088,6 +1129,7 @@ export type Database = {
           clan_token_used?: boolean | null
           device_id?: string | null
           display_name?: string
+          finished_at?: string | null
           game_id?: string
           has_antibodies?: boolean | null
           id?: string
@@ -4278,6 +4320,10 @@ export type Database = {
           is_requester: boolean
           user_id: string
         }[]
+      }
+      swap_player_numbers: {
+        Args: { p_game_id: string; p_new_number: number; p_player_id: string }
+        Returns: Json
       }
       update_player_stats_on_game_end: {
         Args: { p_game_id: string; p_winner_user_id?: string }
