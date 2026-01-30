@@ -25,8 +25,9 @@ import { IMPLEMENTED_GAME_TYPES, isImplementedGame } from '@/constants/games';
 import {
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins,
-  UserPlus, BookOpen
+  UserPlus, BookOpen, Settings
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
@@ -80,6 +81,7 @@ interface MJDashboardProps {
 
 export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [game, setGame] = useState<Game>(initialGame);
   const [copied, setCopied] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -828,6 +830,18 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             <ForestButton variant="outline" size="sm" onClick={() => setInviteModalOpen(true)}>
               <UserPlus className="h-4 w-4 mr-1" />
               <span className="hidden sm:inline">Inviter</span>
+            </ForestButton>
+          )}
+          {/* Adventure Config button - only for first game in LOBBY */}
+          {isAdventure && game.current_step_index === 0 && game.status === 'LOBBY' && (
+            <ForestButton 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate(`/mj/adventure/${game.id}`)}
+              className="border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+            >
+              <Settings className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Config Aventure</span>
             </ForestButton>
           )}
           {isForetGame && (
