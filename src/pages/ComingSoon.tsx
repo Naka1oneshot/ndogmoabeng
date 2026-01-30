@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, LogIn, Loader2, UserPlus, Eye, EyeOff, BookOpen, Lock } from 'lucide-react';
+import { Settings, LogIn, Loader2, UserPlus, Eye, EyeOff, BookOpen, Lock, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -9,10 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { useEarlyAccessRequests } from '@/hooks/useEarlyAccessRequests';
+import { useMeetupEvents } from '@/hooks/useMeetupEvents';
 import { toast } from '@/hooks/use-toast';
 import { RivieresRulesOverlay } from '@/components/rivieres/rules/RivieresRulesOverlay';
 import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
 import { InfectionRulesOverlay } from '@/components/infection/rules/InfectionRulesOverlay';
+import { ComingSoonEventCard } from '@/components/meetup/ComingSoonEventCard';
 
 // Import logo
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
@@ -106,6 +108,10 @@ export default function ComingSoon() {
   const navigate = useNavigate();
   const { user, signIn, loading: authLoading } = useAuth();
   const { submitRequest } = useEarlyAccessRequests();
+  const { events, refetch: refetchEvents } = useMeetupEvents();
+  
+  // Get the first upcoming event
+  const nextEvent = events.length > 0 ? events[0] : null;
   
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft());
   const [loginOpen, setLoginOpen] = useState(false);
@@ -358,6 +364,31 @@ export default function ComingSoon() {
             </motion.div>
           ))}
         </motion.div>
+
+        {/* Next Event Section */}
+        {nextEvent && (
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.6 }}
+            className="mb-12 w-full max-w-2xl"
+          >
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-3">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Prochain événement</span>
+              </div>
+              <p className="text-muted-foreground text-sm">
+                Inscris-toi dès maintenant pour réserver ta place !
+              </p>
+            </div>
+            
+            <ComingSoonEventCard 
+              event={nextEvent} 
+              onRegistrationSuccess={refetchEvents}
+            />
+          </motion.div>
+        )}
 
         {/* Game Rules Section */}
         <motion.div
