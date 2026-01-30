@@ -1751,6 +1751,9 @@ export type Database = {
           game_id: string
           guesser_player_id: string
           id: string
+          scoring_equal_correct: number
+          scoring_equal_wrong: number
+          scoring_use_diff: boolean
           session_game_id: string
           status: string
           sudden_pair_index: number
@@ -1768,6 +1771,9 @@ export type Database = {
           game_id: string
           guesser_player_id: string
           id?: string
+          scoring_equal_correct?: number
+          scoring_equal_wrong?: number
+          scoring_use_diff?: boolean
           session_game_id: string
           status?: string
           sudden_pair_index?: number
@@ -1785,6 +1791,9 @@ export type Database = {
           game_id?: string
           guesser_player_id?: string
           id?: string
+          scoring_equal_correct?: number
+          scoring_equal_wrong?: number
+          scoring_use_diff?: boolean
           session_game_id?: string
           status?: string
           sudden_pair_index?: number

@@ -13,6 +13,7 @@ import {
   LionTurnIndicator 
 } from './LionTheme';
 import { LionRulesOverlay } from './rules/LionRulesOverlay';
+import { LionScoringSettings } from './LionScoringSettings';
 import { 
   Loader2, 
   RefreshCw, 
@@ -466,6 +467,17 @@ export function MJLionDashboard({ game, onPresentationMode }: MJLionDashboardPro
                 </p>
               </CardContent>
             </Card>
+
+            {/* Scoring Settings */}
+            <div className="mb-6">
+              <LionScoringSettings
+                gameStateId={gameState.id}
+                scoringEqualCorrect={gameState.scoring_equal_correct ?? 10}
+                scoringEqualWrong={gameState.scoring_equal_wrong ?? 10}
+                onUpdate={refetch}
+                disabled={gameState.turn_index > 1}
+              />
+            </div>
 
             {/* Deck Status */}
             <Card className="bg-amber-900/40 border-amber-700">

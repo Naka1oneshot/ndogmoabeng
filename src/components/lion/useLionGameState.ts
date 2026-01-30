@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-interface LionGameState {
+export interface LionGameState {
   id: string;
   game_id: string;
   session_game_id: string;
@@ -15,6 +15,9 @@ interface LionGameState {
   timer_enabled: boolean;
   timer_active_seconds: number;
   timer_guess_seconds: number;
+  scoring_equal_correct: number;
+  scoring_equal_wrong: number;
+  scoring_use_diff: boolean;
 }
 
 export interface LionTurn {
