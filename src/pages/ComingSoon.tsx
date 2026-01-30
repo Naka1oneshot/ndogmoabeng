@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Settings, LogIn, Loader2 } from 'lucide-react';
@@ -57,6 +57,23 @@ function calculateTimeLeft(): TimeLeft {
   };
 }
 
+// Generate stable random positions for floating images
+function generateFloatingPositions(count: number, seed: number) {
+  const positions = [];
+  for (let i = 0; i < count; i++) {
+    // Use deterministic pseudo-random based on index and seed
+    const hash = (i * 2654435761 + seed) % 1000;
+    positions.push({
+      x: (hash % 80) + 10, // 10-90% of screen width
+      y: (((hash * 7) % 70) + 15), // 15-85% of screen height
+      rotation: ((hash * 3) % 40) - 20, // -20 to 20 degrees
+      duration: 15 + (hash % 10), // 15-25 seconds
+      delay: (i * 0.3),
+    });
+  }
+  return positions;
+}
+
 export default function ComingSoon() {
   const navigate = useNavigate();
   const { user, signIn, loading: authLoading } = useAuth();
@@ -67,6 +84,10 @@ export default function ComingSoon() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
+
+  // Generate stable positions once on mount
+  const gamePositions = useMemo(() => generateFloatingPositions(gameImages.length, 12345), []);
+  const clanPositions = useMemo(() => generateFloatingPositions(clanImages.length, 67890), []);
 
   // Update countdown every second
   useEffect(() => {
@@ -118,62 +139,66 @@ export default function ComingSoon() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/10 overflow-hidden relative">
-      {/* Floating Game Images - Left side */}
-      <div className="absolute left-0 top-0 bottom-0 w-1/4 pointer-events-none overflow-hidden">
-        {gameImages.map((img, index) => (
-          <motion.img
-            key={`game-${index}`}
-            src={img}
-            alt=""
-            className="absolute w-16 h-16 md:w-24 md:h-24 rounded-xl opacity-40 object-cover"
-            initial={{ 
-              x: Math.random() * 100 - 50,
-              y: `${10 + index * 18}%`,
-              rotate: Math.random() * 20 - 10,
-            }}
-            animate={{
-              x: [Math.random() * 80 - 40, Math.random() * 80 - 40, Math.random() * 80 - 40],
-              y: [`${10 + index * 18}%`, `${12 + index * 18}%`, `${10 + index * 18}%`],
-              rotate: [Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10],
-            }}
-            transition={{
-              duration: 8 + index * 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
+      {/* Floating Images - Full page background (z-index 0) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        {/* Game Images floating across entire page */}
+        {gameImages.map((img, index) => {
+          const pos = gamePositions[index];
+          return (
+            <motion.img
+              key={`game-${index}`}
+              src={img}
+              alt=""
+              className="absolute w-20 h-20 md:w-28 md:h-28 rounded-xl opacity-30 object-cover"
+              style={{
+                left: `${pos.x}%`,
+                top: `${pos.y}%`,
+              }}
+              animate={{
+                x: [0, 30, -20, 10, 0],
+                y: [0, -25, 15, -10, 0],
+                rotate: [pos.rotation, pos.rotation + 5, pos.rotation - 5, pos.rotation],
+              }}
+              transition={{
+                duration: pos.duration,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: pos.delay,
+              }}
+            />
+          );
+        })}
+
+        {/* Clan Images floating across entire page */}
+        {clanImages.map((img, index) => {
+          const pos = clanPositions[index];
+          return (
+            <motion.img
+              key={`clan-${index}`}
+              src={img}
+              alt=""
+              className="absolute w-16 h-16 md:w-24 md:h-24 rounded-full opacity-25 object-cover"
+              style={{
+                left: `${pos.x}%`,
+                top: `${pos.y}%`,
+              }}
+              animate={{
+                x: [0, -20, 25, -15, 0],
+                y: [0, 20, -30, 15, 0],
+                rotate: [pos.rotation, pos.rotation - 8, pos.rotation + 8, pos.rotation],
+              }}
+              transition={{
+                duration: pos.duration + 3,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: pos.delay + 0.5,
+              }}
+            />
+          );
+        })}
       </div>
 
-      {/* Floating Clan Images - Right side */}
-      <div className="absolute right-0 top-0 bottom-0 w-1/4 pointer-events-none overflow-hidden">
-        {clanImages.map((img, index) => (
-          <motion.img
-            key={`clan-${index}`}
-            src={img}
-            alt=""
-            className="absolute w-14 h-14 md:w-20 md:h-20 rounded-full opacity-40 object-cover right-4"
-            initial={{ 
-              x: Math.random() * -100 + 50,
-              y: `${5 + index * 14}%`,
-              rotate: Math.random() * 20 - 10,
-            }}
-            animate={{
-              x: [Math.random() * -80 + 40, Math.random() * -80 + 40, Math.random() * -80 + 40],
-              y: [`${5 + index * 14}%`, `${7 + index * 14}%`, `${5 + index * 14}%`],
-              rotate: [Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10],
-            }}
-            transition={{
-              duration: 7 + index * 1.5,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: index * 0.5,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Center Content */}
+      {/* Center Content - z-index 10 to be above floating images */}
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4">
         {/* Animated Logo */}
         <motion.div
@@ -229,14 +254,9 @@ export default function ComingSoon() {
               transition={{ delay: 0.7 + index * 0.1, type: "spring" }}
             >
               <div className="bg-card/80 backdrop-blur-sm border border-primary/30 rounded-xl p-3 md:p-6 min-w-[60px] md:min-w-[100px]">
-                <motion.span
-                  key={item.value}
-                  initial={{ scale: 1.2, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="text-2xl md:text-5xl font-bold text-primary block text-center"
-                >
+                <span className="text-2xl md:text-5xl font-bold text-primary block text-center">
                   {String(item.value).padStart(2, '0')}
-                </motion.span>
+                </span>
               </div>
               <span className="text-xs md:text-sm text-muted-foreground mt-2">{item.label}</span>
             </motion.div>
@@ -305,9 +325,9 @@ export default function ComingSoon() {
         </motion.div>
       </div>
 
-      {/* Decorative gradient orbs */}
-      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/20 rounded-full blur-3xl pointer-events-none" />
+      {/* Decorative gradient orbs - z-index 5 between floating images and content */}
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/20 rounded-full blur-3xl pointer-events-none z-5" />
+      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/20 rounded-full blur-3xl pointer-events-none z-5" />
     </div>
   );
 }
