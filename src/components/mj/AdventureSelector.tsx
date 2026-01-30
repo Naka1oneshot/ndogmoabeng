@@ -26,6 +26,7 @@ interface Adventure {
   id: string;
   name: string;
   description: string | null;
+  admin_only: boolean;
   steps: AdventureStep[];
 }
 
@@ -76,6 +77,7 @@ export function AdventureSelector({
   const [editingAdventure, setEditingAdventure] = useState<Adventure | null>(null);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [editAdminOnly, setEditAdminOnly] = useState(false);
   const [deletingAdventure, setDeletingAdventure] = useState<Adventure | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -103,7 +105,7 @@ export function AdventureSelector({
       // Fetch active adventures with their steps
       const { data: adventuresData } = await supabase
         .from('adventures')
-        .select('id, name, description')
+        .select('id, name, description, admin_only')
         .eq('is_active', true);
 
       if (adventuresData) {
@@ -232,6 +234,7 @@ export function AdventureSelector({
         .update({
           name: editName.trim(),
           description: editDesc.trim() || null,
+          admin_only: editAdminOnly,
         })
         .eq('id', editingAdventure.id);
 
@@ -291,6 +294,7 @@ export function AdventureSelector({
     e.stopPropagation();
     setEditName(adventure.name);
     setEditDesc(adventure.description || '');
+    setEditAdminOnly(adventure.admin_only);
     setEditingAdventure(adventure);
   };
 
@@ -316,9 +320,9 @@ export function AdventureSelector({
     setSelectedSteps(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Check if adventure requires admin (has 4 steps = "La carte trouvée")
+  // Check if adventure requires admin (uses admin_only column from DB)
   const isAdminOnlyAdventure = (adventure: Adventure) => {
-    return adventure.steps.length === 4 && adventure.name === 'La carte trouvée';
+    return adventure.admin_only === true;
   };
 
   // Handle adventure selection with animation for "La carte trouvée"
@@ -776,6 +780,24 @@ export function AdventureSelector({
                 onChange={(e) => setEditDesc(e.target.value)}
                 placeholder="Description (optionnelle)"
               />
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <input
+                type="checkbox"
+                id="editAdminOnly"
+                checked={editAdminOnly}
+                onChange={(e) => setEditAdminOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-input"
+              />
+              <div className="flex-1">
+                <Label htmlFor="editAdminOnly" className="flex items-center gap-2 cursor-pointer">
+                  <Lock className="h-4 w-4 text-amber-600" />
+                  Réservée aux admins
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Seuls les administrateurs pourront lancer cette aventure
+                </p>
+              </div>
             </div>
           </div>
           <AlertDialogFooter>
