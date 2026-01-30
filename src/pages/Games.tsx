@@ -5,6 +5,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { useGameTypes } from '@/hooks/useGameTypes';
 import { GameCard } from '@/components/games/GameCard';
 import { GameTypeEditModal } from '@/components/admin/GameTypeEditModal';
+import { GameRulesEditorSection } from '@/components/admin/GameRulesEditorSection';
 import { RivieresRulesOverlay } from '@/components/rivieres/rules/RivieresRulesOverlay';
 import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
 import { InfectionRulesOverlay } from '@/components/infection/rules/InfectionRulesOverlay';
@@ -14,7 +15,8 @@ import { LandingNavbar } from '@/components/landing/LandingNavbar';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 import { MobileBottomBar } from '@/components/landing/MobileBottomBar';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, ArrowLeft, Gamepad2, BookOpen } from 'lucide-react';
 import { GameTypeData } from '@/hooks/useGameTypes';
 
 export default function Games() {
@@ -23,6 +25,7 @@ export default function Games() {
   const { isAdminOrSuper } = useUserRole();
   const { gameTypes, loading, refetch } = useGameTypes();
   
+  const [activeTab, setActiveTab] = useState('games');
   const [rivieresRulesOpen, setRivieresRulesOpen] = useState(false);
   const [foretRulesOpen, setForetRulesOpen] = useState(false);
   const [infectionRulesOpen, setInfectionRulesOpen] = useState(false);
@@ -110,24 +113,65 @@ export default function Games() {
               </p>
             </div>
 
-            {/* Games Grid */}
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
+            {/* Admin Tabs */}
+            {isAdminOrSuper ? (
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+                <TabsList>
+                  <TabsTrigger value="games" className="gap-2">
+                    <Gamepad2 className="h-4 w-4" />
+                    Catalogue
+                  </TabsTrigger>
+                  <TabsTrigger value="rules" className="gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Éditeur de règles
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="games">
+                  {loading ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {gameTypes.map((game) => (
+                        <GameCard
+                          key={game.code}
+                          game={game}
+                          onRulesClick={handleRulesClick}
+                          onCreateGame={handleCreateGame}
+                          onEditClick={setEditingGame}
+                          isAdmin={isAdminOrSuper}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="rules">
+                  <GameRulesEditorSection />
+                </TabsContent>
+              </Tabs>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {gameTypes.map((game) => (
-                  <GameCard
-                    key={game.code}
-                    game={game}
-                    onRulesClick={handleRulesClick}
-                    onCreateGame={handleCreateGame}
-                    onEditClick={setEditingGame}
-                    isAdmin={isAdminOrSuper}
-                  />
-                ))}
-              </div>
+              /* Non-admin view - just games */
+              loading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {gameTypes.map((game) => (
+                    <GameCard
+                      key={game.code}
+                      game={game}
+                      onRulesClick={handleRulesClick}
+                      onCreateGame={handleCreateGame}
+                      onEditClick={setEditingGame}
+                      isAdmin={false}
+                    />
+                  ))}
+                </div>
+              )
             )}
           </div>
         </main>
