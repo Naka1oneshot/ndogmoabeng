@@ -21,7 +21,8 @@ import {
   CheckCircle, 
   XCircle,
   SkipForward,
-  Monitor
+  Monitor,
+  RotateCcw
 } from 'lucide-react';
 
 interface MJLionDashboardProps {
@@ -39,6 +40,7 @@ export function MJLionDashboard({ game, onPresentationMode }: MJLionDashboardPro
   const [starting, setStarting] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [advancing, setAdvancing] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const sessionGameId = game.current_session_game_id;
   const { 
@@ -163,6 +165,43 @@ export function MJLionDashboard({ game, onPresentationMode }: MJLionDashboardPro
       refetch();
     } catch (err) {
       console.error('Toggle auto-resolve error:', err);
+    }
+  };
+
+  const handleResetChoices = async (resetActive: boolean, resetGuesser: boolean) => {
+    if (!sessionGameId) return;
+
+    setResetting(true);
+    try {
+      const response = await supabase.functions.invoke('lion-reset-turn-choices', {
+        body: { 
+          session_game_id: sessionGameId,
+          reset_active: resetActive,
+          reset_guesser: resetGuesser
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      const messages = [];
+      if (response.data.reset_active) messages.push('carte du joueur actif');
+      if (response.data.reset_guesser) messages.push('choix du devineur');
+
+      toast({
+        title: 'Choix réinitialisés',
+        description: `Réinitialisé : ${messages.join(', ')}`,
+      });
+
+      refetch();
+    } catch (err) {
+      console.error('Reset choices error:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de réinitialiser les choix',
+        variant: 'destructive'
+      });
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -351,24 +390,55 @@ export function MJLionDashboard({ game, onPresentationMode }: MJLionDashboardPro
 
                   {/* Manual Actions */}
                   {!gameState.auto_resolve && (
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleResolveTurn}
-                        disabled={resolving || !currentTurn.active_locked || !currentTurn.guess_locked || currentTurn.resolved}
-                        className="flex-1"
-                        variant="secondary"
-                      >
-                        {resolving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        Résoudre
-                      </Button>
-                      <Button
-                        onClick={handleNextTurn}
-                        disabled={advancing || !currentTurn.resolved}
-                        className="flex-1 lion-btn-primary"
-                      >
-                        {advancing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <SkipForward className="h-4 w-4 mr-2" />}
-                        Tour suivant
-                      </Button>
+                    <div className="space-y-2">
+                      {/* Reset buttons - only when not resolved */}
+                      {!currentTurn.resolved && (currentTurn.active_locked || currentTurn.guess_locked) && (
+                        <div className="flex gap-2 mb-2">
+                          {currentTurn.active_locked && (
+                            <Button
+                              onClick={() => handleResetChoices(true, false)}
+                              disabled={resetting}
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 border-amber-600 text-amber-300 hover:bg-amber-900/40"
+                            >
+                              {resetting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RotateCcw className="h-3 w-3 mr-1" />}
+                              Réinit. carte
+                            </Button>
+                          )}
+                          {currentTurn.guess_locked && (
+                            <Button
+                              onClick={() => handleResetChoices(false, true)}
+                              disabled={resetting}
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 border-amber-600 text-amber-300 hover:bg-amber-900/40"
+                            >
+                              {resetting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RotateCcw className="h-3 w-3 mr-1" />}
+                              Réinit. choix
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleResolveTurn}
+                          disabled={resolving || !currentTurn.active_locked || !currentTurn.guess_locked || currentTurn.resolved}
+                          className="flex-1"
+                          variant="secondary"
+                        >
+                          {resolving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          Résoudre
+                        </Button>
+                        <Button
+                          onClick={handleNextTurn}
+                          disabled={advancing || !currentTurn.resolved}
+                          className="flex-1 lion-btn-primary"
+                        >
+                          {advancing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <SkipForward className="h-4 w-4 mr-2" />}
+                          Tour suivant
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
