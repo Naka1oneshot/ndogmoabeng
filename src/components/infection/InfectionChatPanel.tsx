@@ -47,6 +47,11 @@ export function InfectionChatPanel({
   // Check if in-game chat is enabled
   const isChatDisabled = !settingsLoading && !chatConfig.ingame_chat_enabled;
 
+  // Limit messages to prevent memory bloat
+  const MAX_MESSAGES = 200;
+  const trimToLast = <T,>(arr: T[], max: number): T[] => 
+    arr.length > max ? arr.slice(arr.length - max) : arr;
+
   useEffect(() => {
     fetchMessages();
 
@@ -69,7 +74,8 @@ export function InfectionChatPanel({
             (newMsg.channel_type === 'PV' && canAccessPV) ||
             (newMsg.channel_type === 'SY' && canAccessSY)
           ) {
-            setMessages(prev => [...prev, newMsg]);
+            // Trim to MAX_MESSAGES to prevent unbounded growth
+            setMessages(prev => trimToLast([...prev, newMsg], MAX_MESSAGES));
           }
         }
       )
@@ -90,15 +96,18 @@ export function InfectionChatPanel({
     if (canAccessPV) channels.push('PV');
     if (canAccessSY) channels.push('SY');
 
+    // Fetch only necessary columns, limit to MAX_MESSAGES
     const { data, error } = await supabase
       .from('infection_chat_messages')
-      .select('*')
+      .select('id, channel_type, author_num, author_name, message, created_at')
       .eq('session_game_id', sessionGameId)
       .in('channel_type', channels)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(MAX_MESSAGES);
 
     if (data) {
-      setMessages(data as ChatMessage[]);
+      // Reverse to show oldest first
+      setMessages((data as ChatMessage[]).reverse());
     }
   };
 

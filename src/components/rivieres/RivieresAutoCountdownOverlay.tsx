@@ -28,7 +28,8 @@ export function RivieresAutoCountdownOverlay({
     };
 
     updateCountdown();
-    const interval = setInterval(updateCountdown, 100);
+    // Use 500ms interval - sufficient for second-based display, reduces renders
+    const interval = setInterval(updateCountdown, 500);
 
     return () => clearInterval(interval);
   }, [isActive, countdownEndsAt]);

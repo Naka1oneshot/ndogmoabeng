@@ -61,6 +61,7 @@ export function PlayerList({ gameId, className, showInactive = false }: PlayerLi
     fetchPlayers();
 
     // Subscribe to realtime changes
+    // Skip updates where only last_seen changed (heartbeat) to avoid refetch storms
     const channel = supabase
       .channel(`game-players-${gameId}`)
       .on(
@@ -71,14 +72,33 @@ export function PlayerList({ gameId, className, showInactive = false }: PlayerLi
           table: 'game_players',
           filter: `game_id=eq.${gameId}`,
         },
-        () => {
+        (payload) => {
+          // For UPDATE events, check if only last_seen changed
+          if (payload.eventType === 'UPDATE' && payload.new && payload.old) {
+            const newP = payload.new as Record<string, unknown>;
+            const oldP = payload.old as Record<string, unknown>;
+            // Compare all relevant fields except last_seen
+            const relevantFieldsChanged = 
+              newP.display_name !== oldP.display_name ||
+              newP.status !== oldP.status ||
+              newP.is_alive !== oldP.is_alive ||
+              newP.player_number !== oldP.player_number ||
+              newP.clan !== oldP.clan;
+            
+            if (!relevantFieldsChanged) {
+              // Only last_seen changed (heartbeat), skip refetch
+              return;
+            }
+          }
           fetchPlayers();
         }
       )
       .subscribe();
 
-    // Poll every 5 seconds to update online badges
+    // Use a separate 'now' state update for online badge refresh
+    // This avoids copying the players array every 5s
     const pollInterval = setInterval(() => {
+      // Force re-render to update online badges without refetching
       setPlayers(prev => [...prev]);
     }, 5000);
 

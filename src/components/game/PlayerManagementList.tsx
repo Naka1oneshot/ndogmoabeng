@@ -42,6 +42,8 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
   useEffect(() => {
     fetchPlayers();
 
+    // Subscribe to realtime changes
+    // Skip updates where only last_seen changed (heartbeat) to avoid refetch storms
     const channel = supabase
       .channel(`mj-players-${gameId}`)
       .on(
@@ -52,7 +54,26 @@ export function PlayerManagementList({ gameId, isLobby }: PlayerManagementListPr
           table: 'game_players',
           filter: `game_id=eq.${gameId}`,
         },
-        () => {
+        (payload) => {
+          // For UPDATE events, check if only last_seen changed
+          if (payload.eventType === 'UPDATE' && payload.new && payload.old) {
+            const newP = payload.new as Record<string, unknown>;
+            const oldP = payload.old as Record<string, unknown>;
+            // Compare all relevant fields except last_seen
+            const relevantFieldsChanged = 
+              newP.display_name !== oldP.display_name ||
+              newP.status !== oldP.status ||
+              newP.is_alive !== oldP.is_alive ||
+              newP.player_number !== oldP.player_number ||
+              newP.clan !== oldP.clan ||
+              newP.jetons !== oldP.jetons ||
+              newP.mate_num !== oldP.mate_num;
+            
+            if (!relevantFieldsChanged) {
+              // Only last_seen changed (heartbeat), skip refetch
+              return;
+            }
+          }
           fetchPlayers();
         }
       )

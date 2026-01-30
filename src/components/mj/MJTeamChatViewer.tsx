@@ -59,15 +59,21 @@ const MJTeamChatViewer: React.FC<MJTeamChatViewerProps> = ({ gameId }) => {
     fetchMateGroups();
   }, [gameId]);
 
+  // Limit messages to prevent memory bloat
+  const MAX_MESSAGES = 200;
+  const trimToLast = <T,>(arr: T[], max: number): T[] => 
+    arr.length > max ? arr.slice(arr.length - max) : arr;
+
   // Fetch and subscribe to messages
   useEffect(() => {
     const fetchMessages = async () => {
       setLoading(true);
       let query = supabase
         .from('team_messages')
-        .select('*')
+        .select('id, sender_num, sender_name, mate_group, message, created_at')
         .eq('game_id', gameId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .limit(MAX_MESSAGES);
 
       if (selectedGroup !== 'all') {
         query = query.eq('mate_group', parseInt(selectedGroup));
@@ -76,7 +82,8 @@ const MJTeamChatViewer: React.FC<MJTeamChatViewerProps> = ({ gameId }) => {
       const { data, error } = await query;
 
       if (!error && data) {
-        setMessages(data);
+        // Reverse to show oldest first
+        setMessages(data.reverse());
       }
       setLoading(false);
     };
@@ -97,7 +104,8 @@ const MJTeamChatViewer: React.FC<MJTeamChatViewerProps> = ({ gameId }) => {
         (payload) => {
           const newMsg = payload.new as Message;
           if (selectedGroup === 'all' || newMsg.mate_group === parseInt(selectedGroup)) {
-            setMessages((prev) => [...prev, newMsg]);
+            // Trim to MAX_MESSAGES to prevent unbounded growth
+            setMessages((prev) => trimToLast([...prev, newMsg], MAX_MESSAGES));
           }
         }
       )

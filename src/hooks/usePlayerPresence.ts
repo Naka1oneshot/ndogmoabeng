@@ -15,7 +15,8 @@ export function usePlayerPresence({
   enabled = true, 
   onInvalidToken 
 }: UsePlayerPresenceOptions) {
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Use ReturnType<typeof setInterval> for correct browser timer typing
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isActiveRef = useRef(true);
 
   const getPlayerToken = useCallback(() => {
