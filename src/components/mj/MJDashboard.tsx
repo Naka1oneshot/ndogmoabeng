@@ -21,6 +21,7 @@ import { ForetAutoModeToggle } from '@/components/foret/ForetAutoModeToggle';
 import { ForetAutoCountdownOverlay } from '@/components/foret/ForetAutoCountdownOverlay';
 import { useForetAutoController } from '@/hooks/useForetAutoController';
 import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
+import { IMPLEMENTED_GAME_TYPES, isImplementedGame } from '@/constants/games';
 import {
   ChevronLeft, Loader2, Users, 
   MessageSquare, Copy, Check, Edit2, X, Save, Coins,
@@ -51,9 +52,6 @@ function MJDashboardLoadingFallback() {
     </div>
   );
 }
-
-// Implemented game types
-const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION', 'SHERIFF', 'LION'];
 
 
 interface Game {
