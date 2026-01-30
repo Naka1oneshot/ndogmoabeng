@@ -15,6 +15,7 @@ import { SheriffVictoryPodium } from './SheriffVictoryPodium';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdventureCinematic';
 import { SheriffRulesOverlay } from '../rules/SheriffRulesOverlay';
+import { PresentationPvicDetailsSheet } from '@/components/presentation/PresentationPvicDetailsSheet';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -103,6 +104,7 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const [currentDuelForAnimation, setCurrentDuelForAnimation] = useState<Duel | null>(null);
   const [showVictoryPodium, setShowVictoryPodium] = useState(false);
   const [showRulesOverlay, setShowRulesOverlay] = useState(false);
+  const [isAdventureMode, setIsAdventureMode] = useState(false);
   
   // Track previous state for animations
   const prevPhaseRef = useRef<string | null>(null);
@@ -132,6 +134,7 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
       
       // Broadcast for ANY adventure mode, not just "La carte trouvée"
       if (gameData?.mode === 'ADVENTURE') {
+        setIsAdventureMode(true);
         cinematicBroadcastedRef.current = true;
         const sequence = getSequenceForGameType('SHERIFF', true);
         console.log('[SHERIFF][PRESENTATION] Broadcasting cinematic:', sequence);
@@ -535,6 +538,8 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
             totalPvics={totalPvics}
             teamRanking={teamRanking}
             getPlayer={getPlayer}
+            gameId={game.id}
+            isAdventureMode={isAdventureMode}
           />
         )}
         
@@ -547,6 +552,8 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
             teamRanking={teamRanking}
             getPlayer={getPlayer}
             getChoice={getChoice}
+            gameId={game.id}
+            isAdventureMode={isAdventureMode}
           />
         )}
         
@@ -609,6 +616,8 @@ interface ChoicesPhaseDisplayProps {
   totalPvics: number;
   teamRanking: { name: string; totalPvic: number; players: Player[] }[];
   getPlayer: (num: number) => Player | undefined;
+  gameId: string;
+  isAdventureMode: boolean;
 }
 
 function ChoicesPhaseDisplay({
@@ -620,6 +629,8 @@ function ChoicesPhaseDisplay({
   totalPvics,
   teamRanking,
   getPlayer,
+  gameId,
+  isAdventureMode,
 }: ChoicesPhaseDisplayProps) {
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -710,11 +721,18 @@ function ChoicesPhaseDisplay({
         
         {/* Team Ranking */}
         <div className="bg-[#2A2215] border border-[#D4AF37]/20 rounded-xl p-4">
-          <h4 className="text-[#D4AF37] font-bold mb-3 flex items-center gap-2">
-            <Trophy className="h-4 w-4" />
-            Classement Équipes
-            <span className="text-xs font-normal text-[#9CA3AF]">(PVic cumulés 🔄)</span>
-          </h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-[#D4AF37] font-bold flex items-center gap-2">
+              <Trophy className="h-4 w-4" />
+              Classement Équipes
+              <span className="text-xs font-normal text-[#9CA3AF]">(PVic cumulés 🔄)</span>
+            </h4>
+            <PresentationPvicDetailsSheet 
+              gameId={gameId} 
+              isAdventureMode={isAdventureMode}
+              currentGameTypeCode="SHERIFF"
+            />
+          </div>
           <div className="space-y-2">
             {teamRanking.map((team, idx) => (
               <TeamRankingRow key={team.name} team={team} idx={idx} />
@@ -734,6 +752,8 @@ interface DuelsPhaseDisplayProps {
   teamRanking: { name: string; totalPvic: number; players: Player[] }[];
   getPlayer: (num: number) => Player | undefined;
   getChoice: (num: number) => PlayerChoice | undefined;
+  gameId: string;
+  isAdventureMode: boolean;
 }
 
 function DuelsPhaseDisplay({
@@ -744,6 +764,8 @@ function DuelsPhaseDisplay({
   teamRanking,
   getPlayer,
   getChoice,
+  gameId,
+  isAdventureMode,
 }: DuelsPhaseDisplayProps) {
   const pendingDuels = duels.filter(d => d.status === 'PENDING');
   const player1 = currentDuel ? getPlayer(currentDuel.player1_number) : null;
@@ -875,11 +897,18 @@ function DuelsPhaseDisplay({
         
         {/* Team Ranking */}
         <div className="bg-[#2A2215] border border-[#D4AF37]/20 rounded-xl p-4">
-          <h4 className="text-[#D4AF37] font-bold mb-3 flex items-center gap-2">
-            <Trophy className="h-4 w-4" />
-            Classement Équipes
-            <span className="text-xs font-normal text-[#9CA3AF]">(PVic cumulés 🔄)</span>
-          </h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-[#D4AF37] font-bold flex items-center gap-2">
+              <Trophy className="h-4 w-4" />
+              Classement Équipes
+              <span className="text-xs font-normal text-[#9CA3AF]">(PVic cumulés 🔄)</span>
+            </h4>
+            <PresentationPvicDetailsSheet 
+              gameId={gameId} 
+              isAdventureMode={isAdventureMode}
+              currentGameTypeCode="SHERIFF"
+            />
+          </div>
           <div className="space-y-2">
             {teamRanking.slice(0, 10).map((team, idx) => (
               <TeamRankingRow key={team.name} team={team} idx={idx} />
