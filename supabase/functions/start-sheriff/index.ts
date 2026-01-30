@@ -20,17 +20,69 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Use provided values or defaults
-    const commonPoolInitial = typeof initialPool === 'number' && initialPool >= 0 ? initialPool : 100;
-    const costPerPlayer = typeof poolCostPerPlayer === 'number' && poolCostPerPlayer > 0 ? poolCostPerPlayer : 5;
-    const floorPercent = typeof poolFloorPercent === 'number' && poolFloorPercent >= 0 ? poolFloorPercent : 40;
-    const pvicPercent = typeof visaPvicPercent === 'number' && visaPvicPercent > 0 ? visaPvicPercent : 50;
-    const maxDuelImpact = typeof duelMaxImpact === 'number' && duelMaxImpact > 0 ? duelMaxImpact : 10;
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // Get game info to check for adventure mode
+    const { data: game } = await supabase
+      .from('games')
+      .select('mode, adventure_id')
+      .eq('id', gameId)
+      .single();
+
+    // Default values
+    let commonPoolInitial = typeof initialPool === 'number' && initialPool >= 0 ? initialPool : 100;
+    let costPerPlayer = typeof poolCostPerPlayer === 'number' && poolCostPerPlayer > 0 ? poolCostPerPlayer : 5;
+    let floorPercent = typeof poolFloorPercent === 'number' && poolFloorPercent >= 0 ? poolFloorPercent : 40;
+    let pvicPercent = typeof visaPvicPercent === 'number' && visaPvicPercent > 0 ? visaPvicPercent : 50;
+    let maxDuelImpact = typeof duelMaxImpact === 'number' && duelMaxImpact > 0 ? duelMaxImpact : 10;
+
+    // Load adventure config if in ADVENTURE mode
+    if (game?.mode === 'ADVENTURE' && game.adventure_id) {
+      console.log(`[start-sheriff] Adventure mode detected, loading config for game: ${gameId}`);
+      
+      const { data: agc, error: agcError } = await supabase
+        .from('adventure_game_configs')
+        .select('config')
+        .eq('game_id', gameId)
+        .single();
+      
+      if (agcError) {
+        console.error('[start-sheriff] Error loading adventure config:', agcError);
+      } else if (agc?.config) {
+        const adventureConfig = agc.config as any;
+        console.log('[start-sheriff] Adventure config loaded');
+        
+        // Apply sheriff_config from adventure
+        const sheriffConfig = adventureConfig.sheriff_config;
+        if (sheriffConfig) {
+          if (typeof sheriffConfig.cost_per_player === 'number') {
+            costPerPlayer = sheriffConfig.cost_per_player;
+          }
+          if (typeof sheriffConfig.floor_percent === 'number') {
+            floorPercent = sheriffConfig.floor_percent;
+          }
+          if (typeof sheriffConfig.visa_pvic_percent === 'number') {
+            pvicPercent = sheriffConfig.visa_pvic_percent;
+          }
+          if (typeof sheriffConfig.duel_max_impact === 'number') {
+            maxDuelImpact = sheriffConfig.duel_max_impact;
+          }
+          console.log(`[start-sheriff] Using adventure config: costPerPlayer=${costPerPlayer}, floorPercent=${floorPercent}, pvicPercent=${pvicPercent}, maxDuelImpact=${maxDuelImpact}`);
+        }
+        
+        // Apply adventure_pot initial amount if available
+        const adventurePot = adventureConfig.adventure_pot;
+        if (adventurePot?.currentAmount !== undefined) {
+          commonPoolInitial = adventurePot.currentAmount;
+          console.log(`[start-sheriff] Using adventure pot: ${commonPoolInitial}`);
+        }
+      }
+    }
+
+    // Get active players
 
     // Get active players
     const { data: players, error: playersError } = await supabase

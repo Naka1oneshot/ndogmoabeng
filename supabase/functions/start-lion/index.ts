@@ -48,7 +48,7 @@ serve(async (req) => {
 
     const gameId = sessionGame.session_id;
 
-    // Check if this is an ADVENTURE game
+    // Check if this is an ADVENTURE game and load config
     const { data: game } = await supabase
       .from('games')
       .select('mode, adventure_id')
@@ -56,6 +56,26 @@ serve(async (req) => {
       .single();
 
     const isAdventure = game?.mode === 'ADVENTURE';
+
+    // Load adventure config for Lion-specific settings
+    let lionConfig: any = null;
+    if (isAdventure && game.adventure_id) {
+      console.log(`[start-lion] Adventure mode detected, loading config for game: ${gameId}`);
+      
+      const { data: agc, error: agcError } = await supabase
+        .from('adventure_game_configs')
+        .select('config')
+        .eq('game_id', gameId)
+        .single();
+      
+      if (agcError) {
+        console.error('[start-lion] Error loading adventure config:', agcError);
+      } else if (agc?.config) {
+        const adventureConfig = agc.config as any;
+        lionConfig = adventureConfig.lion_config;
+        console.log('[start-lion] Adventure lion_config loaded:', lionConfig);
+      }
+    }
 
     // Check if game state already exists (idempotency guard)
     const { data: existingState } = await supabase
@@ -177,7 +197,14 @@ serve(async (req) => {
       .eq('session_game_id', session_game_id)
       .eq('owner_player_id', playerA.id);
 
-    // Create game state
+    // Create game state with lion_config if available
+    const autoResolve = lionConfig?.auto_resolve ?? true;
+    const timerEnabled = lionConfig?.timer_enabled ?? false;
+    const timerActiveSeconds = lionConfig?.timer_active_seconds ?? 60;
+    const timerGuessSeconds = lionConfig?.timer_guess_seconds ?? 30;
+    
+    console.log(`[start-lion] Game settings: autoResolve=${autoResolve}, timerEnabled=${timerEnabled}`);
+    
     const { error: stateError } = await supabase.from('lion_game_state').insert({
       game_id: gameId,
       session_game_id,
@@ -186,8 +213,10 @@ serve(async (req) => {
       sudden_pair_index: 0,
       active_player_id: playerA.id,
       guesser_player_id: playerB.id,
-      auto_resolve: true,
-      timer_enabled: false
+      auto_resolve: autoResolve,
+      timer_enabled: timerEnabled,
+      timer_active_seconds: timerActiveSeconds,
+      timer_guess_seconds: timerGuessSeconds,
     });
 
     if (stateError) {
