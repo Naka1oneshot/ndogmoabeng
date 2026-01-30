@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Target, MessageSquare, Package, Activity, Syringe, Vote, Skull, RefreshCw, BookOpen, Eye, EyeOff } from 'lucide-react';
-import { INFECTION_ROLE_LABELS, getInfectionThemeClasses } from './InfectionTheme';
+import { INFECTION_ROLE_LABELS, INFECTION_TEAM_LABELS, getInfectionThemeClasses } from './InfectionTheme';
 import { InfectionActionPanel } from './InfectionActionPanel';
 import { InfectionVotePanel } from './InfectionVotePanel';
 import { InfectionChatPanel } from './InfectionChatPanel';
@@ -16,23 +16,13 @@ import { InfectionGameEndScreen } from './InfectionGameEndScreen';
 import { InfectionRoleRevealAnimation } from './InfectionRoleRevealAnimation';
 import { InfectionRulesOverlay } from './rules/InfectionRulesOverlay';
 
-// Role display info for the reveal animation
-const ROLE_INFO: Record<string, { name: string; team: string }> = {
-  'PS': { name: 'Porteur Sain', team: 'Porte-Venin' },
-  'PV': { name: 'Porte-Venin', team: 'Porte-Venin' },
-  'BA': { name: 'Bras Armé', team: 'Synthétistes' },
-  'OC': { name: 'Œil du Crépuscule', team: 'Synthétistes' },
-  'SY': { name: 'Synthétiste', team: 'Synthétistes' },
-  'AE': { name: 'Agent Ezkar', team: 'Neutre' },
-  'SC': { name: 'Sans Cercle', team: 'Citoyen' },
-  'CV': { name: 'Citoyen Vacciné', team: 'Citoyen' },
-};
-
-const VICTORY_CONDITIONS: Record<string, string> = {
-  'Porte-Venin': 'Propager le virus et éliminer assez de joueurs sains pour prendre le contrôle du village.',
-  'Synthétistes': 'Trouver l\'antidote avant que le virus ne tue tout le monde.',
-  'Neutre': 'Identifier correctement le Bras Armé pour gagner.',
-  'Citoyen': 'Survivre jusqu\'à ce que les Synthétistes trouvent l\'antidote.',
+// Victory conditions based on team - using team codes from INFECTION_ROLE_LABELS
+// Teams: PV (Porte-Venin), SY (Synthétistes), NEUTRE (Agent État), CITOYEN
+const TEAM_VICTORY_CONDITIONS: Record<string, string> = {
+  'PV': 'Infecter et éliminer tous les joueurs pour prendre le contrôle du village.',
+  'SY': 'Trouver l\'antidote avant que le virus ne tue tout le monde.',
+  'NEUTRE': 'Survivre et accumuler des récompenses (corruption, soupçons).',
+  'CITOYEN': 'Survivre jusqu\'à ce que les Synthétistes trouvent l\'antidote.',
 };
 
 interface Game {
@@ -192,20 +182,22 @@ export function PlayerInfectionDashboard({ game, player, onLeave, animationsEnab
     setTimeout(() => setIsRefreshing(false), 500);
   };
 
+  // Use INFECTION_ROLE_LABELS as single source of truth for role details
   const roleInfo = player.role_code ? INFECTION_ROLE_LABELS[player.role_code] : null;
   const isLocked = roundState?.status !== 'OPEN';
   
-  // Get role details for reveal animation
-  const roleDetails = player.role_code ? ROLE_INFO[player.role_code] : null;
-  const victoryCondition = roleDetails ? VICTORY_CONDITIONS[roleDetails.team] : '';
+  // Get team info and victory condition from centralized theme config
+  const teamCode = roleInfo?.team || player.team_code || null;
+  const teamInfo = teamCode ? INFECTION_TEAM_LABELS[teamCode] : null;
+  const victoryCondition = teamCode ? TEAM_VICTORY_CONDITIONS[teamCode] : '';
 
-  // Role reveal animation overlay
-  if (showRoleReveal && player.role_code && roleDetails) {
+  // Role reveal animation overlay - use roleInfo from INFECTION_ROLE_LABELS
+  if (showRoleReveal && player.role_code && roleInfo) {
     return (
       <InfectionRoleRevealAnimation
         roleCode={player.role_code}
-        roleName={roleDetails.name}
-        teamName={roleDetails.team}
+        roleName={roleInfo.name}
+        teamName={teamInfo?.name || roleInfo.team}
         victoryCondition={victoryCondition}
         playerName={player.display_name}
         onComplete={() => setShowRoleReveal(false)}

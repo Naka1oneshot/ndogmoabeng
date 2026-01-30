@@ -20,6 +20,11 @@ interface Message {
   created_at: string;
 }
 
+// Limit messages to prevent memory bloat
+const MAX_MESSAGES = 200;
+const trimToLast = <T,>(arr: T[], max: number): T[] => 
+  arr.length > max ? arr.slice(arr.length - max) : arr;
+
 const MJLobbyChatViewer: React.FC<MJLobbyChatViewerProps> = ({ gameId }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -39,14 +44,17 @@ const MJLobbyChatViewer: React.FC<MJLobbyChatViewerProps> = ({ gameId }) => {
 
   useEffect(() => {
     const fetchMessages = async () => {
+      // Fetch only necessary columns, limit to MAX_MESSAGES
       const { data, error } = await supabase
         .from('lobby_chat_messages')
-        .select('*')
+        .select('id, sender_num, sender_name, message, created_at')
         .eq('game_id', gameId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .limit(MAX_MESSAGES);
 
       if (!error && data) {
-        setMessages(data);
+        // Reverse to show oldest first (for display)
+        setMessages(data.reverse());
       }
     };
 
@@ -65,7 +73,8 @@ const MJLobbyChatViewer: React.FC<MJLobbyChatViewerProps> = ({ gameId }) => {
         },
         (payload) => {
           const newMsg = payload.new as Message;
-          setMessages((prev) => [...prev, newMsg]);
+          // Trim to MAX_MESSAGES to prevent unbounded growth
+          setMessages((prev) => trimToLast([...prev, newMsg], MAX_MESSAGES));
           setTimeout(scrollToBottom, 100);
         }
       )

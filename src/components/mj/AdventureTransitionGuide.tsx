@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { 
-  Trees, Skull, Shield, Waves, 
+  Trees, Skull, Shield, Waves, Heart,
   ChevronDown, ChevronUp, Coins, Users, 
-  Package, Target, Heart, Swords,
+  Package, Target, Swords,
   Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -91,6 +91,21 @@ const GAME_INITIALIZATIONS: GameTypeInit[] = [
       'Rôles distribués aléatoirement',
       '1 CV reçoit les anticorps',
       'Équipes: PV, SY, CITOYEN, NEUTRE',
+    ],
+  },
+  {
+    code: 'LION',
+    name: 'Le CŒUR du Lion',
+    icon: <Heart className="h-5 w-5" />,
+    color: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+    startingTokens: 'Hérité du jeu précédent',
+    phase: 'ACTIVE_TURN',
+    items: [],
+    special: [
+      'lion_game_state initialisé',
+      'Decks de cartes par joueur',
+      'Mains de cartes distribuées',
+      'Tours alternés entre joueurs',
     ],
   },
 ];
