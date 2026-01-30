@@ -8,13 +8,14 @@ import { useLionGameState } from './useLionGameState';
 import { 
   LionTheme, 
   LionCardDisplay, 
-  LionScoreDisplay, 
   LionTurnIndicator,
   LionGuessButtons 
 } from './LionTheme';
 import { LionRulesOverlay } from './rules/LionRulesOverlay';
+import { LionRankingOverlay } from './LionRankingOverlay';
+import { LionPlayerAvatar } from './presentation/LionPlayerAvatar';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
-import { Loader2, RefreshCw, BookOpen, Lock, Eye, Home } from 'lucide-react';
+import { Loader2, RefreshCw, BookOpen, Lock, Eye, Home, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface PlayerLionDashboardProps {
@@ -35,6 +36,7 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showRules, setShowRules] = useState(false);
+  const [showRanking, setShowRanking] = useState(false);
   const [selectedCard, setSelectedCard] = useState<number | null>(null);
   const [selectedGuess, setSelectedGuess] = useState<'HIGHER' | 'LOWER' | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -48,12 +50,17 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
     playerA, 
     playerB,
     loading, 
-    refetch 
+    refetch,
+    getPlayerById
   } = useLionGameState(sessionGameId || undefined, player.id);
 
   // Determine my role this turn
   const isActive = gameState?.active_player_id === player.id;
   const isGuesser = gameState?.guesser_player_id === player.id;
+  
+  // Get active and guesser players
+  const activePlayer = gameState ? getPlayerById(gameState.active_player_id) : null;
+  const guesserPlayer = gameState ? getPlayerById(gameState.guesser_player_id) : null;
 
   // Reset selections when turn changes
   useEffect(() => {
@@ -162,6 +169,7 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
 
   if (gameState.status === 'FINISHED') {
     const winner = gameState.winner_player_id === playerA?.id ? playerA : playerB;
+    const loser = gameState.winner_player_id === playerA?.id ? playerB : playerA;
     const isWinner = gameState.winner_player_id === player.id;
 
     return (
@@ -173,18 +181,45 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
             className="text-center"
           >
             <div className="text-6xl mb-4">{isWinner ? '🏆' : '💔'}</div>
+            
+            <LionPlayerAvatar 
+              name={winner?.display_name || 'Vainqueur'} 
+              avatarUrl={winner?.avatar_url} 
+              size="xl"
+              className="mx-auto mb-4"
+            />
+            
             <h2 className="text-3xl font-bold text-amber-300 mb-4">
               {isWinner ? 'Victoire !' : 'Défaite...'}
             </h2>
             <p className="text-xl text-amber-200 mb-6">
               {winner?.display_name} remporte la partie !
             </p>
-            <LionScoreDisplay
-              playerAName={playerA?.display_name || 'Joueur A'}
-              playerBName={playerB?.display_name || 'Joueur B'}
-              scoreA={playerA?.pvic || 0}
-              scoreB={playerB?.pvic || 0}
-            />
+            
+            {/* Final Scores with Avatars */}
+            <div className="flex items-center justify-center gap-6 mb-6">
+              <div className="text-center">
+                <LionPlayerAvatar 
+                  name={playerA?.display_name || 'A'} 
+                  avatarUrl={playerA?.avatar_url} 
+                  size="lg"
+                  className={`mx-auto mb-2 ${playerA?.id === winner?.id ? 'ring-4 ring-amber-400' : 'opacity-60'}`}
+                />
+                <p className="text-amber-200">{playerA?.display_name}</p>
+                <p className="text-2xl font-bold text-amber-400">{playerA?.pvic || 0}</p>
+              </div>
+              <span className="text-xl text-amber-600">vs</span>
+              <div className="text-center">
+                <LionPlayerAvatar 
+                  name={playerB?.display_name || 'B'} 
+                  avatarUrl={playerB?.avatar_url} 
+                  size="lg"
+                  className={`mx-auto mb-2 ${playerB?.id === winner?.id ? 'ring-4 ring-amber-400' : 'opacity-60'}`}
+                />
+                <p className="text-amber-200">{playerB?.display_name}</p>
+                <p className="text-2xl font-bold text-amber-400">{playerB?.pvic || 0}</p>
+              </div>
+            </div>
           </motion.div>
         </div>
       </LionTheme>
@@ -197,6 +232,25 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
         open={showRules} 
         onClose={() => setShowRules(false)} 
         role="PLAYER"
+      />
+      
+      <LionRankingOverlay
+        open={showRanking}
+        onClose={() => setShowRanking(false)}
+        playerA={playerA ? {
+          id: playerA.id,
+          name: playerA.display_name,
+          avatarUrl: playerA.avatar_url,
+          score: playerA.pvic || 0
+        } : null}
+        playerB={playerB ? {
+          id: playerB.id,
+          name: playerB.display_name,
+          avatarUrl: playerB.avatar_url,
+          score: playerB.pvic || 0
+        } : null}
+        currentTurn={gameState.turn_index}
+        totalTurns={22}
       />
 
       <div className="min-h-screen p-4 pb-24">
@@ -221,6 +275,15 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => setShowRanking(true)}
+              className="text-amber-400 hover:text-amber-300"
+              title="Classement"
+            >
+              <Trophy className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setShowRules(true)}
               className="text-amber-400 hover:text-amber-300"
             >
@@ -238,27 +301,72 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
           </div>
         </div>
 
-        {/* Scores */}
+        {/* Duel Display with Avatars */}
         <Card className="bg-amber-900/40 border-amber-700 mb-6">
           <CardContent className="pt-4">
-            <LionScoreDisplay
-              playerAName={playerA?.display_name || 'Joueur A'}
-              playerBName={playerB?.display_name || 'Joueur B'}
-              scoreA={playerA?.pvic || 0}
-              scoreB={playerB?.pvic || 0}
-              activePlayerId={gameState.active_player_id}
-              playerAId={playerA?.id}
-            />
-            <div className="mt-4">
-              <LionTurnIndicator
-                currentTurn={gameState.turn_index}
-                totalTurns={22}
-                isSuddenDeath={gameState.status === 'SUDDEN_DEATH'}
-                suddenPairIndex={gameState.sudden_pair_index}
-              />
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className={`text-center ${gameState.active_player_id === playerA?.id ? 'lion-glow rounded-lg p-2' : ''}`}>
+                <LionPlayerAvatar 
+                  name={playerA?.display_name || 'A'} 
+                  avatarUrl={playerA?.avatar_url} 
+                  size="md"
+                  className="mx-auto mb-1"
+                />
+                <p className="text-amber-200 text-sm font-medium">{playerA?.display_name}</p>
+                <p className="text-2xl font-bold text-amber-400">{playerA?.pvic || 0}</p>
+              </div>
+              <span className="text-xl text-amber-600">vs</span>
+              <div className={`text-center ${gameState.active_player_id !== playerA?.id ? 'lion-glow rounded-lg p-2' : ''}`}>
+                <LionPlayerAvatar 
+                  name={playerB?.display_name || 'B'} 
+                  avatarUrl={playerB?.avatar_url} 
+                  size="md"
+                  className="mx-auto mb-1"
+                />
+                <p className="text-amber-200 text-sm font-medium">{playerB?.display_name}</p>
+                <p className="text-2xl font-bold text-amber-400">{playerB?.pvic || 0}</p>
+              </div>
             </div>
+            
+            <LionTurnIndicator
+              currentTurn={gameState.turn_index}
+              totalTurns={22}
+              isSuddenDeath={gameState.status === 'SUDDEN_DEATH'}
+              suddenPairIndex={gameState.sudden_pair_index}
+            />
           </CardContent>
         </Card>
+
+        {/* Current Duel Info */}
+        {currentTurn && (
+          <Card className="bg-amber-900/30 border-amber-700/50 mb-6">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-center gap-6">
+                <div className="text-center">
+                  <p className="text-amber-500 text-xs mb-1">Actif</p>
+                  <LionPlayerAvatar 
+                    name={activePlayer?.display_name || ''} 
+                    avatarUrl={activePlayer?.avatar_url} 
+                    size="sm"
+                    className="mx-auto"
+                  />
+                  <p className="text-amber-200 text-sm mt-1">{activePlayer?.display_name}</p>
+                </div>
+                <span className="text-amber-600">⚔️</span>
+                <div className="text-center">
+                  <p className="text-amber-500 text-xs mb-1">Devineur</p>
+                  <LionPlayerAvatar 
+                    name={guesserPlayer?.display_name || ''} 
+                    avatarUrl={guesserPlayer?.avatar_url} 
+                    size="sm"
+                    className="mx-auto"
+                  />
+                  <p className="text-amber-200 text-sm mt-1">{guesserPlayer?.display_name}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Dealer Card */}
         {currentTurn && (
@@ -386,7 +494,7 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
           </Card>
         )}
 
-        {/* Resolution Reveal */}
+        {/* Resolution Reveal - with winner name */}
         <AnimatePresence>
           {currentTurn?.resolved && showReveal && (
             <motion.div
@@ -421,13 +529,27 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
                     {currentTurn.d === 0 ? (
                       <p className="text-amber-400 mt-2">Aucun point ce tour !</p>
                     ) : currentTurn.pvic_delta_guesser > 0 ? (
-                      <p className="text-green-400 mt-2 font-bold">
-                        Devineur +{currentTurn.pvic_delta_guesser} PVic !
-                      </p>
+                      <div className="mt-3 flex items-center justify-center gap-2">
+                        <LionPlayerAvatar 
+                          name={guesserPlayer?.display_name || ''} 
+                          avatarUrl={guesserPlayer?.avatar_url} 
+                          size="sm"
+                        />
+                        <p className="text-green-400 font-bold text-lg">
+                          {guesserPlayer?.display_name} +{currentTurn.pvic_delta_guesser} PVic !
+                        </p>
+                      </div>
                     ) : (
-                      <p className="text-amber-400 mt-2 font-bold">
-                        Actif +{currentTurn.pvic_delta_active} PVic !
-                      </p>
+                      <div className="mt-3 flex items-center justify-center gap-2">
+                        <LionPlayerAvatar 
+                          name={activePlayer?.display_name || ''} 
+                          avatarUrl={activePlayer?.avatar_url} 
+                          size="sm"
+                        />
+                        <p className="text-amber-400 font-bold text-lg">
+                          {activePlayer?.display_name} +{currentTurn.pvic_delta_active} PVic !
+                        </p>
+                      </div>
                     )}
                   </div>
                 </CardContent>
