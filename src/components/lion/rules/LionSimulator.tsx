@@ -5,21 +5,40 @@ import { LionCardDisplay } from '../LionTheme';
 export function LionSimulator() {
   const [dealerCard, setDealerCard] = useState(5);
   const [activeCard, setActiveCard] = useState(8);
-  const [guess, setGuess] = useState<'HIGHER' | 'LOWER'>('HIGHER');
+  const [guess, setGuess] = useState<'HIGHER' | 'LOWER' | 'EQUAL'>('HIGHER');
 
-  // Calculate result
+  // Calculate result based on new scoring rules
   const d = Math.abs(activeCard - dealerCard);
   const actualDirection = activeCard > dealerCard ? 'HIGHER' : activeCard < dealerCard ? 'LOWER' : 'EQUAL';
-  const isCorrect = d === 0 ? null : guess === actualDirection;
   
   let guesserPoints = 0;
   let activePoints = 0;
+  let resultMessage = '';
+  let resultType: 'guesser' | 'active' | 'none' = 'none';
   
-  if (d > 0) {
+  if (activeCard === dealerCard) {
+    // Cards are equal
+    if (guess === 'EQUAL') {
+      guesserPoints = 10;
+      resultType = 'guesser';
+      resultMessage = 'Cartes identiques + pari ÉGAL = +10 PVic';
+    } else {
+      activePoints = 2;
+      resultType = 'active';
+      resultMessage = 'Cartes identiques mais pas ÉGAL = +2 PVic';
+    }
+  } else {
+    // Cards are different
+    const isCorrect = (activeCard < dealerCard && guess === 'LOWER') || 
+                      (activeCard > dealerCard && guess === 'HIGHER');
     if (isCorrect) {
-      guesserPoints = 2 * d;
+      guesserPoints = d;
+      resultType = 'guesser';
+      resultMessage = `Bonne prédiction = +${d} PVic`;
     } else {
       activePoints = d;
+      resultType = 'active';
+      resultMessage = `Mauvaise prédiction = +${d} PVic`;
     }
   }
 
@@ -67,7 +86,7 @@ export function LionSimulator() {
         <label className="block text-amber-400 text-sm font-medium mb-3">
           Prédiction du Devineur
         </label>
-        <div className="flex gap-2 justify-center">
+        <div className="flex gap-2 justify-center flex-wrap">
           <button
             onClick={() => setGuess('HIGHER')}
             className={`
@@ -78,6 +97,17 @@ export function LionSimulator() {
             `}
           >
             ⬆️ PLUS HAUT
+          </button>
+          <button
+            onClick={() => setGuess('EQUAL')}
+            className={`
+              px-4 py-2 rounded-lg font-bold transition-all
+              ${guess === 'EQUAL' 
+                ? 'bg-amber-600 text-white ring-2 ring-amber-400' 
+                : 'bg-amber-600/20 text-amber-400 border border-amber-600'}
+            `}
+          >
+            🎯 ÉGAL
           </button>
           <button
             onClick={() => setGuess('LOWER')}
@@ -117,7 +147,7 @@ export function LionSimulator() {
             Direction réelle : 
             <strong className={
               actualDirection === 'HIGHER' ? ' text-green-400' : 
-              actualDirection === 'LOWER' ? ' text-red-400' : ' text-gray-400'
+              actualDirection === 'LOWER' ? ' text-red-400' : ' text-amber-400'
             }>
               {actualDirection === 'HIGHER' ? ' PLUS HAUT' : 
                actualDirection === 'LOWER' ? ' PLUS BAS' : ' ÉGAL'}
@@ -126,35 +156,36 @@ export function LionSimulator() {
 
           {/* Result */}
           <motion.div
-            key={`${d}-${guess}`}
+            key={`${d}-${guess}-${activeCard}-${dealerCard}`}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className={`
               p-4 rounded-lg mt-4
-              ${d === 0 
-                ? 'bg-gray-800/50 border border-gray-600' 
-                : isCorrect 
-                  ? 'bg-green-900/40 border border-green-600' 
-                  : 'bg-amber-900/40 border border-amber-600'}
+              ${resultType === 'guesser' 
+                ? 'bg-green-900/40 border border-green-600' 
+                : resultType === 'active'
+                  ? 'bg-amber-900/40 border border-amber-600'
+                  : 'bg-gray-800/50 border border-gray-600'}
             `}
           >
-            {d === 0 ? (
+            {resultType === 'guesser' ? (
               <div>
-                <p className="text-gray-300 font-bold text-lg">🤷 Aucun point</p>
-                <p className="text-gray-400 text-sm">Les cartes sont identiques</p>
-              </div>
-            ) : isCorrect ? (
-              <div>
-                <p className="text-green-300 font-bold text-lg">✅ Devineur correct !</p>
+                <p className="text-green-300 font-bold text-lg">✅ Devineur gagne !</p>
                 <p className="text-green-200">
-                  Devineur gagne <strong className="text-xl">+{guesserPoints}</strong> PVic
+                  {resultMessage}
+                </p>
+                <p className="text-green-200 mt-1">
+                  Devineur : <strong className="text-xl">+{guesserPoints}</strong> PVic
                 </p>
               </div>
             ) : (
               <div>
-                <p className="text-amber-300 font-bold text-lg">❌ Devineur incorrect</p>
+                <p className="text-amber-300 font-bold text-lg">❌ Actif gagne !</p>
                 <p className="text-amber-200">
-                  Actif gagne <strong className="text-xl">+{activePoints}</strong> PVic
+                  {resultMessage}
+                </p>
+                <p className="text-amber-200 mt-1">
+                  Actif : <strong className="text-xl">+{activePoints}</strong> PVic
                 </p>
               </div>
             )}

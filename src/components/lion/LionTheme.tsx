@@ -62,7 +62,7 @@ interface LionCardDisplayProps {
   selected?: boolean;
   disabled?: boolean;
   onClick?: () => void;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export function LionCardDisplay({ 
@@ -76,7 +76,8 @@ export function LionCardDisplay({
   const sizeClasses = {
     sm: 'w-10 h-14 text-lg',
     md: 'w-14 h-20 text-2xl',
-    lg: 'w-20 h-28 text-4xl'
+    lg: 'w-20 h-28 text-4xl',
+    xl: 'w-28 h-40 text-5xl'
   };
 
   if (faceDown) {
@@ -155,19 +156,21 @@ interface LionTurnIndicatorProps {
   totalTurns: number;
   isSuddenDeath?: boolean;
   suddenPairIndex?: number;
+  large?: boolean;
 }
 
 export function LionTurnIndicator({ 
   currentTurn, 
   totalTurns, 
   isSuddenDeath = false,
-  suddenPairIndex = 0
+  suddenPairIndex = 0,
+  large = false
 }: LionTurnIndicatorProps) {
   if (isSuddenDeath) {
     return (
       <div className="text-center">
-        <span className="text-amber-500 font-bold text-lg">⚔️ MORT SUBITE</span>
-        <span className="text-amber-400 ml-2">
+        <span className={`text-amber-500 font-bold ${large ? 'text-2xl' : 'text-lg'}`}>⚔️ MORT SUBITE</span>
+        <span className={`text-amber-400 ml-2 ${large ? 'text-xl' : ''}`}>
           Tour {currentTurn}/2 (Duo #{suddenPairIndex})
         </span>
       </div>
@@ -176,9 +179,9 @@ export function LionTurnIndicator({
 
   return (
     <div className="text-center">
-      <span className="text-amber-400 font-medium">Tour</span>
-      <span className="text-amber-300 font-bold text-xl mx-2">{currentTurn}</span>
-      <span className="text-amber-400 font-medium">/ {totalTurns}</span>
+      <span className={`text-amber-400 font-medium ${large ? 'text-xl' : ''}`}>Tour</span>
+      <span className={`text-amber-300 font-bold mx-2 ${large ? 'text-4xl' : 'text-xl'}`}>{currentTurn}</span>
+      <span className={`text-amber-400 font-medium ${large ? 'text-xl' : ''}`}>/ {totalTurns}</span>
     </div>
   );
 }
