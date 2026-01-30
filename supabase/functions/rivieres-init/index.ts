@@ -61,23 +61,57 @@ serve(async (req) => {
       .eq("code", "RIVIERES")
       .single();
 
-    // Determine starting tokens
+    // Determine starting tokens - check adventure_game_configs first
     let startingTokens = game.starting_tokens || gameType?.default_starting_tokens || 100;
+    let useInherit = false;
 
-    // In ADVENTURE mode, check token_policy
+    // In ADVENTURE mode, check adventure_game_configs for token_policies
     if (game.mode === "ADVENTURE" && game.adventure_id) {
-      const { data: step } = await supabase
-        .from("adventure_steps")
-        .select("token_policy, custom_starting_tokens")
-        .eq("adventure_id", game.adventure_id)
-        .eq("step_index", sessionGame.step_index)
+      console.log(`[rivieres-init] Adventure mode detected, loading config for game: ${gameId}`);
+      
+      const { data: agc, error: agcError } = await supabase
+        .from("adventure_game_configs")
+        .select("config")
+        .eq("game_id", gameId)
         .single();
-
-      if (step) {
-        if (step.token_policy === "RESET") {
-          startingTokens = step.custom_starting_tokens || gameType?.default_starting_tokens || 100;
+      
+      if (agcError) {
+        console.error("[rivieres-init] Error loading adventure config:", agcError);
+      } else if (agc?.config) {
+        const adventureConfig = agc.config as any;
+        console.log("[rivieres-init] Adventure config loaded");
+        
+        // Apply token policy for RIVIERES
+        const tokenPolicies = adventureConfig.token_policies || {};
+        const riverPolicy = tokenPolicies.RIVIERES || tokenPolicies.rivieres;
+        
+        if (riverPolicy) {
+          if (riverPolicy.mode === 'FIXED' && riverPolicy.fixedValue) {
+            startingTokens = riverPolicy.fixedValue;
+            console.log(`[rivieres-init] Using FIXED token policy: ${startingTokens} jetons`);
+          } else if (riverPolicy.mode === 'INHERIT') {
+            useInherit = true;
+            console.log(`[rivieres-init] Using INHERIT token policy`);
+          }
         }
-        // INHERIT: keep current tokens from game_players
+      }
+      
+      // Fallback to adventure_steps if no adventure_game_configs
+      if (!agc?.config) {
+        const { data: step } = await supabase
+          .from("adventure_steps")
+          .select("token_policy, custom_starting_tokens")
+          .eq("adventure_id", game.adventure_id)
+          .eq("step_index", sessionGame.step_index)
+          .single();
+
+        if (step) {
+          if (step.token_policy === "RESET") {
+            startingTokens = step.custom_starting_tokens || gameType?.default_starting_tokens || 100;
+          } else if (step.token_policy === "INHERIT") {
+            useInherit = true;
+          }
+        }
       }
     }
 
@@ -151,21 +185,14 @@ serve(async (req) => {
     if (game.mode === "SINGLE_GAME" || game.mode === "ADVENTURE") {
       for (const p of players) {
         // In ADVENTURE with INHERIT, don't reset tokens
-        if (game.mode === "ADVENTURE") {
-          const { data: step } = await supabase
-            .from("adventure_steps")
-            .select("token_policy")
-            .eq("adventure_id", game.adventure_id)
-            .eq("step_index", sessionGame.step_index)
-            .single();
-          
-          if (step?.token_policy === "INHERIT" && p.jetons > 0) {
-            continue; // Keep existing tokens
-          }
+        if (game.mode === "ADVENTURE" && useInherit && p.jetons > 0) {
+          console.log(`[rivieres-init] Player ${p.player_number} keeping existing tokens: ${p.jetons}`);
+          continue; // Keep existing tokens
         }
 
         // Royaux clan bonus: 1.5x starting tokens
-        const playerTokens = p.clan === 'Royaux' 
+        const isRoyaux = p.clan === 'Royaux' || p.clan === 'maison-royale';
+        const playerTokens = isRoyaux
           ? Math.floor(startingTokens * 1.5) 
           : startingTokens;
 
@@ -173,6 +200,8 @@ serve(async (req) => {
           .from("game_players")
           .update({ jetons: playerTokens })
           .eq("id", p.id);
+        
+        console.log(`[rivieres-init] Player ${p.player_number} set to ${playerTokens} jetons`);
       }
     }
 

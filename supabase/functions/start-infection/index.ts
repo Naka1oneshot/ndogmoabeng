@@ -80,6 +80,50 @@ Deno.serve(async (req) => {
 
     console.log('[start-infection] Starting with:', { gameId, sessionGameId, roleConfig, startingTokens, preAssignedRoles: preAssignedRoles ? Object.keys(preAssignedRoles).length : 0 });
 
+    // Check for adventure mode and load config
+    const { data: gameData } = await supabase
+      .from('games')
+      .select('mode, adventure_id, starting_tokens')
+      .eq('id', gameId)
+      .single();
+
+    let adventureStartingTokens: number | undefined;
+    let adventureRoleConfig: Partial<RoleConfig> | undefined;
+
+    // Load adventure config if in ADVENTURE mode
+    if (gameData?.mode === 'ADVENTURE' && gameData.adventure_id) {
+      console.log(`[start-infection] Adventure mode detected, loading config for game: ${gameId}`);
+      
+      const { data: agc, error: agcError } = await supabase
+        .from('adventure_game_configs')
+        .select('config')
+        .eq('game_id', gameId)
+        .single();
+      
+      if (agcError) {
+        console.error('[start-infection] Error loading adventure config:', agcError);
+      } else if (agc?.config) {
+        const adventureConfig = agc.config as any;
+        console.log('[start-infection] Adventure config loaded');
+        
+        // Apply token policy for INFECTION
+        const tokenPolicies = adventureConfig.token_policies || {};
+        const infectionPolicy = tokenPolicies.INFECTION || tokenPolicies.infection;
+        
+        if (infectionPolicy?.mode === 'FIXED' && infectionPolicy.fixedValue) {
+          adventureStartingTokens = infectionPolicy.fixedValue;
+          console.log(`[start-infection] Using FIXED token policy: ${adventureStartingTokens} jetons`);
+        }
+        
+        // Load infection-specific role config if available
+        const infectionConfig = adventureConfig.infection_config;
+        if (infectionConfig?.roleDistribution) {
+          adventureRoleConfig = infectionConfig.roleDistribution;
+          console.log('[start-infection] Using adventure role distribution:', adventureRoleConfig);
+        }
+      }
+    }
+
     // 1. Fetch active players (with player_number assigned) - with retry
     const playersRaw = await withRetry(async () => {
       const result = await supabase
@@ -147,8 +191,10 @@ Deno.serve(async (req) => {
       };
     }
 
+    // Priority: explicit roleConfig > adventureRoleConfig > defaultRoleConfig
     const finalRoleConfig: RoleConfig = {
       ...defaultRoleConfig,
+      ...adventureRoleConfig,
       ...roleConfig,
     };
 
@@ -201,14 +247,9 @@ Deno.serve(async (req) => {
     console.log('[start-infection] Pre-assigned counts:', preAssignedCounts);
     console.log('[start-infection] Remaining roles to assign:', shuffledRemainingRoles);
 
-    // 4. Get starting tokens
-    const { data: gameData } = await supabase
-      .from('games')
-      .select('starting_tokens')
-      .eq('id', gameId)
-      .single();
-
-    const tokens = startingTokens || gameData?.starting_tokens || 50;
+    // 4. Get starting tokens - priority: explicit startingTokens > adventureStartingTokens > gameData
+    const tokens = startingTokens || adventureStartingTokens || gameData?.starting_tokens || 50;
+    console.log(`[start-infection] Starting tokens: ${tokens}`);
 
     // 5. Assign roles to players (respecting pre-assignments) and prepare updates
     let remainingRoleIndex = 0;
