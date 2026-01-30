@@ -48,7 +48,7 @@ serve(async (req) => {
     // Fetch the game and verify host
     const { data: game, error: gameError } = await supabase
       .from("games")
-      .select("id, name, status, host_user_id, manche_active, current_session_game_id, mode, selected_game_type_code")
+      .select("id, name, status, host_user_id, manche_active, current_session_game_id, mode, selected_game_type_code, adventure_id, starting_tokens")
       .eq("id", gameId)
       .single();
 
@@ -85,12 +85,54 @@ serve(async (req) => {
       );
     }
 
+    // ====== ADVENTURE MODE: Load adventure configuration ======
+    let adventureConfig: any = null;
+    let startingTokens = game.starting_tokens || 50;
+    let foretMonsterOverrides: any[] = [];
+    
+    if (game.adventure_id) {
+      console.log(`[start-game] Adventure mode detected, loading config for adventure: ${game.adventure_id}`);
+      
+      const { data: agc, error: agcError } = await supabase
+        .from("adventure_game_configs")
+        .select("config")
+        .eq("game_id", gameId)
+        .single();
+      
+      if (agcError) {
+        console.error("[start-game] Error loading adventure config:", agcError);
+      } else if (agc?.config) {
+        adventureConfig = agc.config;
+        console.log("[start-game] Adventure config loaded:", JSON.stringify(adventureConfig).slice(0, 500));
+        
+        // Apply token policy for FORET
+        const tokenPolicies = adventureConfig.token_policies || {};
+        const foretPolicy = tokenPolicies.FORET || tokenPolicies.foret;
+        
+        if (foretPolicy) {
+          if (foretPolicy.mode === 'FIXED' && foretPolicy.fixedValue) {
+            startingTokens = foretPolicy.fixedValue;
+            console.log(`[start-game] Using FIXED token policy: ${startingTokens} jetons`);
+          } else if (foretPolicy.mode === 'INHERIT') {
+            // Keep current tokens - they should already be set from previous game
+            console.log(`[start-game] Using INHERIT token policy`);
+          }
+        }
+        
+        // Load monster overrides
+        const foretMonsters = adventureConfig.foret_monsters || adventureConfig.foretMonsters;
+        if (foretMonsters?.selected && Array.isArray(foretMonsters.selected)) {
+          foretMonsterOverrides = foretMonsters.selected;
+          console.log(`[start-game] Loaded ${foretMonsterOverrides.length} monster overrides from adventure config`);
+        }
+      }
+    }
+
     // Get the session_game_id (current stage)
     let sessionGameId = game.current_session_game_id;
     
     // If no session_game exists, create one (should be rare with Phase 1+2 migrations)
     if (!sessionGameId) {
-      const gameTypeCode = game.selected_game_type_code || 'FORET';
       const { data: newSessionGame, error: createError } = await supabase
         .from("session_games")
         .insert({
@@ -126,7 +168,7 @@ serve(async (req) => {
     // Fetch all active players (non-host) ordered by joined_at
     const { data: players, error: playersError } = await supabase
       .from("game_players")
-      .select("id, display_name, status, joined_at, clan, user_id, clan_token_used")
+      .select("id, display_name, status, joined_at, clan, user_id, clan_token_used, jetons")
       .eq("game_id", gameId)
       .eq("is_host", false)
       .in("status", ["ACTIVE", "WAITING"])
@@ -141,7 +183,7 @@ serve(async (req) => {
     }
 
     const activePlayers = players || [];
-    console.log(`Starting game with ${activePlayers.length} players`);
+    console.log(`Starting game with ${activePlayers.length} players, startingTokens=${startingTokens}`);
 
     // Consume tokens for players who marked clan_token_used
     for (const player of activePlayers) {
@@ -201,25 +243,36 @@ serve(async (req) => {
     }
 
     // Assign player numbers 1..N based on joined_at order
-    const playerUpdates = activePlayers.map((player, index) => ({
-      id: player.id,
-      player_number: index + 1,
-      status: "ACTIVE",
-      clan: player.clan,
-    }));
+    // Apply starting tokens (with Royaux bonus if applicable)
+    const playerUpdates = activePlayers.map((player, index) => {
+      // Royaux bonus: 1.5x starting tokens
+      const isRoyaux = player.clan === 'maison-royale' || player.clan === 'Royaux';
+      const playerTokens = isRoyaux ? Math.floor(startingTokens * 1.5) : startingTokens;
+      
+      return {
+        id: player.id,
+        player_number: index + 1,
+        status: "ACTIVE",
+        clan: player.clan,
+        jetons: playerTokens,
+      };
+    });
 
-    // Update players with new numbers and ACTIVE status
+    // Update players with new numbers, ACTIVE status, and tokens
     for (const update of playerUpdates) {
       const { error: updateError } = await supabase
         .from("game_players")
         .update({
           player_number: update.player_number,
           status: update.status,
+          jetons: update.jetons,
         })
         .eq("id", update.id);
 
       if (updateError) {
         console.error("Player update error:", updateError);
+      } else {
+        console.log(`Player #${update.player_number} set with ${update.jetons} jetons`);
       }
     }
 
@@ -252,7 +305,7 @@ serve(async (req) => {
       }
 
       // Akila clan players get the Sniper Akila (single use, consumable)
-      if (player.clan === "Akila") {
+      if (player.clan === "Akila" || player.clan === "sources-akila") {
         const { error: sniperError } = await supabase
           .from("inventory")
           .insert({
@@ -279,35 +332,67 @@ serve(async (req) => {
     
     console.log("Player inventories initialized");
 
-    // Initialize game monsters (from game_monsters config -> game_state_monsters runtime)
+    // ====== MONSTER INITIALIZATION ======
     console.log("Initializing game monsters...");
     
-    // Check if game_monsters already exist, if not initialize from catalog
+    // Check if game_monsters already exist for this session
     const { data: existingGameMonsters } = await supabase
       .from("game_monsters")
       .select("id")
       .eq("game_id", gameId)
+      .eq("session_game_id", sessionGameId)
       .limit(1);
     
     if (!existingGameMonsters || existingGameMonsters.length === 0) {
-      // Initialize game_monsters from catalog defaults
-      const { error: initMonsterConfigError } = await supabase.rpc(
-        "initialize_game_monsters",
-        { p_game_id: gameId }
-      );
-      if (initMonsterConfigError) {
-        console.error("Monster config init error:", initMonsterConfigError);
+      // Check if adventure has monster overrides
+      if (foretMonsterOverrides.length > 0) {
+        console.log(`[start-game] Applying ${foretMonsterOverrides.length} monster overrides from adventure config`);
+        
+        // Insert monster configurations from adventure config
+        for (const monster of foretMonsterOverrides) {
+          if (monster.enabled !== false) {
+            const { error: insertError } = await supabase
+              .from("game_monsters")
+              .insert({
+                game_id: gameId,
+                session_game_id: sessionGameId,
+                monster_id: monster.monster_id,
+                pv_max_override: monster.pv_max_override || null,
+                reward_override: monster.reward_override || null,
+                initial_status: monster.monster_id <= 3 ? 'EN_BATAILLE' : 'EN_FILE',
+                order_index: monster.monster_id,
+                is_enabled: true,
+              });
+            
+            if (insertError) {
+              console.error(`Error inserting monster ${monster.monster_id}:`, insertError);
+            } else {
+              console.log(`Monster #${monster.monster_id} configured: PV=${monster.pv_max_override}, Reward=${monster.reward_override}`);
+            }
+          }
+        }
       } else {
-        console.log("Game monsters config initialized from catalog");
+        // No adventure overrides - initialize game_monsters from catalog defaults
+        const { error: initMonsterConfigError } = await supabase.rpc(
+          "initialize_game_monsters",
+          { p_game_id: gameId }
+        );
+        if (initMonsterConfigError) {
+          console.error("Monster config init error:", initMonsterConfigError);
+        } else {
+          console.log("Game monsters config initialized from catalog");
+        }
+        
+        // Update with session_game_id
+        await supabase
+          .from("game_monsters")
+          .update({ session_game_id: sessionGameId })
+          .eq("game_id", gameId)
+          .is("session_game_id", null);
       }
+    } else {
+      console.log("Game monsters already exist for this session");
     }
-    
-    // Update game_monsters with session_game_id
-    await supabase
-      .from("game_monsters")
-      .update({ session_game_id: sessionGameId })
-      .eq("game_id", gameId)
-      .is("session_game_id", null);
     
     // Initialize runtime state (game_state_monsters) with session_game_id
     const { error: initMonsterStateError } = await supabase.rpc(
@@ -320,7 +405,7 @@ serve(async (req) => {
       console.log("Game monsters runtime state initialized with session_game_id");
     }
 
-    // Update game status to IN_GAME with phase
+    // Update game status to IN_GAME with phase and starting_tokens
     const { error: gameUpdateError } = await supabase
       .from("games")
       .update({
@@ -328,6 +413,7 @@ serve(async (req) => {
         manche_active: 1,
         phase: "PHASE1_MISES",
         phase_locked: false,
+        starting_tokens: startingTokens,
       })
       .eq("id", gameId);
 
@@ -362,65 +448,68 @@ serve(async (req) => {
         phase: "PHASE1_MISES",
         playerCount: activePlayers.length,
         sessionGameId: sessionGameId,
+        startingTokens: startingTokens,
       },
     });
 
     // Create MJ-only detailed event
     const playerList = playerUpdates.map(p => {
       const original = activePlayers.find(a => a.id === p.id);
-      return `#${p.player_number}: ${original?.display_name}`;
+      return `#${p.player_number}: ${original?.display_name} (${p.jetons}j)`;
     }).join(", ");
 
     await supabase.from("session_events").insert({
       game_id: gameId,
       audience: "MJ",
       type: "ADMIN",
-      message: `StartGame: ${activePlayers.length} joueurs activés`,
+      message: `StartGame: ${activePlayers.length} joueurs, ${startingTokens} jetons de base`,
       payload: {
         event: "GAME_START_ADMIN",
         sessionGameId: sessionGameId,
+        startingTokens: startingTokens,
+        adventureConfig: adventureConfig ? { 
+          tokenPolicy: adventureConfig.token_policies?.FORET,
+          monsterOverrides: foretMonsterOverrides.length 
+        } : null,
         players: playerUpdates.map(p => ({
           id: p.id,
           playerNumber: p.player_number,
           displayName: activePlayers.find(a => a.id === p.id)?.display_name,
+          jetons: p.jetons,
+          clan: p.clan,
         })),
       },
     });
 
-    console.log("Game started successfully:", gameId, "session_game_id:", sessionGameId);
+    console.log("Game started successfully:", gameId, "session_game_id:", sessionGameId, "startingTokens:", startingTokens);
 
     // Auto-generate the first shop for round 1 (only for FORET game type - already verified above)
     let shopGenerated = false;
     
-    // gameTypeCode already defined above, always 'FORET' at this point
-    if (true) { // Always true since we validated FORET-only above
-      console.log("[start-game] Auto-generating first shop for FORET game...");
-      try {
-        const fnUrl = Deno.env.get("SUPABASE_URL")!;
-        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        
-        const generateShopResponse = await fetch(`${fnUrl}/functions/v1/generate-shop`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify({ gameId, sessionGameId }),
-        });
-        
-        if (generateShopResponse.ok) {
-          const shopResult = await generateShopResponse.json();
-          shopGenerated = true;
-          console.log("[start-game] Shop generated successfully:", shopResult.items?.join(", ") || "OK");
-        } else {
-          const errorText = await generateShopResponse.text();
-          console.error("[start-game] Shop generation failed:", generateShopResponse.status, errorText);
-        }
-      } catch (shopError) {
-        console.error("[start-game] Error calling generate-shop:", shopError);
+    console.log("[start-game] Auto-generating first shop for FORET game...");
+    try {
+      const fnUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      
+      const generateShopResponse = await fetch(`${fnUrl}/functions/v1/generate-shop`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ gameId, sessionGameId }),
+      });
+      
+      if (generateShopResponse.ok) {
+        const shopResult = await generateShopResponse.json();
+        shopGenerated = true;
+        console.log("[start-game] Shop generated successfully:", shopResult.items?.join(", ") || "OK");
+      } else {
+        const errorText = await generateShopResponse.text();
+        console.error("[start-game] Shop generation failed:", generateShopResponse.status, errorText);
       }
-    } else {
-      console.log(`[start-game] Skipping shop generation for game type: ${gameTypeCode}`);
+    } catch (shopError) {
+      console.error("[start-game] Error calling generate-shop:", shopError);
     }
 
     return new Response(
@@ -432,9 +521,12 @@ serve(async (req) => {
         round: 1,
         phase: "PHASE1_MISES",
         playerCount: activePlayers.length,
+        startingTokens,
         players: playerUpdates,
         shopGenerated,
         gameTypeCode,
+        adventureConfigApplied: !!adventureConfig,
+        monsterOverridesApplied: foretMonsterOverrides.length,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
