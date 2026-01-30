@@ -4002,7 +4002,7 @@ export type Database = {
       }
       admin_delete_game_cascade: {
         Args: { p_game_id: string }
-        Returns: boolean
+        Returns: undefined
       }
       admin_search_user_by_email: {
         Args: { search_email: string }
