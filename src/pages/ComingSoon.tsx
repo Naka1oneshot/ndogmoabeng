@@ -16,6 +16,7 @@ import { RivieresRulesOverlay } from '@/components/rivieres/rules/RivieresRulesO
 import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
 import { InfectionRulesOverlay } from '@/components/infection/rules/InfectionRulesOverlay';
 import { ComingSoonEventCard } from '@/components/meetup/ComingSoonEventCard';
+import { ComingSoonAudioPlayer } from '@/components/audio/ComingSoonAudioPlayer';
 
 // Import logo
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
@@ -239,6 +240,9 @@ export default function ComingSoon() {
         userRole="PLAYER"
         defaultMode="QUICK"
       />
+
+    {/* Audio Player */}
+    <ComingSoonAudioPlayer />
 
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/10 overflow-hidden relative">
       {/* Theme Toggle - Fixed position */}
