@@ -57,6 +57,7 @@ interface LionPlayer {
   player_number: number;
   pvic: number;
   user_id: string | null;
+  avatar_url?: string | null;
 }
 
 export function useLionGameState(sessionGameId: string | undefined, playerId?: string) {
@@ -96,7 +97,7 @@ export function useLionGameState(sessionGameId: string | undefined, playerId?: s
 
         setCurrentTurn(turnData as LionTurn | null);
 
-        // Fetch players
+        // Fetch players with avatar
         const { data: playersData } = await supabase
           .from('game_players')
           .select('id, display_name, player_number, pvic, user_id')
@@ -105,7 +106,22 @@ export function useLionGameState(sessionGameId: string | undefined, playerId?: s
           .is('removed_at', null)
           .order('player_number');
 
-        setPlayers((playersData || []) as LionPlayer[]);
+        // Fetch avatars for players
+        const playersWithAvatars: LionPlayer[] = [];
+        for (const p of playersData || []) {
+          let avatar_url: string | null = null;
+          if (p.user_id) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('avatar_url')
+              .eq('user_id', p.user_id)
+              .maybeSingle();
+            avatar_url = profileData?.avatar_url || null;
+          }
+          playersWithAvatars.push({ ...p, avatar_url } as LionPlayer);
+        }
+
+        setPlayers(playersWithAvatars);
 
         // Fetch decks
         const { data: decksData } = await supabase
