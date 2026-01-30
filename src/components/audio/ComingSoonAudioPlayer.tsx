@@ -48,18 +48,7 @@ export function ComingSoonAudioPlayer() {
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
 
-    // Try to autoplay
-    const tryAutoplay = async () => {
-      try {
-        await audio.play();
-        setHasInteracted(true);
-      } catch (err) {
-        // Autoplay blocked - user needs to interact
-        console.log('Autoplay blocked, waiting for user interaction');
-      }
-    };
-
-    tryAutoplay();
+    // No autoplay - wait for user interaction
 
     return () => {
       audio.removeEventListener('play', handlePlay);
