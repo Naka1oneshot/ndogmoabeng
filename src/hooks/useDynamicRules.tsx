@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, useMemo, useCallback, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RulesSection, RulesParagraph } from './useGameRulesContent';
 import { Json } from '@/integrations/supabase/types';
@@ -9,6 +9,7 @@ interface UseDynamicRulesResult {
   sections: RulesSection[];
   loading: boolean;
   error: string | null;
+  refetch: () => void;
   getSection: (sectionKey: string) => RulesSection | undefined;
   getText: (sectionKey: string, paragraphId: string) => string;
   getList: (sectionKey: string, paragraphId: string) => string[];
@@ -25,6 +26,11 @@ export function useDynamicRules(gameCode: GameCode): UseDynamicRulesResult {
   const [sections, setSections] = useState<RulesSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refetch = useCallback(() => {
+    setRefreshKey(k => k + 1);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -67,7 +73,7 @@ export function useDynamicRules(gameCode: GameCode): UseDynamicRulesResult {
     return () => {
       mounted = false;
     };
-  }, [gameCode]);
+  }, [gameCode, refreshKey]);
 
   const helpers = useMemo(() => ({
     getSection: (sectionKey: string) => sections.find(s => s.section_key === sectionKey),
@@ -96,6 +102,7 @@ export function useDynamicRules(gameCode: GameCode): UseDynamicRulesResult {
     sections,
     loading,
     error,
+    refetch,
     ...helpers
   };
 }
