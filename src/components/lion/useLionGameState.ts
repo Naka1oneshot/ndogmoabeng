@@ -59,7 +59,7 @@ interface LionPlayer {
   user_id: string | null;
 }
 
-export function useLionGameState(sessionGameId: string | undefined) {
+export function useLionGameState(sessionGameId: string | undefined, playerId?: string) {
   const [gameState, setGameState] = useState<LionGameState | null>(null);
   const [currentTurn, setCurrentTurn] = useState<LionTurn | null>(null);
   const [myHand, setMyHand] = useState<LionHand | null>(null);
@@ -116,25 +116,16 @@ export function useLionGameState(sessionGameId: string | undefined) {
         setDecks((decksData || []) as LionDeck[]);
       }
 
-      // Fetch my hand (if I'm a player)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: myPlayerData } = await supabase
-          .from('game_players')
-          .select('id')
-          .eq('user_id', user.id)
+      // Fetch my hand using the provided playerId
+      if (playerId) {
+        const { data: handData } = await supabase
+          .from('lion_hands')
+          .select('*')
+          .eq('session_game_id', sessionGameId)
+          .eq('owner_player_id', playerId)
           .maybeSingle();
 
-        if (myPlayerData) {
-          const { data: handData } = await supabase
-            .from('lion_hands')
-            .select('*')
-            .eq('session_game_id', sessionGameId)
-            .eq('owner_player_id', myPlayerData.id)
-            .maybeSingle();
-
-          setMyHand(handData as LionHand | null);
-        }
+        setMyHand(handData as LionHand | null);
       }
 
       setError(null);
@@ -144,7 +135,7 @@ export function useLionGameState(sessionGameId: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [sessionGameId]);
+  }, [sessionGameId, playerId]);
 
   useEffect(() => {
     fetchAll();
