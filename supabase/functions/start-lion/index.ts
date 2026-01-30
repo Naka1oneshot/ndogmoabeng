@@ -48,6 +48,26 @@ serve(async (req) => {
 
     const gameId = sessionGame.session_id;
 
+    // Check if game state already exists (idempotency guard)
+    const { data: existingState } = await supabase
+      .from('lion_game_state')
+      .select('id, status, active_player_id, guesser_player_id')
+      .eq('session_game_id', session_game_id)
+      .maybeSingle();
+
+    if (existingState) {
+      // Game already started, return success with existing data
+      console.log('Lion game already started for session:', session_game_id);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          alreadyStarted: true,
+          message: 'Game was already started'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get players (non-host, non-removed)
     const { data: players, error: playersError } = await supabase
       .from('game_players')
