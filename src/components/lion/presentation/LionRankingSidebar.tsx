@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { LionPlayerAvatar } from './LionPlayerAvatar';
 import { Trophy } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Player {
   id: string;
@@ -9,27 +10,39 @@ interface Player {
   score: number;
 }
 
+interface TurnResult {
+  turnIndex: number;
+  winnerId: string | null;
+  winnerName: string;
+  points: number;
+}
+
 interface LionRankingSidebarProps {
   playerA: Player | null;
   playerB: Player | null;
+  turnHistory?: TurnResult[];
   className?: string;
 }
 
-export function LionRankingSidebar({ playerA, playerB, className }: LionRankingSidebarProps) {
+export function LionRankingSidebar({ playerA, playerB, turnHistory = [], className }: LionRankingSidebarProps) {
   if (!playerA || !playerB) return null;
 
   const players = [playerA, playerB].sort((a, b) => b.score - a.score);
-  const leader = players[0];
   const isLeading = players[0].score > players[1].score;
 
   return (
-    <div className={`bg-amber-950/80 border-l border-amber-700 p-4 ${className}`}>
-      <div className="flex items-center gap-2 mb-4">
+    <div className={`bg-amber-950/80 border-l border-amber-700 flex flex-col ${className}`}>
+      {/* Spacer for top controls */}
+      <div className="h-16" />
+      
+      {/* Ranking Header */}
+      <div className="flex items-center gap-2 p-4 pb-2">
         <Trophy className="h-5 w-5 text-amber-400" />
         <h3 className="text-lg font-bold text-amber-300">Classement</h3>
       </div>
 
-      <div className="space-y-3">
+      {/* Player Rankings */}
+      <div className="space-y-3 px-4">
         {players.map((player, index) => (
           <motion.div
             key={player.id}
@@ -74,11 +87,38 @@ export function LionRankingSidebar({ playerA, playerB, className }: LionRankingS
 
       {/* Score Difference */}
       {isLeading && (
-        <div className="mt-4 pt-4 border-t border-amber-700/50 text-center">
+        <div className="mx-4 mt-4 pt-4 border-t border-amber-700/50 text-center">
           <p className="text-amber-400 text-sm">Avance</p>
           <p className="text-2xl font-bold text-amber-300">
             +{players[0].score - players[1].score}
           </p>
+        </div>
+      )}
+
+      {/* Turn History */}
+      {turnHistory.length > 0 && (
+        <div className="flex-1 mt-4 border-t border-amber-700/50 flex flex-col min-h-0">
+          <p className="text-amber-400 text-sm font-medium px-4 pt-3 pb-2">Historique</p>
+          <ScrollArea className="flex-1 px-4 pb-4">
+            <div className="space-y-1">
+              {turnHistory.slice().reverse().map((result) => (
+                <motion.div
+                  key={result.turnIndex}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center justify-between text-xs py-1 border-b border-amber-800/30"
+                >
+                  <span className="text-amber-500">T{result.turnIndex}</span>
+                  <span className="text-amber-200 truncate mx-2 flex-1">
+                    {result.points === 0 ? '—' : result.winnerName}
+                  </span>
+                  <span className={`font-bold ${result.points > 0 ? 'text-green-400' : 'text-amber-600'}`}>
+                    {result.points > 0 ? `+${result.points}` : '0'}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       )}
     </div>
