@@ -64,87 +64,146 @@ serve(async (req) => {
       );
     }
 
+    // Validate guess_choice is set
+    const guessChoice = currentTurn.guess_choice;
+    if (!guessChoice) {
+      return new Response(
+        JSON.stringify({ error: 'Guess not locked (guess_choice is null)' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const dealerCard = currentTurn.dealer_card;
     const activeCard = currentTurn.active_card;
-    const guessChoice = currentTurn.guess_choice;
 
-    // Calculate d = |activeCard - dealerCard|
-    const d = Math.abs(activeCard - dealerCard);
+    // Validate cards are present
+    if (dealerCard === null || dealerCard === undefined || activeCard === null || activeCard === undefined) {
+      return new Response(
+        JSON.stringify({ error: 'Card values missing (dealer or active card is null)' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ============================================
+    // OFFICIAL SCORING LOGIC
+    // ============================================
+    // Let:
+    //   A = activeCard (joueur actif)
+    //   D = dealerCard (croupier)
+    //   G = guessChoice ∈ {'HIGHER', 'LOWER', 'EQUAL'}
+    //   diff = |A - D|
+    //
+    // Rules:
+    // 1) A == D && G == 'EQUAL' → guesser wins 10 PVic
+    // 2) A < D && G == 'LOWER'  → guesser wins (D - A) PVic
+    // 3) A > D && G == 'HIGHER' → guesser wins (A - D) PVic
+    // 4) A == D && G != 'EQUAL' → active wins 2 PVic
+    // 5) A < D && G != 'LOWER'  → active wins (D - A) PVic
+    // 6) A > D && G != 'HIGHER' → active wins (A - D) PVic
+    // ============================================
+
+    const A = activeCard;
+    const D = dealerCard;
+    const G = guessChoice;
+    const diff = Math.abs(A - D);
 
     let pvicDeltaActive = 0;
     let pvicDeltaGuesser = 0;
+    let winnerRole: 'guesser' | 'active' = 'active';
 
-    // New scoring logic:
-    // - If activeCard == dealerCard and guesser chose EQUAL → guesser wins 10 PVic
-    // - If activeCard < dealerCard and guesser chose LOWER → guesser wins d PVic
-    // - If activeCard > dealerCard and guesser chose HIGHER → guesser wins d PVic
-    // - If activeCard == dealerCard and guesser didn't choose EQUAL → active wins 2 PVic
-    // - If activeCard < dealerCard and guesser didn't choose LOWER → active wins d PVic
-    // - If activeCard > dealerCard and guesser didn't choose HIGHER → active wins d PVic
-
-    if (activeCard === dealerCard) {
+    if (A === D) {
       // Cards are equal
-      if (guessChoice === 'EQUAL') {
+      if (G === 'EQUAL') {
         pvicDeltaGuesser = 10;
+        winnerRole = 'guesser';
       } else {
         pvicDeltaActive = 2;
+        winnerRole = 'active';
       }
-    } else if (activeCard < dealerCard) {
-      // Active card is lower
-      if (guessChoice === 'LOWER') {
-        pvicDeltaGuesser = d;
+    } else if (A < D) {
+      // Active card is lower than dealer
+      if (G === 'LOWER') {
+        pvicDeltaGuesser = diff; // D - A since A < D
+        winnerRole = 'guesser';
       } else {
-        pvicDeltaActive = d;
+        pvicDeltaActive = diff;
+        winnerRole = 'active';
       }
     } else {
-      // Active card is higher (activeCard > dealerCard)
-      if (guessChoice === 'HIGHER') {
-        pvicDeltaGuesser = d;
+      // A > D: Active card is higher than dealer
+      if (G === 'HIGHER') {
+        pvicDeltaGuesser = diff; // A - D since A > D
+        winnerRole = 'guesser';
       } else {
-        pvicDeltaActive = d;
+        pvicDeltaActive = diff;
+        winnerRole = 'active';
       }
     }
 
     // Update turn as resolved
-    await supabase
+    const { error: updateTurnError } = await supabase
       .from('lion_turns')
       .update({
         resolved: true,
         resolved_at: new Date().toISOString(),
-        d,
+        d: diff,
         pvic_delta_active: pvicDeltaActive,
         pvic_delta_guesser: pvicDeltaGuesser
       })
       .eq('id', currentTurn.id);
 
+    if (updateTurnError) {
+      console.error('Failed to update turn:', updateTurnError);
+      return new Response(
+        JSON.stringify({ error: `Failed to resolve turn: ${updateTurnError.message}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Update player pvic values
     if (pvicDeltaActive > 0) {
-      const { data: activePlayer } = await supabase
+      const { data: activePlayer, error: activePlayerError } = await supabase
         .from('game_players')
         .select('pvic')
         .eq('id', currentTurn.active_player_id)
         .single();
       
-      await supabase
-        .from('game_players')
-        .update({ pvic: (activePlayer?.pvic || 0) + pvicDeltaActive })
-        .eq('id', currentTurn.active_player_id);
+      if (activePlayerError) {
+        console.error('Failed to fetch active player:', activePlayerError);
+      } else {
+        const { error: updateActiveError } = await supabase
+          .from('game_players')
+          .update({ pvic: (activePlayer?.pvic || 0) + pvicDeltaActive })
+          .eq('id', currentTurn.active_player_id);
+        
+        if (updateActiveError) {
+          console.error('Failed to update active player pvic:', updateActiveError);
+        }
+      }
     }
 
     if (pvicDeltaGuesser > 0) {
-      const { data: guesserPlayer } = await supabase
+      const { data: guesserPlayer, error: guesserPlayerError } = await supabase
         .from('game_players')
         .select('pvic')
         .eq('id', currentTurn.guesser_player_id)
         .single();
       
-      await supabase
-        .from('game_players')
-        .update({ pvic: (guesserPlayer?.pvic || 0) + pvicDeltaGuesser })
-        .eq('id', currentTurn.guesser_player_id);
+      if (guesserPlayerError) {
+        console.error('Failed to fetch guesser player:', guesserPlayerError);
+      } else {
+        const { error: updateGuesserError } = await supabase
+          .from('game_players')
+          .update({ pvic: (guesserPlayer?.pvic || 0) + pvicDeltaGuesser })
+          .eq('id', currentTurn.guesser_player_id);
+        
+        if (updateGuesserError) {
+          console.error('Failed to update guesser player pvic:', updateGuesserError);
+        }
+      }
     }
 
-    // Get player names for event
+    // Get player names for event message
     const { data: activePl } = await supabase
       .from('game_players')
       .select('display_name')
@@ -157,14 +216,28 @@ serve(async (req) => {
       .eq('id', currentTurn.guesser_player_id)
       .single();
 
-    // Publish resolution event
+    const activeName = activePl?.display_name || 'Joueur actif';
+    const guesserName = guesserPl?.display_name || 'Devineur';
+
+    // Build result message according to official rules
     let resultMessage = '';
-    if (d === 0) {
-      resultMessage = `🎯 Tour ${currentTurn.turn_index} : Carte croupier ${dealerCard}, carte de ${activePl?.display_name} = ${activeCard}. Différence = 0, aucun point !`;
-    } else if (pvicDeltaGuesser > 0) {
-      resultMessage = `🎯 Tour ${currentTurn.turn_index} : ${guesserPl?.display_name} a deviné juste (${guessChoice}) ! +${pvicDeltaGuesser} PVic`;
+    const guessLabel = G === 'HIGHER' ? 'PLUS HAUT' : G === 'LOWER' ? 'PLUS BAS' : 'ÉGAL';
+
+    if (A === D) {
+      // Equal cards
+      if (winnerRole === 'guesser') {
+        resultMessage = `🎯 Tour ${currentTurn.turn_index} : Égalité (A=${A}, D=${D}). ${guesserName} a choisi ${guessLabel} : +${pvicDeltaGuesser} PVic au devineur.`;
+      } else {
+        resultMessage = `🎯 Tour ${currentTurn.turn_index} : Égalité (A=${A}, D=${D}). ${guesserName} a choisi ${guessLabel} (incorrect) : +${pvicDeltaActive} PVic au joueur actif (${activeName}).`;
+      }
     } else {
-      resultMessage = `🎯 Tour ${currentTurn.turn_index} : ${guesserPl?.display_name} s'est trompé ! ${activePl?.display_name} gagne +${pvicDeltaActive} PVic`;
+      // Non-equal cards
+      const comparison = A < D ? 'inférieure' : 'supérieure';
+      if (winnerRole === 'guesser') {
+        resultMessage = `🎯 Tour ${currentTurn.turn_index} : A=${A}, D=${D} (carte ${comparison}). ${guesserName} a deviné juste (${guessLabel}) : +${pvicDeltaGuesser} PVic au devineur.`;
+      } else {
+        resultMessage = `🎯 Tour ${currentTurn.turn_index} : A=${A}, D=${D} (carte ${comparison}). ${guesserName} a choisi ${guessLabel} (incorrect) : +${pvicDeltaActive} PVic au joueur actif (${activeName}).`;
+      }
     }
 
     await supabase.from('game_events').insert({
@@ -176,12 +249,13 @@ serve(async (req) => {
       manche: currentTurn.turn_index,
       phase: 'LION_TURN',
       payload: {
-        dealerCard,
-        activeCard,
-        guessChoice,
-        d,
+        dealerCard: D,
+        activeCard: A,
+        guessChoice: G,
+        d: diff,
         pvicDeltaActive,
-        pvicDeltaGuesser
+        pvicDeltaGuesser,
+        winnerRole
       }
     });
 
@@ -207,12 +281,13 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        dealerCard,
-        activeCard,
-        guessChoice,
-        d,
+        dealerCard: D,
+        activeCard: A,
+        guessChoice: G,
+        d: diff,
         pvicDeltaActive,
-        pvicDeltaGuesser
+        pvicDeltaGuesser,
+        winnerRole
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -25,6 +25,7 @@ serve(async (req) => {
       );
     }
 
+    // Validate choice - MUST include EQUAL
     if (!['HIGHER', 'LOWER', 'EQUAL'].includes(choice)) {
       return new Response(
         JSON.stringify({ error: 'choice must be HIGHER, LOWER or EQUAL' }),
@@ -77,8 +78,8 @@ serve(async (req) => {
       );
     }
 
-    // Update turn with guess and lock
-    await supabase
+    // Update turn with guess and lock - CAPTURE ERROR
+    const { error: updateError } = await supabase
       .from('lion_turns')
       .update({ 
         guess_choice: choice, 
@@ -86,6 +87,15 @@ serve(async (req) => {
         guess_locked_at: new Date().toISOString()
       })
       .eq('id', currentTurn.id);
+
+    // If update failed, return error
+    if (updateError) {
+      console.error('Failed to update lion_turns:', updateError);
+      return new Response(
+        JSON.stringify({ error: `Database update failed: ${updateError.message}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Check if we should auto-resolve
     if (gameState.auto_resolve && currentTurn.active_locked) {

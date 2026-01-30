@@ -349,21 +349,14 @@ export function useUserProfile() {
   const deleteGame = async (gameId: string) => {
     if (!user) return { error: new Error('Not authenticated') };
 
-    // First, delete related data
-    await supabase.from('game_players').delete().eq('game_id', gameId);
-    await supabase.from('lobby_chat_messages').delete().eq('game_id', gameId);
-    await supabase.from('session_events').delete().eq('game_id', gameId);
-    await supabase.from('game_events').delete().eq('game_id', gameId);
-    
-    // Delete the game itself
-    const { error } = await supabase
-      .from('games')
-      .delete()
-      .eq('id', gameId)
-      .eq('host_user_id', user.id);
+    // Use the secure database function to cascade delete all related data
+    const { error } = await supabase.rpc('admin_delete_game_cascade', {
+      p_game_id: gameId
+    });
 
     if (error) {
-      toast.error('Erreur lors de la suppression de la partie');
+      console.error('RPC delete error:', error);
+      toast.error(`Erreur: ${error.message || 'Suppression échouée'}${error.code ? ` (${error.code})` : ''}`);
       return { error };
     }
 

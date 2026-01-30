@@ -129,43 +129,18 @@ export default function AdminGames() {
   const handleDeleteGame = async (gameId: string) => {
     setDeleting(gameId);
     try {
-      // Delete all related data (cascade manually)
-      // Order matters: delete children before parent
-      const tablesToClear = [
-        'pending_effects',
-        'positions_finales',
-        'round_bets',
-        'actions',
-        'inventory',
-        'logs_joueurs',
-        'logs_mj',
-        'battlefield',
-        'monsters',
-        'combat_config',
-        'shop_catalogue',
-        'game_players',
-      ];
+      // Use the secure database function to cascade delete all related data
+      const { error } = await supabase.rpc('admin_delete_game_cascade', {
+        p_game_id: gameId
+      });
 
-      for (const table of tablesToClear) {
-        const { error } = await (supabase
-          .from(table as any)
-          .delete()
-          .eq('game_id', gameId));
-        
-        if (error) {
-          console.error(`Error deleting from ${table}:`, error);
-        }
+      if (error) {
+        console.error('RPC delete error:', error);
+        toast.error(`Erreur: ${error.message || 'Suppression échouée'}${error.code ? ` (${error.code})` : ''}`);
+        return;
       }
 
-      // Finally delete the game itself
-      const { error: gameError } = await supabase
-        .from('games')
-        .delete()
-        .eq('id', gameId);
-
-      if (gameError) throw gameError;
-
-      // Log the action
+      // Log the action after successful deletion
       await (supabase.from('admin_actions' as any).insert({
         admin_id: user?.id,
         action_type: 'DELETE_SESSION',
@@ -175,9 +150,9 @@ export default function AdminGames() {
 
       setGames((prev) => prev.filter((g) => g.id !== gameId));
       toast.success('Partie supprimée avec succès');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting game:', error);
-      toast.error('Erreur lors de la suppression');
+      toast.error(`Erreur: ${error?.message || 'Suppression échouée'}`);
     } finally {
       setDeleting(null);
     }
