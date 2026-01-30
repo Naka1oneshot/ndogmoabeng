@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 
 interface LoadingFallbackProps {
   message?: string;
@@ -10,7 +10,11 @@ export function LoadingFallback({ message = "Chargement...", fullScreen = true }
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <img 
+            src={logoNdogmoabeng} 
+            alt="Chargement" 
+            className="h-16 w-16 mx-auto animate-pulse"
+          />
           <p className="text-muted-foreground">{message}</p>
         </div>
       </div>
@@ -20,7 +24,11 @@ export function LoadingFallback({ message = "Chargement...", fullScreen = true }
   return (
     <div className="flex items-center justify-center p-8">
       <div className="text-center space-y-2">
-        <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+        <img 
+          src={logoNdogmoabeng} 
+          alt="Chargement" 
+          className="h-10 w-10 mx-auto animate-pulse"
+        />
         <p className="text-sm text-muted-foreground">{message}</p>
       </div>
     </div>
