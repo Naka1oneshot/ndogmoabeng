@@ -17,7 +17,7 @@ interface LionGameState {
   timer_guess_seconds: number;
 }
 
-interface LionTurn {
+export interface LionTurn {
   id: string;
   session_game_id: string;
   turn_index: number;
@@ -63,12 +63,12 @@ interface LionPlayer {
 export function useLionGameState(sessionGameId: string | undefined, playerId?: string) {
   const [gameState, setGameState] = useState<LionGameState | null>(null);
   const [currentTurn, setCurrentTurn] = useState<LionTurn | null>(null);
+  const [allTurns, setAllTurns] = useState<LionTurn[]>([]);
   const [myHand, setMyHand] = useState<LionHand | null>(null);
   const [players, setPlayers] = useState<LionPlayer[]>([]);
   const [decks, setDecks] = useState<LionDeck[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const fetchAll = useCallback(async () => {
     if (!sessionGameId) return;
 
@@ -96,6 +96,15 @@ export function useLionGameState(sessionGameId: string | undefined, playerId?: s
           .maybeSingle();
 
         setCurrentTurn(turnData as LionTurn | null);
+
+        // Fetch all turns for dealer card history
+        const { data: allTurnsData } = await supabase
+          .from('lion_turns')
+          .select('*')
+          .eq('session_game_id', sessionGameId)
+          .order('turn_index', { ascending: true });
+
+        setAllTurns((allTurnsData || []) as LionTurn[]);
 
         // Fetch players with avatar
         const { data: playersData } = await supabase
@@ -199,9 +208,18 @@ export function useLionGameState(sessionGameId: string | undefined, playerId?: s
   const playerA = players.find(p => p.player_number === 1);
   const playerB = players.find(p => p.player_number === 2);
 
+  // Get dealer cards played by a specific player (cards from their dealer deck)
+  const getDealerCardsPlayed = useCallback((playerId: string) => {
+    return allTurns
+      .filter(t => t.dealer_owner_player_id === playerId && t.resolved)
+      .map(t => t.dealer_card)
+      .sort((a, b) => a - b);
+  }, [allTurns]);
+
   return {
     gameState,
     currentTurn,
+    allTurns,
     myHand,
     players,
     playerA,
@@ -210,6 +228,7 @@ export function useLionGameState(sessionGameId: string | undefined, playerId?: s
     loading,
     error,
     refetch: fetchAll,
-    getPlayerById
+    getPlayerById,
+    getDealerCardsPlayed
   };
 }

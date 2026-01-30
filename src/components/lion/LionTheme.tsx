@@ -62,7 +62,7 @@ interface LionCardDisplayProps {
   selected?: boolean;
   disabled?: boolean;
   onClick?: () => void;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export function LionCardDisplay({ 
@@ -74,6 +74,7 @@ export function LionCardDisplay({
   size = 'md'
 }: LionCardDisplayProps) {
   const sizeClasses = {
+    xs: 'w-6 h-9 text-xs',
     sm: 'w-10 h-14 text-lg',
     md: 'w-14 h-20 text-2xl',
     lg: 'w-20 h-28 text-4xl',
@@ -82,6 +83,7 @@ export function LionCardDisplay({
 
   // Image size classes for the logo on face-down cards
   const logoSizeClasses = {
+    xs: 'h-5 w-auto',
     sm: 'h-8 w-auto',
     md: 'h-12 w-auto',
     lg: 'h-16 w-auto',

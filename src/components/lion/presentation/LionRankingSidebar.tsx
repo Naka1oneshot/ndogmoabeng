@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { LionPlayerAvatar } from './LionPlayerAvatar';
+import { LionCardDisplay } from '../LionTheme';
 import { Trophy } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -21,20 +22,72 @@ interface LionRankingSidebarProps {
   playerA: Player | null;
   playerB: Player | null;
   turnHistory?: TurnResult[];
+  activePlayerId?: string;
+  dealerCardsA?: number[];
+  dealerCardsB?: number[];
   className?: string;
 }
 
-export function LionRankingSidebar({ playerA, playerB, turnHistory = [], className }: LionRankingSidebarProps) {
+export function LionRankingSidebar({ 
+  playerA, 
+  playerB, 
+  turnHistory = [], 
+  activePlayerId,
+  dealerCardsA = [],
+  dealerCardsB = [],
+  className 
+}: LionRankingSidebarProps) {
   if (!playerA || !playerB) return null;
 
   const players = [playerA, playerB].sort((a, b) => b.score - a.score);
   const isLeading = players[0].score > players[1].score;
 
+  // Determine which dealer deck to show based on active player
+  // The dealer deck belongs to the active player
+  const currentDealerPlayerId = activePlayerId;
+  const currentDealerCards = currentDealerPlayerId === playerA.id ? dealerCardsA : dealerCardsB;
+  const currentDealerName = currentDealerPlayerId === playerA.id ? playerA.name : playerB.name;
+
+  // All cards in a deck (0-10)
+  const allCards = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  
   return (
     <div className={`bg-amber-950/80 border-l border-amber-700 flex flex-col ${className}`}>
       {/* Spacer for top controls */}
       <div className="h-16" />
       
+      {/* Dealer Cards Section */}
+      {activePlayerId && (
+        <div className="px-4 pb-4 border-b border-amber-700/50">
+          <p className="text-amber-400 text-sm font-medium mb-2">
+            Deck Croupier ({currentDealerName})
+          </p>
+          <div className="flex flex-wrap gap-1 justify-center">
+            {allCards.map((card) => {
+              const isPlayed = currentDealerCards.includes(card);
+              return (
+                <motion.div
+                  key={card}
+                  initial={isPlayed ? { scale: 0.8, opacity: 0.4 } : { scale: 1, opacity: 1 }}
+                  animate={isPlayed ? { scale: 0.8, opacity: 0.4 } : { scale: 1, opacity: 1 }}
+                  className={`relative ${isPlayed ? 'grayscale' : ''}`}
+                >
+                  <LionCardDisplay value={card} size="xs" />
+                  {isPlayed && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-red-500 text-lg font-bold">✕</span>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+          <p className="text-amber-500 text-xs text-center mt-2">
+            {currentDealerCards.length}/11 jouées
+          </p>
+        </div>
+      )}
+
       {/* Ranking Header */}
       <div className="flex items-center gap-2 p-4 pb-2">
         <Trophy className="h-5 w-5 text-amber-400" />
