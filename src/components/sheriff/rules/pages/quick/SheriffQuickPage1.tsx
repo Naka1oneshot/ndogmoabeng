@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Target, Users, Star, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Shield, Target, Users, Star, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
 import { SheriffRulesContextData } from '../../useSheriffRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface SheriffQuickPage1Props {
   context: SheriffRulesContextData;
@@ -21,7 +23,36 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+const DEFAULT_STEPS = [
+  { num: '1', title: 'Visa', desc: 'Payer avec vos PVic ou la cagnotte commune', color: '#F59E0B' },
+  { num: '2', title: 'Jetons', desc: 'Choisir d\'entrer avec 20 (légal) ou plus (illégal)', color: '#D4AF37' },
+  { num: '3', title: 'Duels', desc: 'Fouiller ou laisser passer votre adversaire', color: '#CD853F' },
+];
+
 export function SheriffQuickPage1({ replayNonce }: SheriffQuickPage1Props) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('SHERIFF');
+  const section = getSection('quick_objectif');
+  const paragraphs = getParagraphs('quick_objectif');
+
+  const dynamicContent = useMemo(() => {
+    const mission = paragraphs.find(p => p.id === 'sq1_mission')?.text 
+      || 'Traversez le <strong>contrôle d\'entrée</strong> en gérant vos jetons et en décidant si vous fouillez les autres voyageurs. <strong>Le binôme avec le plus de Points de Victoire</strong> à la fin de la manche gagne !';
+    const teamDesc = paragraphs.find(p => p.id === 'sq1_teams')?.text 
+      || 'Les joueurs sont répartis en <strong class="text-[#D4AF37]">binômes</strong>. Chaque binôme partage le même objectif : maximiser le <strong>PVic total combiné</strong>.';
+    const victoryHint = paragraphs.find(p => p.id === 'sq1_victory')?.text 
+      || 'Le <strong>binôme</strong> avec le PVic total le plus élevé après visa + duels remporte la manche.';
+    
+    return { mission, teamDesc, victoryHint };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -37,7 +68,7 @@ export function SheriffQuickPage1({ replayNonce }: SheriffQuickPage1Props) {
           <span className="text-[#D4AF37] font-medium text-sm">Le Shérif de Ndogmoabeng</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Objectif du Jeu
+          {section?.title || 'Objectif du Jeu'}
         </h1>
         <p className="text-[#9CA3AF]">
           Franchissez le contrôle et maximisez vos Points de Victoire
@@ -55,11 +86,7 @@ export function SheriffQuickPage1({ replayNonce }: SheriffQuickPage1Props) {
           </div>
           <div>
             <h3 className="text-lg font-bold text-[#D4AF37] mb-2">Votre Mission</h3>
-            <p className="text-[#E8E8E8]">
-              Traversez le <strong>contrôle d'entrée</strong> en gérant vos jetons et en décidant 
-              si vous fouillez les autres voyageurs. <strong>Le binôme avec le plus de Points de 
-              Victoire</strong> à la fin de la manche gagne !
-            </p>
+            <p className="text-[#E8E8E8]" dangerouslySetInnerHTML={{ __html: dynamicContent.mission }} />
           </div>
         </div>
       </motion.div>
@@ -72,10 +99,7 @@ export function SheriffQuickPage1({ replayNonce }: SheriffQuickPage1Props) {
         </h3>
         
         <div className="bg-[#2A2215] border border-[#D4AF37]/20 rounded-lg p-4">
-          <p className="text-[#E8E8E8] text-sm">
-            Les joueurs sont répartis en <strong className="text-[#D4AF37]">binômes</strong>. 
-            Chaque binôme partage le même objectif : maximiser le <strong>PVic total combiné</strong>.
-          </p>
+          <p className="text-[#E8E8E8] text-sm" dangerouslySetInnerHTML={{ __html: dynamicContent.teamDesc }} />
           <div className="mt-3 flex items-center gap-2 text-xs text-[#9CA3AF]">
             <AlertTriangle className="h-4 w-4 text-[#F59E0B]" />
             <span>Les coéquipiers ne s'affrontent jamais en duel</span>
@@ -88,11 +112,7 @@ export function SheriffQuickPage1({ replayNonce }: SheriffQuickPage1Props) {
         <h3 className="text-lg font-bold text-white">Une manche en 3 étapes</h3>
         
         <div className="grid gap-3">
-          {[
-            { num: '1', title: 'Visa', desc: 'Payer avec vos PVic ou la cagnotte commune', color: '#F59E0B' },
-            { num: '2', title: 'Jetons', desc: 'Choisir d\'entrer avec 20 (légal) ou plus (illégal)', color: '#D4AF37' },
-            { num: '3', title: 'Duels', desc: 'Fouiller ou laisser passer votre adversaire', color: '#CD853F' },
-          ].map((step, i) => (
+          {DEFAULT_STEPS.map((step, i) => (
             <motion.div
               key={step.num}
               variants={itemVariants}
@@ -122,9 +142,7 @@ export function SheriffQuickPage1({ replayNonce }: SheriffQuickPage1Props) {
         <Star className="h-5 w-5 text-[#4ADE80] flex-shrink-0 mt-0.5" />
         <div>
           <p className="text-[#4ADE80] font-medium text-sm">Condition de victoire</p>
-          <p className="text-[#E8E8E8] text-sm mt-1">
-            Le <strong>binôme</strong> avec le PVic total le plus élevé après visa + duels remporte la manche.
-          </p>
+          <p className="text-[#E8E8E8] text-sm mt-1" dangerouslySetInnerHTML={{ __html: dynamicContent.victoryHint }} />
         </div>
       </motion.div>
     </motion.div>

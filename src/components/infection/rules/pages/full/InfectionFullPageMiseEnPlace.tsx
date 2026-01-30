@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Shuffle, Syringe, Shield } from 'lucide-react';
+import { Users, Shuffle, Syringe, Shield, Loader2 } from 'lucide-react';
 import { InfectionRulesContextData } from '../../useInfectionRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface Props {
   context: InfectionRulesContextData;
@@ -8,11 +10,32 @@ interface Props {
 }
 
 export function InfectionFullPageMiseEnPlace({ context, replayNonce }: Props) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('INFECTION');
+  const section = getSection('full_mise_en_place');
+  const paragraphs = getParagraphs('full_mise_en_place');
+
+  const dynamicContent = useMemo(() => {
+    const requirements = paragraphs.find(p => p.id === 'if3_requirements')?.items 
+      || ['<strong class="text-white">Minimum 7 joueurs</strong> (recommandé : 9-12)', 'Chaque joueur reçoit un numéro (1 à N) visible de tous', 'Distribution de jetons de départ (configurable par le MJ)'];
+    const patient0 = paragraphs.find(p => p.id === 'if3_patient0')?.text 
+      || 'Les PV doivent <strong class="text-white">obligatoirement</strong> désigner un Patient 0 à la manche 1. Cette cible est infectée <strong class="text-white">avant</strong> la résolution des tirs.';
+    
+    return { requirements, patient0 };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-[#D4AF37] mb-2">
-          Mise en place
+          {section?.title || 'Mise en place'}
         </h2>
         <p className="text-[#9CA3AF]">
           Comment se prépare une partie INFECTION
@@ -30,9 +53,9 @@ export function InfectionFullPageMiseEnPlace({ context, replayNonce }: Props) {
           Prérequis
         </h3>
         <ul className="space-y-2 text-sm text-[#9CA3AF]">
-          <li>• <strong className="text-white">Minimum 7 joueurs</strong> (recommandé : 9-12)</li>
-          <li>• Chaque joueur reçoit un numéro (1 à N) visible de tous</li>
-          <li>• Distribution de jetons de départ (configurable par le MJ)</li>
+          {dynamicContent.requirements.map((req, i) => (
+            <li key={i} dangerouslySetInnerHTML={{ __html: `• ${req}` }} />
+          ))}
         </ul>
       </motion.div>
 
@@ -117,10 +140,7 @@ export function InfectionFullPageMiseEnPlace({ context, replayNonce }: Props) {
           <Syringe className="h-5 w-5 text-[#B00020]" />
           <h4 className="font-semibold text-[#B00020]">Patient 0 (Manche 1)</h4>
         </div>
-        <p className="text-sm text-[#9CA3AF]">
-          Les PV doivent <strong className="text-white">obligatoirement</strong> désigner un Patient 0 à la manche 1.
-          Cette cible est infectée <strong className="text-white">avant</strong> la résolution des tirs.
-        </p>
+        <p className="text-sm text-[#9CA3AF]" dangerouslySetInnerHTML={{ __html: dynamicContent.patient0 }} />
       </motion.div>
     </div>
   );

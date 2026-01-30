@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Coins, CreditCard, ArrowDownRight, ArrowUpRight, AlertTriangle } from 'lucide-react';
+import { Coins, CreditCard, ArrowDownRight, ArrowUpRight, AlertTriangle, Loader2 } from 'lucide-react';
 import { SheriffRulesContextData } from '../../useSheriffRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface SheriffQuickPage2Props {
   context: SheriffRulesContextData;
@@ -22,6 +24,27 @@ const itemVariants = {
 };
 
 export function SheriffQuickPage2({ context, replayNonce }: SheriffQuickPage2Props) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('SHERIFF');
+  const section = getSection('quick_visa');
+  const paragraphs = getParagraphs('quick_visa');
+
+  const dynamicContent = useMemo(() => {
+    const floorWarning = paragraphs.find(p => p.id === 'sq2_floor')?.text 
+      || `La cagnotte ne descend jamais sous ${context.floorPercent}% de sa valeur initiale (floor)`;
+    const summary = paragraphs.find(p => p.id === 'sq2_summary')?.items 
+      || ['Choisir <strong>comment</strong> payer le visa (PVic ou cagnotte)', 'Choisir <strong>combien</strong> de jetons entrer (20 légal, 21-30 illégal)', 'Attendre que le MJ verrouille pour passer aux duels'];
+    
+    return { floorWarning, summary };
+  }, [paragraphs, context.floorPercent]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -37,7 +60,7 @@ export function SheriffQuickPage2({ context, replayNonce }: SheriffQuickPage2Pro
           <span className="text-[#F59E0B] font-medium text-sm">Phase Visa & Jetons</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Préparer son Passage
+          {section?.title || 'Préparer son Passage'}
         </h1>
       </motion.div>
 
@@ -81,9 +104,7 @@ export function SheriffQuickPage2({ context, replayNonce }: SheriffQuickPage2Pro
         {/* Floor warning */}
         <div className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-lg p-3 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-[#F59E0B] flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-[#F59E0B]">
-            La cagnotte ne descend jamais sous {context.floorPercent}% de sa valeur initiale (floor)
-          </p>
+          <p className="text-xs text-[#F59E0B]" dangerouslySetInnerHTML={{ __html: dynamicContent.floorWarning }} />
         </div>
       </motion.div>
 
@@ -133,9 +154,9 @@ export function SheriffQuickPage2({ context, replayNonce }: SheriffQuickPage2Pro
       >
         <h4 className="font-bold text-[#D4AF37] mb-2">Résumé Phase 1</h4>
         <ul className="text-sm text-[#E8E8E8] space-y-1">
-          <li>• Choisir <strong>comment</strong> payer le visa (PVic ou cagnotte)</li>
-          <li>• Choisir <strong>combien</strong> de jetons entrer (20 légal, 21-30 illégal)</li>
-          <li>• Attendre que le MJ verrouille pour passer aux duels</li>
+          {dynamicContent.summary.map((item, i) => (
+            <li key={i} dangerouslySetInnerHTML={{ __html: `• ${item}` }} />
+          ))}
         </ul>
       </motion.div>
     </motion.div>

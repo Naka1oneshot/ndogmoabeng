@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Swords, Search, ArrowRight, Check, X, AlertTriangle, Users } from 'lucide-react';
+import { Swords, Search, ArrowRight, Check, X, AlertTriangle, Users, Loader2 } from 'lucide-react';
 import { SheriffRulesContextData } from '../../useSheriffRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface SheriffQuickPage3Props {
   context: SheriffRulesContextData;
@@ -22,6 +24,27 @@ const itemVariants = {
 };
 
 export function SheriffQuickPage3({ context, replayNonce }: SheriffQuickPage3Props) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('SHERIFF');
+  const section = getSection('quick_duels');
+  const paragraphs = getParagraphs('quick_duels');
+
+  const dynamicContent = useMemo(() => {
+    const finalDuelSteps = paragraphs.find(p => p.id === 'sq3_final_duel')?.items 
+      || ['Le joueur ayant <strong>perdu le plus de PVic</strong> est sélectionné', 'Il <strong>re-choisit ses jetons entrants</strong> (21-30)', 'Un <strong>dernier duel</strong> oppose ces deux joueurs'];
+    const afterDuel = paragraphs.find(p => p.id === 'sq3_after_duel')?.text 
+      || 'Si un joueur est attrapé avec des jetons illégaux, ses jetons sont <strong>remis à 20</strong>. Sinon, il garde ses jetons entrants.';
+    
+    return { finalDuelSteps, afterDuel };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -37,7 +60,7 @@ export function SheriffQuickPage3({ context, replayNonce }: SheriffQuickPage3Pro
           <span className="text-[#CD853F] font-medium text-sm">Phase Duels</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Duels & Dernier Duel
+          {section?.title || 'Duels & Dernier Duel'}
         </h1>
       </motion.div>
 
@@ -121,9 +144,9 @@ export function SheriffQuickPage3({ context, replayNonce }: SheriffQuickPage3Pro
             Si un joueur n'a pas eu de duel (nombre impair):
           </p>
           <ol className="text-sm text-[#E8E8E8] space-y-1 list-decimal list-inside">
-            <li>Le joueur ayant <strong>perdu le plus de PVic</strong> est sélectionné</li>
-            <li>Il <strong>re-choisit ses jetons entrants</strong> (21-30)</li>
-            <li>Un <strong>dernier duel</strong> oppose ces deux joueurs</li>
+            {dynamicContent.finalDuelSteps.map((step, i) => (
+              <li key={i} dangerouslySetInnerHTML={{ __html: step }} />
+            ))}
           </ol>
           <p className="text-xs text-[#9CA3AF] mt-2">
             Tie-breaker: en cas d'égalité, le joueur avec le plus petit numéro
@@ -137,8 +160,7 @@ export function SheriffQuickPage3({ context, replayNonce }: SheriffQuickPage3Pro
         className="bg-[#2A2215] border border-[#D4AF37]/20 rounded-lg p-4"
       >
         <p className="text-sm text-[#E8E8E8]">
-          <strong className="text-[#D4AF37]">Après duel:</strong> Si un joueur est attrapé avec des jetons 
-          illégaux, ses jetons sont <strong>remis à 20</strong>. Sinon, il garde ses jetons entrants.
+          <strong className="text-[#D4AF37]">Après duel:</strong> <span dangerouslySetInnerHTML={{ __html: dynamicContent.afterDuel }} />
         </p>
       </motion.div>
     </motion.div>

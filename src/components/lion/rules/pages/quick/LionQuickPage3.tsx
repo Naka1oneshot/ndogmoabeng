@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Calculator, Swords } from 'lucide-react';
+import { Calculator, Swords, Loader2 } from 'lucide-react';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface LionQuickPage3Props {
   replayNonce: number;
@@ -16,6 +18,37 @@ const itemVariants = {
 };
 
 export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('LION');
+  const section = getSection('quick_scoring');
+  const paragraphs = getParagraphs('quick_scoring');
+
+  const dynamicContent = useMemo(() => {
+    const formula = paragraphs.find(p => p.id === 'lq3_formula')?.text 
+      || 'La différence absolue entre les deux cartes détermine les points en jeu';
+    const guesserEqual = paragraphs.find(p => p.id === 'lq3_guesser_equal')?.text 
+      || '<strong class="text-green-300">ÉGAL</strong> et cartes identiques → <span class="text-green-400 font-bold">+10 PVic</span>';
+    const guesserHigh = paragraphs.find(p => p.id === 'lq3_guesser_high')?.text 
+      || '<strong class="text-green-300">PLUS HAUT</strong> et carte actif > croupier → <span class="text-green-400 font-bold">+d PVic</span>';
+    const guesserLow = paragraphs.find(p => p.id === 'lq3_guesser_low')?.text 
+      || '<strong class="text-green-300">PLUS BAS</strong> et carte actif < croupier → <span class="text-green-400 font-bold">+d PVic</span>';
+    const activeEqual = paragraphs.find(p => p.id === 'lq3_active_equal')?.text 
+      || 'Cartes identiques mais pas <strong class="text-amber-300">ÉGAL</strong> → <span class="text-amber-400 font-bold">+2 PVic</span>';
+    const activeWrong = paragraphs.find(p => p.id === 'lq3_active_wrong')?.text 
+      || 'Mauvaise prédiction (plus haut/bas) → <span class="text-amber-400 font-bold">+d PVic</span>';
+    const suddenDeath = paragraphs.find(p => p.id === 'lq3_sudden_death')?.text 
+      || 'En cas d\'<strong>égalité après 22 tours</strong>, on joue des duos de tours (A+B) jusqu\'à ce qu\'un joueur l\'emporte sur un duo complet.';
+    
+    return { formula, guesserEqual, guesserHigh, guesserLow, activeEqual, activeWrong, suddenDeath };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -31,7 +64,7 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
           <span className="text-amber-400 font-medium text-sm">Scoring</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Calcul des points
+          {section?.title || 'Calcul des points'}
         </h1>
       </motion.div>
 
@@ -43,9 +76,7 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
         <h2 className="text-base font-bold text-amber-300 mb-2 text-center">
           d = |Carte Actif − Carte Croupier|
         </h2>
-        <p className="text-amber-200/80 text-center text-sm">
-          La différence absolue entre les deux cartes détermine les points en jeu
-        </p>
+        <p className="text-amber-200/80 text-center text-sm" dangerouslySetInnerHTML={{ __html: dynamicContent.formula }} />
       </motion.div>
 
       {/* Guesser Wins Cases */}
@@ -58,9 +89,7 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
               🎯
             </div>
             <div>
-              <p className="text-green-200/80 text-sm">
-                <strong className="text-green-300">ÉGAL</strong> et cartes identiques → <span className="text-green-400 font-bold">+10 PVic</span>
-              </p>
+              <p className="text-green-200/80 text-sm" dangerouslySetInnerHTML={{ __html: dynamicContent.guesserEqual }} />
             </div>
           </div>
         </div>
@@ -71,9 +100,7 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
               ⬆️
             </div>
             <div>
-              <p className="text-green-200/80 text-sm">
-                <strong className="text-green-300">PLUS HAUT</strong> et carte actif {'>'} croupier → <span className="text-green-400 font-bold">+d PVic</span>
-              </p>
+              <p className="text-green-200/80 text-sm" dangerouslySetInnerHTML={{ __html: dynamicContent.guesserHigh }} />
             </div>
           </div>
         </div>
@@ -84,9 +111,7 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
               ⬇️
             </div>
             <div>
-              <p className="text-green-200/80 text-sm">
-                <strong className="text-green-300">PLUS BAS</strong> et carte actif {'<'} croupier → <span className="text-green-400 font-bold">+d PVic</span>
-              </p>
+              <p className="text-green-200/80 text-sm" dangerouslySetInnerHTML={{ __html: dynamicContent.guesserLow }} />
             </div>
           </div>
         </div>
@@ -102,9 +127,7 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
               🎯
             </div>
             <div>
-              <p className="text-amber-200/80 text-sm">
-                Cartes identiques mais pas <strong className="text-amber-300">ÉGAL</strong> → <span className="text-amber-400 font-bold">+2 PVic</span>
-              </p>
+              <p className="text-amber-200/80 text-sm" dangerouslySetInnerHTML={{ __html: dynamicContent.activeEqual }} />
             </div>
           </div>
         </div>
@@ -115,9 +138,7 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
               ❓
             </div>
             <div>
-              <p className="text-amber-200/80 text-sm">
-                Mauvaise prédiction (plus haut/bas) → <span className="text-amber-400 font-bold">+d PVic</span>
-              </p>
+              <p className="text-amber-200/80 text-sm" dangerouslySetInnerHTML={{ __html: dynamicContent.activeWrong }} />
             </div>
           </div>
         </div>
@@ -132,10 +153,7 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
           <Swords className="h-4 w-4 text-red-400" />
           <h3 className="text-red-300 font-bold text-sm">Mort Subite</h3>
         </div>
-        <p className="text-red-200/80 text-sm">
-          En cas d'<strong>égalité après 22 tours</strong>, on joue des duos de tours (A+B) 
-          jusqu'à ce qu'un joueur l'emporte sur un duo complet.
-        </p>
+        <p className="text-red-200/80 text-sm" dangerouslySetInnerHTML={{ __html: dynamicContent.suddenDeath }} />
       </motion.div>
     </motion.div>
   );

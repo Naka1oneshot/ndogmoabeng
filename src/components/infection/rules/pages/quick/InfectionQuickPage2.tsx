@@ -1,26 +1,53 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { InfectionRulesContextData } from '../../useInfectionRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface Props {
   context: InfectionRulesContextData;
   replayNonce: number;
 }
 
+const DEFAULT_STEPS = [
+  { num: 1, title: "Actions", desc: "Chaque rôle soumet ses actions secrètement", color: "#D4AF37" },
+  { num: 2, title: "Corruption", desc: "L'AE peut saboter le BA (seuils 10/15 jetons)", color: "#E6A23C" },
+  { num: 3, title: "Tirs", desc: "Résolus par ordre de timestamp, gilet possible", color: "#B00020" },
+  { num: 4, title: "Test anticorps", desc: "Vote pour tester un joueur (résultat privé)", color: "#2AB3A6" },
+  { num: 5, title: "Recherche SY", desc: "Les SY cherchent le joueur avec anticorps", color: "#2AB3A6" },
+  { num: 6, title: "Propagation", desc: "Max 2 nouvelles infections (gauche/droite)", color: "#B00020" },
+];
+
 export function InfectionQuickPage2({ context, replayNonce }: Props) {
-  const steps = [
-    { num: 1, title: "Actions", desc: "Chaque rôle soumet ses actions secrètement", color: "#D4AF37" },
-    { num: 2, title: "Corruption", desc: "L'AE peut saboter le BA (seuils 10/15 jetons)", color: "#E6A23C" },
-    { num: 3, title: "Tirs", desc: "Résolus par ordre de timestamp, gilet possible", color: "#B00020" },
-    { num: 4, title: "Test anticorps", desc: "Vote pour tester un joueur (résultat privé)", color: "#2AB3A6" },
-    { num: 5, title: "Recherche SY", desc: "Les SY cherchent le joueur avec anticorps", color: "#2AB3A6" },
-    { num: 6, title: "Propagation", desc: "Max 2 nouvelles infections (gauche/droite)", color: "#B00020" },
-  ];
+  const { getSection, getParagraphs, loading } = useDynamicRules('INFECTION');
+  const section = getSection('quick_deroulement');
+  const paragraphs = getParagraphs('quick_deroulement');
+
+  const steps = useMemo(() => {
+    const dynamicSteps = paragraphs.filter(p => p.id?.startsWith('iq2_step'));
+    if (dynamicSteps.length >= 6) {
+      return dynamicSteps.map((p, i) => ({
+        ...DEFAULT_STEPS[i],
+        title: p.text?.match(/<strong>([^<]+)<\/strong>/)?.[1] || DEFAULT_STEPS[i].title,
+        desc: p.text?.replace(/<[^>]+>/g, '') || DEFAULT_STEPS[i].desc,
+      }));
+    }
+    return DEFAULT_STEPS;
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-[#D4AF37] mb-2">
-          Déroulé d'une manche
+          {section?.title || "Déroulé d'une manche"}
         </h2>
         <p className="text-[#9CA3AF]">
           6 étapes clés à chaque tour
