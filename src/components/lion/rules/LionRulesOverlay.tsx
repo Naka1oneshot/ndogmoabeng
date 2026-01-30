@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, BookOpen, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LionRulesToc } from './LionRulesToc';
-import { LionQuickPage1 } from './pages/quick/LionQuickPage1';
+import { DynamicLionQuickPage1 } from './pages/quick/DynamicLionQuickPage1';
 import { LionQuickPage2 } from './pages/quick/LionQuickPage2';
 import { LionQuickPage3 } from './pages/quick/LionQuickPage3';
 import { LionQuickPageSimulation } from './pages/quick/LionQuickPageSimulation';
@@ -82,7 +82,7 @@ export function LionRulesOverlay({ open, onClose, role = 'PLAYER', defaultMode =
   const renderPage = () => {
     if (mode === 'QUICK') {
       switch (currentPage) {
-        case 0: return <LionQuickPage1 replayNonce={replayNonce} />;
+        case 0: return <DynamicLionQuickPage1 replayNonce={replayNonce} />;
         case 1: return <LionQuickPage2 replayNonce={replayNonce} />;
         case 2: return <LionQuickPage3 replayNonce={replayNonce} />;
         case 3: return <LionQuickPageSimulation replayNonce={replayNonce} />;

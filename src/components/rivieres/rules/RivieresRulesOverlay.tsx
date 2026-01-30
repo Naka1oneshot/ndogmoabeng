@@ -8,7 +8,7 @@ import { RivieresRulesToc } from './RivieresRulesToc';
 import logoImage from '@/assets/logo-ndogmoabeng.png';
 
 // Quick mode pages
-import { RulesQuickPage1 } from './pages/quick/RulesQuickPage1';
+import { DynamicRulesQuickPage1 } from './pages/quick/DynamicRulesQuickPage1';
 import { RulesQuickPage2 } from './pages/quick/RulesQuickPage2';
 import { RulesQuickPage3 } from './pages/quick/RulesQuickPage3';
 import { RulesQuickPageSimulation } from './pages/quick/RulesQuickPageSimulation';
@@ -37,7 +37,7 @@ interface RivieresRulesOverlayProps {
 }
 
 const QUICK_PAGES = [
-  { id: 'quick-1', title: 'Objectif & Cycle', Component: RulesQuickPage1 },
+  { id: 'quick-1', title: 'Objectif & Cycle', Component: DynamicRulesQuickPage1 },
   { id: 'quick-2', title: 'Décisions & Répartition', Component: RulesQuickPage2 },
   { id: 'quick-3', title: 'Danger & Clans', Component: RulesQuickPage3 },
   { id: 'quick-sim', title: 'Simulation', Component: RulesQuickPageSimulation },
