@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, LogIn, Loader2, UserPlus, Eye, EyeOff, BookOpen, Lock, Sparkles } from 'lucide-react';
+import { Settings, LogIn, Loader2, UserPlus, Eye, EyeOff, BookOpen, Lock, Sparkles, Sun, Moon } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -106,6 +107,7 @@ function generateFloatingPositions(count: number, seed: number, isGameImages: bo
 
 export default function ComingSoon() {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   const { user, signIn, loading: authLoading } = useAuth();
   const { submitRequest } = useEarlyAccessRequests();
   const { events, refetch: refetchEvents } = useMeetupEvents();
@@ -239,6 +241,21 @@ export default function ComingSoon() {
       />
 
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/10 overflow-hidden relative">
+      {/* Theme Toggle - Fixed position */}
+      <motion.button
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        className="fixed top-4 right-4 z-50 p-2 rounded-full bg-card/80 backdrop-blur-sm border border-primary/30 hover:border-primary transition-colors"
+        aria-label="Toggle theme"
+      >
+        {theme === 'dark' ? (
+          <Sun className="w-5 h-5 text-primary" />
+        ) : (
+          <Moon className="w-5 h-5 text-primary" />
+        )}
+      </motion.button>
       {/* Floating Images - Full page background (z-index 0) */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         {/* Game Images floating across entire page */}
@@ -365,91 +382,12 @@ export default function ComingSoon() {
           ))}
         </motion.div>
 
-        {/* Next Event Section */}
-        {nextEvent && (
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.7, duration: 0.6 }}
-            className="mb-12 w-full max-w-2xl"
-          >
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-3">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-primary">Prochain événement</span>
-              </div>
-              <p className="text-muted-foreground text-sm">
-                Inscris-toi dès maintenant pour réserver ta place !
-              </p>
-            </div>
-            
-            <ComingSoonEventCard 
-              event={nextEvent} 
-              onRegistrationSuccess={refetchEvents}
-            />
-          </motion.div>
-        )}
-
-        {/* Game Rules Section */}
+        {/* Action Buttons - Right after countdown */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.9, duration: 0.6 }}
-          className="mb-12 w-full max-w-2xl"
-        >
-          <h2 className="text-lg md:text-xl font-semibold text-center mb-4 text-foreground">
-            📖 Découvrez les règles des jeux
-          </h2>
-          
-          {/* Available Games */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <Button 
-              variant="outline" 
-              className="flex flex-col items-center gap-2 h-auto py-3 bg-card/60 backdrop-blur-sm border-primary/30 hover:border-primary hover:bg-primary/10"
-              onClick={() => setRivieresRulesOpen(true)}
-            >
-              <BookOpen className="w-5 h-5 text-blue-400" />
-              <span className="text-xs md:text-sm">Rivières</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="flex flex-col items-center gap-2 h-auto py-3 bg-card/60 backdrop-blur-sm border-primary/30 hover:border-primary hover:bg-primary/10"
-              onClick={() => setForetRulesOpen(true)}
-            >
-              <BookOpen className="w-5 h-5 text-green-400" />
-              <span className="text-xs md:text-sm">Forêt</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="flex flex-col items-center gap-2 h-auto py-3 bg-card/60 backdrop-blur-sm border-primary/30 hover:border-primary hover:bg-primary/10"
-              onClick={() => setInfectionRulesOpen(true)}
-            >
-              <BookOpen className="w-5 h-5 text-red-400" />
-              <span className="text-xs md:text-sm">Infection</span>
-            </Button>
-          </div>
-
-          {/* Locked Games */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col items-center gap-2 py-3 px-4 rounded-lg bg-muted/40 backdrop-blur-sm border border-muted-foreground/20">
-              <Lock className="w-5 h-5 text-amber-500" />
-              <span className="text-xs md:text-sm text-muted-foreground">Sheriff</span>
-              <span className="text-[10px] md:text-xs text-center text-muted-foreground/70">À découvrir lors de l'événement</span>
-            </div>
-            <div className="flex flex-col items-center gap-2 py-3 px-4 rounded-lg bg-muted/40 backdrop-blur-sm border border-muted-foreground/20">
-              <Lock className="w-5 h-5 text-rose-400" />
-              <span className="text-xs md:text-sm text-muted-foreground">Le CŒUR du Lion</span>
-              <span className="text-[10px] md:text-xs text-center text-muted-foreground/70">La carte trouvée...</span>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Action Buttons */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 1, duration: 0.6 }}
-          className="flex flex-col sm:flex-row gap-3"
+          transition={{ delay: 0.7, duration: 0.6 }}
+          className="flex flex-col sm:flex-row gap-3 mb-12"
         >
           {/* Early Access Request Button */}
           <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
@@ -591,6 +529,86 @@ export default function ComingSoon() {
             </DialogContent>
           </Dialog>
         </motion.div>
+
+        {/* Game Rules Section */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.9, duration: 0.6 }}
+          className="mb-12 w-full max-w-2xl"
+        >
+          <h2 className="text-lg md:text-xl font-semibold text-center mb-4 text-foreground">
+            📖 Découvrez les règles des jeux
+          </h2>
+          
+          {/* Available Games */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <Button 
+              variant="outline" 
+              className="flex flex-col items-center gap-2 h-auto py-3 bg-card/60 backdrop-blur-sm border-primary/30 hover:border-primary hover:bg-primary/10"
+              onClick={() => setRivieresRulesOpen(true)}
+            >
+              <BookOpen className="w-5 h-5 text-blue-400" />
+              <span className="text-xs md:text-sm">Rivières</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex flex-col items-center gap-2 h-auto py-3 bg-card/60 backdrop-blur-sm border-primary/30 hover:border-primary hover:bg-primary/10"
+              onClick={() => setForetRulesOpen(true)}
+            >
+              <BookOpen className="w-5 h-5 text-green-400" />
+              <span className="text-xs md:text-sm">Forêt</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex flex-col items-center gap-2 h-auto py-3 bg-card/60 backdrop-blur-sm border-primary/30 hover:border-primary hover:bg-primary/10"
+              onClick={() => setInfectionRulesOpen(true)}
+            >
+              <BookOpen className="w-5 h-5 text-red-400" />
+              <span className="text-xs md:text-sm">Infection</span>
+            </Button>
+          </div>
+
+          {/* Locked Games */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col items-center gap-2 py-3 px-4 rounded-lg bg-muted/40 backdrop-blur-sm border border-muted-foreground/20">
+              <Lock className="w-5 h-5 text-amber-500" />
+              <span className="text-xs md:text-sm text-muted-foreground">Sheriff</span>
+              <span className="text-[10px] md:text-xs text-center text-muted-foreground/70">À découvrir lors de l'événement</span>
+            </div>
+            <div className="flex flex-col items-center gap-2 py-3 px-4 rounded-lg bg-muted/40 backdrop-blur-sm border border-muted-foreground/20">
+              <Lock className="w-5 h-5 text-rose-400" />
+              <span className="text-xs md:text-sm text-muted-foreground">Le CŒUR du Lion</span>
+              <span className="text-[10px] md:text-xs text-center text-muted-foreground/70">La carte trouvée...</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Next Event Section - Last */}
+        {nextEvent && (
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 1.1, duration: 0.6 }}
+            className="mb-12 w-full max-w-2xl"
+          >
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-3">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Prochain événement</span>
+              </div>
+              <p className="text-muted-foreground text-sm">
+                Inscris-toi dès maintenant pour réserver ta place !
+              </p>
+            </div>
+            
+            <ComingSoonEventCard 
+              event={nextEvent} 
+              onRegistrationSuccess={refetchEvents}
+            />
+          </motion.div>
+        )}
+
       </div>
 
       {/* Decorative gradient orbs - z-index 5 between floating images and content */}
