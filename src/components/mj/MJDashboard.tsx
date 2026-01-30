@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useGameTheme } from '@/contexts/ThemeContext';
@@ -15,11 +15,6 @@ import { InviteFriendsModal } from '@/components/game/InviteFriendsModal';
 import { MJPlayersTab } from './MJPlayersTab';
 import { MJEventsTab } from './MJEventsTab';
 import MJLobbyChatViewer from './MJLobbyChatViewer';
-import { MJRivieresDashboard } from '@/components/rivieres/MJRivieresDashboard';
-import { MJInfectionDashboard } from '@/components/infection/MJInfectionDashboard';
-import { MJSheriffDashboard } from '@/components/sheriff/MJSheriffDashboard';
-import { MJForetDashboard } from '@/components/foret/dashboard/MJForetDashboard';
-import { MJLionDashboard } from '@/components/lion/MJLionDashboard';
 import { MJActionsMenu } from './MJActionsMenu';
 import { LandscapeModePrompt } from './LandscapeModePrompt';
 import { ForetAutoModeToggle } from '@/components/foret/ForetAutoModeToggle';
@@ -36,6 +31,26 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+
+// Lazy-loaded MJ game dashboards for code splitting
+// Only the active game type is loaded, reducing initial bundle size
+const MJRivieresDashboard = lazy(() => import('@/components/rivieres/MJRivieresDashboard').then(m => ({ default: m.MJRivieresDashboard })));
+const MJInfectionDashboard = lazy(() => import('@/components/infection/MJInfectionDashboard').then(m => ({ default: m.MJInfectionDashboard })));
+const MJSheriffDashboard = lazy(() => import('@/components/sheriff/MJSheriffDashboard').then(m => ({ default: m.MJSheriffDashboard })));
+const MJForetDashboard = lazy(() => import('@/components/foret/dashboard/MJForetDashboard').then(m => ({ default: m.MJForetDashboard })));
+const MJLionDashboard = lazy(() => import('@/components/lion/MJLionDashboard').then(m => ({ default: m.MJLionDashboard })));
+
+// Loading fallback for lazy-loaded MJ dashboards
+function MJDashboardLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Chargement du tableau de bord MJ...</p>
+      </div>
+    </div>
+  );
+}
 
 // Implemented game types
 const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION', 'SHERIFF', 'LION'];
@@ -1041,17 +1056,19 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
       <div className="card-gradient rounded-lg border border-border p-4">
         <MJLobbyChatViewer gameId={game.id} />
       </div>
-      {/* RIVIERES Dashboard - In-game mode */}
+      {/* RIVIERES Dashboard - In-game mode - lazy loaded */}
       {game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id && (
-        <MJRivieresDashboard 
-          gameId={game.id} 
-          sessionGameId={game.current_session_game_id}
-          isAdventure={!!isAdventure}
-          onNextGame={isAdventure ? handleNextSessionGame : undefined}
-          gameStatus={game.status}
-          adventureId={game.adventure_id}
-          currentStepIndex={game.current_step_index}
-        />
+        <Suspense fallback={<MJDashboardLoadingFallback />}>
+          <MJRivieresDashboard 
+            gameId={game.id} 
+            sessionGameId={game.current_session_game_id}
+            isAdventure={!!isAdventure}
+            onNextGame={isAdventure ? handleNextSessionGame : undefined}
+            gameStatus={game.status}
+            adventureId={game.adventure_id}
+            currentStepIndex={game.current_step_index}
+          />
+        </Suspense>
       )}
 
       {/* RIVIERES Lobby - Show player management when no session exists yet */}
@@ -1076,36 +1093,44 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
         </Tabs>
       )}
 
-      {/* INFECTION Dashboard */}
+      {/* INFECTION Dashboard - lazy loaded */}
       {game.selected_game_type_code === 'INFECTION' && (
-        <MJInfectionDashboard game={game} onBack={onBack} />
+        <Suspense fallback={<MJDashboardLoadingFallback />}>
+          <MJInfectionDashboard game={game} onBack={onBack} />
+        </Suspense>
       )}
 
-      {/* SHERIFF Dashboard */}
+      {/* SHERIFF Dashboard - lazy loaded */}
       {game.selected_game_type_code === 'SHERIFF' && (
-        <MJSheriffDashboard game={game} onBack={onBack} />
+        <Suspense fallback={<MJDashboardLoadingFallback />}>
+          <MJSheriffDashboard game={game} onBack={onBack} />
+        </Suspense>
       )}
 
-      {/* FORET Dashboard - using dedicated component */}
+      {/* FORET Dashboard - lazy loaded */}
       {game.selected_game_type_code === 'FORET' && (
-        <MJForetDashboard
-          game={game}
-          isAdventure={!!isAdventure}
-          onNextGame={isAdventure ? handleNextSessionGame : undefined}
-          onGameUpdate={fetchGame}
-        />
+        <Suspense fallback={<MJDashboardLoadingFallback />}>
+          <MJForetDashboard
+            game={game}
+            isAdventure={!!isAdventure}
+            onNextGame={isAdventure ? handleNextSessionGame : undefined}
+            onGameUpdate={fetchGame}
+          />
+        </Suspense>
       )}
 
-      {/* LION Dashboard - In-game mode (only when game has actually started) */}
+      {/* LION Dashboard - lazy loaded */}
       {game.selected_game_type_code === 'LION' && game.current_session_game_id && game.status !== 'LOBBY' && (
-        <MJLionDashboard
-          game={{
-            id: game.id,
-            current_session_game_id: game.current_session_game_id,
-            name: game.name,
-          }}
-          onPresentationMode={() => window.open(`/presentation/${game.id}`, '_blank')}
-        />
+        <Suspense fallback={<MJDashboardLoadingFallback />}>
+          <MJLionDashboard
+            game={{
+              id: game.id,
+              current_session_game_id: game.current_session_game_id,
+              name: game.name,
+            }}
+            onPresentationMode={() => window.open(`/presentation/${game.id}`, '_blank')}
+          />
+        </Suspense>
       )}
 
       {/* LION Lobby - Show player management when game is in LOBBY status */}

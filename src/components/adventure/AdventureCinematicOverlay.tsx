@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, RotateCcw, Users, Play, Pause, ChevronRight } from 'lucide-react';
 import { CLANS_DATA } from '@/data/ndogmoabengData';
@@ -36,18 +36,52 @@ interface AdventureCinematicOverlayProps {
   isHost?: boolean;
   onBroadcastReplay?: () => void;
   broadcastId?: string;
+  animationsEnabled?: boolean;
 }
 
-// Floating particles component
-function FloatingParticles() {
-  const particles = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    size: Math.random() * 4 + 2,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    duration: Math.random() * 10 + 10,
-    delay: Math.random() * 5,
-  }));
+// Particle data is generated once and memoized
+// This prevents re-generation on every render which causes jank
+interface ParticleData {
+  id: number;
+  size: number;
+  x: number;
+  y: number;
+  duration: number;
+  delay: number;
+}
+
+function generateParticles(count: number): ParticleData[] {
+  const particles: ParticleData[] = [];
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      id: i,
+      size: Math.random() * 4 + 2,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      duration: Math.random() * 10 + 10,
+      delay: Math.random() * 5,
+    });
+  }
+  return particles;
+}
+
+// Floating particles component - optimized with useMemo
+// Particles are generated once and only animated when visible/enabled
+function FloatingParticles({ enabled = true }: { enabled?: boolean }) {
+  // Generate particles once with useMemo - stable across renders
+  const particles = useMemo(() => generateParticles(20), []);
+  
+  // Track document visibility to pause animations when tab is hidden
+  const [isVisible, setIsVisible] = useState(!document.hidden);
+  
+  useEffect(() => {
+    const handleVisibility = () => setIsVisible(!document.hidden);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+  
+  // Don't render if disabled or document is hidden
+  if (!enabled || !isVisible) return null;
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -113,6 +147,7 @@ export function AdventureCinematicOverlay({
   isHost = false,
   onBroadcastReplay,
   broadcastId,
+  animationsEnabled = true,
 }: AdventureCinematicOverlayProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -233,8 +268,8 @@ export function AdventureCinematicOverlay({
           transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
         />
 
-        {/* Floating particles */}
-        <FloatingParticles />
+        {/* Floating particles - respects animationsEnabled prop */}
+        <FloatingParticles enabled={animationsEnabled} />
 
         {/* Content */}
         <div className="relative z-10 flex flex-col items-center justify-center px-4 sm:px-6 text-center max-w-3xl w-full max-h-[80vh] overflow-y-auto">

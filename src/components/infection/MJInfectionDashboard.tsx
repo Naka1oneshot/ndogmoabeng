@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ import { fr } from 'date-fns/locale';
 import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 import { InfectionRankingPanel } from './InfectionRankingPanel';
 import { RoleAssignmentPanel } from './RoleAssignmentPanel';
+import { useRealtimeThrottle, useStableCallback } from '@/hooks/useRealtimeThrottle';
 
 interface Game {
   id: string;
@@ -143,15 +144,66 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
     }
   }, [game.manche_active]);
 
+  // Optimized fetchData with parallel queries
+  // Defined BEFORE useRealtimeThrottle to avoid hoisting issues
+  const fetchData = useCallback(async () => {
+    // Parallel fetch: game state + players + round state
+    const [latestGameResult, playersResult] = await Promise.all([
+      // Fetch latest game state to ensure fresh data
+      supabase
+        .from('games')
+        .select('manche_active, current_session_game_id, status, phase')
+        .eq('id', game.id)
+        .maybeSingle(),
+      // Fetch players with minimal columns needed
+      supabase
+        .from('game_players')
+        .select('id, display_name, player_number, clan, status, jetons, pvic, is_alive, role_code, team_code, is_carrier, is_contagious, immune_permanent, infected_at_manche, will_contaminate_at_manche, will_die_at_manche, has_antibodies, last_seen, is_host, player_token, is_bot')
+        .eq('game_id', game.id)
+        .is('removed_at', null)
+        .order('player_number', { ascending: true }),
+    ]);
+
+    const currentManche = latestGameResult.data?.manche_active ?? game.manche_active;
+    const currentSessionGameId = latestGameResult.data?.current_session_game_id ?? game.current_session_game_id;
+
+    if (playersResult.data) {
+      setPlayers(playersResult.data as Player[]);
+    }
+
+    // Fetch round state only if session exists
+    if (currentSessionGameId && currentManche) {
+      const { data: roundData } = await supabase
+        .from('infection_round_state')
+        .select('id, manche, status, sy_success_count, sy_required_success, config')
+        .eq('session_game_id', currentSessionGameId)
+        .eq('manche', currentManche)
+        .maybeSingle();
+
+      setRoundState(roundData as RoundState | null);
+    } else {
+      setRoundState(null);
+    }
+
+    setLoading(false);
+  }, [game.id, game.manche_active, game.current_session_game_id]);
+
+  // Stable callback ref to prevent stale closures in realtime handlers
+  const stableFetchData = useStableCallback(fetchData);
+  
+  // Throttled fetch to avoid refetch storms from rapid realtime events (250ms)
+  const { throttledFn: throttledFetch, cancel: cancelThrottle } = useRealtimeThrottle(stableFetchData, 250);
+
   useEffect(() => {
-    fetchData();
+    // Initial fetch
+    stableFetchData();
     
-    // Subscribe to realtime updates - optimized to avoid unnecessary refreshes
+    // Subscribe to realtime updates - throttled to avoid refetch storms
     const channel = supabase
       .channel(`infection-mj-${game.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, 
         (payload) => {
-          // Skip if only last_seen changed
+          // Skip if only last_seen changed (presence heartbeat)
           if (payload.new && payload.old) {
             const newPlayer = payload.new as any;
             const oldPlayer = payload.old as any;
@@ -163,65 +215,20 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
               return;
             }
           }
-          fetchData();
+          throttledFetch();
         })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_round_state', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_inputs', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_shots', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'infection_chat_messages', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_round_state', filter: `game_id=eq.${game.id}` }, throttledFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_inputs', filter: `game_id=eq.${game.id}` }, throttledFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_shots', filter: `game_id=eq.${game.id}` }, throttledFetch)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'infection_chat_messages', filter: `game_id=eq.${game.id}` }, throttledFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${game.id}` }, throttledFetch)
       .subscribe();
 
     return () => {
+      cancelThrottle();
       supabase.removeChannel(channel);
     };
-  }, [game.id]);
-
-  const fetchData = async () => {
-    // First, fetch the latest game state to get current manche_active and session_game_id
-    // This ensures we always use fresh data, not stale props
-    const { data: latestGame } = await supabase
-      .from('games')
-      .select('manche_active, current_session_game_id, status, phase')
-      .eq('id', game.id)
-      .maybeSingle();
-
-    const currentManche = latestGame?.manche_active ?? game.manche_active;
-    const currentSessionGameId = latestGame?.current_session_game_id ?? game.current_session_game_id;
-
-    // Fetch players
-    const { data: playersData } = await supabase
-      .from('game_players')
-      .select('*')
-      .eq('game_id', game.id)
-      .is('removed_at', null)
-      .order('player_number', { ascending: true });
-
-    if (playersData) {
-      setPlayers(playersData as Player[]);
-    }
-
-    // Fetch current round state using fresh game data
-    if (currentSessionGameId && currentManche) {
-      const { data: roundData } = await supabase
-        .from('infection_round_state')
-        .select('*')
-        .eq('session_game_id', currentSessionGameId)
-        .eq('manche', currentManche)
-        .maybeSingle();
-
-      if (roundData) {
-        setRoundState(roundData as RoundState);
-      } else {
-        // Reset round state if no data found for current manche
-        setRoundState(null);
-      }
-    } else {
-      setRoundState(null);
-    }
-
-    setLoading(false);
-  };
+  }, [game.id, stableFetchData, throttledFetch, cancelThrottle]);
 
   const handleStartGame = async () => {
     if (!game.current_session_game_id) {
