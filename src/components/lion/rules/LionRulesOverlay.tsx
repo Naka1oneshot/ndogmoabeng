@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, BookOpen, Zap } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, BookOpen, Zap, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LionRulesToc } from './LionRulesToc';
 import { DynamicLionQuickPage1 } from './pages/quick/DynamicLionQuickPage1';
@@ -41,6 +41,9 @@ export function LionRulesOverlay({ open, onClose, role = 'PLAYER', defaultMode =
   const [mode, setMode] = useState<RulesMode>(defaultMode);
   const [currentPage, setCurrentPage] = useState(0);
   const [replayNonce, setReplayNonce] = useState(0);
+  const [openKey, setOpenKey] = useState(0);
+  
+  const handleRefresh = () => setOpenKey(k => k + 1);
 
   // Reset page when mode changes
   useEffect(() => {
@@ -149,6 +152,15 @@ export function LionRulesOverlay({ open, onClose, role = 'PLAYER', defaultMode =
 
             <Button
               variant="ghost"
+              size="sm"
+              onClick={handleRefresh}
+              className="text-amber-400 hover:text-amber-300"
+              title="Actualiser les règles"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
               size="icon"
               onClick={onClose}
               className="text-amber-400 hover:text-amber-300"
@@ -170,7 +182,7 @@ export function LionRulesOverlay({ open, onClose, role = 'PLAYER', defaultMode =
           <div className="max-w-2xl mx-auto">
             <AnimatePresence mode="wait">
               <motion.div
-                key={`${mode}-${currentPage}`}
+                key={`${mode}-${currentPage}-${openKey}`}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
