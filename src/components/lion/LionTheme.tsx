@@ -80,6 +80,14 @@ export function LionCardDisplay({
     xl: 'w-28 h-40 text-5xl'
   };
 
+  // Image size classes for the logo on face-down cards
+  const logoSizeClasses = {
+    sm: 'h-8 w-auto',
+    md: 'h-12 w-auto',
+    lg: 'h-16 w-auto',
+    xl: 'h-24 w-auto'
+  };
+
   if (faceDown) {
     return (
       <div 
@@ -91,7 +99,11 @@ export function LionCardDisplay({
           ${selected ? 'ring-2 ring-amber-400' : ''}
         `}
       >
-        <span className="text-amber-400 text-2xl">🦁</span>
+        <img 
+          src="/logo-ndogmoabeng.png" 
+          alt="?" 
+          className={`${logoSizeClasses[size]} opacity-80`}
+        />
       </div>
     );
   }

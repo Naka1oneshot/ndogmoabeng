@@ -286,11 +286,11 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
             transition={{ duration: 0.6 }}
             className="text-center mb-4 md:mb-6"
           >
-            {/* Animated Site Logo */}
+            {/* Animated Site Logo - doubled size */}
             <motion.img 
               src={logoNdogmoabeng}
               alt="Ndogmoabeng"
-              className="h-16 md:h-20 w-auto mx-auto mb-2"
+              className="h-32 md:h-40 w-auto mx-auto mb-4"
               animate={{ 
                 scale: [1, 1.08, 1],
                 filter: [
@@ -301,9 +301,8 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
               }}
               transition={{ duration: 2.5, repeat: Infinity }}
             />
-            {/* Game Lion Emoji */}
-            <span className="text-5xl md:text-6xl inline-block">🦁</span>
-            <h1 className="text-3xl md:text-5xl font-bold text-amber-300 mt-2 lion-text-glow">
+            {/* Title without lion emoji */}
+            <h1 className="text-3xl md:text-5xl font-bold text-amber-300 lion-text-glow">
               Le CŒUR du Lion
             </h1>
           </motion.div>
