@@ -48,6 +48,15 @@ serve(async (req) => {
 
     const gameId = sessionGame.session_id;
 
+    // Check if this is an ADVENTURE game
+    const { data: game } = await supabase
+      .from('games')
+      .select('mode, adventure_id')
+      .eq('id', gameId)
+      .single();
+
+    const isAdventure = game?.mode === 'ADVENTURE';
+
     // Check if game state already exists (idempotency guard)
     const { data: existingState } = await supabase
       .from('lion_game_state')
@@ -79,14 +88,21 @@ serve(async (req) => {
       );
     }
 
-    // Get players (non-host, non-removed)
-    const { data: players, error: playersError } = await supabase
+    // Get players - in ADVENTURE mode, only get ACTIVE players (the 2 finalists)
+    // In standalone mode, get all non-host, non-removed players
+    let playersQuery = supabase
       .from('game_players')
-      .select('id, display_name, player_number, user_id')
+      .select('id, display_name, player_number, user_id, pvic, status')
       .eq('game_id', gameId)
       .eq('is_host', false)
-      .is('removed_at', null)
-      .order('joined_at', { ascending: true });
+      .is('removed_at', null);
+
+    if (isAdventure) {
+      // In adventure mode, only get ACTIVE players (finalists)
+      playersQuery = playersQuery.eq('status', 'ACTIVE');
+    }
+
+    const { data: players, error: playersError } = await playersQuery.order('joined_at', { ascending: true });
 
     if (playersError || !players) {
       return new Response(
@@ -97,7 +113,7 @@ serve(async (req) => {
 
     if (players.length !== 2) {
       return new Response(
-        JSON.stringify({ error: `LION requires exactly 2 players, found ${players.length}` }),
+        JSON.stringify({ error: `LION requires exactly 2 ${isAdventure ? 'ACTIVE' : ''} players, found ${players.length}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -119,11 +135,22 @@ serve(async (req) => {
         .eq('id', playerB.id);
     }
 
-    // Initialize pvic to 0 for both players
-    await supabase
-      .from('game_players')
-      .update({ pvic: 0, recompenses: 0 })
-      .in('id', [playerA.id, playerB.id]);
+    // In ADVENTURE mode, preserve PVic from previous games
+    // In standalone mode, reset PVic to 0
+    if (!isAdventure) {
+      await supabase
+        .from('game_players')
+        .update({ pvic: 0, recompenses: 0 })
+        .in('id', [playerA.id, playerB.id]);
+      console.log('[start-lion] Standalone mode - reset PVic to 0');
+    } else {
+      // Just reset recompenses, keep pvic
+      await supabase
+        .from('game_players')
+        .update({ recompenses: 0 })
+        .in('id', [playerA.id, playerB.id]);
+      console.log(`[start-lion] Adventure mode - preserved PVic: ${playerA.display_name}=${playerA.pvic}, ${playerB.display_name}=${playerB.pvic}`);
+    }
 
     // Create hands for both players
     const initialCards = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];

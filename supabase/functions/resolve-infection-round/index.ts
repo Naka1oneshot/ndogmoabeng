@@ -957,7 +957,24 @@ Deno.serve(async (req) => {
     // Update game status if ended
     if (gameEnded) {
       await supabase.from('session_games').update({ status: 'ENDED', ended_at: new Date().toISOString() }).eq('id', sessionGameId);
-      await supabase.from('games').update({ status: 'ENDED', phase: 'ENDED' }).eq('id', gameId);
+      
+      // Check if this is an ADVENTURE game
+      const { data: gameInfo } = await supabase
+        .from('games')
+        .select('mode, adventure_id')
+        .eq('id', gameId)
+        .single();
+      
+      const isAdventure = gameInfo?.mode === 'ADVENTURE';
+      
+      if (isAdventure) {
+        // In ADVENTURE mode, don't end the main game - mark session complete instead
+        await supabase.from('games').update({ phase: 'SESSION_COMPLETE' }).eq('id', gameId);
+        console.log(`[resolve-infection] Adventure mode - marked session complete, not ending game`);
+      } else {
+        // In standalone mode, end the game
+        await supabase.from('games').update({ status: 'ENDED', phase: 'ENDED' }).eq('id', gameId);
+      }
 
       // ========================================
       // CALCULATE FINAL PVIC SCORES
@@ -1091,19 +1108,67 @@ Deno.serve(async (req) => {
         pvicUpdates.push({ player_num: player.player_number, pvic_earned: pvic, breakdown });
       }
 
-      // Update players with earned PVic
+      // Update players with earned PVic and save to adventure_scores if applicable
+      const isAdventureGame = gameInfo?.mode === 'ADVENTURE';
+      
       for (const update of pvicUpdates) {
         const player = getPlayerByNum(players, update.player_num);
         if (player) {
+          const newPvic = (player.pvic || 0) + update.pvic_earned;
+          
           await supabase
             .from('game_players')
-            .update({ pvic: (player.pvic || 0) + update.pvic_earned })
+            .update({ pvic: newPvic })
             .eq('game_id', gameId)
             .eq('player_number', update.player_num);
+          
+          // Save to stage_scores and adventure_scores if in adventure mode
+          if (isAdventureGame) {
+            // Save to stage_scores
+            await supabase.from('stage_scores').upsert({
+              session_game_id: sessionGameId,
+              game_player_id: player.id,
+              score_value: update.pvic_earned,
+              details: {
+                breakdown: update.breakdown,
+                winner: winner,
+              },
+            }, { onConflict: 'session_game_id,game_player_id' });
+
+            // Update adventure_scores
+            const { data: existingScore } = await supabase
+              .from('adventure_scores')
+              .select('id, total_score_value, breakdown')
+              .eq('session_id', gameId)
+              .eq('game_player_id', player.id)
+              .maybeSingle();
+
+            if (existingScore) {
+              const breakdown = existingScore.breakdown || {};
+              breakdown[sessionGameId] = update.pvic_earned;
+              const newTotal = Object.values(breakdown).reduce((sum: number, val: any) => sum + (Number(val) || 0), 0);
+
+              await supabase
+                .from('adventure_scores')
+                .update({ 
+                  total_score_value: newTotal, 
+                  breakdown, 
+                  updated_at: new Date().toISOString() 
+                })
+                .eq('id', existingScore.id);
+            } else {
+              await supabase.from('adventure_scores').insert({
+                session_id: gameId,
+                game_player_id: player.id,
+                total_score_value: update.pvic_earned,
+                breakdown: { [sessionGameId]: update.pvic_earned },
+              });
+            }
+          }
         }
       }
 
-      addLog('STEP_10_PVIC_CALCULATION', { pvicUpdates, bestVoters, maxVoteAccuracy });
+      addLog('STEP_10_PVIC_CALCULATION', { pvicUpdates, bestVoters, maxVoteAccuracy, isAdventureGame });
 
       // Publish GAME_END event with PVic breakdown
       await supabase.from('game_events').insert({
