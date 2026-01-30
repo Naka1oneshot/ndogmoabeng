@@ -49,7 +49,7 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
     playerB,
     loading, 
     refetch 
-  } = useLionGameState(sessionGameId || undefined);
+  } = useLionGameState(sessionGameId || undefined, player.id);
 
   // Determine my role this turn
   const isActive = gameState?.active_player_id === player.id;
