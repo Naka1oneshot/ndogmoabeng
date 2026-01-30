@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LionPlayerAvatar } from './LionPlayerAvatar';
 import { Trophy, Swords } from 'lucide-react';
-
+import confetti from 'canvas-confetti';
 interface Player {
   name: string;
   avatarUrl?: string | null;
@@ -26,6 +26,32 @@ export function LionFinalBattleAnimation({
 }: LionFinalBattleAnimationProps) {
   const [phase, setPhase] = useState<'battle' | 'victory'>('battle');
 
+  const fireConfetti = useCallback(() => {
+    // Left side burst
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { x: 0.2, y: 0.6 },
+      colors: ['#f59e0b', '#fbbf24', '#fcd34d', '#fef3c7'],
+    });
+    // Right side burst
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { x: 0.8, y: 0.6 },
+      colors: ['#f59e0b', '#fbbf24', '#fcd34d', '#fef3c7'],
+    });
+    // Center burst
+    setTimeout(() => {
+      confetti({
+        particleCount: 150,
+        spread: 100,
+        origin: { x: 0.5, y: 0.5 },
+        colors: ['#f59e0b', '#fbbf24', '#fcd34d', '#d97706'],
+      });
+    }, 300);
+  }, []);
+
   useEffect(() => {
     if (!show) {
       setPhase('battle');
@@ -41,11 +67,27 @@ export function LionFinalBattleAnimation({
   }, [show]);
 
   useEffect(() => {
-    if (phase === 'victory' && onComplete) {
-      const timeout = setTimeout(onComplete, 5000);
-      return () => clearTimeout(timeout);
+    if (phase === 'victory') {
+      // Fire confetti when victory phase starts
+      fireConfetti();
+      // Fire again after a short delay for extra celebration
+      const timeout1 = setTimeout(fireConfetti, 1500);
+      const timeout2 = setTimeout(fireConfetti, 3000);
+      
+      if (onComplete) {
+        const completeTimeout = setTimeout(onComplete, 5000);
+        return () => {
+          clearTimeout(timeout1);
+          clearTimeout(timeout2);
+          clearTimeout(completeTimeout);
+        };
+      }
+      return () => {
+        clearTimeout(timeout1);
+        clearTimeout(timeout2);
+      };
     }
-  }, [phase, onComplete]);
+  }, [phase, onComplete, fireConfetti]);
 
   if (!show) return null;
 
