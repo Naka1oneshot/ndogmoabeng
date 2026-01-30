@@ -56,13 +56,24 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingState) {
-      // Game already started, return success with existing data
-      console.log('Lion game already started for session:', session_game_id);
+      // Game state exists - ensure game and session_game status are updated
+      console.log('Lion game state already exists, ensuring statuses are correct');
+      
+      await supabase
+        .from('games')
+        .update({ status: 'IN_GAME', phase: 'LION_TURN' })
+        .eq('id', gameId);
+
+      await supabase
+        .from('session_games')
+        .update({ status: 'RUNNING' })
+        .eq('id', session_game_id);
+
       return new Response(
         JSON.stringify({ 
           success: true, 
           alreadyStarted: true,
-          message: 'Game was already started'
+          message: 'Game was already started, statuses updated'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
