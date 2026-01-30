@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { getPublicBaseUrl } from '@/lib/urlHelpers';
 
 export interface EarlyAccessRequest {
   id: string;
@@ -92,6 +93,28 @@ export function useEarlyAccessRequests() {
     }
   };
 
+  const sendNotificationEmail = async (data: { full_name: string; email: string; phone?: string; message?: string }) => {
+    try {
+      const adminUrl = `${getPublicBaseUrl()}/admin?tab=system`;
+      
+      const { error } = await supabase.functions.invoke('notify-early-access-request', {
+        body: {
+          fullName: data.full_name,
+          email: data.email,
+          phone: data.phone || null,
+          message: data.message || null,
+          adminUrl,
+        },
+      });
+
+      if (error) {
+        console.error('Error sending notification email:', error);
+      }
+    } catch (err) {
+      console.error('Error invoking notification function:', err);
+    }
+  };
+
   const submitRequest = async (data: { full_name: string; email: string; phone?: string; message?: string }) => {
     try {
       const { error } = await supabase
@@ -104,6 +127,9 @@ export function useEarlyAccessRequests() {
         }
         throw error;
       }
+
+      // Send notification email to admin
+      await sendNotificationEmail(data);
 
       return { success: true };
     } catch (err: any) {
