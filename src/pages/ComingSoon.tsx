@@ -57,18 +57,42 @@ function calculateTimeLeft(): TimeLeft {
   };
 }
 
-// Generate stable random positions for floating images
-function generateFloatingPositions(count: number, seed: number) {
+// Generate well-distributed positions using grid-based placement
+function generateFloatingPositions(count: number, seed: number, isGameImages: boolean) {
   const positions = [];
+  
+  // Create a grid to ensure even distribution
+  const cols = isGameImages ? 3 : 4; // Different grid for games vs clans
+  const rows = Math.ceil(count / cols);
+  
   for (let i = 0; i < count; i++) {
-    // Use deterministic pseudo-random based on index and seed
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    
+    // Calculate base position in grid cell
+    const cellWidth = 100 / cols;
+    const cellHeight = 100 / rows;
+    
+    // Add some variance within the cell using deterministic pseudo-random
     const hash = (i * 2654435761 + seed) % 1000;
+    const variance = 0.3; // 30% variance within cell
+    
+    const baseX = col * cellWidth + cellWidth / 2;
+    const baseY = row * cellHeight + cellHeight / 2;
+    
+    // Offset within cell
+    const offsetX = ((hash % 100) / 100 - 0.5) * cellWidth * variance;
+    const offsetY = (((hash * 7) % 100) / 100 - 0.5) * cellHeight * variance;
+    
     positions.push({
-      x: (hash % 80) + 10, // 10-90% of screen width
-      y: (((hash * 7) % 70) + 15), // 15-85% of screen height
-      rotation: ((hash * 3) % 40) - 20, // -20 to 20 degrees
-      duration: 15 + (hash % 10), // 15-25 seconds
-      delay: (i * 0.3),
+      startX: Math.max(5, Math.min(95, baseX + offsetX)),
+      startY: Math.max(5, Math.min(95, baseY + offsetY)),
+      rotation: ((hash * 3) % 40) - 20,
+      duration: 20 + (hash % 15), // 20-35 seconds for slower, smoother movement
+      delay: (i * 0.5),
+      // Random travel distances (can go across entire screen)
+      travelX: ((hash * 11) % 60) - 30, // -30 to +30 vw travel
+      travelY: ((hash * 13) % 40) - 20, // -20 to +20 vh travel
     });
   }
   return positions;
@@ -86,8 +110,8 @@ export default function ComingSoon() {
   const [loggingIn, setLoggingIn] = useState(false);
 
   // Generate stable positions once on mount
-  const gamePositions = useMemo(() => generateFloatingPositions(gameImages.length, 12345), []);
-  const clanPositions = useMemo(() => generateFloatingPositions(clanImages.length, 67890), []);
+  const gamePositions = useMemo(() => generateFloatingPositions(gameImages.length, 12345, true), []);
+  const clanPositions = useMemo(() => generateFloatingPositions(clanImages.length, 67890, false), []);
 
   // Update countdown every second
   useEffect(() => {
@@ -151,13 +175,14 @@ export default function ComingSoon() {
               alt=""
               className="absolute w-20 h-20 md:w-28 md:h-28 rounded-xl opacity-30 object-cover"
               style={{
-                left: `${pos.x}%`,
-                top: `${pos.y}%`,
+                left: `${pos.startX}%`,
+                top: `${pos.startY}%`,
+                transform: 'translate(-50%, -50%)',
               }}
               animate={{
-                x: [0, 30, -20, 10, 0],
-                y: [0, -25, 15, -10, 0],
-                rotate: [pos.rotation, pos.rotation + 5, pos.rotation - 5, pos.rotation],
+                x: [`0vw`, `${pos.travelX}vw`, `${-pos.travelX * 0.5}vw`, `${pos.travelX * 0.3}vw`, `0vw`],
+                y: [`0vh`, `${pos.travelY}vh`, `${-pos.travelY * 0.7}vh`, `${pos.travelY * 0.4}vh`, `0vh`],
+                rotate: [pos.rotation, pos.rotation + 8, pos.rotation - 8, pos.rotation + 4, pos.rotation],
               }}
               transition={{
                 duration: pos.duration,
@@ -179,16 +204,17 @@ export default function ComingSoon() {
               alt=""
               className="absolute w-16 h-16 md:w-24 md:h-24 rounded-full opacity-25 object-cover"
               style={{
-                left: `${pos.x}%`,
-                top: `${pos.y}%`,
+                left: `${pos.startX}%`,
+                top: `${pos.startY}%`,
+                transform: 'translate(-50%, -50%)',
               }}
               animate={{
-                x: [0, -20, 25, -15, 0],
-                y: [0, 20, -30, 15, 0],
-                rotate: [pos.rotation, pos.rotation - 8, pos.rotation + 8, pos.rotation],
+                x: [`0vw`, `${-pos.travelX}vw`, `${pos.travelX * 0.6}vw`, `${-pos.travelX * 0.3}vw`, `0vw`],
+                y: [`0vh`, `${-pos.travelY}vh`, `${pos.travelY * 0.8}vh`, `${-pos.travelY * 0.5}vh`, `0vh`],
+                rotate: [pos.rotation, pos.rotation - 10, pos.rotation + 10, pos.rotation - 5, pos.rotation],
               }}
               transition={{
-                duration: pos.duration + 3,
+                duration: pos.duration + 5,
                 repeat: Infinity,
                 ease: "easeInOut",
                 delay: pos.delay + 0.5,
