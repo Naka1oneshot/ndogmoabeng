@@ -21,6 +21,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const Login = lazy(() => import("./pages/Login"));
 const MJ = lazy(() => import("./pages/MJ"));
 const MJGameManage = lazy(() => import("./pages/MJGameManage"));
+const MJAdventureDashboard = lazy(() => import("./pages/MJAdventureDashboard"));
 const Presentation = lazy(() => import("./pages/Presentation"));
 const JoinAnonymous = lazy(() => import("./pages/JoinAnonymous"));
 const PlayerDashboard = lazy(() => import("./pages/PlayerDashboard"));
@@ -72,6 +73,7 @@ const AppRoutes = memo(function AppRoutes() {
           <Route path="/login" element={<Login />} />
           <Route path="/mj" element={<MJ />} />
           <Route path="/mj/:gameId" element={<MJGameManage />} />
+          <Route path="/mj/adventure/:gameId" element={<MJAdventureDashboard />} />
           <Route path="/join/:code" element={<JoinAnonymous />} />
           <Route path="/player/:gameId" element={<PlayerDashboard />} />
           <Route path="/play/:gameId" element={<PlayerDashboard />} />
