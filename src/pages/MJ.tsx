@@ -687,42 +687,22 @@ export default function MJ() {
   const handleDeleteGame = async (gameId: string) => {
     setDeleting(gameId);
     try {
-      const tablesToClear = [
-        'session_events',
-        'session_bans',
-        'pending_effects',
-        'positions_finales',
-        'round_bets',
-        'actions',
-        'inventory',
-        'logs_joueurs',
-        'logs_mj',
-        'battlefield',
-        'monsters',
-        'combat_config',
-        'shop_catalogue',
-        'game_state_monsters',
-        'game_monsters',
-        'priority_rankings',
-        'game_players',
-      ];
+      // Use the secure database function to cascade delete all related data
+      const { error } = await supabase.rpc('admin_delete_game_cascade', {
+        p_game_id: gameId
+      });
 
-      for (const table of tablesToClear) {
-        await (supabase.from(table as any).delete().eq('game_id', gameId));
+      if (error) {
+        console.error('RPC delete error:', error);
+        toast.error(`Erreur: ${error.message || 'Suppression échouée'}${error.code ? ` (${error.code})` : ''}`);
+        return;
       }
-
-      const { error } = await supabase
-        .from('games')
-        .delete()
-        .eq('id', gameId);
-
-      if (error) throw error;
 
       toast.success('Partie supprimée');
       setGames(prev => prev.filter(g => g.id !== gameId));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting game:', error);
-      toast.error('Erreur lors de la suppression');
+      toast.error(`Erreur: ${error?.message || 'Suppression échouée'}`);
     } finally {
       setDeleting(null);
     }
