@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Ship, Anchor, Coins, AlertTriangle, ArrowDown, Users } from 'lucide-react';
+import { Ship, Anchor, Coins, AlertTriangle, ArrowDown, Users, Loader2 } from 'lucide-react';
 import { RivieresRulesContextData, computePayoutPerPlayer } from '../../useRivieresRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface RulesQuickPage2Props {
   context: RivieresRulesContextData;
@@ -22,10 +24,30 @@ const itemVariants = {
 };
 
 export function RulesQuickPage2({ context, replayNonce }: RulesQuickPage2Props) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('RIVIERES');
+  const section = getSection('quick_decisions');
+  const paragraphs = getParagraphs('quick_decisions');
+
   // Example calculation
   const examplePot = 350;
   const exampleRestants = 5;
   const exampleGain = computePayoutPerPlayer(examplePot, exampleRestants);
+
+  // Extract dynamic content with fallbacks
+  const dynamicContent = useMemo(() => {
+    const warning = paragraphs.find(p => p.id === 'rq2_warning')?.text 
+      || 'Si le danger dépasse les mises totales, le bateau chavire. Les joueurs descendus partagent la cagnotte + <span class="text-amber-400 font-bold">10 × leur niveau de descente</span>. Les restants n\'obtiennent rien.';
+    
+    return { warning };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
   
   return (
     <motion.div
@@ -38,7 +60,7 @@ export function RulesQuickPage2({ context, replayNonce }: RulesQuickPage2Props) 
       {/* Title */}
       <motion.div variants={itemVariants} className="text-center">
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Décisions & Répartition
+          {section?.title || 'Décisions & Répartition'}
         </h1>
         <p className="text-[#9CA3AF]">Comprendre les choix et leurs conséquences</p>
       </motion.div>
@@ -164,11 +186,10 @@ export function RulesQuickPage2({ context, replayNonce }: RulesQuickPage2Props) 
         <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
         <div>
           <p className="text-red-400 font-bold text-sm">Attention au chavirement !</p>
-          <p className="text-[#E8E8E8] text-sm">
-            Si le danger dépasse les mises totales, le bateau chavire. 
-            Les joueurs descendus partagent la cagnotte + <span className="text-amber-400 font-bold">10 × leur niveau de descente</span>. 
-            Les restants n'obtiennent rien.
-          </p>
+          <p 
+            className="text-[#E8E8E8] text-sm"
+            dangerouslySetInnerHTML={{ __html: dynamicContent.warning }}
+          />
         </div>
       </motion.div>
     </motion.div>

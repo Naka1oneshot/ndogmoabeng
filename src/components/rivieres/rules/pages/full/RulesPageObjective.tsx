@@ -1,6 +1,9 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Ship, Target, Trophy, Coins } from 'lucide-react';
+import { Ship, Target, Trophy, Coins, Loader2 } from 'lucide-react';
 import { RivieresRulesContextData } from '../../useRivieresRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
+import { DynamicSection } from '@/components/rules/DynamicSection';
 
 interface RulesPageObjectiveProps {
   context: RivieresRulesContextData;
@@ -22,6 +25,32 @@ const itemVariants = {
 };
 
 export function RulesPageObjective({ context, replayNonce }: RulesPageObjectiveProps) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('RIVIERES');
+  const section = getSection('full_objectif');
+  const paragraphs = getParagraphs('full_objectif');
+
+  // Extract specific texts from dynamic content
+  const dynamicContent = useMemo(() => {
+    const mainObjective = paragraphs.find(p => p.id === 'rf1_objectif')?.text 
+      || 'Votre objectif est d\'accumuler un maximum de <span class="text-[#D4AF37] font-bold">jetons</span> en naviguant sur les rivières dangereuses de Ndogmoabeng.';
+    const howToWinStay = paragraphs.find(p => p.id === 'rf1_win_stay')?.text 
+      || '<span class="text-blue-400 font-medium">En restant sur le bateau :</span> Si le niveau 5 d\'une manche est réussi, les restants partagent la cagnotte.';
+    const howToWinLeave = paragraphs.find(p => p.id === 'rf1_win_leave')?.text 
+      || '<span class="text-amber-400 font-medium">En descendant à terre :</span> Si le bateau chavire durant la manche, les descendus partagent la cagnotte.';
+    const theme = paragraphs.find(p => p.id === 'rf1_theme')?.text 
+      || 'Vous êtes un voyageur sur les rivières du nord de Ndogmoabeng, territoire de la <span class="text-blue-400 font-medium">Maison des Keryndes</span>. Les rivières sont dangereuses et imprévisibles. À chaque niveau, vous devez décider si vous restez sur le bateau pour tenter de dompter les eaux, ou si vous descendez à terre en anticipant le drame.';
+    
+    return { mainObjective, howToWinStay, howToWinLeave, theme };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -37,7 +66,7 @@ export function RulesPageObjective({ context, replayNonce }: RulesPageObjectiveP
           <span className="text-[#D4AF37] font-bold text-lg">Les Rivières de Ndogmoabeng</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Objectif du jeu
+          {section?.title || 'Objectif du jeu'}
         </h1>
       </motion.div>
 
@@ -52,10 +81,10 @@ export function RulesPageObjective({ context, replayNonce }: RulesPageObjectiveP
           </div>
           <div>
             <h2 className="text-[#D4AF37] font-bold text-xl mb-3">Accumuler des jetons</h2>
-            <p className="text-[#E8E8E8] text-lg leading-relaxed">
-              Votre objectif est d'accumuler un maximum de <span className="text-[#D4AF37] font-bold">jetons</span> en 
-              naviguant sur les rivières dangereuses de Ndogmoabeng.
-            </p>
+            <p 
+              className="text-[#E8E8E8] text-lg leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: dynamicContent.mainObjective }}
+            />
           </div>
         </div>
       </motion.div>
@@ -79,8 +108,8 @@ export function RulesPageObjective({ context, replayNonce }: RulesPageObjectiveP
             <h3 className="text-blue-400 font-bold">Comment gagner des jetons</h3>
           </div>
           <div className="text-[#E8E8E8] space-y-2">
-            <p><span className="text-blue-400 font-medium">En restant sur le bateau :</span> Si le niveau 5 d'une manche est réussi, les restants partagent la cagnotte.</p>
-            <p><span className="text-amber-400 font-medium">En descendant à terre :</span> Si le bateau chavire durant la manche, les descendus partagent la cagnotte.</p>
+            <p dangerouslySetInnerHTML={{ __html: dynamicContent.howToWinStay }} />
+            <p dangerouslySetInnerHTML={{ __html: dynamicContent.howToWinLeave }} />
           </div>
         </div>
       </motion.div>
@@ -91,13 +120,10 @@ export function RulesPageObjective({ context, replayNonce }: RulesPageObjectiveP
         className="bg-gradient-to-r from-blue-500/10 to-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-xl p-6"
       >
         <h3 className="text-white font-bold text-lg mb-3">Le thème</h3>
-        <p className="text-[#E8E8E8] leading-relaxed">
-          Vous êtes un voyageur sur les rivières du nord de Ndogmoabeng, territoire de la 
-          <span className="text-blue-400 font-medium"> Maison des Keryndes</span>. 
-          Les rivières sont dangereuses et imprévisibles. À chaque niveau, vous devez décider 
-          si vous restez sur le bateau pour tenter de dompter les eaux, ou si vous descendez à terre 
-          en anticipant le drame.
-        </p>
+        <p 
+          className="text-[#E8E8E8] leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: dynamicContent.theme }}
+        />
       </motion.div>
 
       {/* Key numbers */}

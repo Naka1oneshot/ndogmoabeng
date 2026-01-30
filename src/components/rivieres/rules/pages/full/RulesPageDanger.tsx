@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Dice6, Shield, Zap, Ship, Anchor } from 'lucide-react';
+import { AlertTriangle, Dice6, Shield, Zap, Ship, Anchor, Loader2 } from 'lucide-react';
 import { RivieresRulesContextData } from '../../useRivieresRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface RulesPageDangerProps {
   context: RivieresRulesContextData;
@@ -22,6 +24,32 @@ const itemVariants = {
 };
 
 export function RulesPageDanger({ context, replayNonce }: RulesPageDangerProps) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('RIVIERES');
+  const section = getSection('full_danger');
+  const paragraphs = getParagraphs('full_danger');
+
+  // Extract dynamic content with fallbacks
+  const dynamicContent = useMemo(() => {
+    const determination = paragraphs.find(p => p.id === 'rf4_determination')?.text 
+      || 'Le MJ lance des dés (généralement 3 à 5) pour déterminer le danger. Le nombre de joueurs et la manche influencent la plage de danger.';
+    const protection = paragraphs.find(p => p.id === 'rf4_protection')?.text 
+      || 'Les mises des joueurs qui restent s\'additionnent. Si le total des mises ≥ danger, le niveau est passé.';
+    const successItems = paragraphs.find(p => p.id === 'rf4_success')?.items 
+      || ['Le bateau passe au niveau suivant', '<strong>Niveaux 1-4 :</strong> La cagnotte s\'accumule (pas de distribution)', '<strong>Niveau 5 uniquement :</strong> La cagnotte est partagée entre les restants + bonus 100', 'La cagnotte repart à 0 après le niveau 5'];
+    const failureItems = paragraphs.find(p => p.id === 'rf4_failure')?.items 
+      || ['Le bateau chavire', 'La cagnotte est partagée entre les descendus (cette manche, incluant ce niveau)', 'Les restants perdent tout', 'La manche se termine immédiatement'];
+    
+    return { determination, protection, successItems, failureItems };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -33,7 +61,7 @@ export function RulesPageDanger({ context, replayNonce }: RulesPageDangerProps) 
       {/* Title */}
       <motion.div variants={itemVariants} className="text-center">
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Danger & Chavirement
+          {section?.title || 'Danger & Chavirement'}
         </h1>
         <p className="text-[#9CA3AF]">Comment le danger est déterminé et ses conséquences</p>
       </motion.div>
@@ -54,10 +82,10 @@ export function RulesPageDanger({ context, replayNonce }: RulesPageDangerProps) 
               <Dice6 className="h-5 w-5 text-[#D4AF37]" />
               <h3 className="text-white font-medium">Détermination</h3>
             </div>
-            <p className="text-[#9CA3AF] text-sm">
-              Le MJ lance des dés (généralement 3 à 5) pour déterminer le danger. 
-              Le nombre de joueurs et la manche influencent la plage de danger.
-            </p>
+            <p 
+              className="text-[#9CA3AF] text-sm"
+              dangerouslySetInnerHTML={{ __html: dynamicContent.determination }}
+            />
           </div>
           
           <div className="bg-[#0B1020] rounded-lg p-4">
@@ -65,10 +93,10 @@ export function RulesPageDanger({ context, replayNonce }: RulesPageDangerProps) 
               <Shield className="h-5 w-5 text-blue-400" />
               <h3 className="text-white font-medium">Protection</h3>
             </div>
-            <p className="text-[#9CA3AF] text-sm">
-              Les mises des joueurs qui restent s'additionnent. 
-              Si le total des mises ≥ danger, le niveau est passé.
-            </p>
+            <p 
+              className="text-[#9CA3AF] text-sm"
+              dangerouslySetInnerHTML={{ __html: dynamicContent.protection }}
+            />
           </div>
         </div>
       </motion.div>
@@ -110,10 +138,9 @@ export function RulesPageDanger({ context, replayNonce }: RulesPageDangerProps) 
             Succès (Mises ≥ Danger)
           </h3>
           <ul className="text-[#E8E8E8] text-sm space-y-2">
-            <li>• Le bateau passe au niveau suivant</li>
-            <li>• <strong>Niveaux 1-4 :</strong> La cagnotte s'accumule (pas de distribution)</li>
-            <li>• <strong>Niveau 5 uniquement :</strong> La cagnotte est partagée entre les restants + bonus 100</li>
-            <li>• La cagnotte repart à 0 après le niveau 5</li>
+            {dynamicContent.successItems.map((item, i) => (
+              <li key={i} dangerouslySetInnerHTML={{ __html: `• ${item}` }} />
+            ))}
           </ul>
         </div>
         
@@ -124,10 +151,9 @@ export function RulesPageDanger({ context, replayNonce }: RulesPageDangerProps) 
             Chavirement (Mises &lt; Danger)
           </h3>
           <ul className="text-[#E8E8E8] text-sm space-y-2">
-            <li>• Le bateau chavire</li>
-            <li>• La cagnotte est partagée entre les descendus (cette manche, incluant ce niveau)</li>
-            <li>• Les restants perdent tout</li>
-            <li>• La manche se termine immédiatement</li>
+            {dynamicContent.failureItems.map((item, i) => (
+              <li key={i} dangerouslySetInnerHTML={{ __html: `• ${item}` }} />
+            ))}
           </ul>
         </div>
       </motion.div>

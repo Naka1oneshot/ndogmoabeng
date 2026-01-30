@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Star, Ship, Anchor, AlertTriangle, Coins, Trophy } from 'lucide-react';
+import { Star, Ship, Anchor, AlertTriangle, Coins, Trophy, Loader2 } from 'lucide-react';
 import { RivieresRulesContextData } from '../../useRivieresRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface RulesPageSummaryProps {
   context: RivieresRulesContextData;
@@ -21,34 +23,34 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-const SUMMARY_POINTS = [
-  {
-    icon: Ship,
-    title: 'RESTER sur le bateau',
-    desc: 'Vous misez et participez au partage si le niveau passe. Risque de tout perdre si chavirement.',
-    color: 'blue',
-  },
-  {
-    icon: Anchor,
-    title: 'DESCENDRE à terre',
-    desc: 'Vous sécurisez vos jetons et partagez si le bateau chavire. Pas de gain sinon.',
-    color: 'amber',
-  },
-  {
-    icon: AlertTriangle,
-    title: 'Le danger',
-    desc: 'Si mises totales < danger, chavirement ! Les descendus (ce niveau) partagent la cagnotte.',
-    color: 'red',
-  },
-  {
-    icon: Coins,
-    title: 'Distribution',
-    desc: 'Gain = floor(Cagnotte ÷ Nb bénéficiaires). Bonus de 100 jetons au niveau 5.',
-    color: 'green',
-  },
+const DEFAULT_SUMMARY_POINTS = [
+  { icon: Ship, title: 'RESTER sur le bateau', desc: 'Vous misez et participez au partage si le niveau passe. Risque de tout perdre si chavirement.', color: 'blue' },
+  { icon: Anchor, title: 'DESCENDRE à terre', desc: 'Vous sécurisez vos jetons et partagez si le bateau chavire. Pas de gain sinon.', color: 'amber' },
+  { icon: AlertTriangle, title: 'Le danger', desc: 'Si mises totales < danger, chavirement ! Les descendus (ce niveau) partagent la cagnotte.', color: 'red' },
+  { icon: Coins, title: 'Distribution', desc: 'Gain = floor(Cagnotte ÷ Nb bénéficiaires). Bonus de 100 jetons au niveau 5.', color: 'green' },
 ];
 
 export function RulesPageSummary({ context, replayNonce }: RulesPageSummaryProps) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('RIVIERES');
+  const section = getSection('full_summary');
+  const paragraphs = getParagraphs('full_summary');
+
+  // Extract dynamic content with fallbacks
+  const dynamicContent = useMemo(() => {
+    const tips = paragraphs.find(p => p.id === 'rf7_tips')?.items 
+      || ['Observez les tendances des autres joueurs avant de décider', 'Prenez plus de risques en manche 1 (danger plus faible)', 'Le niveau 5 vaut le risque : bonus de 100 jetons !', 'Si beaucoup descendent, le chavirement devient probable', 'Utilisez les pouvoirs de votre clan au bon moment'];
+    
+    return { tips };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -64,14 +66,14 @@ export function RulesPageSummary({ context, replayNonce }: RulesPageSummaryProps
           <span className="text-[#D4AF37] font-medium text-sm">Récapitulatif</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Résumé rapide
+          {section?.title || 'Résumé rapide'}
         </h1>
         <p className="text-[#9CA3AF]">Tout ce qu'il faut retenir en un coup d'œil</p>
       </motion.div>
 
       {/* Summary cards */}
       <motion.div variants={itemVariants} className="grid sm:grid-cols-2 gap-4">
-        {SUMMARY_POINTS.map((point, i) => {
+        {DEFAULT_SUMMARY_POINTS.map((point, i) => {
           const Icon = point.icon;
           return (
             <motion.div
@@ -123,26 +125,12 @@ export function RulesPageSummary({ context, replayNonce }: RulesPageSummaryProps
           <h3 className="text-[#D4AF37] font-bold">Conseils pour gagner</h3>
         </div>
         <ul className="text-[#E8E8E8] text-sm space-y-2">
-          <li className="flex items-start gap-2">
-            <span className="text-[#D4AF37]">•</span>
-            <span>Observez les tendances des autres joueurs avant de décider</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-[#D4AF37]">•</span>
-            <span>Prenez plus de risques en manche 1 (danger plus faible)</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-[#D4AF37]">•</span>
-            <span>Le niveau 5 vaut le risque : bonus de 100 jetons !</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-[#D4AF37]">•</span>
-            <span>Si beaucoup descendent, le chavirement devient probable</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-[#D4AF37]">•</span>
-            <span>Utilisez les pouvoirs de votre clan au bon moment</span>
-          </li>
+          {dynamicContent.tips.map((tip, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="text-[#D4AF37]">•</span>
+              <span dangerouslySetInnerHTML={{ __html: tip }} />
+            </li>
+          ))}
         </ul>
       </motion.div>
     </motion.div>

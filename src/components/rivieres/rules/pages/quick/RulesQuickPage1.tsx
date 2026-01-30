@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Ship, Target, Coins, ArrowRight } from 'lucide-react';
+import { Ship, Target, Coins, ArrowRight, Loader2 } from 'lucide-react';
 import { RivieresRulesContextData } from '../../useRivieresRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface RulesQuickPage1Props {
   context: RivieresRulesContextData;
@@ -22,6 +24,30 @@ const itemVariants = {
 };
 
 export function RulesQuickPage1({ context, replayNonce }: RulesQuickPage1Props) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('RIVIERES');
+  const section = getSection('quick_objectif');
+  const paragraphs = getParagraphs('quick_objectif');
+
+  // Extract dynamic content with fallbacks
+  const dynamicContent = useMemo(() => {
+    const objective = paragraphs.find(p => p.id === 'rq1_objectif')?.text 
+      || 'Accumulez un maximum de <span class="text-[#D4AF37] font-bold">jetons</span> en naviguant sur les rivières dangereuses de Ndogmoabeng.';
+    const hint = paragraphs.find(p => p.id === 'rq1_hint')?.text 
+      || 'Restez sur le bateau pour gagner gros, mais attention au chavirement !';
+    const tip = paragraphs.find(p => p.id === 'rq1_tip')?.text 
+      || '<span class="text-[#D4AF37] font-bold">Astuce :</span> 15 niveaux total, 9 à réussir pour éviter des pénalités. La cagnotte n\'est distribuée qu\'au niveau 5 ou en cas de chavirement !';
+    
+    return { objective, hint, tip };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -37,7 +63,7 @@ export function RulesQuickPage1({ context, replayNonce }: RulesQuickPage1Props) 
           <span className="text-[#D4AF37] font-bold text-lg">Les Rivières de Ndogmoabeng</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Objectif & Cycle de jeu
+          {section?.title || 'Objectif & Cycle de jeu'}
         </h1>
         <p className="text-[#9CA3AF]">Apprenez les bases en 2 minutes</p>
       </motion.div>
@@ -53,13 +79,14 @@ export function RulesQuickPage1({ context, replayNonce }: RulesQuickPage1Props) 
           </div>
           <div>
             <h2 className="text-[#D4AF37] font-bold text-lg mb-2">Objectif</h2>
-            <p className="text-[#E8E8E8]">
-              Accumulez un maximum de <span className="text-[#D4AF37] font-bold">jetons</span> en 
-              naviguant sur les rivières dangereuses de Ndogmoabeng.
-            </p>
-            <p className="text-[#9CA3AF] text-sm mt-2">
-              Restez sur le bateau pour gagner gros, mais attention au chavirement !
-            </p>
+            <p 
+              className="text-[#E8E8E8]"
+              dangerouslySetInnerHTML={{ __html: dynamicContent.objective }}
+            />
+            <p 
+              className="text-[#9CA3AF] text-sm mt-2"
+              dangerouslySetInnerHTML={{ __html: dynamicContent.hint }}
+            />
           </div>
         </div>
       </motion.div>
@@ -137,10 +164,10 @@ export function RulesQuickPage1({ context, replayNonce }: RulesQuickPage1Props) 
         className="flex items-center gap-3 bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-lg p-4"
       >
         <ArrowRight className="h-5 w-5 text-[#D4AF37] flex-shrink-0" />
-        <p className="text-[#E8E8E8] text-sm">
-          <span className="text-[#D4AF37] font-bold">Astuce :</span> 15 niveaux total, 9 à réussir pour éviter des pénalités. 
-          La cagnotte n'est distribuée qu'au niveau 5 ou en cas de chavirement !
-        </p>
+        <p 
+          className="text-[#E8E8E8] text-sm"
+          dangerouslySetInnerHTML={{ __html: dynamicContent.tip }}
+        />
       </motion.div>
     </motion.div>
   );
