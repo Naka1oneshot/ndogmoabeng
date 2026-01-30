@@ -1123,6 +1123,95 @@ export type Database = {
           },
         ]
       }
+      game_rules_content: {
+        Row: {
+          content: Json
+          created_at: string
+          game_code: string
+          icon: string | null
+          id: string
+          is_visible: boolean
+          section_key: string
+          section_order: number
+          title: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          game_code: string
+          icon?: string | null
+          id?: string
+          is_visible?: boolean
+          section_key: string
+          section_order?: number
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          game_code?: string
+          icon?: string | null
+          id?: string
+          is_visible?: boolean
+          section_key?: string
+          section_order?: number
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      game_rules_history: {
+        Row: {
+          content: Json
+          created_at: string
+          created_by: string | null
+          game_code: string
+          icon: string | null
+          id: string
+          rules_content_id: string
+          section_key: string
+          title: string | null
+          version_number: number
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          game_code: string
+          icon?: string | null
+          id?: string
+          rules_content_id: string
+          section_key: string
+          title?: string | null
+          version_number?: number
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          game_code?: string
+          icon?: string | null
+          id?: string
+          rules_content_id?: string
+          section_key?: string
+          title?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_rules_history_rules_content_id_fkey"
+            columns: ["rules_content_id"]
+            isOneToOne: false
+            referencedRelation: "game_rules_content"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_shop_offers: {
         Row: {
           created_at: string
