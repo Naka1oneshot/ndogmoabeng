@@ -8,6 +8,7 @@ import { QRCodeDisplay } from '@/components/game/QRCodeDisplay';
 import { GameStatusBadge } from '@/components/game/GameStatusBadge';
 import { AdventureProgressDisplay } from '@/components/game/AdventureProgressDisplay';
 import { AdventureTransitionGuide } from './AdventureTransitionGuide';
+import { AdventurePvicDetailsSheet } from './AdventurePvicDetailsSheet';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
 import { GameStartAnimation } from '@/components/game/GameStartAnimation';
 import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
@@ -924,14 +925,20 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
                   <span className="text-sm font-medium text-muted-foreground">🏆 Classement Équipes</span>
                   <span className="text-xs text-muted-foreground/70">(PVic cumulés)</span>
                 </div>
-                {adventureScores.length > 3 && (
-                  <button
-                    onClick={() => setShowAllScores(!showAllScores)}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    {showAllScores ? 'Voir moins' : `Voir tout (${adventureScores.length})`}
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  <AdventurePvicDetailsSheet 
+                    gameId={game.id} 
+                    adventureId={game.adventure_id} 
+                  />
+                  {adventureScores.length > 3 && (
+                    <button
+                      onClick={() => setShowAllScores(!showAllScores)}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      {showAllScores ? 'Voir moins' : `Voir tout (${adventureScores.length})`}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="grid gap-2">
                 {(showAllScores ? adventureScores : adventureScores.slice(0, 3)).map((team, index) => (
