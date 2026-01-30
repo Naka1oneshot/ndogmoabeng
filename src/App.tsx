@@ -11,6 +11,7 @@ import { ChatProvider } from "@/contexts/ChatContext";
 import { GlobalChatPanel } from "@/components/chat/GlobalChatPanel";
 import { SessionExpirationHandler } from "@/components/auth/SessionExpirationHandler";
 import { LoadingFallback } from "@/components/common/LoadingFallback";
+import { ComingSoonGuard } from "@/components/coming-soon/ComingSoonGuard";
 import { lazy, Suspense, memo } from "react";
 
 // Lazy load all pages for better code splitting
@@ -35,6 +36,7 @@ const PublicProfile = lazy(() => import("./pages/PublicProfile"));
 const Shop = lazy(() => import("./pages/Shop"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const OnboardingClanQuiz = lazy(() => import("./pages/OnboardingClanQuiz"));
+const ComingSoon = lazy(() => import("./pages/ComingSoon"));
 
 // Optimized QueryClient configuration
 const queryClient = new QueryClient({
@@ -61,30 +63,33 @@ const queryClient = new QueryClient({
 const AppRoutes = memo(function AppRoutes() {
   return (
     <Suspense fallback={<LoadingFallback />}>
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/jeux" element={<Games />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/mj" element={<MJ />} />
-        <Route path="/mj/:gameId" element={<MJGameManage />} />
-        <Route path="/join/:code" element={<JoinAnonymous />} />
-        <Route path="/player/:gameId" element={<PlayerDashboard />} />
-        <Route path="/play/:gameId" element={<PlayerDashboard />} />
-        <Route path="/admin/games" element={<AdminGames />} />
-        <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
-        <Route path="/admin/meetups" element={<AdminMeetups />} />
-        <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
-        <Route path="/admin/event-management" element={<AdminEventManagement />} />
-        <Route path="/watch" element={<WatchList />} />
-        <Route path="/watch/:gameId" element={<WatchGame />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/profile/:userId" element={<PublicProfile />} />
-        <Route path="/boutique" element={<Shop />} />
-        <Route path="/presentation/:gameId" element={<Presentation />} />
-        <Route path="/onboarding/clan-quiz" element={<OnboardingClanQuiz />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <ComingSoonGuard>
+        <Routes>
+          <Route path="/coming-soon" element={<ComingSoon />} />
+          <Route path="/" element={<Index />} />
+          <Route path="/jeux" element={<Games />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/mj" element={<MJ />} />
+          <Route path="/mj/:gameId" element={<MJGameManage />} />
+          <Route path="/join/:code" element={<JoinAnonymous />} />
+          <Route path="/player/:gameId" element={<PlayerDashboard />} />
+          <Route path="/play/:gameId" element={<PlayerDashboard />} />
+          <Route path="/admin/games" element={<AdminGames />} />
+          <Route path="/admin/games/:gameId" element={<AdminGameDetails />} />
+          <Route path="/admin/meetups" element={<AdminMeetups />} />
+          <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
+          <Route path="/admin/event-management" element={<AdminEventManagement />} />
+          <Route path="/watch" element={<WatchList />} />
+          <Route path="/watch/:gameId" element={<WatchGame />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/:userId" element={<PublicProfile />} />
+          <Route path="/boutique" element={<Shop />} />
+          <Route path="/presentation/:gameId" element={<Presentation />} />
+          <Route path="/onboarding/clan-quiz" element={<OnboardingClanQuiz />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </ComingSoonGuard>
     </Suspense>
   );
 });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useSystemSettings, ChatConfig } from '@/hooks/useSystemSettings';
+import { useComingSoon } from '@/hooks/useComingSoon';
 import { toast } from '@/hooks/use-toast';
 import { 
   MessageCircle, 
@@ -14,13 +15,16 @@ import {
   Save, 
   Loader2,
   Settings,
-  Hash
+  Hash,
+  Clock
 } from 'lucide-react';
 
 export function SystemSettingsTab() {
   const { chatConfig, loading, updateChatConfig } = useSystemSettings();
+  const { isComingSoonEnabled, loading: comingSoonLoading, toggleComingSoon } = useComingSoon();
   const [localConfig, setLocalConfig] = useState<ChatConfig | null>(null);
   const [saving, setSaving] = useState(false);
+  const [togglingComingSoon, setTogglingComingSoon] = useState(false);
 
   // Use local state if modified, otherwise use fetched config
   const config = localConfig || chatConfig;
@@ -57,9 +61,31 @@ export function SystemSettingsTab() {
     }
   };
 
+  const handleToggleComingSoon = async () => {
+    setTogglingComingSoon(true);
+    const newValue = !isComingSoonEnabled;
+    const { error } = await toggleComingSoon(newValue);
+    setTogglingComingSoon(false);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier le mode Coming Soon",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: newValue ? "Mode Coming Soon activé" : "Mode Coming Soon désactivé",
+        description: newValue 
+          ? "Seuls les super admins peuvent accéder au site" 
+          : "Le site est maintenant accessible à tous",
+      });
+    }
+  };
+
   const hasChanges = localConfig !== null;
 
-  if (loading) {
+  if (loading || comingSoonLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -69,6 +95,40 @@ export function SystemSettingsTab() {
 
   return (
     <div className="space-y-6">
+      {/* Coming Soon Mode Card */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-primary" />
+            Mode Coming Soon
+          </CardTitle>
+          <CardDescription>
+            Activer ce mode pour rediriger tous les visiteurs vers la page d'attente
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">
+                {isComingSoonEnabled ? (
+                  <span className="text-primary">Le site est en mode Coming Soon</span>
+                ) : (
+                  <span className="text-muted-foreground">Le site est accessible à tous</span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Les super admins peuvent toujours accéder au site
+              </p>
+            </div>
+            <Switch
+              checked={isComingSoonEnabled || false}
+              onCheckedChange={handleToggleComingSoon}
+              disabled={togglingComingSoon}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="border-accent/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -107,8 +167,8 @@ export function SystemSettingsTab() {
           {/* Lobby Chat Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10">
-                <Users className="h-5 w-5 text-amber-500" />
+              <div className="p-2 rounded-lg bg-secondary">
+                <Users className="h-5 w-5 text-secondary-foreground" />
               </div>
               <div>
                 <Label htmlFor="lobby-chat" className="text-base font-medium">
@@ -131,8 +191,8 @@ export function SystemSettingsTab() {
           {/* In-Game Chat Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <Gamepad2 className="h-5 w-5 text-green-500" />
+              <div className="p-2 rounded-lg bg-accent/10">
+                <Gamepad2 className="h-5 w-5 text-accent" />
               </div>
               <div>
                 <Label htmlFor="ingame-chat" className="text-base font-medium">
@@ -155,8 +215,8 @@ export function SystemSettingsTab() {
           {/* Max Messages per Game */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Hash className="h-5 w-5 text-blue-500" />
+              <div className="p-2 rounded-lg bg-muted">
+                <Hash className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
                 <Label htmlFor="max-messages" className="text-base font-medium">
@@ -204,17 +264,21 @@ export function SystemSettingsTab() {
           <CardTitle className="text-sm">État actuel</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${config.general_chat_enabled ? 'bg-green-500' : 'bg-red-500'}`} />
+              <div className={`w-2 h-2 rounded-full ${isComingSoonEnabled ? 'bg-primary' : 'bg-muted'}`} />
+              <span>Coming Soon</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${config.general_chat_enabled ? 'bg-accent' : 'bg-destructive'}`} />
               <span>Chat Général</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${config.lobby_chat_enabled ? 'bg-green-500' : 'bg-red-500'}`} />
+              <div className={`w-2 h-2 rounded-full ${config.lobby_chat_enabled ? 'bg-accent' : 'bg-destructive'}`} />
               <span>Chat Lobby</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${config.ingame_chat_enabled ? 'bg-green-500' : 'bg-red-500'}`} />
+              <div className={`w-2 h-2 rounded-full ${config.ingame_chat_enabled ? 'bg-accent' : 'bg-destructive'}`} />
               <span>Chat In-Game</span>
             </div>
             <div className="flex items-center gap-2">
