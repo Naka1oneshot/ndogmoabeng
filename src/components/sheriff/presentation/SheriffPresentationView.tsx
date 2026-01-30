@@ -8,7 +8,7 @@ import { getSheriffThemeClasses, SHERIFF_COLORS } from '../SheriffTheme';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { SheriffVisaCostsSummaryAnimation } from './SheriffVisaCostsSummaryAnimation';
-import { SheriffTeamSortAnimation } from './SheriffTeamSortAnimation';
+
 import { SheriffDuelStartAnimation } from './SheriffDuelStartAnimation';
 import { SheriffDuelResolutionAnimation } from './SheriffDuelResolutionAnimation';
 import { SheriffVictoryPodium } from './SheriffVictoryPodium';
@@ -97,7 +97,7 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   
   // Animation states
   const [showChoicesResolution, setShowChoicesResolution] = useState(false);
-  const [showTeamSort, setShowTeamSort] = useState(false);
+  
   const [showDuelStart, setShowDuelStart] = useState(false);
   const [showDuelResolution, setShowDuelResolution] = useState(false);
   const [currentDuelForAnimation, setCurrentDuelForAnimation] = useState<Duel | null>(null);
@@ -301,14 +301,8 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   // Animation callbacks
   const handleChoicesResolutionComplete = () => {
     setShowChoicesResolution(false);
-    setShowTeamSort(true);
-  };
-  
-  const handleTeamSortComplete = () => {
-    setShowTeamSort(false);
-    // No longer auto-trigger duel animation here
-    // The duel start animation is now triggered when the MJ clicks "Déclencher le prochain duel"
-    // and the duel status changes to ACTIVE (detected in useEffect above)
+    // Directly proceed - no team sort animation anymore
+    // The duel start animation is triggered when MJ clicks "Déclencher le prochain duel"
   };
   
   const handleDuelStartComplete = () => {
@@ -450,14 +444,6 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
         />
       )}
       
-      {showTeamSort && (
-        <SheriffTeamSortAnimation
-          players={activePlayers}
-          choices={choices}
-          getPlayer={getPlayer}
-          onComplete={handleTeamSortComplete}
-        />
-      )}
       
       {showDuelStart && currentDuelForAnimation && (
         <SheriffDuelStartAnimation
