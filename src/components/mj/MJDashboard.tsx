@@ -832,8 +832,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
               <span className="hidden sm:inline">Inviter</span>
             </ForestButton>
           )}
-          {/* Adventure Config button - only for first game in LOBBY */}
-          {isAdventure && game.current_step_index === 0 && game.status === 'LOBBY' && (
+          {/* Adventure Config button - for all adventure games in LOBBY */}
+          {isAdventure && game.status === 'LOBBY' && (
             <ForestButton 
               variant="outline" 
               size="sm" 
