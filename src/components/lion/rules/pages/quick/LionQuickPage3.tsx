@@ -22,7 +22,7 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-6"
+      className="space-y-5"
     >
       {/* Title */}
       <motion.div variants={itemVariants} className="text-center">
@@ -38,9 +38,9 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
       {/* Formula */}
       <motion.div 
         variants={itemVariants}
-        className="bg-gradient-to-br from-amber-800/50 to-amber-900/50 border border-amber-600 rounded-xl p-5"
+        className="bg-gradient-to-br from-amber-800/50 to-amber-900/50 border border-amber-600 rounded-xl p-4"
       >
-        <h2 className="text-lg font-bold text-amber-300 mb-3 text-center">
+        <h2 className="text-base font-bold text-amber-300 mb-2 text-center">
           d = |Carte Actif − Carte Croupier|
         </h2>
         <p className="text-amber-200/80 text-center text-sm">
@@ -48,80 +48,89 @@ export function LionQuickPage3({ replayNonce }: LionQuickPage3Props) {
         </p>
       </motion.div>
 
-      {/* Cases */}
-      <motion.div variants={itemVariants} className="space-y-3">
-        {/* Case d=0 */}
-        <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center text-2xl">
-              😐
+      {/* Guesser Wins Cases */}
+      <motion.div variants={itemVariants} className="space-y-2">
+        <h3 className="text-green-400 font-bold text-sm">✅ Le Devineur gagne si :</h3>
+        
+        <div className="bg-green-900/30 border border-green-600/50 rounded-lg p-3">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded bg-green-800/50 flex items-center justify-center text-lg flex-shrink-0">
+              🎯
             </div>
             <div>
-              <h3 className="text-gray-300 font-bold">Si d = 0</h3>
-              <p className="text-gray-400 text-sm">Aucun point pour personne</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Case correct */}
-        <div className="bg-green-900/30 border border-green-600/50 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-green-800/50 flex items-center justify-center text-2xl">
-              ✅
-            </div>
-            <div>
-              <h3 className="text-green-300 font-bold">Devineur correct</h3>
               <p className="text-green-200/80 text-sm">
-                Le devineur gagne <strong className="text-green-300">2 × d</strong> points
+                <strong className="text-green-300">ÉGAL</strong> et cartes identiques → <span className="text-green-400 font-bold">+10 PVic</span>
               </p>
             </div>
           </div>
         </div>
 
-        {/* Case incorrect */}
-        <div className="bg-amber-900/30 border border-amber-600/50 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-amber-800/50 flex items-center justify-center text-2xl">
-              ❌
+        <div className="bg-green-900/30 border border-green-600/50 rounded-lg p-3">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded bg-green-800/50 flex items-center justify-center text-lg flex-shrink-0">
+              ⬆️
             </div>
             <div>
-              <h3 className="text-amber-300 font-bold">Devineur incorrect</h3>
-              <p className="text-amber-200/80 text-sm">
-                L'actif gagne <strong className="text-amber-300">d</strong> points
+              <p className="text-green-200/80 text-sm">
+                <strong className="text-green-300">PLUS HAUT</strong> et carte actif {'>'} croupier → <span className="text-green-400 font-bold">+d PVic</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-green-900/30 border border-green-600/50 rounded-lg p-3">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded bg-green-800/50 flex items-center justify-center text-lg flex-shrink-0">
+              ⬇️
+            </div>
+            <div>
+              <p className="text-green-200/80 text-sm">
+                <strong className="text-green-300">PLUS BAS</strong> et carte actif {'<'} croupier → <span className="text-green-400 font-bold">+d PVic</span>
               </p>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Example */}
-      <motion.div 
-        variants={itemVariants}
-        className="bg-amber-950/50 border border-amber-800 rounded-lg p-4"
-      >
-        <h3 className="text-amber-400 font-medium mb-2">📝 Exemple</h3>
-        <p className="text-amber-200/80 text-sm mb-2">
-          Croupier = <strong>3</strong>, Carte Actif = <strong>8</strong>
-        </p>
-        <p className="text-amber-200/80 text-sm">
-          → d = |8 − 3| = <strong>5</strong>
-        </p>
-        <p className="text-amber-200/80 text-sm">
-          → Si le devineur dit "PLUS HAUT" (correct) : <span className="text-green-400">+10 PVic</span>
-        </p>
-        <p className="text-amber-200/80 text-sm">
-          → Si le devineur dit "PLUS BAS" (incorrect) : Actif <span className="text-amber-400">+5 PVic</span>
-        </p>
+      {/* Active Player Wins Cases */}
+      <motion.div variants={itemVariants} className="space-y-2">
+        <h3 className="text-amber-400 font-bold text-sm">❌ L'Actif gagne si le devineur se trompe :</h3>
+        
+        <div className="bg-amber-900/30 border border-amber-600/50 rounded-lg p-3">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded bg-amber-800/50 flex items-center justify-center text-lg flex-shrink-0">
+              🎯
+            </div>
+            <div>
+              <p className="text-amber-200/80 text-sm">
+                Cartes identiques mais pas <strong className="text-amber-300">ÉGAL</strong> → <span className="text-amber-400 font-bold">+2 PVic</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-amber-900/30 border border-amber-600/50 rounded-lg p-3">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded bg-amber-800/50 flex items-center justify-center text-lg flex-shrink-0">
+              ❓
+            </div>
+            <div>
+              <p className="text-amber-200/80 text-sm">
+                Mauvaise prédiction (plus haut/bas) → <span className="text-amber-400 font-bold">+d PVic</span>
+              </p>
+            </div>
+          </div>
+        </div>
       </motion.div>
 
       {/* Sudden Death */}
       <motion.div 
         variants={itemVariants}
-        className="bg-red-900/20 border border-red-600/50 rounded-lg p-4"
+        className="bg-red-900/20 border border-red-600/50 rounded-lg p-3"
       >
-        <div className="flex items-center gap-2 mb-2">
-          <Swords className="h-5 w-5 text-red-400" />
-          <h3 className="text-red-300 font-bold">Mort Subite</h3>
+        <div className="flex items-center gap-2 mb-1">
+          <Swords className="h-4 w-4 text-red-400" />
+          <h3 className="text-red-300 font-bold text-sm">Mort Subite</h3>
         </div>
         <p className="text-red-200/80 text-sm">
           En cas d'<strong>égalité après 22 tours</strong>, on joue des duos de tours (A+B) 

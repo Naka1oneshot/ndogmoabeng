@@ -6,7 +6,7 @@ interface LionCardRevealAnimationProps {
   show: boolean;
   dealerCard: number;
   activeCard: number;
-  guesserChoice: 'HIGHER' | 'LOWER' | null;
+  guesserChoice: 'HIGHER' | 'LOWER' | 'EQUAL' | null;
   guesserName: string;
   activeName: string;
   difference: number;
@@ -155,9 +155,9 @@ export function LionCardRevealAnimation({
           >
             <p className="text-amber-400 text-lg">{guesserName} avait parié :</p>
             <p className={`text-2xl font-bold ${
-              guesserChoice === 'HIGHER' ? 'text-green-400' : 'text-red-400'
+              guesserChoice === 'HIGHER' ? 'text-green-400' : guesserChoice === 'LOWER' ? 'text-red-400' : 'text-amber-400'
             }`}>
-              {guesserChoice === 'HIGHER' ? '⬆️ PLUS HAUT' : '⬇️ PLUS BAS'}
+              {guesserChoice === 'HIGHER' ? '⬆️ PLUS HAUT' : guesserChoice === 'LOWER' ? '⬇️ PLUS BAS' : '🎯 ÉGAL'}
             </p>
           </motion.div>
         )}
@@ -174,7 +174,7 @@ export function LionCardRevealAnimation({
               <p className="text-2xl text-amber-200 mb-2">
                 Différence : <span className="font-bold text-amber-300 text-3xl">{difference}</span>
               </p>
-              {difference === 0 ? (
+              {winnerPoints === 0 ? (
                 <p className="text-xl text-amber-400">Aucun point ce tour !</p>
               ) : (
                 <motion.p

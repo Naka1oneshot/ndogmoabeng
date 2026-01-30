@@ -74,23 +74,33 @@ serve(async (req) => {
     let pvicDeltaActive = 0;
     let pvicDeltaGuesser = 0;
 
-    if (d === 0) {
-      // No points for anyone
-      pvicDeltaActive = 0;
-      pvicDeltaGuesser = 0;
-    } else {
-      // Determine if guess was correct
-      const actualDiff = activeCard - dealerCard;
-      const guessedHigher = guessChoice === 'HIGHER';
-      const wasHigher = actualDiff > 0;
-      
-      const guessCorrect = guessedHigher === wasHigher;
+    // New scoring logic:
+    // - If activeCard == dealerCard and guesser chose EQUAL → guesser wins 10 PVic
+    // - If activeCard < dealerCard and guesser chose LOWER → guesser wins d PVic
+    // - If activeCard > dealerCard and guesser chose HIGHER → guesser wins d PVic
+    // - If activeCard == dealerCard and guesser didn't choose EQUAL → active wins 2 PVic
+    // - If activeCard < dealerCard and guesser didn't choose LOWER → active wins d PVic
+    // - If activeCard > dealerCard and guesser didn't choose HIGHER → active wins d PVic
 
-      if (guessCorrect) {
-        // Guesser gets 2*d points
-        pvicDeltaGuesser = 2 * d;
+    if (activeCard === dealerCard) {
+      // Cards are equal
+      if (guessChoice === 'EQUAL') {
+        pvicDeltaGuesser = 10;
       } else {
-        // Active player gets d points
+        pvicDeltaActive = 2;
+      }
+    } else if (activeCard < dealerCard) {
+      // Active card is lower
+      if (guessChoice === 'LOWER') {
+        pvicDeltaGuesser = d;
+      } else {
+        pvicDeltaActive = d;
+      }
+    } else {
+      // Active card is higher (activeCard > dealerCard)
+      if (guessChoice === 'HIGHER') {
+        pvicDeltaGuesser = d;
+      } else {
         pvicDeltaActive = d;
       }
     }
