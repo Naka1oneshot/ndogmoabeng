@@ -184,6 +184,7 @@ export function ClanAffinitySection({
             onClose={handleCloseQuiz}
             onCompleted={handleQuizCompleted}
             existingSeed={clanAffinityDetails?.seed}
+            isRetake={hasCompleted}
           />
         )}
       </AnimatePresence>

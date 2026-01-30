@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, RotateCcw, Trophy, ListChecks, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,8 @@ interface ClanAffinityQuizProps {
   onClose?: () => void;
   onCompleted?: () => void;
   existingSeed?: string | null;
+  /** Si true, le quiz a déjà été complété (mode profile refaire le test) */
+  isRetake?: boolean;
 }
 
 interface Answer {
@@ -43,14 +45,18 @@ interface Answer {
 
 type QuizPhase = 'questions' | 'tiebreak1' | 'tiebreak2' | 'results';
 
-export function ClanAffinityQuiz({ mode, onClose, onCompleted, existingSeed }: ClanAffinityQuizProps) {
+export function ClanAffinityQuiz({ mode, onClose, onCompleted, existingSeed, isRetake = false }: ClanAffinityQuizProps) {
   const { user } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [tieBreakAnswers, setTieBreakAnswers] = useState<Answer[]>([]);
   const [phase, setPhase] = useState<QuizPhase>('questions');
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  
+  // Ref pour éviter double sauvegarde automatique
+  const autoSaveTriggeredRef = useRef(false);
 
   // Generate deterministic seed
   const seed = useMemo(() => {
@@ -170,7 +176,7 @@ export function ClanAffinityQuiz({ mode, onClose, onCompleted, existingSeed }: C
 
   // Save results to database
   const saveResults = useCallback(async () => {
-    if (!user) return;
+    if (!user || saving || saved) return;
     setSaving(true);
 
     const clanInfo = CLAN_MAP[winnerClan];
@@ -208,10 +214,20 @@ export function ClanAffinityQuiz({ mode, onClose, onCompleted, existingSeed }: C
       console.error('Error saving quiz results:', error);
       toast.error('Erreur lors de la sauvegarde');
     } else {
+      setSaved(true);
       toast.success('Résultats enregistrés !');
       onCompleted?.();
     }
-  }, [user, winnerClan, seed, selectedQuestions, answers, tieBreakAnswers, finalScores, onCompleted]);
+  }, [user, winnerClan, seed, selectedQuestions, answers, tieBreakAnswers, finalScores, onCompleted, saving, saved]);
+
+  // Auto-save pour le premier test (pas un refaire)
+  // Sauvegarde automatiquement quand on atteint la phase résultats
+  useEffect(() => {
+    if (phase === 'results' && !isRetake && !autoSaveTriggeredRef.current && user) {
+      autoSaveTriggeredRef.current = true;
+      saveResults();
+    }
+  }, [phase, isRetake, user, saveResults]);
 
   // Progress calculation
   const progressPercent = phase === 'questions' 
@@ -479,10 +495,10 @@ export function ClanAffinityQuiz({ mode, onClose, onCompleted, existingSeed }: C
         >
           <Button
             onClick={saveResults}
-            disabled={saving}
+            disabled={saving || saved}
             className={cn("flex-1", winnerColors.buttonBg, winnerColors.buttonText)}
           >
-            {saving ? 'Enregistrement...' : 'Enregistrer mon résultat'}
+            {saving ? 'Enregistrement...' : saved ? '✓ Enregistré' : 'Enregistrer mon résultat'}
           </Button>
           {mode === 'profile' && (
             <Button variant="outline" onClick={onClose} className="flex-1">
