@@ -22,13 +22,13 @@ export function ComingSoonAudioPlayer() {
     }
   });
 
-  // Initialize volume from localStorage (0-100)
+  // Initialize volume from localStorage (0-100), default to 30%
   const [volume, setVolume] = useState(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_VOLUME);
-      return stored ? parseInt(stored, 10) : 50;
+      return stored ? parseInt(stored, 10) : 30;
     } catch {
-      return 50;
+      return 30;
     }
   });
 
