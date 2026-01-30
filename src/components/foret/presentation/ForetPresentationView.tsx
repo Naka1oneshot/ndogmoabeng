@@ -155,6 +155,9 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
   const [allBets, setAllBets] = useState<{ num_joueur: number; mise_effective: number | null }[]>([]);
   const [allActions, setAllActions] = useState<{ num_joueur: number; attaque1: string | null; attaque2: string | null }[]>([]);
   
+  // Adventure cumulative scores (historical PVic from previous games)
+  const [adventureHistoricalScores, setAdventureHistoricalScores] = useState<Map<string, number>>(new Map());
+  
   // Animation states
   const [showPhaseTransition, setShowPhaseTransition] = useState(false);
   const [phaseTransitionText, setPhaseTransitionText] = useState('');
@@ -378,13 +381,33 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
     }
 
     if (playersData) {
-      setPlayers(playersData.map(p => ({
+      const playersList = playersData.map(p => ({
         ...p,
         jetons: p.jetons ?? 0,
         recompenses: p.recompenses ?? 0,
         avatar_url: p.user_id ? (avatarMap.get(p.user_id) || null) : null,
         clan: p.clan ?? null,
-      })));
+      }));
+      setPlayers(playersList);
+      
+      // In adventure mode, fetch historical scores from adventure_scores
+      if (isAdventureMode && playersList.length > 0) {
+        const playerIds = playersList.map(p => p.id);
+        const { data: adventureScoresData } = await supabase
+          .from('adventure_scores')
+          .select('game_player_id, total_score_value')
+          .eq('session_id', gameId)
+          .in('game_player_id', playerIds);
+        
+        if (adventureScoresData && adventureScoresData.length > 0) {
+          const scoresMap = new Map<string, number>();
+          adventureScoresData.forEach(s => {
+            scoresMap.set(s.game_player_id, Number(s.total_score_value) || 0);
+          });
+          setAdventureHistoricalScores(scoresMap);
+          console.log('[FORET][PRESENTATION] Adventure historical scores:', scoresMap);
+        }
+      }
     }
 
     // Fetch bets for current manche
@@ -566,6 +589,8 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
   const globalProgress = totalPvMax > 0 ? (totalPvCurrent / totalPvMax) * 100 : 0;
 
   // Build teams for ranking
+  // In adventure mode, score = historical PVic (from adventure_scores) + current recompenses
+  // In single game mode, score = current recompenses only
   const buildTeams = (): Team[] => {
     const teams: Team[] = [];
     const processedPlayers = new Set<number>();
@@ -593,7 +618,20 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
         processedPlayers.add(rm.player_number);
       }
 
-      const rawScore = teammates.reduce((sum, p) => sum + p.recompenses, 0);
+      // Calculate team score:
+      // Adventure mode: historical PVic (adventure_scores) + current recompenses
+      // Single game mode: current recompenses only
+      let rawScore = 0;
+      if (isAdventureMode) {
+        // Sum historical scores + current recompenses for all teammates
+        rawScore = teammates.reduce((sum, p) => {
+          const historicalPvic = adventureHistoricalScores.get(p.id) || 0;
+          return sum + historicalPvic + p.recompenses;
+        }, 0);
+      } else {
+        rawScore = teammates.reduce((sum, p) => sum + p.recompenses, 0);
+      }
+      
       const teamName = teammates.length === 1 ? teammates[0].display_name : teammates.map(t => t.display_name).join(' & ');
 
       teams.push({ members: teammates, teamScore: rawScore, teamName });
@@ -1691,7 +1729,12 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
               <div className="flex-1 bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 md:p-4 overflow-hidden flex flex-col">
                 <div className="flex items-center gap-2 mb-2 md:mb-3">
                   <Trophy className="h-4 md:h-5 w-4 md:w-5 text-amber-500" />
-                  <h3 className="text-sm md:text-base font-semibold text-amber-500">Classement des équipes</h3>
+                  <h3 className="text-sm md:text-base font-semibold text-amber-500">
+                    {isAdventureMode ? 'Classement PVic Cumulés' : 'Classement des équipes'}
+                  </h3>
+                  {isAdventureMode && (
+                    <span className="text-[10px] md:text-xs text-amber-400/70">(historique + récompenses)</span>
+                  )}
                 </div>
                 <ScrollArea className="flex-1">
                   {(() => {
