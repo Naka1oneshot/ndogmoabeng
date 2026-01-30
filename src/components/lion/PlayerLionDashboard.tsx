@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,22 +13,26 @@ import {
   LionGuessButtons 
 } from './LionTheme';
 import { LionRulesOverlay } from './rules/LionRulesOverlay';
-import { Loader2, RefreshCw, BookOpen, Lock, Eye } from 'lucide-react';
+import { UserAvatarButton } from '@/components/ui/UserAvatarButton';
+import { Loader2, RefreshCw, BookOpen, Lock, Eye, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface PlayerLionDashboardProps {
   game: {
     id: string;
     current_session_game_id: string | null;
+    name?: string;
   };
   player: {
     id: string;
     display_name: string;
     user_id: string | null;
   };
+  onLeaveGame?: () => void;
 }
 
-export function PlayerLionDashboard({ game, player }: PlayerLionDashboardProps) {
+export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDashboardProps) {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [showRules, setShowRules] = useState(false);
   const [selectedCard, setSelectedCard] = useState<number | null>(null);
@@ -204,7 +208,16 @@ export function PlayerLionDashboard({ game, player }: PlayerLionDashboardProps) 
               {isActive ? "C'est ton tour de jouer" : isGuesser ? "Devine la carte !" : "Observe..."}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/')}
+              className="text-amber-400 hover:text-amber-300"
+              title="Accueil"
+            >
+              <Home className="h-5 w-5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -221,6 +234,7 @@ export function PlayerLionDashboard({ game, player }: PlayerLionDashboardProps) 
             >
               <RefreshCw className="h-5 w-5" />
             </Button>
+            <UserAvatarButton size="sm" onLeaveGame={onLeaveGame} />
           </div>
         </div>
 
@@ -312,8 +326,22 @@ export function PlayerLionDashboard({ game, player }: PlayerLionDashboardProps) 
           </Card>
         )}
 
-        {/* Guesser Actions */}
-        {isGuesser && currentTurn && !currentTurn.guess_locked && (
+        {/* Guesser Waiting for Active Player */}
+        {isGuesser && currentTurn && !currentTurn.active_locked && (
+          <Card className="bg-amber-900/40 border-amber-700 mb-6">
+            <CardContent className="pt-6 text-center">
+              <div className="flex justify-center mb-4">
+                <LionCardDisplay value={null} faceDown size="lg" />
+              </div>
+              <p className="text-amber-200">
+                ⏳ En attente que l'adversaire pose sa carte...
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Guesser Actions - only after active player has locked */}
+        {isGuesser && currentTurn && currentTurn.active_locked && !currentTurn.guess_locked && (
           <Card className="bg-amber-900/40 border-amber-700 mb-6">
             <CardHeader className="pb-2">
               <CardTitle className="text-amber-300 text-center">
