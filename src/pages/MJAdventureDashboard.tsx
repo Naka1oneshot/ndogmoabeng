@@ -528,10 +528,15 @@ export default function MJAdventureDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <ForestButton variant="ghost" size="sm" onClick={() => navigate('/mj')}>
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Retour
-            </ForestButton>
+            <div className="flex items-center gap-1">
+              <ForestButton variant="ghost" size="sm" onClick={() => navigate('/mj')}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Liste
+              </ForestButton>
+              <ForestButton variant="outline" size="sm" onClick={() => navigate(`/mj/${game.id}`)}>
+                Dashboard Jeu
+              </ForestButton>
+            </div>
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <Map className="h-6 w-6 text-amber-400" />
