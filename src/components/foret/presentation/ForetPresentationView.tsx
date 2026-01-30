@@ -22,6 +22,7 @@ import emptySlotRip from '@/assets/monsters/empty-slot-rip.png';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdventureCinematic';
 import { ForetRulesOverlay } from '../rules/ForetRulesOverlay';
+import { PresentationPvicDetailsSheet } from '@/components/presentation/PresentationPvicDetailsSheet';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -1421,9 +1422,16 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
             {/* Team Ranking - 2/10 - Enhanced with info button */}
             <div className="md:col-span-2 flex flex-col gap-2 md:overflow-hidden">
               <div className="bg-amber-500/10 rounded-xl border border-amber-600/30 p-1.5 flex-1 overflow-hidden flex flex-col">
-                <div className="flex items-center gap-1 mb-1.5">
-                  <Trophy className="h-4 md:h-5 w-4 md:w-5 text-amber-500" />
-                  <span className="text-xs md:text-sm font-semibold text-amber-500">Classement</span>
+                <div className="flex items-center justify-between gap-1 mb-1.5">
+                  <div className="flex items-center gap-1">
+                    <Trophy className="h-4 md:h-5 w-4 md:w-5 text-amber-500" />
+                    <span className="text-xs md:text-sm font-semibold text-amber-500">Classement</span>
+                  </div>
+                  <PresentationPvicDetailsSheet 
+                    gameId={game.id} 
+                    isAdventureMode={isAdventureMode}
+                    currentGameTypeCode={game.selected_game_type_code || undefined}
+                  />
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="space-y-0.5">
@@ -1727,14 +1735,21 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
 
               {/* Team Ranking - first on right side */}
               <div className="flex-1 bg-amber-500/10 rounded-xl border border-amber-600/30 p-2 md:p-4 overflow-hidden flex flex-col">
-                <div className="flex items-center gap-2 mb-2 md:mb-3">
-                  <Trophy className="h-4 md:h-5 w-4 md:w-5 text-amber-500" />
-                  <h3 className="text-sm md:text-base font-semibold text-amber-500">
-                    {isAdventureMode ? 'Classement PVic Cumulés' : 'Classement des équipes'}
-                  </h3>
-                  {isAdventureMode && (
-                    <span className="text-[10px] md:text-xs text-amber-400/70">(historique + récompenses)</span>
-                  )}
+                <div className="flex items-center justify-between gap-2 mb-2 md:mb-3">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 md:h-5 w-4 md:w-5 text-amber-500" />
+                    <h3 className="text-sm md:text-base font-semibold text-amber-500">
+                      {isAdventureMode ? 'Classement PVic Cumulés' : 'Classement des équipes'}
+                    </h3>
+                    {isAdventureMode && (
+                      <span className="text-[10px] md:text-xs text-amber-400/70">(historique + récompenses)</span>
+                    )}
+                  </div>
+                  <PresentationPvicDetailsSheet 
+                    gameId={game.id} 
+                    isAdventureMode={isAdventureMode}
+                    currentGameTypeCode={game.selected_game_type_code || undefined}
+                  />
                 </div>
                 <ScrollArea className="flex-1">
                   {(() => {

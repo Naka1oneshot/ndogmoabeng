@@ -1,0 +1,346 @@
+import { useState, useEffect } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { ForestButton } from '@/components/ui/ForestButton';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
+import { BarChart3, Loader2 } from 'lucide-react';
+
+// Game type code to display name and emoji mapping
+const GAME_TYPE_INFO: Record<string, { name: string; emoji: string; color: string }> = {
+  RIVIERES: { name: 'Rivières', emoji: '🌊', color: 'text-blue-400' },
+  FORET: { name: 'Forêt', emoji: '🌲', color: 'text-green-400' },
+  SHERIFF: { name: 'Shérif', emoji: '🤠', color: 'text-amber-400' },
+  INFECTION: { name: 'Infection', emoji: '🦠', color: 'text-purple-400' },
+  LION: { name: 'Lion', emoji: '🦁', color: 'text-orange-400' },
+};
+
+interface PvicBreakdown {
+  [sessionGameId: string]: number;
+}
+
+interface PlayerBreakdown {
+  playerId: string;
+  playerName: string;
+  playerNumber: number | null;
+  mateNum: number | null;
+  totalScore: number;
+  breakdown: { gameType: string; gameName: string; emoji: string; color: string; value: number }[];
+  currentGameEstimate: number;
+}
+
+interface TeamBreakdown {
+  teamName: string;
+  players: PlayerBreakdown[];
+  totalScore: number;
+}
+
+interface PresentationPvicDetailsSheetProps {
+  gameId: string;
+  isAdventureMode: boolean;
+  currentGameTypeCode?: string;
+  /** Custom button className */
+  buttonClassName?: string;
+  /** Custom button variant */
+  buttonVariant?: 'outline' | 'ghost' | 'primary' | 'secondary';
+}
+
+export function PresentationPvicDetailsSheet({ 
+  gameId, 
+  isAdventureMode,
+  currentGameTypeCode,
+  buttonClassName = '',
+  buttonVariant = 'outline'
+}: PresentationPvicDetailsSheetProps) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [teamBreakdowns, setTeamBreakdowns] = useState<TeamBreakdown[]>([]);
+  const [gameTypes, setGameTypes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      fetchAllBreakdowns();
+    }
+  }, [open, gameId]);
+
+  const fetchAllBreakdowns = async () => {
+    setLoading(true);
+    try {
+      // Fetch all players
+      const { data: players } = await supabase
+        .from('game_players')
+        .select('id, display_name, player_number, pvic, recompenses, mate_num, jetons')
+        .eq('game_id', gameId)
+        .is('removed_at', null)
+        .order('player_number');
+
+      if (!players) {
+        setTeamBreakdowns([]);
+        return;
+      }
+
+      // Fetch all adventure_scores for this game
+      const { data: scores } = await supabase
+        .from('adventure_scores')
+        .select('game_player_id, total_score_value, breakdown')
+        .eq('session_id', gameId);
+
+      // Get all session_game_ids from breakdowns to resolve names
+      const allSessionGameIds = new Set<string>();
+      scores?.forEach(score => {
+        if (score.breakdown) {
+          const breakdownObj = score.breakdown as PvicBreakdown;
+          Object.keys(breakdownObj).forEach(id => allSessionGameIds.add(id));
+        }
+      });
+
+      // Fetch session_games to get game_type_code
+      let sessionGameMap = new Map<string, { game_type_code: string; step_index: number }>();
+      if (allSessionGameIds.size > 0) {
+        const { data: sessionGames } = await supabase
+          .from('session_games')
+          .select('id, game_type_code, step_index')
+          .in('id', Array.from(allSessionGameIds));
+
+        if (sessionGames) {
+          sessionGameMap = new Map(sessionGames.map(sg => [sg.id, { 
+            game_type_code: sg.game_type_code, 
+            step_index: sg.step_index 
+          }]));
+        }
+      }
+
+      // Build player breakdowns
+      const scoresMap = new Map(scores?.map(s => [s.game_player_id, s]) || []);
+      const uniqueGameTypes = new Set<string>();
+
+      const playerBreakdowns: PlayerBreakdown[] = players.map(player => {
+        const scoreData = scoresMap.get(player.id);
+        const breakdown: PlayerBreakdown['breakdown'] = [];
+        
+        if (scoreData?.breakdown) {
+          const breakdownObj = scoreData.breakdown as PvicBreakdown;
+          
+          Object.entries(breakdownObj).forEach(([sessionGameId, value]) => {
+            const sgInfo = sessionGameMap.get(sessionGameId);
+            if (sgInfo && value !== 0) {
+              const gameInfo = GAME_TYPE_INFO[sgInfo.game_type_code] || { 
+                name: sgInfo.game_type_code, 
+                emoji: '🎮', 
+                color: 'text-muted-foreground' 
+              };
+              breakdown.push({
+                gameType: sgInfo.game_type_code,
+                gameName: gameInfo.name,
+                emoji: gameInfo.emoji,
+                color: gameInfo.color,
+                value,
+              });
+              uniqueGameTypes.add(sgInfo.game_type_code);
+            }
+          });
+
+          // Sort by adventure order
+          const order = ['RIVIERES', 'FORET', 'SHERIFF', 'INFECTION', 'LION'];
+          breakdown.sort((a, b) => order.indexOf(a.gameType) - order.indexOf(b.gameType));
+        }
+
+        // Current game estimate (recompenses for current session)
+        const currentGameEstimate = player.recompenses || 0;
+        const historicalScore = Number(scoreData?.total_score_value || 0);
+        const totalScore = historicalScore + currentGameEstimate;
+
+        return {
+          playerId: player.id,
+          playerName: player.display_name,
+          playerNumber: player.player_number,
+          mateNum: player.mate_num,
+          totalScore,
+          breakdown,
+          currentGameEstimate,
+        };
+      });
+
+      // Group players into teams by mate_num
+      const processedPlayers = new Set<number>();
+      const teams: TeamBreakdown[] = [];
+
+      for (const player of playerBreakdowns) {
+        if (player.playerNumber === null || processedPlayers.has(player.playerNumber)) continue;
+
+        const teammates: PlayerBreakdown[] = [player];
+        processedPlayers.add(player.playerNumber);
+
+        // Find mate if exists
+        if (player.mateNum) {
+          const mate = playerBreakdowns.find(p => p.playerNumber === player.mateNum);
+          if (mate && mate.playerNumber && !processedPlayers.has(mate.playerNumber)) {
+            teammates.push(mate);
+            processedPlayers.add(mate.playerNumber);
+          }
+        }
+
+        // Also check if anyone has this player as their mate
+        const reverseMatches = playerBreakdowns.filter(
+          p => p.mateNum === player.playerNumber && p.playerNumber && !processedPlayers.has(p.playerNumber)
+        );
+        for (const rm of reverseMatches) {
+          if (rm.playerNumber) {
+            teammates.push(rm);
+            processedPlayers.add(rm.playerNumber);
+          }
+        }
+
+        const teamName = teammates.length === 1 
+          ? teammates[0].playerName 
+          : teammates.map(t => t.playerName).join(' & ');
+        
+        const teamTotalScore = teammates.reduce((sum, t) => sum + t.totalScore, 0);
+
+        teams.push({
+          teamName,
+          players: teammates,
+          totalScore: teamTotalScore,
+        });
+      }
+
+      // Sort teams by total score descending
+      teams.sort((a, b) => b.totalScore - a.totalScore);
+
+      // Set game types in order
+      const order = ['RIVIERES', 'FORET', 'SHERIFF', 'INFECTION', 'LION'];
+      setGameTypes(order.filter(gt => uniqueGameTypes.has(gt)));
+      setTeamBreakdowns(teams);
+    } catch (error) {
+      console.error('Error fetching PVic breakdowns:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Only show in adventure mode
+  if (!isAdventureMode) {
+    return null;
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <ForestButton variant={buttonVariant} size="sm" className={`gap-1.5 ${buttonClassName}`}>
+          <BarChart3 className="h-3 w-3 md:h-4 md:w-4" />
+          <span className="hidden sm:inline text-xs">Détails</span>
+        </ForestButton>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-full sm:max-w-2xl">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Détail des PVic par jeu et par joueur
+          </SheetTitle>
+        </SheetHeader>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <ScrollArea className="h-[calc(100vh-120px)] mt-4">
+            {/* Teams breakdown */}
+            <div className="space-y-4">
+              {teamBreakdowns.map((team, teamIdx) => {
+                const medal = teamIdx === 0 ? '🥇' : teamIdx === 1 ? '🥈' : teamIdx === 2 ? '🥉' : null;
+                const isTop3 = teamIdx < 3;
+                
+                return (
+                  <div 
+                    key={team.teamName}
+                    className={`rounded-lg border p-3 ${
+                      isTop3 ? 'bg-secondary/50 border-primary/30' : 'bg-secondary/20 border-border'
+                    }`}
+                  >
+                    {/* Team header */}
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
+                      <div className="flex items-center gap-2">
+                        {medal && <span className="text-lg">{medal}</span>}
+                        <span className={`font-bold ${isTop3 ? 'text-primary' : ''}`}>
+                          {team.teamName}
+                        </span>
+                      </div>
+                      <span className={`text-lg font-bold ${
+                        teamIdx === 0 ? 'text-yellow-400' :
+                        teamIdx === 1 ? 'text-slate-300' :
+                        teamIdx === 2 ? 'text-amber-500' :
+                        'text-primary'
+                      }`}>
+                        {team.totalScore} PVic
+                      </span>
+                    </div>
+
+                    {/* Player details */}
+                    <div className="space-y-2">
+                      {team.players.map((player) => (
+                        <div key={player.playerId} className="bg-background/50 rounded-lg p-2">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">#{player.playerNumber}</span>
+                              <span className="font-medium text-sm">{player.playerName}</span>
+                            </div>
+                            <span className="font-bold text-primary">{player.totalScore}</span>
+                          </div>
+                          
+                          {/* Game breakdown row */}
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            {player.breakdown.map((game, idx) => (
+                              <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-secondary rounded">
+                                <span>{game.emoji}</span>
+                                <span className={game.color}>{game.value}</span>
+                              </div>
+                            ))}
+                            {player.currentGameEstimate > 0 && (
+                              <div className="flex items-center gap-1 px-2 py-1 bg-emerald-500/20 rounded text-emerald-400">
+                                <span>+{player.currentGameEstimate}</span>
+                                <span className="text-emerald-400/70">actuel</span>
+                              </div>
+                            )}
+                            {player.breakdown.length === 0 && player.currentGameEstimate === 0 && (
+                              <span className="text-muted-foreground">Pas encore de score</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {teamBreakdowns.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                Aucune équipe avec des scores
+              </div>
+            )}
+
+            {/* Legend */}
+            <div className="mt-6 pt-4 border-t border-border">
+              <div className="text-xs text-muted-foreground mb-2">Légende:</div>
+              <div className="flex flex-wrap gap-3 text-xs">
+                {gameTypes.map(gt => {
+                  const info = GAME_TYPE_INFO[gt];
+                  return (
+                    <div key={gt} className="flex items-center gap-1">
+                      <span>{info?.emoji}</span>
+                      <span className={info?.color}>{info?.name}</span>
+                    </div>
+                  );
+                })}
+                <div className="flex items-center gap-1">
+                  <span className="text-emerald-400">+actuel</span>
+                  <span className="text-muted-foreground">= Jeu en cours</span>
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}

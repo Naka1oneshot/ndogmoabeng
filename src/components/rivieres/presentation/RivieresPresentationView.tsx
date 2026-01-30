@@ -21,6 +21,7 @@ import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinem
 import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdventureCinematic';
 import { RivieresAutoCountdownOverlay } from '../RivieresAutoCountdownOverlay';
 import { RivieresRulesOverlay } from '../rules/RivieresRulesOverlay';
+import { PresentationPvicDetailsSheet } from '@/components/presentation/PresentationPvicDetailsSheet';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -873,10 +874,17 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
 
           {/* Right Panel: Live Ranking - Takes remaining space */}
           <div className="md:col-span-7 bg-[#151B2D] border border-[#D4AF37]/20 rounded-lg p-2 md:p-4 flex flex-col min-h-0 flex-1 overflow-hidden">
-            <h3 className="text-sm md:text-lg font-bold text-[#D4AF37] flex items-center gap-2 mb-2 md:mb-4">
-              <Trophy className="h-4 w-4 md:h-5 md:w-5" />
-              Classement
-            </h3>
+            <div className="flex items-center justify-between mb-2 md:mb-4">
+              <h3 className="text-sm md:text-lg font-bold text-[#D4AF37] flex items-center gap-2">
+                <Trophy className="h-4 w-4 md:h-5 md:w-5" />
+                Classement
+              </h3>
+              <PresentationPvicDetailsSheet 
+                gameId={game.id} 
+                isAdventureMode={true}
+                currentGameTypeCode="RIVIERES"
+              />
+            </div>
 
             <ScrollArea className="flex-1">
               {/* Top 3 - Compact on mobile */}
