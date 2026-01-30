@@ -25,6 +25,13 @@ interface LionPresentationViewProps {
 
 type AnimationPhase = 'IDLE' | 'SHOW_DEALER' | 'CARD_PLACED' | 'GUESS_MADE' | 'REVEAL' | 'RESULT';
 
+interface TurnResult {
+  turnIndex: number;
+  winnerId: string | null;
+  winnerName: string;
+  points: number;
+}
+
 export function LionPresentationView({ game, onClose }: LionPresentationViewProps) {
   const [showRules, setShowRules] = useState(false);
   const [animPhase, setAnimPhase] = useState<AnimationPhase>('IDLE');
@@ -32,6 +39,7 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
   const [showRevealAnimation, setShowRevealAnimation] = useState(false);
   const [showFinalBattle, setShowFinalBattle] = useState(false);
   const [gameJustFinished, setGameJustFinished] = useState(false);
+  const [turnHistory, setTurnHistory] = useState<TurnResult[]>([]);
   
   const prevStatusRef = useRef<string | null>(null);
 
@@ -59,12 +67,34 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
       // Turn was resolved - trigger reveal animation
       setShowRevealAnimation(true);
       setAnimPhase('REVEAL');
+      
+      // Add to history
+      const winnerPoints = currentTurn.pvic_delta_guesser > 0 
+        ? currentTurn.pvic_delta_guesser 
+        : currentTurn.pvic_delta_active;
+      const winnerId = currentTurn.pvic_delta_guesser > 0 
+        ? currentTurn.guesser_player_id 
+        : currentTurn.pvic_delta_active > 0 
+          ? currentTurn.active_player_id 
+          : null;
+      const winnerPlayer = winnerId ? getPlayerById(winnerId) : null;
+      
+      setTurnHistory(prev => {
+        const exists = prev.some(t => t.turnIndex === currentTurn.turn_index);
+        if (exists) return prev;
+        return [...prev, {
+          turnIndex: currentTurn.turn_index,
+          winnerId,
+          winnerName: winnerPlayer?.display_name || '',
+          points: winnerPoints
+        }];
+      });
     } else if (currentTurn.active_locked && !currentTurn.guess_locked && animPhase === 'SHOW_DEALER') {
       setAnimPhase('CARD_PLACED');
     } else if (currentTurn.guess_locked && !currentTurn.resolved && animPhase !== 'GUESS_MADE') {
       setAnimPhase('GUESS_MADE');
     }
-  }, [currentTurn, lastTurnId, animPhase, showRevealAnimation]);
+  }, [currentTurn, lastTurnId, animPhase, showRevealAnimation, getPlayerById]);
 
   // Track game finish to show final battle animation
   useEffect(() => {
@@ -248,44 +278,38 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
       <div className="min-h-screen flex">
         {/* Main Content */}
         <div className="flex-1 flex flex-col items-center justify-center p-8">
-          {/* Title */}
-          <motion.h1 
-            initial={{ y: -50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="text-3xl md:text-4xl font-bold text-amber-300 mb-4 text-center"
-          >
-            🦁 Le CŒUR du Lion
-          </motion.h1>
-
-          {/* Score Display with Avatars */}
+          {/* Animated Logo */}
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="mb-8"
+            initial={{ y: -50, opacity: 0, scale: 0.8 }}
+            animate={{ 
+              y: 0, 
+              opacity: 1, 
+              scale: 1,
+              rotate: [0, -3, 3, 0]
+            }}
+            transition={{ 
+              y: { duration: 0.6 },
+              rotate: { duration: 2, repeat: Infinity, repeatDelay: 3 }
+            }}
+            className="text-center mb-6"
           >
-            <div className="flex items-center justify-center gap-6 md:gap-12">
-              <div className={`text-center ${gameState.active_player_id === playerA?.id ? 'lion-glow rounded-lg p-3' : ''}`}>
-                <LionPlayerAvatar 
-                  name={playerA?.display_name || 'A'} 
-                  avatarUrl={playerA?.avatar_url} 
-                  size="lg"
-                  className="mx-auto mb-2"
-                />
-                <div className="text-amber-400 font-medium">{playerA?.display_name}</div>
-                <div className="text-3xl md:text-4xl font-bold lion-text-gold lion-text-glow">{playerA?.pvic || 0}</div>
-              </div>
-              <div className="text-2xl md:text-3xl text-amber-600">vs</div>
-              <div className={`text-center ${gameState.active_player_id !== playerA?.id ? 'lion-glow rounded-lg p-3' : ''}`}>
-                <LionPlayerAvatar 
-                  name={playerB?.display_name || 'B'} 
-                  avatarUrl={playerB?.avatar_url} 
-                  size="lg"
-                  className="mx-auto mb-2"
-                />
-                <div className="text-amber-400 font-medium">{playerB?.display_name}</div>
-                <div className="text-3xl md:text-4xl font-bold lion-text-gold lion-text-glow">{playerB?.pvic || 0}</div>
-              </div>
-            </div>
+            <motion.span 
+              className="text-5xl md:text-6xl inline-block"
+              animate={{ 
+                scale: [1, 1.1, 1],
+                textShadow: [
+                  '0 0 10px rgba(251, 191, 36, 0.5)',
+                  '0 0 20px rgba(251, 191, 36, 0.8)',
+                  '0 0 10px rgba(251, 191, 36, 0.5)'
+                ]
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              🦁
+            </motion.span>
+            <h1 className="text-3xl md:text-4xl font-bold text-amber-300 mt-2 lion-text-glow">
+              Le CŒUR du Lion
+            </h1>
           </motion.div>
 
           {/* Turn Indicator */}
@@ -493,7 +517,8 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
             avatarUrl: playerB.avatar_url,
             score: playerB.pvic || 0
           } : null}
-          className="w-48 md:w-56 hidden md:block"
+          turnHistory={turnHistory}
+          className="w-48 md:w-56 hidden md:flex flex-col"
         />
       </div>
     </LionTheme>

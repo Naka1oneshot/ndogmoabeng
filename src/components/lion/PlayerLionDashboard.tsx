@@ -301,33 +301,9 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
           </div>
         </div>
 
-        {/* Duel Display with Avatars */}
+        {/* Turn Indicator */}
         <Card className="bg-amber-900/40 border-amber-700 mb-6">
           <CardContent className="pt-4">
-            <div className="flex items-center justify-center gap-4 mb-4">
-              <div className={`text-center ${gameState.active_player_id === playerA?.id ? 'lion-glow rounded-lg p-2' : ''}`}>
-                <LionPlayerAvatar 
-                  name={playerA?.display_name || 'A'} 
-                  avatarUrl={playerA?.avatar_url} 
-                  size="md"
-                  className="mx-auto mb-1"
-                />
-                <p className="text-amber-200 text-sm font-medium">{playerA?.display_name}</p>
-                <p className="text-2xl font-bold text-amber-400">{playerA?.pvic || 0}</p>
-              </div>
-              <span className="text-xl text-amber-600">vs</span>
-              <div className={`text-center ${gameState.active_player_id !== playerA?.id ? 'lion-glow rounded-lg p-2' : ''}`}>
-                <LionPlayerAvatar 
-                  name={playerB?.display_name || 'B'} 
-                  avatarUrl={playerB?.avatar_url} 
-                  size="md"
-                  className="mx-auto mb-1"
-                />
-                <p className="text-amber-200 text-sm font-medium">{playerB?.display_name}</p>
-                <p className="text-2xl font-bold text-amber-400">{playerB?.pvic || 0}</p>
-              </div>
-            </div>
-            
             <LionTurnIndicator
               currentTurn={gameState.turn_index}
               totalTurns={22}
