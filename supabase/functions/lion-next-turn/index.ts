@@ -92,6 +92,19 @@ serve(async (req) => {
             .update({ status: 'FINISHED', winner_declared: true })
             .eq('id', gameState.game_id);
 
+          // Get winner's user_id for stats
+          const { data: winnerPlayer } = await supabase
+            .from('game_players')
+            .select('user_id')
+            .eq('id', winnerId)
+            .single();
+
+          // Update player profile statistics
+          await supabase.rpc('update_player_stats_on_game_end', {
+            p_game_id: gameState.game_id,
+            p_winner_user_id: winnerPlayer?.user_id || null
+          });
+
           await supabase.from('game_events').insert({
             game_id: gameState.game_id,
             session_game_id,
@@ -234,6 +247,19 @@ serve(async (req) => {
             .from('games')
             .update({ status: 'FINISHED', winner_declared: true })
             .eq('id', gameState.game_id);
+
+          // Get winner's user_id for stats
+          const { data: winnerPlayer } = await supabase
+            .from('game_players')
+            .select('user_id')
+            .eq('id', winnerId)
+            .single();
+
+          // Update player profile statistics
+          await supabase.rpc('update_player_stats_on_game_end', {
+            p_game_id: gameState.game_id,
+            p_winner_user_id: winnerPlayer?.user_id || null
+          });
 
           await supabase.from('game_events').insert({
             game_id: gameState.game_id,
