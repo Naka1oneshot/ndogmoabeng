@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Settings, LogIn, Loader2, UserPlus, Eye, EyeOff, BookOpen, Lock, Sparkles, Sun, Moon } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { useColorMode } from '@/contexts/ColorModeContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -108,7 +108,7 @@ function generateFloatingPositions(count: number, seed: number, isGameImages: bo
 
 export default function ComingSoon() {
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
+  const { colorMode, toggleColorMode } = useColorMode();
   const { user, signIn, loading: authLoading } = useAuth();
   const { submitRequest } = useEarlyAccessRequests();
   const { events, refetch: refetchEvents } = useMeetupEvents();
@@ -250,11 +250,11 @@ export default function ComingSoon() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        onClick={toggleColorMode}
         className="fixed top-4 right-4 z-50 p-2 rounded-full bg-card/80 backdrop-blur-sm border border-primary/30 hover:border-primary transition-colors"
         aria-label="Toggle theme"
       >
-        {theme === 'dark' ? (
+        {colorMode === 'dark' ? (
           <Sun className="w-5 h-5 text-primary" />
         ) : (
           <Moon className="w-5 h-5 text-primary" />
