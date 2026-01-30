@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, List, RotateCcw, BookOpen } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, List, RotateCcw, RefreshCw, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRivieresRulesContext } from './useRivieresRulesContext';
 import { RivieresRulesMemo } from './RivieresRulesMemo';
@@ -136,6 +136,7 @@ export function RivieresRulesOverlay({
   const handlePrev = () => goToPage(pageIndex - 1);
   const handleNext = () => goToPage(pageIndex + 1);
   const handleReplay = () => setReplayNonce(n => n + 1);
+  const handleRefresh = () => setOpenKey(k => k + 1);
   
   const handleModeChange = (newMode: RulesMode) => {
     setMode(newMode);
@@ -227,6 +228,16 @@ export function RivieresRulesOverlay({
             >
               <List className="h-4 w-4" />
               <span className="hidden sm:inline ml-1">Sommaire</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRefresh}
+              className="text-[#9CA3AF] hover:text-white hover:bg-white/10"
+              title="Actualiser les règles"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Actualiser</span>
             </Button>
             <Button
               variant="ghost"

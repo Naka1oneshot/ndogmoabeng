@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, List, RotateCcw, BookOpen, Trees } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, List, RotateCcw, RefreshCw, BookOpen, Trees } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useForetRulesContext } from './useForetRulesContext';
 import { DynamicForetRulesContent } from './DynamicForetRulesContent';
@@ -57,6 +57,9 @@ export function ForetRulesOverlay({
   const [pageIndex, setPageIndex] = useState(0);
   const [replayNonce, setReplayNonce] = useState(0);
   const [isTocOpen, setIsTocOpen] = useState(false);
+  const [openKey, setOpenKey] = useState(0);
+  
+  const handleRefresh = () => setOpenKey(k => k + 1);
 
   const context = useForetRulesContext(gameId, sessionGameId);
 
@@ -192,6 +195,16 @@ export function ForetRulesOverlay({
             <Button
               variant="ghost"
               size="sm"
+              onClick={handleRefresh}
+              className="text-[#9CA3AF] hover:text-white hover:bg-white/10"
+              title="Actualiser les règles"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Actualiser</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleReplay}
               className="text-[#9CA3AF] hover:text-white hover:bg-white/10"
             >
@@ -244,7 +257,7 @@ export function ForetRulesOverlay({
         <div className="flex-1 overflow-y-auto px-4 py-6">
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${mode}-${pageIndex}-${replayNonce}`}
+              key={`${mode}-${pageIndex}-${replayNonce}-${openKey}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}

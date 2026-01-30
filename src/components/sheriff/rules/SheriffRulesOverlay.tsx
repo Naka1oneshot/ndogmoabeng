@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, List, RotateCcw, BookOpen } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, List, RotateCcw, RefreshCw, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSheriffRulesContext } from './useSheriffRulesContext';
 import { SheriffRulesMemo } from './SheriffRulesMemo';
@@ -54,6 +54,9 @@ export function SheriffRulesOverlay({
   const [replayNonce, setReplayNonce] = useState(0);
   const [isTocOpen, setIsTocOpen] = useState(false);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
+  const [openKey, setOpenKey] = useState(0);
+  
+  const handleRefresh = () => setOpenKey(k => k + 1);
   
   const context = useSheriffRulesContext(gameId, sessionGameId);
   
@@ -130,6 +133,9 @@ export function SheriffRulesOverlay({
             <Button variant="ghost" size="sm" onClick={() => setIsTocOpen(true)} className="text-[#9CA3AF] hover:text-white">
               <List className="h-4 w-4" />
             </Button>
+            <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-[#9CA3AF] hover:text-white" title="Actualiser les règles">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => setReplayNonce(n => n + 1)} className="text-[#9CA3AF] hover:text-white">
               <RotateCcw className="h-4 w-4" />
             </Button>
@@ -144,7 +150,7 @@ export function SheriffRulesOverlay({
           <main className="flex-1 overflow-y-auto px-4 py-6 lg:pr-80">
             <AnimatePresence mode="wait">
               <motion.div
-                key={`${mode}-${pageIndex}-${replayNonce}`}
+                key={`${mode}-${pageIndex}-${replayNonce}-${openKey}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
