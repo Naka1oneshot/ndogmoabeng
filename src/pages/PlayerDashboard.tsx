@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayerPresence } from '@/hooks/usePlayerPresence';
@@ -13,12 +13,27 @@ import { useAdventureCinematic } from '@/hooks/useAdventureCinematic';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
-import { PlayerRivieresDashboard } from '@/components/rivieres/PlayerRivieresDashboard';
-import { PlayerInfectionDashboard } from '@/components/infection/PlayerInfectionDashboard';
-import { PlayerSheriffDashboard } from '@/components/sheriff/PlayerSheriffDashboard';
-import { PlayerForetDashboard } from '@/components/foret/dashboard/PlayerForetDashboard';
-import { PlayerLionDashboard } from '@/components/lion/PlayerLionDashboard';
 import LobbyWaitingRoom from '@/components/lobby/LobbyWaitingRoom';
+
+// Lazy-loaded game dashboards for code splitting
+// Only the active game type is loaded, reducing initial bundle size
+const PlayerRivieresDashboard = lazy(() => import('@/components/rivieres/PlayerRivieresDashboard').then(m => ({ default: m.PlayerRivieresDashboard })));
+const PlayerInfectionDashboard = lazy(() => import('@/components/infection/PlayerInfectionDashboard').then(m => ({ default: m.PlayerInfectionDashboard })));
+const PlayerSheriffDashboard = lazy(() => import('@/components/sheriff/PlayerSheriffDashboard').then(m => ({ default: m.PlayerSheriffDashboard })));
+const PlayerForetDashboard = lazy(() => import('@/components/foret/dashboard/PlayerForetDashboard').then(m => ({ default: m.PlayerForetDashboard })));
+const PlayerLionDashboard = lazy(() => import('@/components/lion/PlayerLionDashboard').then(m => ({ default: m.PlayerLionDashboard })));
+
+// Loading fallback for lazy-loaded dashboards
+function DashboardLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Chargement du jeu...</p>
+      </div>
+    </div>
+  );
+}
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -538,113 +553,123 @@ export default function PlayerDashboard() {
     );
   }
 
-  // RIVIERES Dashboard
+  // RIVIERES Dashboard - lazy loaded
   if (game.selected_game_type_code === 'RIVIERES' && game.current_session_game_id) {
     return (
       <>
         {cinematicOverlay}
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-[hsl(var(--background))] via-[hsl(var(--secondary))] to-[hsl(var(--background))]">
-          <PlayerHeader game={game} player={player} animationsEnabled={animationsEnabled} onToggleAnimations={toggleAnimations} />
-          <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
-            <PlayerRivieresDashboard
-              gameId={game.id}
-              sessionGameId={game.current_session_game_id}
-              playerId={player.id}
-              playerNumber={player.playerNumber}
-              playerToken={player.playerToken || ''}
-              clan={player.clan}
-              jetons={player.jetons}
-              gameStatus={game.status}
-              displayName={player.displayName}
-              animationsEnabled={animationsEnabled}
-            />
-          </main>
-        </div>
+        <Suspense fallback={<DashboardLoadingFallback />}>
+          <div className="min-h-screen flex flex-col bg-gradient-to-br from-[hsl(var(--background))] via-[hsl(var(--secondary))] to-[hsl(var(--background))]">
+            <PlayerHeader game={game} player={player} animationsEnabled={animationsEnabled} onToggleAnimations={toggleAnimations} />
+            <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
+              <PlayerRivieresDashboard
+                gameId={game.id}
+                sessionGameId={game.current_session_game_id}
+                playerId={player.id}
+                playerNumber={player.playerNumber}
+                playerToken={player.playerToken || ''}
+                clan={player.clan}
+                jetons={player.jetons}
+                gameStatus={game.status}
+                displayName={player.displayName}
+                animationsEnabled={animationsEnabled}
+              />
+            </main>
+          </div>
+        </Suspense>
       </>
     );
   }
 
-  // INFECTION Dashboard
+  // INFECTION Dashboard - lazy loaded
   if (game.selected_game_type_code === 'INFECTION') {
     return (
       <>
         {cinematicOverlay}
-        <PlayerInfectionDashboard 
-          game={game} 
-          player={{
-            id: player.id,
-            display_name: player.displayName,
-            player_number: player.playerNumber,
-            clan: player.clan,
-            jetons: player.jetons,
-            pvic: player.pvic ?? 0,
-            is_alive: player.isAlive ?? true,
-            role_code: player.roleCode,
-            team_code: player.teamCode,
-            immune_permanent: player.immunePermanent ?? false,
-          }}
-          onLeave={handleLeave}
-          animationsEnabled={animationsEnabled}
-        />
+        <Suspense fallback={<DashboardLoadingFallback />}>
+          <PlayerInfectionDashboard 
+            game={game} 
+            player={{
+              id: player.id,
+              display_name: player.displayName,
+              player_number: player.playerNumber,
+              clan: player.clan,
+              jetons: player.jetons,
+              pvic: player.pvic ?? 0,
+              is_alive: player.isAlive ?? true,
+              role_code: player.roleCode,
+              team_code: player.teamCode,
+              immune_permanent: player.immunePermanent ?? false,
+            }}
+            onLeave={handleLeave}
+            animationsEnabled={animationsEnabled}
+          />
+        </Suspense>
       </>
     );
   }
 
-  // SHERIFF Dashboard
+  // SHERIFF Dashboard - lazy loaded
   if (game.selected_game_type_code === 'SHERIFF') {
     return (
       <>
         {cinematicOverlay}
-        <PlayerSheriffDashboard 
-          game={game}
-          player={{
-            id: player.id,
-            display_name: player.displayName,
-            player_number: player.playerNumber,
-            clan: player.clan,
-            mate_num: player.mateNum,
-            jetons: player.jetons,
-            pvic: player.pvic ?? 0,
-          }}
-          onLeave={handleLeave}
-          animationsEnabled={animationsEnabled}
-        />
+        <Suspense fallback={<DashboardLoadingFallback />}>
+          <PlayerSheriffDashboard 
+            game={game}
+            player={{
+              id: player.id,
+              display_name: player.displayName,
+              player_number: player.playerNumber,
+              clan: player.clan,
+              mate_num: player.mateNum,
+              jetons: player.jetons,
+              pvic: player.pvic ?? 0,
+            }}
+            onLeave={handleLeave}
+            animationsEnabled={animationsEnabled}
+          />
+        </Suspense>
       </>
     );
   }
 
-  // FORET Dashboard - using dedicated component
+  // FORET Dashboard - lazy loaded
   if (game.selected_game_type_code === 'FORET') {
     return (
       <>
         {cinematicOverlay}
-        <PlayerForetDashboard
-          game={game}
-          player={player}
-          onLeaveGame={handleLeave}
-          showStartAnimation={showStartAnimation && animationsEnabled}
-          animationsEnabled={animationsEnabled}
-        />
+        <Suspense fallback={<DashboardLoadingFallback />}>
+          <PlayerForetDashboard
+            game={game}
+            player={player}
+            onLeaveGame={handleLeave}
+            showStartAnimation={showStartAnimation && animationsEnabled}
+            animationsEnabled={animationsEnabled}
+          />
+        </Suspense>
       </>
     );
   }
 
-  // LION Dashboard
+  // LION Dashboard - lazy loaded
   if (game.selected_game_type_code === 'LION' && game.current_session_game_id) {
     return (
       <>
         {cinematicOverlay}
-        <PlayerLionDashboard
-          game={{
-            id: game.id,
-            current_session_game_id: game.current_session_game_id,
-          }}
-          player={{
-            id: player.id,
-            display_name: player.displayName,
-            user_id: null, // Anonymous players
-          }}
-        />
+        <Suspense fallback={<DashboardLoadingFallback />}>
+          <PlayerLionDashboard
+            game={{
+              id: game.id,
+              current_session_game_id: game.current_session_game_id,
+            }}
+            player={{
+              id: player.id,
+              display_name: player.displayName,
+              user_id: null, // Anonymous players
+            }}
+          />
+        </Suspense>
       </>
     );
   }

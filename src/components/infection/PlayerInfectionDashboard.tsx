@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeThrottle, useStableCallback } from '@/hooks/useRealtimeThrottle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -102,15 +103,61 @@ export function PlayerInfectionDashboard({ game, player, onLeave, animationsEnab
     }
   }, [player.role_code, game.id, player.player_number, animationsEnabled]);
 
+  // Optimized fetchData with parallel queries
+  // Defined BEFORE useRealtimeThrottle to avoid hoisting issues
+  const fetchData = useCallback(async () => {
+    // Parallel fetch: players + round state
+    const [playersResult, roundResult] = await Promise.all([
+      // Fetch players with minimal columns
+      supabase
+        .from('game_players')
+        .select('id, display_name, player_number, clan, is_alive, role_code, team_code, jetons, pvic, is_host')
+        .eq('game_id', game.id)
+        .is('removed_at', null)
+        .order('player_number'),
+      // Fetch round state only if session exists
+      game.current_session_game_id && game.manche_active
+        ? supabase
+            .from('infection_round_state')
+            .select('id, manche, status')
+            .eq('session_game_id', game.current_session_game_id)
+            .eq('manche', game.manche_active)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    if (playersResult.data) {
+      setAllPlayers(playersResult.data as Player[]);
+    }
+    if (roundResult.data) {
+      setRoundState(roundResult.data as RoundState);
+    }
+  }, [game.id, game.current_session_game_id, game.manche_active]);
+
+  // Memoize fetch params to detect changes
+  const fetchParams = useMemo(() => ({
+    gameId: game.id,
+    sessionGameId: game.current_session_game_id,
+    mancheActive: game.manche_active,
+  }), [game.id, game.current_session_game_id, game.manche_active]);
+
+  // Stable callback ref to prevent stale closures in realtime handlers
+  const stableFetchData = useStableCallback(fetchData);
+  
+  // Throttled fetch to avoid refetch storms from rapid realtime events
+  // Groups events within 250ms and executes once
+  const { throttledFn: throttledFetch, cancel: cancelThrottle } = useRealtimeThrottle(stableFetchData, 250);
+
   useEffect(() => {
-    fetchData();
+    // Initial fetch
+    stableFetchData();
     
-    // Optimized realtime subscriptions - avoid refreshing on last_seen updates
+    // Optimized realtime subscriptions - throttled to avoid refetch storms
     const channel = supabase
       .channel(`infection-player-${game.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${game.id}` }, 
         (payload) => {
-          // Skip if only last_seen changed
+          // Skip if only last_seen changed (presence heartbeat)
           if (payload.new && payload.old) {
             const newPlayer = payload.new as any;
             const oldPlayer = payload.old as any;
@@ -120,38 +167,24 @@ export function PlayerInfectionDashboard({ game, player, onLeave, animationsEnab
               return;
             }
           }
-          fetchData();
+          throttledFetch();
         })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_round_state', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_inputs', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_shots', filter: `game_id=eq.${game.id}` }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${game.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_round_state', filter: `game_id=eq.${game.id}` }, throttledFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_inputs', filter: `game_id=eq.${game.id}` }, throttledFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'infection_shots', filter: `game_id=eq.${game.id}` }, throttledFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${game.id}` }, throttledFetch)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [game.id]);
+    return () => {
+      cancelThrottle();
+      supabase.removeChannel(channel);
+    };
+  }, [game.id, stableFetchData, throttledFetch, cancelThrottle]);
 
-  const fetchData = useCallback(async () => {
-    const { data: playersData } = await supabase
-      .from('game_players')
-      .select('id, display_name, player_number, clan, is_alive, role_code, team_code, jetons, pvic, is_host')
-      .eq('game_id', game.id)
-      .is('removed_at', null)
-      .order('player_number');
-
-    if (playersData) setAllPlayers(playersData as Player[]);
-
-    if (game.current_session_game_id && game.manche_active) {
-      const { data: roundData } = await supabase
-        .from('infection_round_state')
-        .select('id, manche, status')
-        .eq('session_game_id', game.current_session_game_id)
-        .eq('manche', game.manche_active)
-        .maybeSingle();
-
-      if (roundData) setRoundState(roundData as RoundState);
-    }
-  }, [game.id, game.current_session_game_id, game.manche_active]);
+  // Re-fetch when critical game params change
+  useEffect(() => {
+    stableFetchData();
+  }, [fetchParams, stableFetchData]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
