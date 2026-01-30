@@ -206,12 +206,15 @@ export default function AdminGameDetails() {
       const sessionGameIds = sessionGames?.map(sg => sg.id) || [];
 
       // Delete LION game related data (by session_game_id)
+      // Order matters! lion_game_state has FKs to game_players, so delete it first
       if (sessionGameIds.length > 0) {
         for (const sgId of sessionGameIds) {
+          // First delete lion_game_state (has FK to game_players via active_player_id, guesser_player_id)
+          await (supabase.from('lion_game_state' as any).delete().eq('session_game_id', sgId));
+          // Then delete other LION tables that reference game_players
           await (supabase.from('lion_turns' as any).delete().eq('session_game_id', sgId));
           await (supabase.from('lion_hands' as any).delete().eq('session_game_id', sgId));
           await (supabase.from('lion_decks' as any).delete().eq('session_game_id', sgId));
-          await (supabase.from('lion_game_state' as any).delete().eq('session_game_id', sgId));
         }
       }
 
