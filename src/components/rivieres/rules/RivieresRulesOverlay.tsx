@@ -76,6 +76,14 @@ export function RivieresRulesOverlay({
   const [replayNonce, setReplayNonce] = useState(0);
   const [isTocOpen, setIsTocOpen] = useState(false);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
+  const [openKey, setOpenKey] = useState(0);
+  
+  // Force refetch of data when overlay opens
+  useEffect(() => {
+    if (open) {
+      setOpenKey(k => k + 1);
+    }
+  }, [open]);
   
   const context = useRivieresRulesContext(gameId, sessionGameId);
   
@@ -285,7 +293,7 @@ export function RivieresRulesOverlay({
           <main className="flex-1 overflow-y-auto px-4 py-6 lg:pr-80">
             <AnimatePresence mode="wait">
               <motion.div
-                key={`${mode}-${pageIndex}-${replayNonce}`}
+                key={`${mode}-${pageIndex}-${replayNonce}-${openKey}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
