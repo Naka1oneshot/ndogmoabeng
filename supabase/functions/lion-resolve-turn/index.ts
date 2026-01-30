@@ -85,22 +85,11 @@ serve(async (req) => {
     }
 
     // ============================================
-    // OFFICIAL SCORING LOGIC
+    // OFFICIAL SCORING LOGIC (with configurable values)
     // ============================================
-    // Let:
-    //   A = activeCard (joueur actif)
-    //   D = dealerCard (croupier)
-    //   G = guessChoice ∈ {'HIGHER', 'LOWER', 'EQUAL'}
-    //   diff = |A - D|
-    //
-    // Rules:
-    // 1) A == D && G == 'EQUAL' → guesser wins 10 PVic
-    // 2) A < D && G == 'LOWER'  → guesser wins (D - A) PVic
-    // 3) A > D && G == 'HIGHER' → guesser wins (A - D) PVic
-    // 4) A == D && G != 'EQUAL' → active wins 2 PVic
-    // 5) A < D && G != 'LOWER'  → active wins (D - A) PVic
-    // 6) A > D && G != 'HIGHER' → active wins (A - D) PVic
-    // ============================================
+    // Configurable scoring values from game state
+    const scoringEqualCorrect = gameState.scoring_equal_correct ?? 10;
+    const scoringEqualWrong = gameState.scoring_equal_wrong ?? 10;
 
     const A = activeCard;
     const D = dealerCard;
@@ -114,10 +103,10 @@ serve(async (req) => {
     if (A === D) {
       // Cards are equal
       if (G === 'EQUAL') {
-        pvicDeltaGuesser = 10;
+        pvicDeltaGuesser = scoringEqualCorrect;
         winnerRole = 'guesser';
       } else {
-        pvicDeltaActive = 10;
+        pvicDeltaActive = scoringEqualWrong;
         winnerRole = 'active';
       }
     } else if (A < D) {
