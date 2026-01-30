@@ -8,7 +8,7 @@ import { InfectionRulesToc } from './InfectionRulesToc';
 import logoImage from '@/assets/logo-ndogmoabeng.png';
 
 // Quick mode pages
-import { InfectionQuickPage1 } from './pages/quick/InfectionQuickPage1';
+import { DynamicInfectionQuickPage1 } from './pages/quick/DynamicInfectionQuickPage1';
 import { InfectionQuickPage2 } from './pages/quick/InfectionQuickPage2';
 import { InfectionQuickPage3 } from './pages/quick/InfectionQuickPage3';
 import { InfectionQuickPageSimulation } from './pages/quick/InfectionQuickPageSimulation';
@@ -35,7 +35,7 @@ interface InfectionRulesOverlayProps {
 }
 
 const QUICK_PAGES = [
-  { id: 'quick-1', title: 'Objectif & Équipes', Component: InfectionQuickPage1 },
+  { id: 'quick-1', title: 'Objectif & Équipes', Component: DynamicInfectionQuickPage1 },
   { id: 'quick-2', title: 'Déroulé d\'une manche', Component: InfectionQuickPage2 },
   { id: 'quick-3', title: 'Victoire & Astuces', Component: InfectionQuickPage3 },
   { id: 'quick-sim', title: 'Simulation', Component: InfectionQuickPageSimulation },

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, List, RotateCcw, BookOpen, Trees } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useForetRulesContext } from './useForetRulesContext';
-import { ForetRulesContent } from './ForetRulesContent';
+import { DynamicForetRulesContent } from './DynamicForetRulesContent';
 import { ForetClansSection } from './ForetClansSection';
 import { ForetSimulationSection } from './ForetSimulationSection';
 import logoImage from '@/assets/logo-ndogmoabeng.png';
@@ -252,7 +252,7 @@ export function ForetRulesOverlay({
               className="max-w-3xl mx-auto"
             >
               {currentPage.type === 'content' && (
-                <ForetRulesContent mode={mode} userRole={userRole} />
+                <DynamicForetRulesContent mode={mode} userRole={userRole} />
               )}
               {currentPage.type === 'clans' && (
                 <ForetClansSection replayNonce={replayNonce} />

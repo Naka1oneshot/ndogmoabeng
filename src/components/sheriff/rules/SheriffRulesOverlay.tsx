@@ -8,7 +8,7 @@ import { SheriffRulesToc } from './SheriffRulesToc';
 import logoImage from '@/assets/logo-ndogmoabeng.png';
 
 // Quick mode pages
-import { SheriffQuickPage1 } from './pages/quick/SheriffQuickPage1';
+import { DynamicSheriffQuickPage1 } from './pages/quick/DynamicSheriffQuickPage1';
 import { SheriffQuickPage2 } from './pages/quick/SheriffQuickPage2';
 import { SheriffQuickPage3 } from './pages/quick/SheriffQuickPage3';
 import { SheriffQuickPageSimulation } from './pages/quick/SheriffQuickPageSimulation';
@@ -25,7 +25,7 @@ interface SheriffRulesOverlayProps {
 }
 
 const QUICK_PAGES = [
-  { id: 'quick-1', title: 'Objectif & Équipes', Component: SheriffQuickPage1 },
+  { id: 'quick-1', title: 'Objectif & Équipes', Component: DynamicSheriffQuickPage1 },
   { id: 'quick-2', title: 'Visa & Jetons', Component: SheriffQuickPage2 },
   { id: 'quick-3', title: 'Duels & Dernier Duel', Component: SheriffQuickPage3 },
   { id: 'quick-sim', title: 'Simulation', Component: SheriffQuickPageSimulation },
