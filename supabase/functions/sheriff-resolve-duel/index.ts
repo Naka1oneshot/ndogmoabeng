@@ -309,7 +309,7 @@ Deno.serve(async (req) => {
       .eq('game_id', gameId)
       .eq('player_number', duel.player2_number);
 
-    // If this is the final duel, update round state
+    // If this is the final duel, update round state AND commit scores to pvic + adventure_scores
     if (isFinalDuel) {
       await supabase
         .from('sheriff_round_state')
@@ -318,6 +318,85 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('session_game_id', sessionGameId);
+
+      console.log('[sheriff-resolve-duel] Final duel resolved - committing pvic scores');
+
+      // Get ALL player choices to calculate final VP deltas
+      const { data: allChoices } = await supabase
+        .from('sheriff_player_choices')
+        .select('player_id, player_number, victory_points_delta')
+        .eq('session_game_id', sessionGameId);
+
+      // Get game info for adventure mode check
+      const { data: gameData } = await supabase
+        .from('games')
+        .select('id, mode, adventure_id')
+        .eq('id', gameId)
+        .single();
+
+      if (allChoices && allChoices.length > 0) {
+        for (const choice of allChoices) {
+          const vpDelta = choice.victory_points_delta || 0;
+          
+          // Get current pvic
+          const { data: currentPlayer } = await supabase
+            .from('game_players')
+            .select('id, pvic')
+            .eq('game_id', gameId)
+            .eq('player_number', choice.player_number)
+            .single();
+
+          if (currentPlayer) {
+            const currentPvic = currentPlayer.pvic || 0;
+            // Apply VP delta as percentage: newPvic = currentPvic * (1 + vpDelta/100)
+            const newPvic = Math.round(currentPvic * (1 + vpDelta / 100));
+
+            console.log(`[sheriff-resolve-duel] Player ${choice.player_number}: pvic ${currentPvic} -> ${newPvic} (delta: ${vpDelta}%)`);
+
+            // Update game_players.pvic
+            await supabase
+              .from('game_players')
+              .update({ pvic: newPvic })
+              .eq('id', currentPlayer.id);
+
+            // Save to adventure_scores if in adventure mode
+            if (gameData?.mode === 'ADVENTURE') {
+              const { data: existingScore } = await supabase
+                .from('adventure_scores')
+                .select('id, total_score_value, breakdown')
+                .eq('session_id', gameId)
+                .eq('game_player_id', currentPlayer.id)
+                .single();
+
+              if (existingScore) {
+                // Update existing score
+                const existingBreakdown = (existingScore.breakdown as Record<string, number>) || {};
+                existingBreakdown[sessionGameId] = newPvic;
+                
+                await supabase
+                  .from('adventure_scores')
+                  .update({
+                    total_score_value: newPvic,
+                    breakdown: existingBreakdown,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', existingScore.id);
+              } else {
+                // Create new score
+                await supabase
+                  .from('adventure_scores')
+                  .insert({
+                    session_id: gameId,
+                    game_player_id: currentPlayer.id,
+                    total_score_value: newPvic,
+                    breakdown: { [sessionGameId]: newPvic },
+                  });
+              }
+              console.log(`[sheriff-resolve-duel] Saved adventure_score for player ${choice.player_number}: ${newPvic}`);
+            }
+          }
+        }
+      }
     }
 
     // Get player names
