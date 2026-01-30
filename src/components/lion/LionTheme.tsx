@@ -185,19 +185,19 @@ export function LionTurnIndicator({
 
 // Guess buttons
 interface LionGuessButtonsProps {
-  onGuess: (choice: 'HIGHER' | 'LOWER') => void;
+  onGuess: (choice: 'HIGHER' | 'LOWER' | 'EQUAL') => void;
   disabled?: boolean;
-  selectedGuess?: 'HIGHER' | 'LOWER' | null;
+  selectedGuess?: 'HIGHER' | 'LOWER' | 'EQUAL' | null;
 }
 
 export function LionGuessButtons({ onGuess, disabled, selectedGuess }: LionGuessButtonsProps) {
   return (
-    <div className="flex gap-4 justify-center">
+    <div className="flex flex-wrap gap-3 justify-center">
       <button
         onClick={() => onGuess('HIGHER')}
         disabled={disabled}
         className={`
-          px-6 py-4 rounded-lg text-lg font-bold transition-all
+          px-5 py-3 rounded-lg text-base font-bold transition-all
           ${selectedGuess === 'HIGHER' 
             ? 'bg-green-600 text-white ring-4 ring-green-400' 
             : 'bg-green-600/20 text-green-400 border-2 border-green-600 hover:bg-green-600/40'}
@@ -207,10 +207,23 @@ export function LionGuessButtons({ onGuess, disabled, selectedGuess }: LionGuess
         ⬆️ PLUS HAUT
       </button>
       <button
+        onClick={() => onGuess('EQUAL')}
+        disabled={disabled}
+        className={`
+          px-5 py-3 rounded-lg text-base font-bold transition-all
+          ${selectedGuess === 'EQUAL' 
+            ? 'bg-amber-600 text-white ring-4 ring-amber-400' 
+            : 'bg-amber-600/20 text-amber-400 border-2 border-amber-600 hover:bg-amber-600/40'}
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}
+        `}
+      >
+        🎯 ÉGAL
+      </button>
+      <button
         onClick={() => onGuess('LOWER')}
         disabled={disabled}
         className={`
-          px-6 py-4 rounded-lg text-lg font-bold transition-all
+          px-5 py-3 rounded-lg text-base font-bold transition-all
           ${selectedGuess === 'LOWER' 
             ? 'bg-red-600 text-white ring-4 ring-red-400' 
             : 'bg-red-600/20 text-red-400 border-2 border-red-600 hover:bg-red-600/40'}

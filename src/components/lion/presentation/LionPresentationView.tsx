@@ -236,7 +236,7 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
           show={showRevealAnimation}
           dealerCard={currentTurn.dealer_card}
           activeCard={currentTurn.active_card || 0}
-          guesserChoice={currentTurn.guess_choice as 'HIGHER' | 'LOWER' | null}
+          guesserChoice={currentTurn.guess_choice as 'HIGHER' | 'LOWER' | 'EQUAL' | null}
           guesserName={guesserPlayer?.display_name || ''}
           activeName={activePlayer?.display_name || ''}
           difference={currentTurn.d || 0}

@@ -25,9 +25,9 @@ serve(async (req) => {
       );
     }
 
-    if (!['HIGHER', 'LOWER'].includes(choice)) {
+    if (!['HIGHER', 'LOWER', 'EQUAL'].includes(choice)) {
       return new Response(
-        JSON.stringify({ error: 'choice must be HIGHER or LOWER' }),
+        JSON.stringify({ error: 'choice must be HIGHER, LOWER or EQUAL' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

@@ -28,7 +28,7 @@ interface LionTurn {
   active_player_id: string;
   guesser_player_id: string;
   active_card: number | null;
-  guess_choice: 'HIGHER' | 'LOWER' | null;
+  guess_choice: 'HIGHER' | 'LOWER' | 'EQUAL' | null;
   active_locked: boolean;
   guess_locked: boolean;
   resolved: boolean;

@@ -38,7 +38,7 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
   const [showRules, setShowRules] = useState(false);
   const [showRanking, setShowRanking] = useState(false);
   const [selectedCard, setSelectedCard] = useState<number | null>(null);
-  const [selectedGuess, setSelectedGuess] = useState<'HIGHER' | 'LOWER' | null>(null);
+  const [selectedGuess, setSelectedGuess] = useState<'HIGHER' | 'LOWER' | 'EQUAL' | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
 
@@ -126,7 +126,7 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
       
       toast({
         title: 'Choix verrouillé',
-        description: `Tu as choisi ${selectedGuess === 'HIGHER' ? 'PLUS HAUT' : 'PLUS BAS'}`,
+        description: `Tu as choisi ${selectedGuess === 'HIGHER' ? 'PLUS HAUT' : selectedGuess === 'LOWER' ? 'PLUS BAS' : 'ÉGAL'}`,
       });
       
       refetch();
@@ -459,7 +459,7 @@ export function PlayerLionDashboard({ game, player, onLeaveGame }: PlayerLionDas
           <Card className="bg-amber-900/40 border-amber-700 mb-6">
             <CardContent className="pt-6 text-center">
               <p className="text-xl text-amber-300 mb-2">
-                {currentTurn.guess_choice === 'HIGHER' ? '⬆️ PLUS HAUT' : '⬇️ PLUS BAS'}
+                {currentTurn.guess_choice === 'HIGHER' ? '⬆️ PLUS HAUT' : currentTurn.guess_choice === 'LOWER' ? '⬇️ PLUS BAS' : '🎯 ÉGAL'}
               </p>
               <p className="text-amber-200">
                 {currentTurn.active_locked 
