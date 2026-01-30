@@ -117,7 +117,7 @@ serve(async (req) => {
         pvicDeltaGuesser = 10;
         winnerRole = 'guesser';
       } else {
-        pvicDeltaActive = 2;
+        pvicDeltaActive = 10;
         winnerRole = 'active';
       }
     } else if (A < D) {

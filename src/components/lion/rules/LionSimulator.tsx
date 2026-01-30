@@ -23,9 +23,9 @@ export function LionSimulator() {
       resultType = 'guesser';
       resultMessage = 'Cartes identiques + pari ÉGAL = +10 PVic';
     } else {
-      activePoints = 2;
+      activePoints = 10;
       resultType = 'active';
-      resultMessage = 'Cartes identiques mais pas ÉGAL = +2 PVic';
+      resultMessage = 'Cartes identiques mais pas ÉGAL = +10 PVic';
     }
   } else {
     // Cards are different
