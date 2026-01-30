@@ -46,17 +46,23 @@ const LobbyChat: React.FC<LobbyChatProps> = ({
     }
   }, []);
 
+  // Maximum messages to keep in memory to prevent unbounded growth
+  const MAX_MESSAGES = 200;
+
   // Fetch and subscribe to messages
   useEffect(() => {
     const fetchMessages = async () => {
+      // Fetch only the last MAX_MESSAGES, ordered desc, then reverse for display
       const { data, error } = await supabase
         .from('lobby_chat_messages')
-        .select('*')
+        .select('id, sender_num, sender_name, message, created_at')
         .eq('game_id', gameId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .limit(MAX_MESSAGES);
 
       if (!error && data) {
-        setMessages(data);
+        // Reverse to get chronological order for display
+        setMessages(data.reverse());
         shouldScrollRef.current = true;
         setTimeout(scrollToBottom, 100);
       }
@@ -77,7 +83,13 @@ const LobbyChat: React.FC<LobbyChatProps> = ({
         },
         (payload) => {
           const newMsg = payload.new as Message;
-          setMessages((prev) => [...prev, newMsg]);
+          setMessages((prev) => {
+            // Append new message, then trim to MAX_MESSAGES (keep most recent)
+            const updated = [...prev, newMsg];
+            return updated.length > MAX_MESSAGES 
+              ? updated.slice(-MAX_MESSAGES) 
+              : updated;
+          });
           shouldScrollRef.current = true;
           setTimeout(scrollToBottom, 100);
         }

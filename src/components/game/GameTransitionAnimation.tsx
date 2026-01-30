@@ -1,6 +1,7 @@
-import { ArrowRight, Ship, Trees, Syringe, Sparkles, Trophy, Shield, SkipForward } from 'lucide-react';
+import { ArrowRight, Sparkles, Trophy, SkipForward } from 'lucide-react';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { getGameInfo, DEFAULT_GAME_INFO } from '@/constants/games';
 
 interface GameTransitionAnimationProps {
   fromGameType: string | null;
@@ -9,51 +10,6 @@ interface GameTransitionAnimationProps {
   totalSteps: number;
   onComplete?: () => void;
 }
-
-const GAME_INFO: Record<string, {
-  name: string;
-  icon: typeof Trees;
-  color: string;
-  bgColor: string;
-  accentBg: string;
-}> = {
-  FORET: {
-    name: 'La Forêt',
-    icon: Trees,
-    color: 'text-[#4ADE80]',
-    bgColor: 'bg-[#1a2f1a]',
-    accentBg: 'bg-[#2d4a2d]',
-  },
-  RIVIERES: {
-    name: 'Les Rivières',
-    icon: Ship,
-    color: 'text-[#D4AF37]',
-    bgColor: 'bg-[#0B1020]',
-    accentBg: 'bg-[#1B4D3E]',
-  },
-  INFECTION: {
-    name: 'Infection',
-    icon: Syringe,
-    color: 'text-[#B00020]',
-    bgColor: 'bg-[#0B0E14]',
-    accentBg: 'bg-[#1A2235]',
-  },
-  SHERIFF: {
-    name: 'Le Shérif',
-    icon: Shield,
-    color: 'text-[#F59E0B]',
-    bgColor: 'bg-[#1C1917]',
-    accentBg: 'bg-[#422006]',
-  },
-};
-
-const DEFAULT_GAME_INFO = {
-  name: 'Jeu',
-  icon: Sparkles,
-  color: 'text-primary',
-  bgColor: 'bg-background',
-  accentBg: 'bg-secondary',
-};
 
 export function GameTransitionAnimation({
   fromGameType,
@@ -92,9 +48,9 @@ export function GameTransitionAnimation({
     onCompleteRef.current?.();
   }, [skipped]);
 
-  // Use fallback if game type is not found
-  const fromInfo = (fromGameType && GAME_INFO[fromGameType]) || DEFAULT_GAME_INFO;
-  const toInfo = (toGameType && GAME_INFO[toGameType]) || DEFAULT_GAME_INFO;
+  // Use centralized game config with automatic fallback
+  const fromInfo = getGameInfo(fromGameType);
+  const toInfo = getGameInfo(toGameType);
   const FromIcon = fromInfo.icon;
   const ToIcon = toInfo.icon;
 

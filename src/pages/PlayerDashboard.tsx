@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { GameTransitionAnimation } from '@/components/game/GameTransitionAnimation';
 import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinematicOverlay';
 import { useAdventureCinematic } from '@/hooks/useAdventureCinematic';
+import { IMPLEMENTED_GAME_TYPES, isImplementedGame } from '@/constants/games';
 
 import { PlayerHeader } from '@/components/player/PlayerHeader';
 import { GameTypeInDevelopment } from '@/components/game/GameTypeInDevelopment';
@@ -36,9 +37,6 @@ function DashboardLoadingFallback() {
 }
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
-
-// Implemented game types
-const IMPLEMENTED_GAME_TYPES = ['FORET', 'RIVIERES', 'INFECTION', 'SHERIFF', 'LION'];
 
 interface Game {
   id: string;
