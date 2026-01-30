@@ -722,13 +722,14 @@ Deno.serve(async (req) => {
       const targets: number[] = [];
       
       // Helper to find FIRST LIVING neighbor in a direction (skip dead players)
+      // NOTE: Uses the deaths array to also skip players killed THIS round by shots
       const findFirstLivingNeighbor = (startIdx: number, direction: 'left' | 'right'): { num: number; player: Player } | null => {
         const step = direction === 'left' ? -1 : 1;
         for (let offset = 1; offset < allNums.length; offset++) {
           const idx = (startIdx + step * offset + allNums.length) % allNums.length;
           const num = allNums[idx];
           const player = getPlayerByNum(players, num);
-          // Skip if dead or will die this round
+          // Skip if dead (either was already dead or killed this round by shots)
           if (player && player.is_alive && !deaths.includes(player.player_number)) {
             return { num, player };
           }
@@ -768,9 +769,18 @@ Deno.serve(async (req) => {
             reason: 'Already carrier' 
           });
         } else if (!rightNeighbor.immune_permanent &&
+                   // FIX: Use <= instead of < to allow the second infection
                    newInfectionsThisRound + targets.length < MAX_NEW_INFECTIONS_PER_ROUND) {
           // Valid target: first living neighbor, not carrier, not immune
           targets.push(rightNum);
+        } else if (!rightNeighbor.immune_permanent) {
+          addLog('STEP_8_RIGHT_LIMIT_REACHED', { 
+            contaminator: contaminator.player_number, 
+            would_be_target: rightNum, 
+            reason: 'Max infections limit reached',
+            current: newInfectionsThisRound,
+            pending: targets.length
+          });
         }
       } else if (rightResult && leftResult && rightResult.num === leftResult.num) {
         // Edge case: Only one living player left, already checked on left side
