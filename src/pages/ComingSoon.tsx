@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, LogIn, Loader2, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { Settings, LogIn, Loader2, UserPlus, Eye, EyeOff, BookOpen, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { useEarlyAccessRequests } from '@/hooks/useEarlyAccessRequests';
 import { toast } from '@/hooks/use-toast';
+import { RivieresRulesOverlay } from '@/components/rivieres/rules/RivieresRulesOverlay';
+import { ForetRulesOverlay } from '@/components/foret/rules/ForetRulesOverlay';
+import { InfectionRulesOverlay } from '@/components/infection/rules/InfectionRulesOverlay';
 
 // Import logo
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
@@ -118,6 +121,11 @@ export default function ComingSoon() {
   const [registerMessage, setRegisterMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Rules overlays state
+  const [rivieresRulesOpen, setRivieresRulesOpen] = useState(false);
+  const [foretRulesOpen, setForetRulesOpen] = useState(false);
+  const [infectionRulesOpen, setInfectionRulesOpen] = useState(false);
 
   // Generate stable positions once on mount
   const gamePositions = useMemo(() => generateFloatingPositions(gameImages.length, 12345, true), []);
@@ -204,6 +212,26 @@ export default function ComingSoon() {
   };
 
   return (
+    <>
+      {/* Rules Overlays */}
+      <RivieresRulesOverlay 
+        open={rivieresRulesOpen} 
+        onClose={() => setRivieresRulesOpen(false)}
+        defaultMode="QUICK"
+      />
+      <ForetRulesOverlay 
+        open={foretRulesOpen} 
+        onClose={() => setForetRulesOpen(false)}
+        userRole="PLAYER"
+        defaultMode="QUICK"
+      />
+      <InfectionRulesOverlay 
+        open={infectionRulesOpen} 
+        onClose={() => setInfectionRulesOpen(false)}
+        userRole="PLAYER"
+        defaultMode="QUICK"
+      />
+
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/10 overflow-hidden relative">
       {/* Floating Images - Full page background (z-index 0) */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
@@ -329,6 +357,60 @@ export default function ComingSoon() {
               <span className="text-xs md:text-sm text-muted-foreground mt-2">{item.label}</span>
             </motion.div>
           ))}
+        </motion.div>
+
+        {/* Game Rules Section */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.9, duration: 0.6 }}
+          className="mb-12 w-full max-w-2xl"
+        >
+          <h2 className="text-lg md:text-xl font-semibold text-center mb-4 text-foreground">
+            📖 Découvrez les règles des jeux
+          </h2>
+          
+          {/* Available Games */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <Button 
+              variant="outline" 
+              className="flex flex-col items-center gap-2 h-auto py-3 bg-card/60 backdrop-blur-sm border-primary/30 hover:border-primary hover:bg-primary/10"
+              onClick={() => setRivieresRulesOpen(true)}
+            >
+              <BookOpen className="w-5 h-5 text-blue-400" />
+              <span className="text-xs md:text-sm">Rivières</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex flex-col items-center gap-2 h-auto py-3 bg-card/60 backdrop-blur-sm border-primary/30 hover:border-primary hover:bg-primary/10"
+              onClick={() => setForetRulesOpen(true)}
+            >
+              <BookOpen className="w-5 h-5 text-green-400" />
+              <span className="text-xs md:text-sm">Forêt</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex flex-col items-center gap-2 h-auto py-3 bg-card/60 backdrop-blur-sm border-primary/30 hover:border-primary hover:bg-primary/10"
+              onClick={() => setInfectionRulesOpen(true)}
+            >
+              <BookOpen className="w-5 h-5 text-red-400" />
+              <span className="text-xs md:text-sm">Infection</span>
+            </Button>
+          </div>
+
+          {/* Locked Games */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col items-center gap-2 py-3 px-4 rounded-lg bg-muted/40 backdrop-blur-sm border border-muted-foreground/20">
+              <Lock className="w-5 h-5 text-amber-500" />
+              <span className="text-xs md:text-sm text-muted-foreground">Sheriff</span>
+              <span className="text-[10px] md:text-xs text-center text-muted-foreground/70">À découvrir lors de l'événement</span>
+            </div>
+            <div className="flex flex-col items-center gap-2 py-3 px-4 rounded-lg bg-muted/40 backdrop-blur-sm border border-muted-foreground/20">
+              <Lock className="w-5 h-5 text-rose-400" />
+              <span className="text-xs md:text-sm text-muted-foreground">Le CŒUR du Lion</span>
+              <span className="text-[10px] md:text-xs text-center text-muted-foreground/70">La carte trouvée...</span>
+            </div>
+          </div>
         </motion.div>
 
         {/* Action Buttons */}
@@ -484,5 +566,6 @@ export default function ComingSoon() {
       <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/20 rounded-full blur-3xl pointer-events-none z-5" />
       <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/20 rounded-full blur-3xl pointer-events-none z-5" />
     </div>
+    </>
   );
 }
