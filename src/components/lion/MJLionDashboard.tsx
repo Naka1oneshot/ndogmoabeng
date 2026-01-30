@@ -23,7 +23,8 @@ import {
   XCircle,
   SkipForward,
   Monitor,
-  RotateCcw
+  RotateCcw,
+  Flag
 } from 'lucide-react';
 
 interface MJLionDashboardProps {
@@ -42,6 +43,7 @@ export function MJLionDashboard({ game, onPresentationMode }: MJLionDashboardPro
   const [resolving, setResolving] = useState(false);
   const [advancing, setAdvancing] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [finishing, setFinishing] = useState(false);
 
   const sessionGameId = game.current_session_game_id;
   const { 
@@ -203,6 +205,64 @@ export function MJLionDashboard({ game, onPresentationMode }: MJLionDashboardPro
       });
     } finally {
       setResetting(false);
+    }
+  };
+
+  const handleFinishGame = async () => {
+    if (!sessionGameId || !game.id) return;
+
+    setFinishing(true);
+    try {
+      // Get the winner info
+      const winnerId = gameState?.winner_player_id;
+      let winnerUserId: string | null = null;
+
+      if (winnerId) {
+        const { data: winnerData } = await supabase
+          .from('game_players')
+          .select('user_id')
+          .eq('id', winnerId)
+          .single();
+        winnerUserId = winnerData?.user_id || null;
+      }
+
+      // Update game status to ENDED
+      const { error: gameError } = await supabase
+        .from('games')
+        .update({ 
+          status: 'ENDED', 
+          phase: 'FINISHED',
+          phase_locked: true
+        })
+        .eq('id', game.id);
+
+      if (gameError) throw gameError;
+
+      // Update player profile statistics
+      const { error: statsError } = await supabase.rpc('update_player_stats_on_game_end', {
+        p_game_id: game.id,
+        p_winner_user_id: winnerUserId
+      });
+
+      if (statsError) {
+        console.error('Stats update error:', statsError);
+      }
+
+      toast({
+        title: '✅ Partie archivée',
+        description: 'Les statistiques ont été enregistrées.',
+      });
+
+      refetch();
+    } catch (err) {
+      console.error('Finish game error:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de terminer la partie',
+        variant: 'destructive'
+      });
+    } finally {
+      setFinishing(false);
     }
   };
 
@@ -520,9 +580,22 @@ export function MJLionDashboard({ game, onPresentationMode }: MJLionDashboardPro
                 scoreA={playerA?.pvic || 0}
                 scoreB={playerB?.pvic || 0}
               />
-              <p className="text-amber-200 mt-4">
+              <p className="text-amber-200 mt-4 mb-6">
                 Vainqueur: {getPlayerById(gameState.winner_player_id || '')?.display_name}
               </p>
+              
+              <Button
+                onClick={handleFinishGame}
+                disabled={finishing}
+                className="lion-btn-primary"
+              >
+                {finishing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Flag className="h-4 w-4 mr-2" />
+                )}
+                Archiver et enregistrer les stats
+              </Button>
             </CardContent>
           </Card>
         )}
