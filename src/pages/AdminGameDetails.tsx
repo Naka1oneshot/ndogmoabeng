@@ -197,7 +197,25 @@ export default function AdminGameDetails() {
     
     setDeletingGame(true);
     try {
-      // Delete all related data
+      // First get all session_game_ids for this game
+      const { data: sessionGames } = await supabase
+        .from('session_games')
+        .select('id')
+        .eq('session_id', gameId);
+      
+      const sessionGameIds = sessionGames?.map(sg => sg.id) || [];
+
+      // Delete LION game related data (by session_game_id)
+      if (sessionGameIds.length > 0) {
+        for (const sgId of sessionGameIds) {
+          await (supabase.from('lion_turns' as any).delete().eq('session_game_id', sgId));
+          await (supabase.from('lion_hands' as any).delete().eq('session_game_id', sgId));
+          await (supabase.from('lion_decks' as any).delete().eq('session_game_id', sgId));
+          await (supabase.from('lion_game_state' as any).delete().eq('session_game_id', sgId));
+        }
+      }
+
+      // Delete all related data by game_id
       const tablesToClear = [
         'pending_effects',
         'positions_finales',
@@ -216,6 +234,9 @@ export default function AdminGameDetails() {
       for (const table of tablesToClear) {
         await (supabase.from(table as any).delete().eq('game_id', gameId));
       }
+
+      // Delete session_games
+      await supabase.from('session_games').delete().eq('session_id', gameId);
 
       // Delete the game
       const { error } = await supabase.from('games').delete().eq('id', gameId);
