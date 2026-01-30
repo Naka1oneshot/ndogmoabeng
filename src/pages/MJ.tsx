@@ -670,8 +670,12 @@ export default function MJ() {
       setSelectedAdventureId(null);
       setSelectedGameTypeCode('FORET');
       
-      // Navigate to the new game's management page
-      navigate(`/mj/${data.id}`);
+      // Navigate to the appropriate dashboard based on game mode
+      if (gameMode === 'ADVENTURE') {
+        navigate(`/mj/adventure/${data.id}`);
+      } else {
+        navigate(`/mj/${data.id}`);
+      }
     } catch (error: any) {
       console.error('[CREATE_GAME] Error creating game:', error);
       // FIX: Display real error with code and message
