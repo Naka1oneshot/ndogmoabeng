@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Shield, Users, Zap, Star } from 'lucide-react';
+import { AlertTriangle, Shield, Users, Zap, Star, Loader2 } from 'lucide-react';
 import { RivieresRulesContextData } from '../../useRivieresRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 // Import clan images
 import maisonKeryndes from '@/assets/clans/maison-keryndes.png';
@@ -25,7 +27,14 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-const CLANS_PREVIEW = [
+// Map clan images by ID
+const CLAN_IMAGES: Record<string, string> = {
+  keryndes: maisonKeryndes,
+  royale: maisonRoyale,
+};
+
+// Fallback static data
+const CLANS_PREVIEW_FALLBACK = [
   { 
     name: 'Maison des Keryndes', 
     image: maisonKeryndes, 
@@ -40,7 +49,81 @@ const CLANS_PREVIEW = [
   },
 ];
 
+// Parse dynamic content to extract clan preview data
+function parseClansPreviewFromContent(paragraphs: Array<{ id: string; text?: string; type?: string }>) {
+  const clans: Array<{
+    name: string;
+    image: string;
+    power: string;
+    color: string;
+  }> = [];
+  
+  for (const p of paragraphs) {
+    if (p.id === 'rf6_keryndes' && p.text) {
+      const nameMatch = p.text.match(/<strong>([^<]+)<\/strong>/);
+      const pouvMatch = p.text.match(/Pouvoirs? ?: ?(.+)$/i);
+      
+      let powerSummary = 'Canot de secours ou réduction de danger';
+      if (pouvMatch) {
+        // Get a summary of powers
+        const powersText = pouvMatch[1].replace(/\.$/, '');
+        const parts = powersText.split(/,\s*(?=[A-Z])/);
+        const summaryParts = parts.map(part => {
+          const colonIndex = part.indexOf(':');
+          return colonIndex > 0 ? part.substring(0, colonIndex).trim() : part.trim();
+        });
+        powerSummary = summaryParts.join(' ou ');
+      }
+      
+      clans.push({
+        name: nameMatch ? nameMatch[1] : 'Maison des Keryndes',
+        image: CLAN_IMAGES.keryndes,
+        power: powerSummary,
+        color: 'blue',
+      });
+    }
+    
+    if (p.id === 'rf6_royale' && p.text) {
+      const nameMatch = p.text.match(/<strong>([^<]+)<\/strong>/);
+      const pouvMatch = p.text.match(/Pouvoir ?: ?(.+)$/i);
+      
+      let powerSummary = 'Trésor royal : bonus de jetons au début de la partie';
+      if (pouvMatch) {
+        powerSummary = pouvMatch[1].replace(/\.$/, '').trim();
+      }
+      
+      clans.push({
+        name: nameMatch ? nameMatch[1] : 'Maison Royale',
+        image: CLAN_IMAGES.royale,
+        power: powerSummary,
+        color: 'amber',
+      });
+    }
+  }
+  
+  return clans.length > 0 ? clans : CLANS_PREVIEW_FALLBACK;
+}
+
 export function RulesQuickPage3({ context, replayNonce }: RulesQuickPage3Props) {
+  const { getSection, loading } = useDynamicRules('RIVIERES');
+  
+  // Get clans from dynamic content
+  const clansPreview = useMemo(() => {
+    const section = getSection('full_clans');
+    if (section && section.content) {
+      return parseClansPreviewFromContent(section.content as Array<{ id: string; text?: string; type?: string }>);
+    }
+    return CLANS_PREVIEW_FALLBACK;
+  }, [getSection]);
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
+  
   return (
     <motion.div
       key={replayNonce}
@@ -108,7 +191,7 @@ export function RulesQuickPage3({ context, replayNonce }: RulesQuickPage3Props) 
         </h2>
         
         <div className="grid sm:grid-cols-2 gap-3">
-          {CLANS_PREVIEW.map((clan, index) => (
+          {clansPreview.map((clan, index) => (
             <motion.div
               key={clan.name}
               variants={itemVariants}

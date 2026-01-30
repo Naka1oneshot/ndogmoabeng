@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Users, ChevronLeft, ChevronRight, Star, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RivieresRulesContextData } from '../../useRivieresRulesContext';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 // Import clan images
 import maisonKeryndes from '@/assets/clans/maison-keryndes.png';
@@ -27,7 +28,8 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-const CLANS = [
+// Fallback static data
+const CLANS_FALLBACK = [
   {
     id: 'keryndes',
     name: 'Maison des Keryndes',
@@ -51,16 +53,118 @@ const CLANS = [
   },
 ];
 
+// Map clan images by ID
+const CLAN_IMAGES: Record<string, string> = {
+  keryndes: maisonKeryndes,
+  royale: maisonRoyale,
+};
+
+// Parse dynamic content to extract clan data
+function parseClansFromContent(paragraphs: Array<{ id: string; text?: string; type?: string }>) {
+  const clans: Array<{
+    id: string;
+    name: string;
+    image: string;
+    devise: string;
+    description: string;
+    powers: string[];
+  }> = [];
+  
+  for (const p of paragraphs) {
+    if (p.id === 'rf6_keryndes' && p.text) {
+      // Parse: <strong>Maison des Keryndes</strong> : "On part, on revient." Guides et messagers... Pouvoirs : X, Y.
+      const nameMatch = p.text.match(/<strong>([^<]+)<\/strong>/);
+      const deviseMatch = p.text.match(/"([^"]+)"/);
+      const pouvMatch = p.text.match(/Pouvoirs? ?: ?(.+)$/i);
+      
+      let description = '';
+      const afterDevise = p.text.match(/"[^"]+" ([^.]+\.)/);
+      if (afterDevise) description = afterDevise[1];
+      
+      const powers: string[] = [];
+      if (pouvMatch) {
+        // Split by comma or parentheses groups
+        const powersText = pouvMatch[1];
+        const parts = powersText.split(/,\s*(?=[A-Z])/);
+        parts.forEach(part => {
+          const cleaned = part.replace(/\.$/, '').trim();
+          if (cleaned) powers.push(cleaned);
+        });
+      }
+      
+      clans.push({
+        id: 'keryndes',
+        name: nameMatch ? nameMatch[1] : 'Maison des Keryndes',
+        image: CLAN_IMAGES.keryndes,
+        devise: deviseMatch ? deviseMatch[1] : 'On part, on revient.',
+        description,
+        powers,
+      });
+    }
+    
+    if (p.id === 'rf6_royale' && p.text) {
+      const nameMatch = p.text.match(/<strong>([^<]+)<\/strong>/);
+      const deviseMatch = p.text.match(/"([^"]+)"/);
+      const pouvMatch = p.text.match(/Pouvoir ?: ?(.+)$/i);
+      
+      let description = '';
+      const afterDevise = p.text.match(/"[^"]+" ([^.]+\.)/);
+      if (afterDevise) description = afterDevise[1];
+      
+      const powers: string[] = [];
+      if (pouvMatch) {
+        powers.push(pouvMatch[1].replace(/\.$/, '').trim());
+      }
+      
+      clans.push({
+        id: 'royale',
+        name: nameMatch ? nameMatch[1] : 'Maison Royale',
+        image: CLAN_IMAGES.royale,
+        devise: deviseMatch ? deviseMatch[1] : "L'histoire s'écrit ici.",
+        description,
+        powers,
+      });
+    }
+  }
+  
+  return clans.length > 0 ? clans : CLANS_FALLBACK;
+}
+
 export function RulesPageClans({ context, replayNonce }: RulesPageClansProps) {
   const [mobileIndex, setMobileIndex] = useState(0);
+  const { getParagraphs, loading, getSection } = useDynamicRules('RIVIERES');
+  
+  // Try to get clans from dynamic content
+  const clans = useMemo(() => {
+    const section = getSection('full_clans');
+    if (section && section.content) {
+      return parseClansFromContent(section.content as Array<{ id: string; text?: string; type?: string }>);
+    }
+    return CLANS_FALLBACK;
+  }, [getSection]);
+  
+  // Get note text from dynamic content
+  const noteText = useMemo(() => {
+    const paragraphs = getParagraphs('full_clans');
+    const noteParagraph = paragraphs.find(p => p.type === 'note' || p.id === 'rf6_note');
+    return noteParagraph?.text || 'Les pouvoirs des clans sont utilisables une fois par manche (sauf indication contraire).';
+  }, [getParagraphs]);
   
   const handlePrev = () => {
-    setMobileIndex((prev) => (prev === 0 ? CLANS.length - 1 : prev - 1));
+    setMobileIndex((prev) => (prev === 0 ? clans.length - 1 : prev - 1));
   };
   
   const handleNext = () => {
-    setMobileIndex((prev) => (prev === CLANS.length - 1 ? 0 : prev + 1));
+    setMobileIndex((prev) => (prev === clans.length - 1 ? 0 : prev + 1));
   };
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      </div>
+    );
+  }
   
   return (
     <motion.div
@@ -81,7 +185,7 @@ export function RulesPageClans({ context, replayNonce }: RulesPageClansProps) {
       {/* Desktop: 2 cards layout */}
       <div className="hidden sm:block">
         <motion.div variants={itemVariants} className="grid sm:grid-cols-2 gap-4">
-          {CLANS.map((clan) => (
+          {clans.map((clan) => (
             <ClanCard key={clan.id} clan={clan} />
           ))}
         </motion.div>
@@ -98,7 +202,7 @@ export function RulesPageClans({ context, replayNonce }: RulesPageClansProps) {
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.2 }}
             >
-              <ClanCard clan={CLANS[mobileIndex]} />
+              <ClanCard clan={clans[mobileIndex]} />
             </motion.div>
           </AnimatePresence>
           
@@ -115,7 +219,7 @@ export function RulesPageClans({ context, replayNonce }: RulesPageClansProps) {
             
             {/* Dots */}
             <div className="flex gap-2">
-              {CLANS.map((_, i) => (
+              {clans.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setMobileIndex(i)}
@@ -144,14 +248,23 @@ export function RulesPageClans({ context, replayNonce }: RulesPageClansProps) {
         className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-lg p-4 text-center"
       >
         <p className="text-[#9CA3AF] text-sm">
-          Les pouvoirs des clans sont utilisables une fois par manche (sauf indication contraire).
+          {noteText}
         </p>
       </motion.div>
     </motion.div>
   );
 }
 
-function ClanCard({ clan, compact = false }: { clan: typeof CLANS[0]; compact?: boolean }) {
+interface ClanData {
+  id: string;
+  name: string;
+  image: string;
+  devise: string;
+  description: string;
+  powers: string[];
+}
+
+function ClanCard({ clan, compact = false }: { clan: ClanData; compact?: boolean }) {
   return (
     <div className={`bg-[#1a1f2e] border border-[#D4AF37]/20 rounded-xl ${compact ? 'p-4' : 'p-5'} flex flex-col`}>
       <div className={`flex items-center gap-3 ${compact ? 'mb-2' : 'mb-4'}`}>
