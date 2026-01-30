@@ -28,9 +28,11 @@ Deno.serve(async (req) => {
     // Get game info to check for adventure mode
     const { data: game } = await supabase
       .from('games')
-      .select('mode, adventure_id')
+      .select('mode, adventure_id, starting_tokens')
       .eq('id', gameId)
       .single();
+
+    const isAdventureMode = game?.mode === 'ADVENTURE';
 
     // Default values
     let commonPoolInitial = typeof initialPool === 'number' && initialPool >= 0 ? initialPool : 100;
@@ -39,9 +41,18 @@ Deno.serve(async (req) => {
     let pvicPercent = typeof visaPvicPercent === 'number' && visaPvicPercent > 0 ? visaPvicPercent : 50;
     let maxDuelImpact = typeof duelMaxImpact === 'number' && duelMaxImpact > 0 ? duelMaxImpact : 10;
 
+    // Token policy: in adventure mode, use games.starting_tokens (set by next-session-game)
+    // In standalone mode, default to 20
+    let startingTokens = 20; // Default for standalone mode
+    
     // Load adventure config if in ADVENTURE mode
-    if (game?.mode === 'ADVENTURE' && game.adventure_id) {
+    if (isAdventureMode && game.adventure_id) {
       console.log(`[start-sheriff] Adventure mode detected, loading config for game: ${gameId}`);
+      
+      // In adventure mode, starting_tokens should already be set by next-session-game
+      // based on the adventure config token_policy
+      startingTokens = game.starting_tokens ?? 20;
+      console.log(`[start-sheriff] Using games.starting_tokens from adventure: ${startingTokens}`);
       
       const { data: agc, error: agcError } = await supabase
         .from('adventure_game_configs')
@@ -83,11 +94,9 @@ Deno.serve(async (req) => {
     }
 
     // Get active players
-
-    // Get active players
     const { data: players, error: playersError } = await supabase
       .from('game_players')
-      .select('id, player_number, jetons, pvic')
+      .select('id, player_number, jetons, pvic, clan')
       .eq('game_id', gameId)
       .eq('status', 'ACTIVE')
       .eq('is_host', false)
@@ -121,19 +130,32 @@ Deno.serve(async (req) => {
         total_duels: 0,
         common_pool_initial: commonPoolInitial,
         common_pool_spent: 0,
-        bot_config: poolConfig, // Store pool settings in bot_config for now
+        bot_config: poolConfig,
       }, { onConflict: 'session_game_id' });
 
     if (stateError) throw stateError;
 
-    // Initialize all player tokens to 20
+    // Initialize player tokens
+    // In adventure mode, tokens are already set by next-session-game based on token_policy
+    // In standalone mode, set to startingTokens (default 20)
     const playerIds = players.map(p => p.id);
-    const { error: tokensError } = await supabase
-      .from('game_players')
-      .update({ jetons: 20 })
-      .in('id', playerIds);
+    
+    if (!isAdventureMode) {
+      // Standalone mode: reset tokens to default (20)
+      const { error: tokensError } = await supabase
+        .from('game_players')
+        .update({ jetons: startingTokens })
+        .in('id', playerIds);
 
-    if (tokensError) throw tokensError;
+      if (tokensError) throw tokensError;
+      console.log(`[start-sheriff] Standalone mode: set all players to ${startingTokens} tokens`);
+    } else {
+      // Adventure mode: tokens already set by next-session-game, just log current state
+      console.log(`[start-sheriff] Adventure mode: preserving tokens set by next-session-game`);
+      for (const p of players) {
+        console.log(`[start-sheriff] Player ${p.player_number}: jetons=${p.jetons}, pvic=${p.pvic}`);
+      }
+    }
 
     // Initialize player choices with initial PVic snapshot
     // First, delete any existing choices to ensure fresh insert with correct pvic_initial
@@ -167,7 +189,7 @@ Deno.serve(async (req) => {
 
     if (gameError) throw gameError;
 
-    // FIX 3: Update session game status - use 'RUNNING' (uppercase) for consistency
+    // Update session game status
     const { error: sessionError } = await supabase
       .from('session_games')
       .update({ status: 'RUNNING' })
@@ -184,11 +206,25 @@ Deno.serve(async (req) => {
       audience: 'ALL',
     });
 
+    // Log debug info for MJ
+    if (isAdventureMode) {
+      await supabase.from('session_events').insert({
+        game_id: gameId,
+        session_game_id: sessionGameId,
+        type: 'DEBUG',
+        message: `🤠 Sheriff initialisé: ${startingTokens} jetons (adventure), pool=${commonPoolInitial}`,
+        audience: 'MJ',
+        payload: { startingTokens, commonPoolInitial, poolConfig, isAdventureMode: true },
+      });
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         playerCount: players.length,
-        phase: 'CHOICES'
+        phase: 'CHOICES',
+        startingTokens,
+        isAdventureMode,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

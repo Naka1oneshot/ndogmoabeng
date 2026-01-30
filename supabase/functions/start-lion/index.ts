@@ -155,8 +155,8 @@ serve(async (req) => {
         .eq('id', playerB.id);
     }
 
-    // In ADVENTURE mode, preserve PVic from previous games
-    // In standalone mode, reset PVic to 0
+    // In ADVENTURE mode, preserve PVic from previous games - NEVER reset
+    // In standalone mode, reset PVic and recompenses to 0
     if (!isAdventure) {
       await supabase
         .from('game_players')
@@ -164,12 +164,26 @@ serve(async (req) => {
         .in('id', [playerA.id, playerB.id]);
       console.log('[start-lion] Standalone mode - reset PVic to 0');
     } else {
-      // Just reset recompenses, keep pvic
+      // Adventure mode: reset ONLY recompenses, NEVER touch pvic
+      // PVic accumulates across all adventure games
       await supabase
         .from('game_players')
         .update({ recompenses: 0 })
         .in('id', [playerA.id, playerB.id]);
-      console.log(`[start-lion] Adventure mode - preserved PVic: ${playerA.display_name}=${playerA.pvic}, ${playerB.display_name}=${playerB.pvic}`);
+      console.log(`[start-lion] Adventure mode - preserved PVic: ${playerA.display_name}=${playerA.pvic ?? 0}, ${playerB.display_name}=${playerB.pvic ?? 0}`);
+      
+      // Log for verification
+      await supabase.from('session_events').insert({
+        game_id: gameId,
+        session_game_id: session_game_id,
+        type: 'DEBUG',
+        message: `🦁 Lion: PVic préservé - ${playerA.display_name}=${playerA.pvic ?? 0}, ${playerB.display_name}=${playerB.pvic ?? 0}`,
+        audience: 'MJ',
+        payload: { 
+          playerA: { id: playerA.id, name: playerA.display_name, pvic: playerA.pvic },
+          playerB: { id: playerB.id, name: playerB.display_name, pvic: playerB.pvic },
+        },
+      });
     }
 
     // Create hands for both players

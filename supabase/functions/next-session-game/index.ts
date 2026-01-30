@@ -6,6 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Default token values per game type (used as fallback when no config exists)
+const DEFAULT_GAME_TYPE_TOKENS: Record<string, number> = {
+  "RIVIERES": 100,
+  "FORET": 50,
+  "SHERIFF": 20,
+  "INFECTION": 0, // INFECTION typically inherits
+  "LION": 0, // LION typically inherits
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -94,7 +103,8 @@ serve(async (req) => {
       
       console.log(`[next-session-game] Marked session_game ${game.current_session_game_id} as ENDED`);
 
-      // Save adventure scores for this session_game
+      // NOTE: adventure_scores are saved by each game's resolution function
+      // Do NOT save adventure scores here to avoid double-counting!
       const { data: players } = await supabase
         .from("game_players")
         .select("id, player_number, recompenses, pvic, jetons")
@@ -102,12 +112,8 @@ serve(async (req) => {
         .eq("status", "ACTIVE")
         .not("player_number", "is", null);
 
-      // NOTE: adventure_scores are saved by each game's resolution function (e.g., rivieres-resolve-level, resolve-combat)
-      // Do NOT save adventure scores here to avoid double-counting!
-      // The individual game resolution already saves to adventure_scores with proper score calculation
       console.log(`[next-session-game] Skipping adventure_score save - already done by game resolution function`);
       
-      // Just log current pvic values for debugging
       if (players && players.length > 0) {
         for (const player of players) {
           console.log(`[next-session-game] Player ${player.player_number}: pvic=${player.pvic}, recompenses=${player.recompenses}`);
@@ -132,7 +138,7 @@ serve(async (req) => {
     // Get the next adventure step
     const { data: nextStep, error: stepError } = await supabase
       .from("adventure_steps")
-      .select("id, game_type_code, token_policy, custom_starting_tokens")
+      .select("id, game_type_code, token_policy, custom_starting_tokens, default_step_config")
       .eq("adventure_id", game.adventure_id)
       .eq("step_index", nextStepIndex)
       .single();
@@ -148,11 +154,8 @@ serve(async (req) => {
         .eq("status", "ACTIVE")
         .not("player_number", "is", null);
 
-      // NOTE: Final scores are saved by the last game's resolution function 
-      // Do NOT recalculate here to avoid double-counting!
       console.log(`[next-session-game] Adventure complete - scores already saved by game resolution`);
       
-      // Just log final state for debugging
       if (finalPlayers && finalPlayers.length > 0) {
         for (const player of finalPlayers) {
           console.log(`[next-session-game] Final player ${player.player_number}: pvic=${player.pvic}, recompenses=${player.recompenses}`);
@@ -186,43 +189,70 @@ serve(async (req) => {
       );
     }
 
-    // NEW TOKEN POLICY based on game types:
-    // - RIVIERES: players start with 100 tokens
-    // - FORET: players start with 50 tokens
-    // - SHERIFF: players start with 0 tokens
-    // - INFECTION: players inherit tokens from previous game (SHERIFF)
-    
-    const GAME_TYPE_TOKENS: Record<string, number | "INHERIT"> = {
-      "RIVIERES": 100,
-      "FORET": 50,
-      "SHERIFF": 0,
-      "INFECTION": "INHERIT",
-    };
+    // =====================================================================
+    // LOAD ADVENTURE CONFIG (CONFIG-FIRST approach)
+    // =====================================================================
+    let adventureConfig: any = null;
+    const { data: agc } = await supabase
+      .from("adventure_game_configs")
+      .select("config")
+      .eq("game_id", gameId)
+      .single();
 
-    const nextGameTokenPolicy = GAME_TYPE_TOKENS[nextStep.game_type_code];
+    if (agc?.config) {
+      adventureConfig = agc.config;
+      console.log(`[next-session-game] Loaded adventure_game_configs for game ${gameId}`);
+    }
+
+    // =====================================================================
+    // DETERMINE TOKEN POLICY (priority: config > step policy > game_type default)
+    // =====================================================================
+    const gameTypeCode = nextStep.game_type_code;
     let newStartingTokens: number;
+    let tokenPolicyUsed: string = "default";
     
-    if (nextGameTokenPolicy === "INHERIT") {
-      // For INFECTION: inherit tokens from previous game
-      newStartingTokens = game.starting_tokens || 0;
-      console.log(`[next-session-game] INHERIT mode: keeping tokens from previous game`);
-    } else if (typeof nextGameTokenPolicy === "number") {
-      newStartingTokens = nextGameTokenPolicy;
-      console.log(`[next-session-game] Fixed tokens for ${nextStep.game_type_code}: ${newStartingTokens}`);
-    } else {
-      // Fallback to old logic if game type not in our map
-      if (nextStep.token_policy === "RESET_TO_DEFAULT") {
-        const { data: gameType } = await supabase
-          .from("game_types")
-          .select("default_starting_tokens")
-          .eq("code", nextStep.game_type_code)
-          .single();
-        newStartingTokens = gameType?.default_starting_tokens || 10;
-      } else if (nextStep.token_policy === "CUSTOM" && nextStep.custom_starting_tokens) {
-        newStartingTokens = nextStep.custom_starting_tokens;
+    // Check adventure config first
+    const tokenPolicyFromConfig = adventureConfig?.token_policies?.[gameTypeCode];
+    
+    if (tokenPolicyFromConfig) {
+      if (tokenPolicyFromConfig.mode === "FIXED" && typeof tokenPolicyFromConfig.fixedValue === "number") {
+        newStartingTokens = tokenPolicyFromConfig.fixedValue;
+        tokenPolicyUsed = "config_fixed";
+        console.log(`[next-session-game] Using config FIXED tokens for ${gameTypeCode}: ${newStartingTokens}`);
+      } else if (tokenPolicyFromConfig.mode === "INHERIT") {
+        newStartingTokens = game.starting_tokens || 0;
+        tokenPolicyUsed = "config_inherit";
+        console.log(`[next-session-game] Using config INHERIT tokens for ${gameTypeCode}: ${newStartingTokens}`);
       } else {
-        newStartingTokens = game.starting_tokens || 10;
+        // Fallback to game_type default
+        newStartingTokens = DEFAULT_GAME_TYPE_TOKENS[gameTypeCode] ?? 10;
+        tokenPolicyUsed = "game_type_default";
       }
+    } else if (nextStep.token_policy === "CUSTOM" && nextStep.custom_starting_tokens !== null) {
+      // Use step-level custom tokens
+      newStartingTokens = nextStep.custom_starting_tokens;
+      tokenPolicyUsed = "step_custom";
+      console.log(`[next-session-game] Using step CUSTOM tokens: ${newStartingTokens}`);
+    } else if (nextStep.token_policy === "INHERIT") {
+      // Inherit from previous game
+      newStartingTokens = game.starting_tokens || 0;
+      tokenPolicyUsed = "step_inherit";
+      console.log(`[next-session-game] Using step INHERIT tokens: ${newStartingTokens}`);
+    } else if (nextStep.token_policy === "RESET_TO_DEFAULT") {
+      // Use game_type default
+      const { data: gameType } = await supabase
+        .from("game_types")
+        .select("default_starting_tokens")
+        .eq("code", gameTypeCode)
+        .single();
+      newStartingTokens = gameType?.default_starting_tokens ?? DEFAULT_GAME_TYPE_TOKENS[gameTypeCode] ?? 10;
+      tokenPolicyUsed = "reset_to_default";
+      console.log(`[next-session-game] Using RESET_TO_DEFAULT tokens: ${newStartingTokens}`);
+    } else {
+      // Final fallback
+      newStartingTokens = DEFAULT_GAME_TYPE_TOKENS[gameTypeCode] ?? 10;
+      tokenPolicyUsed = "fallback";
+      console.log(`[next-session-game] Using fallback tokens: ${newStartingTokens}`);
     }
 
     // Create the new session_game for this step
@@ -231,7 +261,7 @@ serve(async (req) => {
       .insert({
         session_id: gameId,
         step_index: nextStepIndex,
-        game_type_code: nextStep.game_type_code,
+        game_type_code: gameTypeCode,
         status: "PENDING",
         manche_active: 1,
         phase: "PHASE1_MISES",
@@ -256,7 +286,7 @@ serve(async (req) => {
       .update({
         current_session_game_id: newSessionGameId,
         current_step_index: nextStepIndex,
-        selected_game_type_code: nextStep.game_type_code,
+        selected_game_type_code: gameTypeCode,
         manche_active: 1,
         phase: "PHASE1_MISES",
         phase_locked: false,
@@ -264,7 +294,7 @@ serve(async (req) => {
       })
       .eq("id", gameId);
 
-    // Reset players' jetons for the new game based on NEW token policy
+    // Get players for updates
     const { data: players } = await supabase
       .from("game_players")
       .select("id, player_number, jetons, clan, pvic, mate_num, display_name, status")
@@ -272,28 +302,24 @@ serve(async (req) => {
       .eq("status", "ACTIVE")
       .not("player_number", "is", null);
 
+    // =====================================================================
+    // UPDATE PLAYER TOKENS based on policy
+    // =====================================================================
+    const shouldInheritTokens = tokenPolicyUsed === "config_inherit" || tokenPolicyUsed === "step_inherit";
+    
     if (players && players.length > 0) {
       for (const player of players) {
         let newJetons: number;
         
-        if (nextGameTokenPolicy === "INHERIT") {
-          // INFECTION: inherit final tokens from SHERIFF
+        if (shouldInheritTokens) {
+          // INHERIT: keep current tokens
           newJetons = player.jetons || 0;
           console.log(`[next-session-game] Player ${player.player_number} inherits ${newJetons} jetons`);
-        } else if (typeof nextGameTokenPolicy === "number") {
-          // Fixed starting tokens with Royaux bonus
-          newJetons = player.clan === 'Royaux' 
-            ? Math.floor(nextGameTokenPolicy * 1.5) 
-            : nextGameTokenPolicy;
         } else {
-          // Fallback to old logic
-          if (nextStep.token_policy === "RESET_TO_DEFAULT" || nextStep.token_policy === "CUSTOM") {
-            newJetons = player.clan === 'Royaux' 
-              ? Math.floor(newStartingTokens * 1.5) 
-              : newStartingTokens;
-          } else {
-            newJetons = player.jetons || 0;
-          }
+          // FIXED/RESET/CUSTOM: apply new tokens with Royaux bonus
+          newJetons = player.clan === 'Royaux' 
+            ? Math.floor(newStartingTokens * 1.5) 
+            : newStartingTokens;
         }
         
         // Keep PVic accumulated - DON'T reset it!
@@ -311,8 +337,8 @@ serve(async (req) => {
       }
     }
 
-    // Initialize new inventories for this session_game (default weapon for all, Sniper for Akila)
-    if (players && players.length > 0) {
+    // Initialize new inventories for FORET game type
+    if (gameTypeCode === "FORET" && players && players.length > 0) {
       for (const player of players) {
         // Default weapon
         await supabase
@@ -345,8 +371,10 @@ serve(async (req) => {
       }
     }
 
-    // Only initialize monsters for FORET game type
-    if (nextStep.game_type_code === "FORET") {
+    // =====================================================================
+    // GAME-SPECIFIC INITIALIZATION
+    // =====================================================================
+    if (gameTypeCode === "FORET") {
       console.log(`[next-session-game] Initializing monsters for FORET game`);
       
       // First, delete any existing game_state_monsters for this game to start fresh
@@ -361,7 +389,7 @@ serve(async (req) => {
         console.log(`[next-session-game] Cleared old game_state_monsters`);
       }
       
-      // Delete old game_monsters config to start fresh
+      // Delete old game_monsters config
       const { error: deleteConfigError } = await supabase
         .from("game_monsters")
         .delete()
@@ -373,22 +401,63 @@ serve(async (req) => {
         console.log(`[next-session-game] Cleared old game_monsters config`);
       }
 
-      // Initialize fresh monster configuration
-      const { error: initMonsterConfigError } = await supabase.rpc(
-        "initialize_game_monsters",
-        { p_game_id: gameId }
-      );
-      if (initMonsterConfigError) {
-        console.error("Monster config init error:", initMonsterConfigError);
+      // =====================================================================
+      // CHECK FOR ADVENTURE MONSTER CONFIG
+      // =====================================================================
+      const foretMonstersConfig = adventureConfig?.foret_monsters?.selected;
+      
+      if (foretMonstersConfig && Array.isArray(foretMonstersConfig) && foretMonstersConfig.length > 0) {
+        console.log(`[next-session-game] Using adventure foret_monsters config: ${foretMonstersConfig.length} entries`);
+        
+        // Insert monsters from adventure config
+        const monstersToInsert = foretMonstersConfig
+          .filter((m: any) => m.enabled !== false)
+          .map((m: any, index: number) => ({
+            game_id: gameId,
+            session_game_id: newSessionGameId,
+            monster_id: m.monster_id,
+            is_enabled: m.enabled !== false,
+            pv_max_override: m.pv_max_override || null,
+            reward_override: m.reward_override || null,
+            initial_status: index < 3 ? 'EN_BATAILLE' : 'EN_FILE',
+            order_index: index + 1,
+          }));
+        
+        if (monstersToInsert.length > 0) {
+          const { error: insertError } = await supabase
+            .from("game_monsters")
+            .insert(monstersToInsert);
+          
+          if (insertError) {
+            console.error("Error inserting adventure monsters:", insertError);
+          } else {
+            console.log(`[next-session-game] Inserted ${monstersToInsert.length} monsters from adventure config`);
+            
+            // Log an example for debugging
+            const example = monstersToInsert[0];
+            console.log(`[next-session-game] Example monster: id=${example.monster_id}, pv_override=${example.pv_max_override}, reward_override=${example.reward_override}`);
+          }
+        }
       } else {
-        console.log(`[next-session-game] Monster config initialized`);
-      }
+        // Fallback: use default monster initialization
+        console.log(`[next-session-game] No adventure monster config, using defaults`);
+        
+        const { error: initMonsterConfigError } = await supabase.rpc(
+          "initialize_game_monsters",
+          { p_game_id: gameId }
+        );
+        if (initMonsterConfigError) {
+          console.error("Monster config init error:", initMonsterConfigError);
+        } else {
+          console.log(`[next-session-game] Monster config initialized with defaults`);
+        }
 
-      // Update new monsters with session_game_id
-      await supabase
-        .from("game_monsters")
-        .update({ session_game_id: newSessionGameId })
-        .eq("game_id", gameId);
+        // Update new monsters with session_game_id
+        await supabase
+          .from("game_monsters")
+          .update({ session_game_id: newSessionGameId })
+          .eq("game_id", gameId);
+      }
       
       console.log(`[next-session-game] Updated game_monsters with session_game_id`);
 
@@ -402,13 +471,44 @@ serve(async (req) => {
       } else {
         console.log(`[next-session-game] Monster state initialized for session ${newSessionGameId}`);
       }
-    } else if (nextStep.game_type_code === "INFECTION") {
+      
+      // Log debug event for MJ
+      await supabase.from("session_events").insert({
+        game_id: gameId,
+        session_game_id: newSessionGameId,
+        audience: "MJ",
+        type: "DEBUG",
+        message: `🌲 Forêt initialisée: ${newStartingTokens} jetons (${tokenPolicyUsed}), monstres: ${foretMonstersConfig ? 'config aventure' : 'défaut'}`,
+        payload: { 
+          tokensApplied: newStartingTokens, 
+          tokenPolicy: tokenPolicyUsed,
+          monsterSource: foretMonstersConfig ? 'adventure_config' : 'default',
+          monsterCount: foretMonstersConfig?.filter((m: any) => m.enabled !== false).length || 'default'
+        },
+      });
+      
+    } else if (gameTypeCode === "INFECTION") {
       console.log(`[next-session-game] Initializing INFECTION game`);
       
-      // INFECTION requires special initialization:
-      // 1. Assign roles to players
-      // 2. Create infection_round_state for manche 1
-      // 3. Create role-specific inventory items
+      // Load role distribution from adventure config if available
+      const infectionConfig = adventureConfig?.infection_config;
+      let roleConfig: Record<string, number>;
+      const playerCount = players?.length || 0;
+      
+      if (infectionConfig?.roleDistribution) {
+        roleConfig = infectionConfig.roleDistribution;
+        console.log(`[next-session-game] Using adventure infection roleDistribution:`, roleConfig);
+      } else {
+        // Default role distribution based on player count
+        if (playerCount === 7) {
+          roleConfig = { BA: 1, PV: 2, SY: 2, AE: 0, OC: 1, KK: 0, CV: 1 };
+        } else if (playerCount === 8) {
+          roleConfig = { BA: 1, PV: 2, SY: 2, AE: 0, OC: 1, KK: 1, CV: 1 };
+        } else {
+          roleConfig = { BA: 1, PV: 2, SY: 2, AE: 1, OC: 1, KK: 1, CV: Math.max(1, playerCount - 8) };
+        }
+        console.log(`[next-session-game] Using default infection roleDistribution for ${playerCount} players:`, roleConfig);
+      }
       
       const ROLE_TO_TEAM: Record<string, string> = {
         BA: 'NEUTRE',
@@ -429,18 +529,6 @@ serve(async (req) => {
         }
         return result;
       };
-      
-      const playerCount = players?.length || 0;
-      
-      // Calculate role distribution based on player count
-      let roleConfig: Record<string, number>;
-      if (playerCount === 7) {
-        roleConfig = { BA: 1, PV: 2, SY: 2, AE: 0, OC: 1, KK: 0, CV: 1 };
-      } else if (playerCount === 8) {
-        roleConfig = { BA: 1, PV: 2, SY: 2, AE: 0, OC: 1, KK: 1, CV: 1 };
-      } else {
-        roleConfig = { BA: 1, PV: 2, SY: 2, AE: 1, OC: 1, KK: 1, CV: Math.max(1, playerCount - 8) };
-      }
       
       // Build role list and shuffle
       const roles: string[] = [];
@@ -500,7 +588,7 @@ serve(async (req) => {
           const role = shuffledRoles[i] || 'CV';
           const playerNum = player.player_number!;
           
-          // Delete old default weapon (from FORET) for this session
+          // Delete old inventory for this session
           await supabase
             .from("inventory")
             .delete()
@@ -625,16 +713,26 @@ serve(async (req) => {
         .eq("id", gameId);
       
       console.log(`[next-session-game] INFECTION initialization complete`);
-    } else if (nextStep.game_type_code === "SHERIFF") {
+      
+    } else if (gameTypeCode === "SHERIFF") {
       console.log(`[next-session-game] Initializing SHERIFF game`);
       
-      // SHERIFF requires:
-      // 1. Create sheriff_round_state with common pool
-      // 2. Initialize all players with 20 tokens
-      // 3. Create sheriff_player_choices for each player
+      // Load sheriff config from adventure
+      const sheriffConfig = adventureConfig?.sheriff_config;
+      const adventurePot = adventureConfig?.adventure_pot;
       
-      // Use default common pool of 100 for adventure transitions
-      const commonPoolInitial = 100;
+      // Determine common pool initial value
+      let commonPoolInitial = adventurePot?.currentAmount ?? 100;
+      
+      // Pool config
+      const poolConfig = {
+        cost_per_player: sheriffConfig?.cost_per_player ?? 5,
+        floor_percent: sheriffConfig?.floor_percent ?? 40,
+        visa_pvic_percent: sheriffConfig?.visa_pvic_percent ?? 50,
+        duel_max_impact: sheriffConfig?.duel_max_impact ?? 10,
+      };
+      
+      console.log(`[next-session-game] SHERIFF config: pool=${commonPoolInitial}, config=`, poolConfig);
       
       // Create sheriff_round_state
       const { error: stateError } = await supabase
@@ -647,6 +745,7 @@ serve(async (req) => {
           total_duels: 0,
           common_pool_initial: commonPoolInitial,
           common_pool_spent: 0,
+          bot_config: poolConfig,
         }, { onConflict: 'session_game_id' });
       
       if (stateError) {
@@ -655,17 +754,23 @@ serve(async (req) => {
         console.log(`[next-session-game] sheriff_round_state created with pool ${commonPoolInitial}`);
       }
       
-      // Initialize all player tokens to 20 for SHERIFF
+      // Set player tokens based on policy (NOT hardcoded 20)
       if (players && players.length > 0) {
         for (const player of players) {
+          // Note: newStartingTokens was already calculated above based on token policy
+          const playerJetons = shouldInheritTokens ? player.jetons : newStartingTokens;
+          const finalJetons = player.clan === 'Royaux' && !shouldInheritTokens
+            ? Math.floor((playerJetons || 0) * 1.5)
+            : playerJetons || 0;
+          
           await supabase
             .from("game_players")
-            .update({ jetons: 20 })
+            .update({ jetons: finalJetons })
             .eq("id", player.id);
         }
-        console.log(`[next-session-game] All players set to 20 tokens for SHERIFF`);
+        console.log(`[next-session-game] Sheriff tokens set based on policy: ${tokenPolicyUsed} = ${newStartingTokens}`);
         
-        // Delete old inventory items for this session (from previous game)
+        // Delete old inventory items for this session
         for (const player of players) {
           await supabase
             .from("inventory")
@@ -683,7 +788,7 @@ serve(async (req) => {
           visa_choice: null,
           tokens_entering: null,
           has_illegal_tokens: false,
-          pvic_initial: p.pvic ?? 0, // Capture PVic at start of Sheriff game
+          pvic_initial: p.pvic ?? 0,
         }));
         
         const { error: choicesError } = await supabase
@@ -710,13 +815,9 @@ serve(async (req) => {
         .eq("id", gameId);
       
       console.log(`[next-session-game] SHERIFF initialization complete`);
-    } else if (nextStep.game_type_code === "RIVIERES") {
-      console.log(`[next-session-game] Initializing RIVIERES game`);
       
-      // RIVIERES requires:
-      // 1. Create river_session_state
-      // 2. Create river_player_stats for each player
-      // 3. Set starting tokens (100 for RIVIERES)
+    } else if (gameTypeCode === "RIVIERES") {
+      console.log(`[next-session-game] Initializing RIVIERES game`);
       
       // Check if river_session_state already exists (idempotency)
       const { data: existingState } = await supabase
@@ -778,18 +879,18 @@ serve(async (req) => {
           console.log(`[next-session-game] river_player_stats created for ${players.length} players`);
         }
         
-        // Set starting tokens to 100 for RIVIERES (with Royaux bonus)
+        // Set starting tokens based on policy (with Royaux bonus)
         for (const player of players) {
-          const playerTokens = player.clan === 'Royaux' 
-            ? Math.floor(100 * 1.5) 
-            : 100;
+          const playerTokens = player.clan === 'Royaux' && !shouldInheritTokens
+            ? Math.floor(newStartingTokens * 1.5) 
+            : shouldInheritTokens ? (player.jetons || 0) : newStartingTokens;
           
           await supabase
             .from("game_players")
             .update({ jetons: playerTokens })
             .eq("id", player.id);
         }
-        console.log(`[next-session-game] All players set to 100 tokens for RIVIERES`);
+        console.log(`[next-session-game] Rivieres tokens set based on policy: ${tokenPolicyUsed} = ${newStartingTokens}`);
       }
       
       // Update session_game phase to DECISIONS for RIVIERES
@@ -814,7 +915,8 @@ serve(async (req) => {
       });
       
       console.log(`[next-session-game] RIVIERES initialization complete`);
-    } else if (nextStep.game_type_code === "LION") {
+      
+    } else if (gameTypeCode === "LION") {
       console.log(`[next-session-game] Initializing LION game (adventure finale)`);
       
       // LION is the final duel in adventures
@@ -848,48 +950,86 @@ serve(async (req) => {
           players: t.players.map(p => p.display_name)
         })));
         
+        let finalistIds: string[] = [];
+        let finalistNames: string[] = [];
+        let teamPvic = 0;
+        let usedFallback = false;
+        
         if (sortedTeams.length > 0) {
+          // Normal case: use top complete team
           const winningTeam = sortedTeams[0];
-          const finalistIds = winningTeam.players.map(p => p.id);
+          finalistIds = winningTeam.players.map(p => p.id);
+          finalistNames = winningTeam.players.map(p => p.display_name);
+          teamPvic = winningTeam.totalPvic;
+        } else {
+          // FALLBACK: No complete teams - take top 2 individuals by PVic
+          console.log(`[next-session-game] LION FALLBACK: No complete teams, selecting top 2 individuals`);
+          usedFallback = true;
           
-          // Set finalists as ACTIVE
+          const sortedIndividuals = [...players].sort((a, b) => {
+            const pvicDiff = (b.pvic || 0) - (a.pvic || 0);
+            if (pvicDiff !== 0) return pvicDiff;
+            return (a.player_number || 99) - (b.player_number || 99);
+          });
+          
+          const top2 = sortedIndividuals.slice(0, 2);
+          finalistIds = top2.map(p => p.id);
+          finalistNames = top2.map(p => p.display_name);
+          teamPvic = top2.reduce((sum, p) => sum + (p.pvic || 0), 0);
+          
+          console.log(`[next-session-game] LION FALLBACK finalists: ${finalistNames.join(' vs ')}`);
+        }
+        
+        // Verify we have exactly 2 finalists
+        if (finalistIds.length !== 2) {
+          console.error(`[next-session-game] LION ERROR: Expected 2 finalists, got ${finalistIds.length}`);
+          return new Response(
+            JSON.stringify({ 
+              error: `Impossible de déterminer les 2 finalistes pour le Lion. ${finalistIds.length} joueur(s) éligible(s).`,
+              details: { playerCount: players.length, completeTeams: sortedTeams.length }
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        // Set finalists as ACTIVE
+        await supabase
+          .from("game_players")
+          .update({ status: 'ACTIVE' })
+          .in("id", finalistIds);
+        
+        console.log(`[next-session-game] LION finalists: ${finalistNames.join(' vs ')}`);
+        
+        // Set all other players as SPECTATOR
+        const spectatorIds = players
+          .filter(p => !finalistIds.includes(p.id))
+          .map(p => p.id);
+        
+        if (spectatorIds.length > 0) {
           await supabase
             .from("game_players")
-            .update({ status: 'ACTIVE' })
-            .in("id", finalistIds);
+            .update({ 
+              status: 'SPECTATOR', 
+              finished_at: new Date().toISOString() 
+            })
+            .in("id", spectatorIds);
           
-          console.log(`[next-session-game] LION finalists: ${winningTeam.players.map(p => p.display_name).join(' vs ')}`);
-          
-          // Set all other players as SPECTATOR
-          const spectatorIds = players
-            .filter(p => !finalistIds.includes(p.id))
-            .map(p => p.id);
-          
-          if (spectatorIds.length > 0) {
-            await supabase
-              .from("game_players")
-              .update({ 
-                status: 'SPECTATOR', 
-                finished_at: new Date().toISOString() 
-              })
-              .in("id", spectatorIds);
-            
-            console.log(`[next-session-game] ${spectatorIds.length} players set to SPECTATOR`);
-          }
-          
-          // Log finalists event
-          await supabase.from("session_events").insert({
-            game_id: gameId,
-            session_game_id: newSessionGameId,
-            audience: "ALL",
-            type: "LION_FINALISTS",
-            message: `🦁 Finale du Cœur du Lion ! ${winningTeam.players.map(p => p.display_name).join(' affronte ')} pour le titre suprême !`,
-            payload: {
-              finalists: winningTeam.players.map(p => ({ id: p.id, name: p.display_name, pvic: p.pvic })),
-              teamPvic: winningTeam.totalPvic,
-            },
-          });
+          console.log(`[next-session-game] ${spectatorIds.length} players set to SPECTATOR`);
         }
+        
+        // Log finalists event
+        await supabase.from("session_events").insert({
+          game_id: gameId,
+          session_game_id: newSessionGameId,
+          audience: "ALL",
+          type: "LION_FINALISTS",
+          message: `🦁 Finale du Cœur du Lion ! ${finalistNames.join(' affronte ')} pour le titre suprême !${usedFallback ? ' (sélection individuelle)' : ''}`,
+          payload: {
+            finalists: finalistIds.map((id, i) => ({ id, name: finalistNames[i] })),
+            teamPvic,
+            usedFallback,
+          },
+        });
       }
       
       // Update phases
@@ -905,7 +1045,7 @@ serve(async (req) => {
       
       console.log(`[next-session-game] LION initialization complete`);
     } else {
-      console.log(`[next-session-game] Skipping special init for ${nextStep.game_type_code}`);
+      console.log(`[next-session-game] Skipping special init for ${gameTypeCode}`);
     }
 
     // Update session_game status to RUNNING
@@ -922,27 +1062,28 @@ serve(async (req) => {
       game_id: gameId,
       audience: "ALL",
       type: "SYSTEM",
-      message: `🎮 Nouvelle étape ! Jeu ${nextStepIndex}: ${nextStep.game_type_code} – Manche 1`,
+      message: `🎮 Nouvelle étape ! Jeu ${nextStepIndex}: ${gameTypeCode} – Manche 1`,
       payload: {
         event: "NEW_SESSION_GAME",
         stepIndex: nextStepIndex,
-        gameTypeCode: nextStep.game_type_code,
+        gameTypeCode: gameTypeCode,
         sessionGameId: newSessionGameId,
       },
     });
 
-    // MJ event
+    // MJ event with debug info
     await supabase.from("session_events").insert({
       game_id: gameId,
       audience: "MJ",
       type: "ADMIN",
-      message: `Transition vers étape ${nextStepIndex} (${nextStep.game_type_code})`,
+      message: `Transition vers étape ${nextStepIndex} (${gameTypeCode}) - Jetons: ${newStartingTokens} (${tokenPolicyUsed})`,
       payload: {
         event: "NEW_SESSION_GAME_ADMIN",
         sessionGameId: newSessionGameId,
         previousSessionGameId: game.current_session_game_id,
-        tokenPolicy: nextStep.token_policy,
+        tokenPolicy: tokenPolicyUsed,
         newStartingTokens: newStartingTokens,
+        hasAdventureConfig: !!adventureConfig,
       },
     });
 
@@ -954,8 +1095,8 @@ serve(async (req) => {
         adventureComplete: false,
         newSessionGameId,
         stepIndex: nextStepIndex,
-        gameTypeCode: nextStep.game_type_code,
-        tokenPolicy: nextStep.token_policy,
+        gameTypeCode: gameTypeCode,
+        tokenPolicy: tokenPolicyUsed,
         startingTokens: newStartingTokens,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -963,9 +1104,8 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error:", error);
     return new Response(
-      JSON.stringify({ error: "Erreur serveur" }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "Erreur inconnue" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
-
