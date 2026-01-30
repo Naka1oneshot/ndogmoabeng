@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { useSystemSettings, ChatConfig } from '@/hooks/useSystemSettings';
 import { useComingSoon } from '@/hooks/useComingSoon';
 import { toast } from '@/hooks/use-toast';
+import { EarlyAccessRequestsSection } from './EarlyAccessRequestsSection';
 import { 
   MessageCircle, 
   Users, 
@@ -77,7 +78,7 @@ export function SystemSettingsTab() {
       toast({
         title: newValue ? "Mode Coming Soon activé" : "Mode Coming Soon désactivé",
         description: newValue 
-          ? "Seuls les super admins peuvent accéder au site" 
+          ? "Seuls les utilisateurs connectés peuvent accéder au site" 
           : "Le site est maintenant accessible à tous",
       });
     }
@@ -117,7 +118,7 @@ export function SystemSettingsTab() {
                 )}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Les super admins peuvent toujours accéder au site
+                Les utilisateurs connectés peuvent toujours accéder au site
               </p>
             </div>
             <Switch
@@ -288,6 +289,9 @@ export function SystemSettingsTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Early Access Requests Section */}
+      <EarlyAccessRequestsSection />
     </div>
   );
 }

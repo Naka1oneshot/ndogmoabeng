@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, LogIn, Loader2 } from 'lucide-react';
+import { Settings, LogIn, Loader2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserRole } from '@/hooks/useUserRole';
+import { useEarlyAccessRequests } from '@/hooks/useEarlyAccessRequests';
 import { toast } from '@/hooks/use-toast';
 
 // Import logo
@@ -101,13 +102,21 @@ function generateFloatingPositions(count: number, seed: number, isGameImages: bo
 export default function ComingSoon() {
   const navigate = useNavigate();
   const { user, signIn, loading: authLoading } = useAuth();
-  const { isSuperAdmin, loading: roleLoading } = useUserRole();
+  const { submitRequest } = useEarlyAccessRequests();
   
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft());
   const [loginOpen, setLoginOpen] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
+  
+  // Early access form state
+  const [registerName, setRegisterName] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPhone, setRegisterPhone] = useState('');
+  const [registerMessage, setRegisterMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Generate stable positions once on mount
   const gamePositions = useMemo(() => generateFloatingPositions(gameImages.length, 12345, true), []);
@@ -122,12 +131,12 @@ export default function ComingSoon() {
     return () => clearInterval(timer);
   }, []);
 
-  // If user is super admin, redirect to home
+  // If user is authenticated, redirect to home
   useEffect(() => {
-    if (!authLoading && !roleLoading && user && isSuperAdmin) {
+    if (!authLoading && user) {
       navigate('/', { replace: true });
     }
-  }, [user, isSuperAdmin, authLoading, roleLoading, navigate]);
+  }, [user, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,7 +157,7 @@ export default function ComingSoon() {
           title: "Connexion réussie",
           description: "Bienvenue !",
         });
-        // The useEffect will handle redirect if super admin
+        // The useEffect will handle redirect
       }
     } catch (err) {
       toast({
@@ -158,6 +167,38 @@ export default function ComingSoon() {
       });
     } finally {
       setLoggingIn(false);
+    }
+  };
+
+  const handleRegisterRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    const result = await submitRequest({
+      full_name: registerName,
+      email: registerEmail,
+      phone: registerPhone || undefined,
+      message: registerMessage || undefined,
+    });
+
+    setSubmitting(false);
+
+    if (result.success) {
+      setRegisterOpen(false);
+      setRegisterName('');
+      setRegisterEmail('');
+      setRegisterPhone('');
+      setRegisterMessage('');
+      toast({
+        title: "Demande envoyée !",
+        description: "Nous vous contacterons bientôt pour valider votre accès.",
+      });
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error,
+        variant: "destructive",
+      });
     }
   };
 
@@ -289,12 +330,89 @@ export default function ComingSoon() {
           ))}
         </motion.div>
 
-        {/* Settings/Login Button */}
+        {/* Action Buttons */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 1, duration: 0.6 }}
+          className="flex flex-col sm:flex-row gap-3"
         >
+          {/* Early Access Request Button */}
+          <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <UserPlus className="w-4 h-4" />
+                Demander un accès anticipé
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserPlus className="w-5 h-5" />
+                  Demande d'inscription anticipée
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleRegisterRequest} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="register-name">Nom complet *</Label>
+                  <Input
+                    id="register-name"
+                    type="text"
+                    value={registerName}
+                    onChange={(e) => setRegisterName(e.target.value)}
+                    placeholder="Votre nom"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-email">Email *</Label>
+                  <Input
+                    id="register-email"
+                    type="email"
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                    placeholder="votre@email.com"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-phone">Téléphone</Label>
+                  <Input
+                    id="register-phone"
+                    type="tel"
+                    value={registerPhone}
+                    onChange={(e) => setRegisterPhone(e.target.value)}
+                    placeholder="+33 6 12 34 56 78"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-message">Message (optionnel)</Label>
+                  <Textarea
+                    id="register-message"
+                    value={registerMessage}
+                    onChange={(e) => setRegisterMessage(e.target.value)}
+                    placeholder="Dites-nous pourquoi vous souhaitez rejoindre le village..."
+                    rows={3}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Envoi en cours...
+                    </>
+                  ) : (
+                    'Envoyer ma demande'
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Nous examinerons votre demande et vous contacterons par email.
+                </p>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Login Button */}
           <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -343,7 +461,7 @@ export default function ComingSoon() {
                   )}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  Pas d'inscription disponible pour le moment.
+                  Réservé aux membres ayant déjà un compte.
                 </p>
               </form>
             </DialogContent>

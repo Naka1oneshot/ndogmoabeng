@@ -27,12 +27,12 @@ export function ComingSoonGuard({ children }: ComingSoonGuardProps) {
 
   // If coming soon is enabled
   if (isComingSoonEnabled) {
-    // Super admins can bypass
-    if (user && isSuperAdmin) {
+    // Any authenticated user can bypass
+    if (user) {
       return <>{children}</>;
     }
     
-    // Everyone else gets redirected
+    // Non-authenticated users get redirected
     return <Navigate to="/coming-soon" replace />;
   }
 
