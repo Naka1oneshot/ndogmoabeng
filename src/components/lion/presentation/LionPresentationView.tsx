@@ -52,7 +52,8 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
     playerB,
     loading, 
     refetch,
-    getPlayerById
+    getPlayerById,
+    getDealerCardsPlayed
   } = useLionGameState(sessionGameId || undefined);
 
   // Track turn changes and animate
@@ -516,6 +517,9 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
             score: playerB.pvic || 0
           } : null}
           turnHistory={turnHistory}
+          activePlayerId={gameState?.active_player_id}
+          dealerCardsA={playerA ? getDealerCardsPlayed(playerA.id) : []}
+          dealerCardsB={playerB ? getDealerCardsPlayed(playerB.id) : []}
           className="w-48 md:w-56 hidden md:flex flex-col"
         />
       </div>
