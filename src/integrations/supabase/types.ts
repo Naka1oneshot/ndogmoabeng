@@ -199,6 +199,7 @@ export type Database = {
       }
       adventures: {
         Row: {
+          admin_only: boolean
           created_at: string
           description: string | null
           id: string
@@ -206,6 +207,7 @@ export type Database = {
           name: string
         }
         Insert: {
+          admin_only?: boolean
           created_at?: string
           description?: string | null
           id?: string
@@ -213,6 +215,7 @@ export type Database = {
           name: string
         }
         Update: {
+          admin_only?: boolean
           created_at?: string
           description?: string | null
           id?: string
