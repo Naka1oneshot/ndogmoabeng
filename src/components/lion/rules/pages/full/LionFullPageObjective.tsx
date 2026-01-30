@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Target } from 'lucide-react';
+import { Target, Loader2 } from 'lucide-react';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface LionFullPageObjectiveProps {
   replayNonce: number;
@@ -16,6 +18,31 @@ const itemVariants = {
 };
 
 export function LionFullPageObjective({ replayNonce }: LionFullPageObjectiveProps) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('LION');
+  const section = getSection('full_objectif');
+  const paragraphs = getParagraphs('full_objectif');
+
+  const dynamicContent = useMemo(() => {
+    const objective = paragraphs.find(p => p.id === 'lf1_objective')?.text 
+      || '<strong>Le CŒUR du Lion</strong> est un duel mental entre deux joueurs. L\'objectif est d\'accumuler le maximum de <strong class="text-amber-300">Points de Victoire (PVic)</strong> sur 22 tours en jouant stratégiquement ses cartes et en lisant les intentions de son adversaire.';
+    const players = paragraphs.find(p => p.id === 'lf1_players')?.text 
+      || '2 joueurs désignés comme <strong>Joueur A</strong> et <strong>Joueur B</strong>. Ils alternent les rôles de "Joueur Actif" (qui pose une carte) et de "Devineur" (qui prédit).';
+    const hands = paragraphs.find(p => p.id === 'lf1_hands')?.text 
+      || 'Chaque joueur possède une main de <strong>11 cartes</strong> numérotées de 0 à 10.';
+    const structure = paragraphs.find(p => p.id === 'lf1_structure')?.items 
+      || ['<strong>22 tours au total</strong> : 11 où A joue, 11 où B joue', '<strong>Alternance stricte</strong> : A → B → A → B → ...', '<strong>Durée estimée</strong> : ~20 minutes'];
+    
+    return { objective, players, hands, structure };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -31,7 +58,7 @@ export function LionFullPageObjective({ replayNonce }: LionFullPageObjectiveProp
           <span className="text-amber-400 font-medium text-sm">Règles complètes</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Objectif & Matériel
+          {section?.title || 'Objectif & Matériel'}
         </h1>
       </motion.div>
 
@@ -41,11 +68,7 @@ export function LionFullPageObjective({ replayNonce }: LionFullPageObjectiveProp
         className="bg-gradient-to-br from-amber-800/40 to-amber-900/40 border border-amber-600 rounded-xl p-5"
       >
         <h2 className="text-lg font-bold text-amber-300 mb-3">🎯 Objectif</h2>
-        <p className="text-amber-100 leading-relaxed">
-          <strong>Le CŒUR du Lion</strong> est un duel mental entre deux joueurs. 
-          L'objectif est d'accumuler le maximum de <strong className="text-amber-300">Points de Victoire (PVic)</strong> 
-          sur 22 tours en jouant stratégiquement ses cartes et en lisant les intentions de son adversaire.
-        </p>
+        <p className="text-amber-100 leading-relaxed" dangerouslySetInnerHTML={{ __html: dynamicContent.objective }} />
       </motion.div>
 
       {/* Material */}
@@ -56,18 +79,13 @@ export function LionFullPageObjective({ replayNonce }: LionFullPageObjectiveProp
           {/* Players */}
           <div className="bg-amber-900/30 border border-amber-700/50 rounded-lg p-4">
             <h3 className="text-amber-300 font-bold mb-2">👥 Les joueurs</h3>
-            <p className="text-amber-200/80 text-sm">
-              2 joueurs désignés comme <strong>Joueur A</strong> et <strong>Joueur B</strong>. 
-              Ils alternent les rôles de "Joueur Actif" (qui pose une carte) et de "Devineur" (qui prédit).
-            </p>
+            <p className="text-amber-200/80 text-sm" dangerouslySetInnerHTML={{ __html: dynamicContent.players }} />
           </div>
 
           {/* Hands */}
           <div className="bg-amber-900/30 border border-amber-700/50 rounded-lg p-4">
             <h3 className="text-amber-300 font-bold mb-2">🎴 Les mains</h3>
-            <p className="text-amber-200/80 text-sm mb-2">
-              Chaque joueur possède une main de <strong>11 cartes</strong> numérotées de 0 à 10.
-            </p>
+            <p className="text-amber-200/80 text-sm mb-2" dangerouslySetInnerHTML={{ __html: dynamicContent.hands }} />
             <div className="flex flex-wrap gap-1 justify-center">
               {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                 <div 
@@ -107,9 +125,9 @@ export function LionFullPageObjective({ replayNonce }: LionFullPageObjectiveProp
       >
         <h3 className="text-blue-300 font-bold mb-2">⏱️ Structure de la partie</h3>
         <ul className="text-blue-200/80 text-sm space-y-1">
-          <li>• <strong>22 tours au total</strong> : 11 où A joue, 11 où B joue</li>
-          <li>• <strong>Alternance stricte</strong> : A → B → A → B → ...</li>
-          <li>• <strong>Durée estimée</strong> : ~20 minutes</li>
+          {dynamicContent.structure.map((item, i) => (
+            <li key={i} dangerouslySetInnerHTML={{ __html: `• ${item}` }} />
+          ))}
         </ul>
       </motion.div>
 

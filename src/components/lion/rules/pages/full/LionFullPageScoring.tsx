@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Calculator } from 'lucide-react';
+import { Calculator, Loader2 } from 'lucide-react';
+import { useDynamicRules } from '@/hooks/useDynamicRules';
 
 interface LionFullPageScoringProps {
   replayNonce: number;
@@ -16,6 +18,31 @@ const itemVariants = {
 };
 
 export function LionFullPageScoring({ replayNonce }: LionFullPageScoringProps) {
+  const { getSection, getParagraphs, loading } = useDynamicRules('LION');
+  const section = getSection('full_scoring');
+  const paragraphs = getParagraphs('full_scoring');
+
+  const dynamicContent = useMemo(() => {
+    const caseEqual = paragraphs.find(p => p.id === 'lf2_case_equal')?.text 
+      || '<strong>0 point</strong> pour tout le monde';
+    const caseCorrect = paragraphs.find(p => p.id === 'lf2_case_correct')?.text 
+      || 'Le devineur gagne <strong class="text-green-200">2 × d</strong> PVic';
+    const caseIncorrect = paragraphs.find(p => p.id === 'lf2_case_incorrect')?.text 
+      || 'Le joueur actif gagne <strong class="text-amber-200">d</strong> PVic';
+    const strategy = paragraphs.find(p => p.id === 'lf2_strategy')?.text 
+      || 'Le joueur actif a intérêt à maximiser d s\'il pense que le devineur se trompera, ou à minimiser d (voire jouer la même valeur) s\'il pense que le devineur devinera juste.';
+    
+    return { caseEqual, caseCorrect, caseIncorrect, strategy };
+  }, [paragraphs]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       key={replayNonce}
@@ -31,7 +58,7 @@ export function LionFullPageScoring({ replayNonce }: LionFullPageScoringProps) {
           <span className="text-amber-400 font-medium text-sm">Règles complètes</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Calcul des points
+          {section?.title || 'Calcul des points'}
         </h1>
       </motion.div>
 
@@ -64,9 +91,7 @@ export function LionFullPageScoring({ replayNonce }: LionFullPageScoringProps) {
             </div>
           </div>
           <div className="bg-gray-900/50 rounded-lg p-3 text-center">
-            <p className="text-gray-300 font-medium">
-              <strong>0 point</strong> pour tout le monde
-            </p>
+            <p className="text-gray-300 font-medium" dangerouslySetInnerHTML={{ __html: dynamicContent.caseEqual }} />
           </div>
         </div>
 
@@ -82,9 +107,7 @@ export function LionFullPageScoring({ replayNonce }: LionFullPageScoringProps) {
             </div>
           </div>
           <div className="bg-green-900/30 rounded-lg p-3 text-center">
-            <p className="text-green-300 font-medium text-lg">
-              Le devineur gagne <strong className="text-green-200">2 × d</strong> PVic
-            </p>
+            <p className="text-green-300 font-medium text-lg" dangerouslySetInnerHTML={{ __html: dynamicContent.caseCorrect }} />
           </div>
         </div>
 
@@ -100,9 +123,7 @@ export function LionFullPageScoring({ replayNonce }: LionFullPageScoringProps) {
             </div>
           </div>
           <div className="bg-amber-900/30 rounded-lg p-3 text-center">
-            <p className="text-amber-300 font-medium text-lg">
-              Le joueur actif gagne <strong className="text-amber-200">d</strong> PVic
-            </p>
+            <p className="text-amber-300 font-medium text-lg" dangerouslySetInnerHTML={{ __html: dynamicContent.caseIncorrect }} />
           </div>
         </div>
       </motion.div>
@@ -171,8 +192,7 @@ export function LionFullPageScoring({ replayNonce }: LionFullPageScoringProps) {
         className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4"
       >
         <p className="text-blue-300 text-sm">
-          <strong>💡 Stratégie :</strong> Le joueur actif a intérêt à maximiser d s'il pense que le devineur 
-          se trompera, ou à minimiser d (voire jouer la même valeur) s'il pense que le devineur devinera juste.
+          <strong>💡 Stratégie :</strong> <span dangerouslySetInnerHTML={{ __html: dynamicContent.strategy }} />
         </p>
       </motion.div>
     </motion.div>
