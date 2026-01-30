@@ -654,39 +654,88 @@ async function computeFinalScores(
     .update({ status: "ENDED", ended_at: new Date().toISOString() })
     .eq("id", state.session_game_id);
 
-  // Handle ADVENTURE mode
-  if (game?.mode === "ADVENTURE") {
-    // Update adventure_scores
-    for (const s of scores) {
-      const { data: existingAdventureScore } = await supabase
-        .from("adventure_scores")
-        .select("id, total_score_value, breakdown")
-        .eq("session_id", state.game_id)
-        .eq("game_player_id", s.player_id)
-        .single();
+    // Handle ADVENTURE mode
+    if (game?.mode === "ADVENTURE") {
+      // Check for adventure pot penalty
+      const { data: adventureConfig } = await supabase
+        .from("adventure_game_configs")
+        .select("config")
+        .eq("game_id", state.game_id)
+        .maybeSingle();
 
-      if (existingAdventureScore) {
-        const breakdown = existingAdventureScore.breakdown || {};
-        breakdown[state.session_game_id] = s.score;
+      if (adventureConfig?.config) {
+        const config = adventureConfig.config as any;
+        const penalty = config?.rivieres_penalty;
+        
+        if (penalty?.enabled) {
+          // Get total validated levels across all players
+          const maxValidatedLevels = Math.max(...scores.map(s => s.validated_levels), 0);
+          const minSuccessLevel = penalty.minSuccessLevel || 9;
+          const potPenaltyAmount = penalty.potPenaltyAmount || 0;
+          
+          if (maxValidatedLevels < minSuccessLevel && potPenaltyAmount > 0) {
+            // Apply penalty to adventure pot
+            const pot = config.adventure_pot || { initialAmount: 0, currentAmount: 0 };
+            const newCurrentAmount = Math.max(0, (pot.currentAmount || pot.initialAmount || 0) - potPenaltyAmount);
+            
+            // Update config
+            const newConfig = {
+              ...config,
+              adventure_pot: {
+                ...pot,
+                currentAmount: newCurrentAmount,
+              },
+            };
+            
+            await supabase
+              .from("adventure_game_configs")
+              .update({ config: newConfig, updated_at: new Date().toISOString() })
+              .eq("game_id", state.game_id);
+            
+            console.log(`[rivieres-resolve-level] Adventure pot penalty applied: -${potPenaltyAmount} (${maxValidatedLevels} < ${minSuccessLevel} levels)`);
+            
+            await supabase.from("session_events").insert({
+              game_id: state.game_id,
+              session_game_id: state.session_game_id,
+              audience: "ALL",
+              type: "ADVENTURE_PENALTY",
+              message: `⚠️ Pénalité cagnotte aventure: -${potPenaltyAmount}💎 (seulement ${maxValidatedLevels} niveaux validés, minimum requis: ${minSuccessLevel})`,
+            });
+          }
+        }
+      }
 
-        const newTotal = Object.values(breakdown).reduce((sum: number, val: any) => sum + (Number(val) || 0), 0);
-
-        await supabase
+      // Update adventure_scores
+      for (const s of scores) {
+        const { data: existingAdventureScore } = await supabase
           .from("adventure_scores")
-          .update({
-            total_score_value: newTotal,
-            breakdown,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existingAdventureScore.id);
-      } else {
-        await supabase.from("adventure_scores").insert({
-          session_id: state.game_id,
-          game_player_id: s.player_id,
-          total_score_value: s.score,
-          breakdown: { [state.session_game_id]: s.score },
-        });
+          .select("id, total_score_value, breakdown")
+          .eq("session_id", state.game_id)
+          .eq("game_player_id", s.player_id)
+          .single();
+
+        if (existingAdventureScore) {
+          const breakdown = existingAdventureScore.breakdown || {};
+          breakdown[state.session_game_id] = s.score;
+
+          const newTotal = Object.values(breakdown).reduce((sum: number, val: any) => sum + (Number(val) || 0), 0);
+
+          await supabase
+            .from("adventure_scores")
+            .update({
+              total_score_value: newTotal,
+              breakdown,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingAdventureScore.id);
+        } else {
+          await supabase.from("adventure_scores").insert({
+            session_id: state.game_id,
+            game_player_id: s.player_id,
+            total_score_value: s.score,
+            breakdown: { [state.session_game_id]: s.score },
+          });
+        }
       }
     }
-  }
 }

@@ -267,7 +267,7 @@ serve(async (req) => {
     // Reset players' jetons for the new game based on NEW token policy
     const { data: players } = await supabase
       .from("game_players")
-      .select("id, player_number, jetons, clan, pvic")
+      .select("id, player_number, jetons, clan, pvic, mate_num, display_name, status")
       .eq("game_id", gameId)
       .eq("status", "ACTIVE")
       .not("player_number", "is", null);
@@ -814,6 +814,96 @@ serve(async (req) => {
       });
       
       console.log(`[next-session-game] RIVIERES initialization complete`);
+    } else if (nextStep.game_type_code === "LION") {
+      console.log(`[next-session-game] Initializing LION game (adventure finale)`);
+      
+      // LION is the final duel in adventures
+      // Only the top team (by combined PVic) plays as ACTIVE
+      // All other players become SPECTATOR
+      
+      if (players && players.length >= 2) {
+        // Calculate team scores (pairs by mate_num)
+        const teamScores: Record<number, { players: typeof players, totalPvic: number, minPlayerNum: number }> = {};
+        
+        for (const player of players) {
+          const teamKey = Math.min(player.player_number!, player.mate_num || player.player_number!);
+          if (!teamScores[teamKey]) {
+            teamScores[teamKey] = { players: [], totalPvic: 0, minPlayerNum: teamKey };
+          }
+          teamScores[teamKey].players.push(player);
+          teamScores[teamKey].totalPvic += player.pvic || 0;
+        }
+        
+        // Sort teams by total PVic (descending), tie-break by smallest player_number
+        const sortedTeams = Object.values(teamScores)
+          .filter(t => t.players.length === 2) // Only complete teams
+          .sort((a, b) => {
+            if (b.totalPvic !== a.totalPvic) return b.totalPvic - a.totalPvic;
+            return a.minPlayerNum - b.minPlayerNum;
+          });
+        
+        console.log(`[next-session-game] LION team rankings:`, sortedTeams.map(t => ({
+          team: t.minPlayerNum,
+          totalPvic: t.totalPvic,
+          players: t.players.map(p => p.display_name)
+        })));
+        
+        if (sortedTeams.length > 0) {
+          const winningTeam = sortedTeams[0];
+          const finalistIds = winningTeam.players.map(p => p.id);
+          
+          // Set finalists as ACTIVE
+          await supabase
+            .from("game_players")
+            .update({ status: 'ACTIVE' })
+            .in("id", finalistIds);
+          
+          console.log(`[next-session-game] LION finalists: ${winningTeam.players.map(p => p.display_name).join(' vs ')}`);
+          
+          // Set all other players as SPECTATOR
+          const spectatorIds = players
+            .filter(p => !finalistIds.includes(p.id))
+            .map(p => p.id);
+          
+          if (spectatorIds.length > 0) {
+            await supabase
+              .from("game_players")
+              .update({ 
+                status: 'SPECTATOR', 
+                finished_at: new Date().toISOString() 
+              })
+              .in("id", spectatorIds);
+            
+            console.log(`[next-session-game] ${spectatorIds.length} players set to SPECTATOR`);
+          }
+          
+          // Log finalists event
+          await supabase.from("session_events").insert({
+            game_id: gameId,
+            session_game_id: newSessionGameId,
+            audience: "ALL",
+            type: "LION_FINALISTS",
+            message: `🦁 Finale du Cœur du Lion ! ${winningTeam.players.map(p => p.display_name).join(' affronte ')} pour le titre suprême !`,
+            payload: {
+              finalists: winningTeam.players.map(p => ({ id: p.id, name: p.display_name, pvic: p.pvic })),
+              teamPvic: winningTeam.totalPvic,
+            },
+          });
+        }
+      }
+      
+      // Update phases
+      await supabase
+        .from("session_games")
+        .update({ phase: 'LION_TURN' })
+        .eq("id", newSessionGameId);
+      
+      await supabase
+        .from("games")
+        .update({ phase: 'LION_TURN' })
+        .eq("id", gameId);
+      
+      console.log(`[next-session-game] LION initialization complete`);
     } else {
       console.log(`[next-session-game] Skipping special init for ${nextStep.game_type_code}`);
     }
