@@ -1922,6 +1922,10 @@ export type Database = {
           adventure_cumulative_before: Json | null
           adventure_seed_pvic: Json | null
           auto_resolve: boolean
+          bot_active_strategy: string | null
+          bot_delay_ms: number | null
+          bot_enabled: boolean | null
+          bot_guess_strategy: string | null
           created_at: string
           game_id: string
           guesser_player_id: string
@@ -1944,6 +1948,10 @@ export type Database = {
           adventure_cumulative_before?: Json | null
           adventure_seed_pvic?: Json | null
           auto_resolve?: boolean
+          bot_active_strategy?: string | null
+          bot_delay_ms?: number | null
+          bot_enabled?: boolean | null
+          bot_guess_strategy?: string | null
           created_at?: string
           game_id: string
           guesser_player_id: string
@@ -1966,6 +1974,10 @@ export type Database = {
           adventure_cumulative_before?: Json | null
           adventure_seed_pvic?: Json | null
           auto_resolve?: boolean
+          bot_active_strategy?: string | null
+          bot_delay_ms?: number | null
+          bot_enabled?: boolean | null
+          bot_guess_strategy?: string | null
           created_at?: string
           game_id?: string
           guesser_player_id?: string
