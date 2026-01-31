@@ -103,8 +103,10 @@ serve(async (req) => {
       
       console.log(`[next-session-game] Marked session_game ${game.current_session_game_id} as ENDED`);
 
-      // NOTE: adventure_scores are saved by each game's resolution function
-      // Do NOT save adventure scores here to avoid double-counting!
+      // Get current game type to handle game-specific score saving
+      const currentGameTypeCode = game.selected_game_type_code;
+      
+      // Get players for score saving
       const { data: players } = await supabase
         .from("game_players")
         .select("id, player_number, recompenses, pvic, jetons")
@@ -112,7 +114,82 @@ serve(async (req) => {
         .eq("status", "ACTIVE")
         .not("player_number", "is", null);
 
-      console.log(`[next-session-game] Skipping adventure_score save - already done by game resolution function`);
+      // SHERIFF: Save adventure_scores based on sheriff_player_choices victory_points_delta
+      // Sheriff's resolution function updates game_players.pvic but may not always save to adventure_scores
+      if (currentGameTypeCode === "SHERIFF" && players && players.length > 0) {
+        console.log(`[next-session-game] Saving SHERIFF scores to adventure_scores`);
+        
+        // Get sheriff player choices to calculate the delta for this game
+        const { data: sheriffChoices } = await supabase
+          .from("sheriff_player_choices")
+          .select("player_number, pvic_initial, victory_points_delta")
+          .eq("session_game_id", game.current_session_game_id);
+        
+        for (const player of players) {
+          // Find the sheriff choice for this player
+          const choice = sheriffChoices?.find(c => c.player_number === player.player_number);
+          
+          // Calculate sheriff delta: current pvic vs pvic_initial (which is pre-sheriff)
+          // If no choice found, delta is 0
+          let sheriffDelta = 0;
+          if (choice) {
+            const pvicInitial = choice.pvic_initial || 0;
+            const vpDelta = choice.victory_points_delta || 0;
+            // Sheriff applies VP delta as percentage: newPvic = pvicInitial * (1 + vpDelta/100)
+            // So the delta = newPvic - pvicInitial
+            const expectedNewPvic = Math.round(pvicInitial * (1 + vpDelta / 100));
+            sheriffDelta = expectedNewPvic - pvicInitial;
+          }
+          
+          // Fetch existing adventure_scores
+          const { data: existingScore } = await supabase
+            .from("adventure_scores")
+            .select("id, total_score_value, breakdown")
+            .eq("session_id", gameId)
+            .eq("game_player_id", player.id)
+            .single();
+          
+          if (existingScore) {
+            const existingBreakdown = (existingScore.breakdown as Record<string, number>) || {};
+            
+            // Only update if this session's score isn't already in the breakdown
+            if (existingBreakdown[game.current_session_game_id] === undefined) {
+              existingBreakdown[game.current_session_game_id] = sheriffDelta;
+              
+              // Recalculate total from all breakdown values
+              const newTotal = Object.values(existingBreakdown).reduce((sum: number, val: number) => sum + (Number(val) || 0), 0);
+              
+              await supabase
+                .from("adventure_scores")
+                .update({
+                  total_score_value: newTotal,
+                  breakdown: existingBreakdown,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", existingScore.id);
+              
+              console.log(`[next-session-game] SHERIFF: Player ${player.player_number} saved delta=${sheriffDelta}, newTotal=${newTotal}`);
+            } else {
+              console.log(`[next-session-game] SHERIFF: Player ${player.player_number} already has score for this session, skipping`);
+            }
+          } else {
+            // Create new adventure_scores entry
+            await supabase
+              .from("adventure_scores")
+              .insert({
+                session_id: gameId,
+                game_player_id: player.id,
+                total_score_value: sheriffDelta,
+                breakdown: { [game.current_session_game_id]: sheriffDelta },
+              });
+            
+            console.log(`[next-session-game] SHERIFF: Created adventure_scores for player ${player.player_number}: delta=${sheriffDelta}`);
+          }
+        }
+      } else {
+        // For other games, scores are saved by their resolution functions
+        console.log(`[next-session-game] Skipping adventure_score save for ${currentGameTypeCode} - already done by game resolution function`);
+      }
       
       if (players && players.length > 0) {
         for (const player of players) {
