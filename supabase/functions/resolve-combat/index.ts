@@ -1640,6 +1640,69 @@ serve(async (req) => {
             .eq('id', sessionGameId);
         }
         
+        // =========================================================================
+        // SAVE ADVENTURE SCORES - Critical for cumulative PVic tracking
+        // =========================================================================
+        console.log('[resolve-combat] Saving adventure_scores for Forêt session...');
+        
+        // Get updated player data with current recompenses
+        const { data: adventurePlayers } = await supabase
+          .from('game_players')
+          .select('id, player_number, recompenses, pvic')
+          .eq('game_id', gameId)
+          .eq('status', 'ACTIVE')
+          .not('player_number', 'is', null);
+        
+        if (adventurePlayers && sessionGameId) {
+          for (const player of adventurePlayers) {
+            const scoreForThisGame = player.recompenses || 0;
+            
+            // Skip if no score to save
+            if (scoreForThisGame === 0) {
+              console.log(`[resolve-combat] Player ${player.player_number}: no recompenses to save`);
+              continue;
+            }
+            
+            // Check for existing adventure score
+            const { data: existingScore } = await supabase
+              .from('adventure_scores')
+              .select('id, total_score_value, breakdown')
+              .eq('session_id', gameId)
+              .eq('game_player_id', player.id)
+              .single();
+            
+            if (existingScore) {
+              // Update existing score - add this game's score to breakdown
+              const breakdown = (existingScore.breakdown as Record<string, number>) || {};
+              breakdown[sessionGameId] = scoreForThisGame;
+              
+              // Recalculate total from breakdown
+              const newTotal = Object.values(breakdown).reduce((sum: number, val: number) => sum + (Number(val) || 0), 0);
+              
+              await supabase
+                .from('adventure_scores')
+                .update({
+                  total_score_value: newTotal,
+                  breakdown,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', existingScore.id);
+              
+              console.log(`[resolve-combat] Player ${player.player_number}: updated adventure_scores, breakdown now includes FORET=${scoreForThisGame}, total=${newTotal}`);
+            } else {
+              // Create new score entry
+              await supabase.from('adventure_scores').insert({
+                session_id: gameId,
+                game_player_id: player.id,
+                total_score_value: scoreForThisGame,
+                breakdown: { [sessionGameId]: scoreForThisGame },
+              });
+              
+              console.log(`[resolve-combat] Player ${player.player_number}: created adventure_scores with FORET=${scoreForThisGame}`);
+            }
+          }
+        }
+        
         await Promise.all([
           supabase.from('session_events').insert({
             game_id: gameId,

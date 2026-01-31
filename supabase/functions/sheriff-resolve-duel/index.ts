@@ -369,30 +369,39 @@ Deno.serve(async (req) => {
                 .single();
 
               if (existingScore) {
-                // Update existing score
+                // Update existing score - store the DELTA for this game, not total pvic
                 const existingBreakdown = (existingScore.breakdown as Record<string, number>) || {};
-                existingBreakdown[sessionGameId] = newPvic;
+                // Calculate delta for this Sheriff game
+                const sheriffDelta = newPvic - currentPvic;
+                existingBreakdown[sessionGameId] = sheriffDelta;
+                
+                // Recalculate total from all breakdown values
+                const newTotal = Object.values(existingBreakdown).reduce((sum: number, val: number) => sum + (Number(val) || 0), 0);
                 
                 await supabase
                   .from('adventure_scores')
                   .update({
-                    total_score_value: newPvic,
+                    total_score_value: newTotal,
                     breakdown: existingBreakdown,
                     updated_at: new Date().toISOString(),
                   })
                   .eq('id', existingScore.id);
+                
+                console.log(`[sheriff-resolve-duel] Updated adventure_scores for player ${choice.player_number}: delta=${sheriffDelta}, newTotal=${newTotal}`);
               } else {
-                // Create new score
+                // Create new score - store delta
+                const sheriffDelta = newPvic - currentPvic;
                 await supabase
                   .from('adventure_scores')
                   .insert({
                     session_id: gameId,
                     game_player_id: currentPlayer.id,
-                    total_score_value: newPvic,
-                    breakdown: { [sessionGameId]: newPvic },
+                    total_score_value: sheriffDelta,
+                    breakdown: { [sessionGameId]: sheriffDelta },
                   });
+                
+                console.log(`[sheriff-resolve-duel] Created adventure_scores for player ${choice.player_number}: delta=${sheriffDelta}`);
               }
-              console.log(`[sheriff-resolve-duel] Saved adventure_score for player ${choice.player_number}: ${newPvic}`);
             }
           }
         }
