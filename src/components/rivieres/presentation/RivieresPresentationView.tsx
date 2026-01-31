@@ -534,6 +534,9 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
     sendAnimationAck('RESOLVE_ANIM');
   }, [sendAnimationAck]);
 
+  // Adventure pot prize for final game - must be called before any early returns
+  const { potAmount: adventurePotAmount, isFinalGame } = useAdventurePotPrize(game.id, game.current_session_game_id);
+
   // Loading state
   if (loading) {
     return (
@@ -545,7 +548,7 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
       </div>
     );
   }
-
+  
   // Victory podium for ended games
   if (isGameEnded && stageScores.length > 0) {
     return (
@@ -555,6 +558,7 @@ export function RivieresPresentationView({ game, onClose }: RivieresPresentation
         allDecisions={allDecisions}
         players={players}
         onClose={onClose}
+        adventurePotAmount={isFinalGame ? adventurePotAmount : null}
       />
     );
   }

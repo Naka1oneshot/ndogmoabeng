@@ -403,6 +403,9 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
   const deadPlayers = players.filter(p => p.is_alive === false).length;
   const currentManche = game.manche_active || 1;
 
+  // Adventure pot prize for final game - must be called before any early returns
+  const { potAmount: adventurePotAmount, isFinalGame } = useAdventurePotPrize(game.id, game.current_session_game_id);
+
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: INFECTION_COLORS.bgPrimary }}>
@@ -426,7 +429,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
       />
     );
   }
-
+  
   // Show victory podium after transition
   if (showVictoryPodium && winner) {
     // Add avatar URLs to players for podium
@@ -470,6 +473,7 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
         gameMode={game.mode || 'SINGLE_GAME'}
         gameId={game.id}
         onClose={onClose}
+        adventurePotAmount={isFinalGame ? adventurePotAmount : null}
       />
     );
   }
