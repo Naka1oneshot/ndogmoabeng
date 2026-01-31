@@ -84,11 +84,18 @@ Deno.serve(async (req) => {
           console.log(`[start-sheriff] Using adventure config: costPerPlayer=${costPerPlayer}, floorPercent=${floorPercent}, pvicPercent=${pvicPercent}, maxDuelImpact=${maxDuelImpact}`);
         }
         
-        // Apply adventure_pot initial amount if available
+        // Apply adventure_pot - use currentAmount if set, otherwise initialAmount
+        // This handles: initial config, after penalties, and edge case where currentAmount is 0
         const adventurePot = adventureConfig.adventure_pot;
-        if (adventurePot?.currentAmount !== undefined) {
-          commonPoolInitial = adventurePot.currentAmount;
-          console.log(`[start-sheriff] Using adventure pot: ${commonPoolInitial}`);
+        if (adventurePot) {
+          // Priority: currentAmount (may be 0 after penalties) > initialAmount > default
+          if (typeof adventurePot.currentAmount === 'number') {
+            commonPoolInitial = adventurePot.currentAmount;
+            console.log(`[start-sheriff] Using adventure pot currentAmount: ${commonPoolInitial}`);
+          } else if (typeof adventurePot.initialAmount === 'number') {
+            commonPoolInitial = adventurePot.initialAmount;
+            console.log(`[start-sheriff] Using adventure pot initialAmount (no currentAmount set): ${commonPoolInitial}`);
+          }
         }
       }
     }
