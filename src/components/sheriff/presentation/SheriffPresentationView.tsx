@@ -96,6 +96,9 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   
+  // Adventure cumulative scores - mapping player_id -> total_score_value
+  const [adventureScoresMap, setAdventureScoresMap] = useState<Map<string, number>>(new Map());
+  
   // Animation states
   const [showChoicesResolution, setShowChoicesResolution] = useState(false);
   
@@ -188,6 +191,24 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
         ...p,
         avatar_url: p.user_id ? avatarMap[p.user_id] || null : null,
       })) as Player[]);
+      
+      // Fetch adventure scores for cumulative PVic calculation in adventure mode
+      if (isAdventureMode) {
+        const playerIds = playersData.map(p => p.id);
+        const { data: adventureScoresData } = await supabase
+          .from('adventure_scores')
+          .select('game_player_id, total_score_value')
+          .eq('session_id', game.id)
+          .in('game_player_id', playerIds);
+        
+        if (adventureScoresData) {
+          const scoresMap = new Map<string, number>();
+          adventureScoresData.forEach(score => {
+            scoresMap.set(score.game_player_id, Number(score.total_score_value) || 0);
+          });
+          setAdventureScoresMap(scoresMap);
+        }
+      }
     }
     
     // Fetch session-specific data
@@ -217,7 +238,7 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
     }
     
     setLoading(false);
-  }, [game.id, game.current_session_game_id]);
+  }, [game.id, game.current_session_game_id, isAdventureMode]);
   
   useEffect(() => {
     fetchData();
@@ -338,12 +359,25 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const visaPvicPercent = roundState?.bot_config?.visa_pvic_percent || 20;
   
   // Calculate cumulative PVic for a player using NEW logic:
-  // Coût Visa PVic = 0 if pool, otherwise PVic Init * configured visa percent
-  // Coût Duel = (PVic Init - Coût Visa PVic) * cumulative duel delta %
-  // PVic Actuel = PVic Init - Coût Visa PVic - Coût Duel
+  // In adventure mode, use adventure_scores.total_score_value as the base (includes Rivières + Forêt)
+  // In single game mode, use pvic_initial as before
+  // Then apply: Coût Visa PVic, Coût Duel
   const getPlayerCumulativePvic = (playerNum: number): number => {
     const choice = choices.find(c => c.player_number === playerNum);
-    const pvicInit = choice?.pvic_initial || activePlayers.find(p => p.player_number === playerNum)?.pvic || 0;
+    const player = activePlayers.find(p => p.player_number === playerNum);
+    
+    // In adventure mode, use cumulative score from adventure_scores as the base
+    // This includes all previous games (Rivières + Forêt)
+    // Otherwise fall back to pvic_initial or player.pvic
+    let pvicInit = choice?.pvic_initial || player?.pvic || 0;
+    
+    if (isAdventureMode && player) {
+      const adventureScore = adventureScoresMap.get(player.id);
+      if (adventureScore !== undefined) {
+        // Use the adventure cumulative score as base instead of pvic_initial
+        pvicInit = adventureScore;
+      }
+    }
     
     // Coût Visa PVic
     const coutVisaPvic = (choice?.visa_choice === 'VICTORY_POINTS') 

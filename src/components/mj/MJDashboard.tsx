@@ -264,11 +264,12 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             }
           } else if (game.selected_game_type_code === 'SHERIFF') {
             // For SHERIFF: Calculate PVic Act = PVic Init + (PVic Init × delta%)
-            // This MUST match MJPlayersTab exactly:
-            // PVic Act = pvic + Math.round(pvic * (delta / 100))
-            // where pvic is the value from game_players.pvic (the initial value at start of Sheriff)
+            // IMPORTANT: Use adventure_scores.total_score_value as PVic Init (includes Rivières + Forêt)
+            // NOT game_players.pvic which only has Rivières
             const deltaPercent = sheriffDeltaMap.get(player.player_number) || 0;
-            const pvicInit = player.pvic || 0;
+            // Use adventure score as base (includes all previous games: Rivières + Forêt)
+            const adventureScore = scoresMap.get(player.id) || 0;
+            const pvicInit = adventureScore > 0 ? adventureScore : (player.pvic || 0);
             const pvicAct = pvicInit + Math.round(pvicInit * (deltaPercent / 100));
             // Return PVic Act - this is the FINAL score for this player in Sheriff
             // The caller should NOT add adventure_scores for SHERIFF
