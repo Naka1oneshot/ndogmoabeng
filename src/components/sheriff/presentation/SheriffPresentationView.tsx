@@ -574,6 +574,7 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
             getPlayer={getPlayer}
             gameId={game.id}
             isAdventureMode={isAdventureMode}
+            adventureScoresMap={adventureScoresMap}
           />
         )}
         
@@ -652,6 +653,7 @@ interface ChoicesPhaseDisplayProps {
   getPlayer: (num: number) => Player | undefined;
   gameId: string;
   isAdventureMode: boolean;
+  adventureScoresMap: Map<string, number>;
 }
 
 function ChoicesPhaseDisplay({
@@ -665,6 +667,7 @@ function ChoicesPhaseDisplay({
   getPlayer,
   gameId,
   isAdventureMode,
+  adventureScoresMap,
 }: ChoicesPhaseDisplayProps) {
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -696,6 +699,10 @@ function ChoicesPhaseDisplay({
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {players.map(player => {
               const hasChoice = choices.find(c => c.player_number === player.player_number && c.visa_choice !== null);
+              // In adventure mode, use cumulative score from adventure_scores
+              // This includes all previous games (Rivières + Forêt)
+              const adventureScore = isAdventureMode ? adventureScoresMap.get(player.id) : undefined;
+              const displayPvic = adventureScore !== undefined ? adventureScore : (player.pvic || 0);
               return (
                 <div
                   key={player.id}
@@ -711,7 +718,7 @@ function ChoicesPhaseDisplay({
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{player.display_name}</div>
-                      <div className="text-xs text-[#9CA3AF]">{player.pvic || 0} PV</div>
+                      <div className="text-xs text-[#9CA3AF]">{displayPvic} PV</div>
                     </div>
                     {hasChoice && <div className="text-green-400 text-lg">✓</div>}
                   </div>

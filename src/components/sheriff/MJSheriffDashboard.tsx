@@ -126,6 +126,10 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('control');
   
+  // Adventure cumulative scores - mapping player_id -> total_score_value
+  const [adventureScoresMap, setAdventureScoresMap] = useState<Map<string, number>>(new Map());
+  const isAdventureMode = game.mode === 'ADVENTURE';
+  
   // Player management state
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -230,6 +234,24 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
 
     if (playersData) {
       setPlayers(playersData as Player[]);
+      
+      // Fetch adventure scores for cumulative PVic calculation in adventure mode
+      if (isAdventureMode) {
+        const playerIds = playersData.map(p => p.id);
+        const { data: adventureScoresData } = await supabase
+          .from('adventure_scores')
+          .select('game_player_id, total_score_value')
+          .eq('session_id', game.id)
+          .in('game_player_id', playerIds);
+        
+        if (adventureScoresData) {
+          const scoresMap = new Map<string, number>();
+          adventureScoresData.forEach(score => {
+            scoresMap.set(score.game_player_id, Number(score.total_score_value) || 0);
+          });
+          setAdventureScoresMap(scoresMap);
+        }
+      }
     }
 
     // Fetch game state if in game
@@ -1744,8 +1766,18 @@ export function MJSheriffDashboard({ game, onBack }: MJSheriffDashboardProps) {
                   <tbody>
                     {activePlayers.map(player => {
                       const choice = getPlayerChoice(player.player_number!);
-                      // pvic_initial is the PVic at the start of Sheriff (from game_players.pvic snapshot)
-                      const pvicInitial = choice?.pvic_initial ?? (player.pvic || 0);
+                      // In adventure mode, use cumulative score from adventure_scores as the base
+                      // This includes all previous games (Rivières + Forêt)
+                      // Otherwise fall back to pvic_initial or player.pvic
+                      let pvicInitial = choice?.pvic_initial ?? (player.pvic || 0);
+                      
+                      if (isAdventureMode) {
+                        const adventureScore = adventureScoresMap.get(player.id);
+                        if (adventureScore !== undefined) {
+                          // Use the adventure cumulative score as base instead of pvic_initial
+                          pvicInitial = adventureScore;
+                        }
+                      }
                       
                       // NEW CALCULATION LOGIC:
                       // Coût Visa PVic = 0 if paid with pool, otherwise PVic Init * configured visa percent
