@@ -446,6 +446,9 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const poolPlayers = choices.filter(c => c.visa_choice === 'COMMON_POOL');
   const pvicPlayers = choices.filter(c => c.visa_choice === 'VICTORY_POINTS');
   
+  // Adventure pot prize for final game - must be called before any early returns
+  const { potAmount: adventurePotAmount, isFinalGame } = useAdventurePotPrize(game.id, game.current_session_game_id);
+  
   if (loading) {
     return (
       <div className="fixed inset-0 bg-[#1A1510] flex items-center justify-center z-50">
@@ -463,6 +466,7 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
         choices={choices}
         duels={duels}
         onClose={onClose}
+        adventurePotAmount={isFinalGame ? adventurePotAmount : null}
       />
     );
   }
