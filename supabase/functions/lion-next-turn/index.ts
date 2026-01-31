@@ -76,6 +76,89 @@ serve(async (req) => {
     const currentTurnIndex = gameState.turn_index;
     const isSuddenDeath = gameState.status === 'SUDDEN_DEATH';
 
+    // Helper function to record Lion scores in adventure_scores
+    async function recordLionAdventureScores(
+      winnerId: string, 
+      winnerName: string,
+      pA: typeof playerA, 
+      pB: typeof playerB
+    ) {
+      // Check if this is an adventure game
+      const { data: gameData } = await supabase
+        .from('games')
+        .select('adventure_id, mode')
+        .eq('id', gameState.game_id)
+        .single();
+
+      if (gameData?.mode === 'ADVENTURE' && gameData?.adventure_id) {
+        // Get seed values from lion_game_state
+        const seedPvic = gameState.adventure_seed_pvic as Record<string, number> | null;
+        const cumulBefore = gameState.adventure_cumulative_before as Record<string, number> | null;
+
+        const seedA = seedPvic?.[pA.id] ?? 0;
+        const seedB = seedPvic?.[pB.id] ?? 0;
+        const cumulA = cumulBefore?.[pA.id] ?? 0;
+        const cumulB = cumulBefore?.[pB.id] ?? 0;
+
+        // Calculate delta = final pvic - seed (so the 3/0 seed doesn't count as "earned")
+        const deltaA = (pA.pvic || 0) - seedA;
+        const deltaB = (pB.pvic || 0) - seedB;
+
+        // Update adventure_scores for both finalists
+        for (const { player, delta, cumul } of [
+          { player: pA, delta: deltaA, cumul: cumulA },
+          { player: pB, delta: deltaB, cumul: cumulB }
+        ]) {
+          const { data: existingScore } = await supabase
+            .from('adventure_scores')
+            .select('*')
+            .eq('session_id', gameState.game_id)
+            .eq('game_player_id', player.id)
+            .maybeSingle();
+
+          const breakdown = (existingScore?.breakdown as Record<string, number>) || {};
+          breakdown[session_game_id] = delta;
+
+          // Recalculate total from breakdown
+          const newTotal = Object.values(breakdown).reduce((sum, v) => sum + (v || 0), 0);
+
+          if (existingScore) {
+            await supabase
+              .from('adventure_scores')
+              .update({ breakdown, total_score_value: newTotal, updated_at: new Date().toISOString() })
+              .eq('id', existingScore.id);
+          } else {
+            await supabase.from('adventure_scores').insert({
+              session_id: gameState.game_id,
+              game_player_id: player.id,
+              breakdown,
+              total_score_value: newTotal
+            });
+          }
+        }
+
+        // Publish final scores event visible to ALL (including spectators)
+        const finalA = cumulA + deltaA;
+        const finalB = cumulB + deltaB;
+        await supabase.from('game_events').insert({
+          game_id: gameState.game_id,
+          session_game_id,
+          event_type: 'LION_FINAL_ADVENTURE_SCORE',
+          message: `📊 Scores finaux aventure : ${pA.display_name} = ${finalA} PVic, ${pB.display_name} = ${finalB} PVic`,
+          visibility: 'PUBLIC',
+          payload: { 
+            scores: { [pA.id]: finalA, [pB.id]: finalB },
+            deltas: { [pA.id]: deltaA, [pB.id]: deltaB },
+            winner_id: winnerId
+          },
+          manche: TOTAL_TURNS,
+          phase: 'LION_END'
+        });
+
+        console.log(`[lion-next-turn] Adventure scores recorded: ${pA.display_name}=${finalA}, ${pB.display_name}=${finalB}`);
+      }
+    }
+
     // Handle normal game mode
     if (!isSuddenDeath) {
       if (currentTurnIndex >= TOTAL_TURNS) {
@@ -110,6 +193,9 @@ serve(async (req) => {
             p_game_id: gameState.game_id,
             p_winner_user_id: winnerPlayer?.user_id || null
           });
+
+          // Record Lion scores in adventure_scores if applicable
+          await recordLionAdventureScores(winnerId, winnerName, playerA, playerB);
 
           await supabase.from('game_events').insert({
             game_id: gameState.game_id,
@@ -266,6 +352,9 @@ serve(async (req) => {
             p_game_id: gameState.game_id,
             p_winner_user_id: winnerPlayer?.user_id || null
           });
+
+          // Record Lion scores in adventure_scores if applicable (sudden death)
+          await recordLionAdventureScores(winnerId, winnerName, playerA, playerB);
 
           await supabase.from('game_events').insert({
             game_id: gameState.game_id,
