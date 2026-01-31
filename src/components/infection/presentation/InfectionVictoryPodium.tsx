@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { INFECTION_COLORS, INFECTION_ROLE_LABELS } from '../InfectionTheme';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import confetti from 'canvas-confetti';
+import { WinnerPrizeBadge } from '@/components/shared/WinnerPrizeBadge';
 
 interface Player {
   id: string;
@@ -35,6 +36,8 @@ interface InfectionVictoryPodiumProps {
   gameMode: string;
   gameId: string;
   onClose: () => void;
+  /** Adventure pot amount to display for the winner (only shown if provided and > 0) */
+  adventurePotAmount?: number | null;
 }
 
 // Component for team name with tooltip/popover
@@ -170,6 +173,7 @@ export function InfectionVictoryPodium({
   gameMode,
   gameId,
   onClose,
+  adventurePotAmount,
 }: InfectionVictoryPodiumProps) {
   const isMobile = useIsMobile();
   const [showPodium, setShowPodium] = useState(false);
@@ -505,7 +509,11 @@ export function InfectionVictoryPodium({
               <div className="text-xl font-bold text-white mb-1 text-center px-2 max-w-40">
                 <TeamNameWithTooltip name={top3[0].name} className="break-words line-clamp-2" />
               </div>
-              <div className="text-2xl font-bold text-yellow-400 mb-2">{top3[0].totalPvic} PVic</div>
+              <div className="text-2xl font-bold text-yellow-400 mb-1">{top3[0].totalPvic} PVic</div>
+              {/* Adventure pot prize for winner */}
+              {adventurePotAmount && adventurePotAmount > 0 && (
+                <WinnerPrizeBadge amount={adventurePotAmount} size="sm" className="mb-2" />
+              )}
               <div className={`${getPodiumHeight(0)} w-28 bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t-lg flex items-end justify-center pb-2`}>
                 <span className="text-3xl font-bold text-white">1</span>
               </div>

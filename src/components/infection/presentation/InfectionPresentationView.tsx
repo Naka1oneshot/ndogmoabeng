@@ -21,6 +21,7 @@ import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinem
 import { InfectionRulesOverlay } from '../rules/InfectionRulesOverlay';
 import { useAdventureCinematic, getSequenceForGameType, getEndSequence } from '@/hooks/useAdventureCinematic';
 import { PresentationPvicDetailsSheet } from '@/components/presentation/PresentationPvicDetailsSheet';
+import { useAdventurePotPrize } from '@/hooks/useAdventurePotPrize';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 

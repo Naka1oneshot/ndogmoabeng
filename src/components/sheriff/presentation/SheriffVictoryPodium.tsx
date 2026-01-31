@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useIsMobile } from '@/hooks/use-mobile';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
 import confetti from 'canvas-confetti';
+import { WinnerPrizeBadge } from '@/components/shared/WinnerPrizeBadge';
 
 interface Player {
   id: string;
@@ -41,6 +42,8 @@ interface SheriffVictoryPodiumProps {
   choices: PlayerChoice[];
   duels: Duel[];
   onClose: () => void;
+  /** Adventure pot amount to display for the winner (only shown if provided and > 0) */
+  adventurePotAmount?: number | null;
 }
 
 // Component for team name with tooltip/popover
@@ -172,6 +175,7 @@ export function SheriffVictoryPodium({
   choices,
   duels,
   onClose,
+  adventurePotAmount,
 }: SheriffVictoryPodiumProps) {
   const [showPodium, setShowPodium] = useState(false);
   const [showRanking, setShowRanking] = useState(false);
@@ -359,7 +363,11 @@ export function SheriffVictoryPodium({
               <div className="text-xl font-bold text-white mb-1 text-center px-2">
                 <TeamNameWithTooltip name={top3[0].name} className="break-words" />
               </div>
-              <div className="text-2xl font-bold text-yellow-400 mb-2">{top3[0].totalPvic} PVic</div>
+              <div className="text-2xl font-bold text-yellow-400 mb-1">{top3[0].totalPvic} PVic</div>
+              {/* Adventure pot prize for winner */}
+              {adventurePotAmount && adventurePotAmount > 0 && (
+                <WinnerPrizeBadge amount={adventurePotAmount} size="sm" className="mb-2" />
+              )}
               <div className={`${getPodiumHeight(0)} w-28 bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t-lg flex items-end justify-center pb-2`}>
                 <span className="text-3xl font-bold text-white">1</span>
               </div>

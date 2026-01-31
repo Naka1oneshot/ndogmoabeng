@@ -3,6 +3,7 @@ import { Trophy, Medal, Award, Crown, Star, Sparkles, Coins, Skull, Gift, Sword,
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import confetti from 'canvas-confetti';
+import { WinnerPrizeBadge } from '@/components/shared/WinnerPrizeBadge';
 
 interface TeamRanking {
   display_name: string; // Team name or player name
@@ -36,9 +37,11 @@ interface VictoryPodiumAnimationProps {
   gameStats?: GameStats;
   onComplete?: () => void;
   isIntermediatePodium?: boolean;
+  /** Adventure pot amount to display for the winner (only shown if provided and > 0) */
+  adventurePotAmount?: number | null;
 }
 
-export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete, isIntermediatePodium = false }: VictoryPodiumAnimationProps) {
+export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete, isIntermediatePodium = false, adventurePotAmount }: VictoryPodiumAnimationProps) {
   const [animationStep, setAnimationStep] = useState(0);
   
   // Confetti burst function
@@ -274,14 +277,20 @@ export function VictoryPodiumAnimation({ show, rankings, gameStats, onComplete, 
                     {player.display_name}
                   </p>
                   
-                  <div className="flex items-center gap-1 mt-1">
-                    <Badge variant="outline" className={`${getPlaceColor(rank)} border-current text-[10px] lg:text-xs`}>
-                      {player.total_score.toFixed(1)} pts
-                    </Badge>
-                    {!player.isTeam && gameStats?.hasTeams && (
-                      <Badge variant="secondary" className="text-[8px] lg:text-[10px] bg-blue-600/80 text-white border-blue-500">
-                        Solo x2
+                  <div className="flex flex-col items-center gap-1 mt-1">
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline" className={`${getPlaceColor(rank)} border-current text-[10px] lg:text-xs`}>
+                        {player.total_score.toFixed(1)} pts
                       </Badge>
+                      {!player.isTeam && gameStats?.hasTeams && (
+                        <Badge variant="secondary" className="text-[8px] lg:text-[10px] bg-blue-600/80 text-white border-blue-500">
+                          Solo x2
+                        </Badge>
+                      )}
+                    </div>
+                    {/* Adventure pot prize for winner */}
+                    {rank === 1 && adventurePotAmount && adventurePotAmount > 0 && (
+                      <WinnerPrizeBadge amount={adventurePotAmount} size="sm" />
                     )}
                   </div>
                   
