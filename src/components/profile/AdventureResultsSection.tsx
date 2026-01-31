@@ -13,10 +13,10 @@ interface AdventureFinalistData {
   adventure_name: string;
   finalist_1_id: string;
   finalist_1_name: string;
-  finalist_1_score_total: number;
+  finalist_1_score_total: number; // NUMERIC from DB
   finalist_2_id: string;
   finalist_2_name: string;
-  finalist_2_score_total: number;
+  finalist_2_score_total: number; // NUMERIC from DB
   winner_player_id: string | null;
   winner_name: string | null;
 }
