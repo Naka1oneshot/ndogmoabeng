@@ -138,11 +138,13 @@ Deno.serve(async (req) => {
       throw new Error(`Round is not OPEN (current: ${roundState.status})`);
     }
 
-    // Fetch players
+    // Fetch players - EXCLUDE HOST (is_host=true) and only get ACTIVE players
     const { data: playersData, error: playersError } = await supabase
       .from('game_players')
       .select('*')
       .eq('game_id', gameId)
+      .eq('is_host', false) // CRITICAL: Exclude host from all infection logic
+      .eq('status', 'ACTIVE') // Only active players participate
       .is('removed_at', null)
       .order('player_number');
 
