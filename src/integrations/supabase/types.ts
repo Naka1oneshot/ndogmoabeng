@@ -1919,6 +1919,8 @@ export type Database = {
       lion_game_state: {
         Row: {
           active_player_id: string
+          adventure_cumulative_before: Json | null
+          adventure_seed_pvic: Json | null
           auto_resolve: boolean
           created_at: string
           game_id: string
@@ -1939,6 +1941,8 @@ export type Database = {
         }
         Insert: {
           active_player_id: string
+          adventure_cumulative_before?: Json | null
+          adventure_seed_pvic?: Json | null
           auto_resolve?: boolean
           created_at?: string
           game_id: string
@@ -1959,6 +1963,8 @@ export type Database = {
         }
         Update: {
           active_player_id?: string
+          adventure_cumulative_before?: Json | null
+          adventure_seed_pvic?: Json | null
           auto_resolve?: boolean
           created_at?: string
           game_id?: string

@@ -487,6 +487,13 @@ serve(async (req) => {
         console.log(`[next-session-game] Using adventure foret_monsters config: ${foretMonstersConfig.length} entries`);
         
         // Insert monsters from adventure config
+        // Helper to parse numeric values that might come as strings from UI
+        const parseNumericOverride = (val: any): number | null => {
+          if (val === null || val === undefined || val === '') return null;
+          const parsed = typeof val === "string" ? parseFloat(val) : val;
+          return typeof parsed === "number" && !isNaN(parsed) ? parsed : null;
+        };
+        
         const monstersToInsert = foretMonstersConfig
           .filter((m: any) => m.enabled !== false)
           .map((m: any, index: number) => ({
@@ -494,8 +501,9 @@ serve(async (req) => {
             session_game_id: newSessionGameId,
             monster_id: m.monster_id,
             is_enabled: m.enabled !== false,
-            pv_max_override: m.pv_max_override || null,
-            reward_override: m.reward_override || null,
+            // Use ?? instead of || to preserve 0 values, and parse strings
+            pv_max_override: parseNumericOverride(m.pv_max_override),
+            reward_override: parseNumericOverride(m.reward_override),
             initial_status: index < 3 ? 'EN_BATAILLE' : 'EN_FILE',
             order_index: index + 1,
           }));
@@ -997,39 +1005,58 @@ serve(async (req) => {
       console.log(`[next-session-game] Initializing LION game (adventure finale)`);
       
       // LION is the final duel in adventures
-      // Only the top team (by combined PVic) plays as ACTIVE
+      // Only the top team (by combined adventure_scores) plays as ACTIVE
       // All other players become SPECTATOR
       
       if (players && players.length >= 2) {
-        // Calculate team scores (pairs by mate_num)
-        const teamScores: Record<number, { players: typeof players, totalPvic: number, minPlayerNum: number }> = {};
+        // =====================================================================
+        // FETCH ADVENTURE SCORES (reliable cumulative, not game_players.pvic)
+        // =====================================================================
+        const playerIds = players.map(p => p.id);
+        const { data: adventureScoresData } = await supabase
+          .from("adventure_scores")
+          .select("game_player_id, total_score_value")
+          .eq("session_id", gameId)
+          .in("game_player_id", playerIds);
+        
+        // Build a map of playerId -> cumulative score
+        const cumulativeScores: Record<string, number> = {};
+        for (const score of adventureScoresData || []) {
+          cumulativeScores[score.game_player_id] = score.total_score_value || 0;
+        }
+        
+        console.log(`[next-session-game] LION adventure_scores loaded:`, cumulativeScores);
+        
+        // Calculate team scores (pairs by mate_num) using adventure_scores
+        const teamScores: Record<number, { players: typeof players, totalCumulative: number, minPlayerNum: number }> = {};
         
         for (const player of players) {
           const teamKey = Math.min(player.player_number!, player.mate_num || player.player_number!);
           if (!teamScores[teamKey]) {
-            teamScores[teamKey] = { players: [], totalPvic: 0, minPlayerNum: teamKey };
+            teamScores[teamKey] = { players: [], totalCumulative: 0, minPlayerNum: teamKey };
           }
           teamScores[teamKey].players.push(player);
-          teamScores[teamKey].totalPvic += player.pvic || 0;
+          // Use adventure_scores instead of game_players.pvic
+          teamScores[teamKey].totalCumulative += cumulativeScores[player.id] || 0;
         }
         
-        // Sort teams by total PVic (descending), tie-break by smallest player_number
+        // Sort teams by total cumulative (descending), tie-break by smallest player_number
         const sortedTeams = Object.values(teamScores)
           .filter(t => t.players.length === 2) // Only complete teams
           .sort((a, b) => {
-            if (b.totalPvic !== a.totalPvic) return b.totalPvic - a.totalPvic;
+            if (b.totalCumulative !== a.totalCumulative) return b.totalCumulative - a.totalCumulative;
             return a.minPlayerNum - b.minPlayerNum;
           });
         
-        console.log(`[next-session-game] LION team rankings:`, sortedTeams.map(t => ({
+        console.log(`[next-session-game] LION team rankings (adventure_scores):`, sortedTeams.map(t => ({
           team: t.minPlayerNum,
-          totalPvic: t.totalPvic,
-          players: t.players.map(p => p.display_name)
+          totalCumulative: t.totalCumulative,
+          players: t.players.map(p => `${p.display_name} (cumul: ${cumulativeScores[p.id] || 0})`)
         })));
         
         let finalistIds: string[] = [];
         let finalistNames: string[] = [];
-        let teamPvic = 0;
+        let teamCumulative = 0;
         let usedFallback = false;
         
         if (sortedTeams.length > 0) {
@@ -1037,22 +1064,22 @@ serve(async (req) => {
           const winningTeam = sortedTeams[0];
           finalistIds = winningTeam.players.map(p => p.id);
           finalistNames = winningTeam.players.map(p => p.display_name);
-          teamPvic = winningTeam.totalPvic;
+          teamCumulative = winningTeam.totalCumulative;
         } else {
-          // FALLBACK: No complete teams - take top 2 individuals by PVic
-          console.log(`[next-session-game] LION FALLBACK: No complete teams, selecting top 2 individuals`);
+          // FALLBACK: No complete teams - take top 2 individuals by cumulative score
+          console.log(`[next-session-game] LION FALLBACK: No complete teams, selecting top 2 individuals by adventure_scores`);
           usedFallback = true;
           
           const sortedIndividuals = [...players].sort((a, b) => {
-            const pvicDiff = (b.pvic || 0) - (a.pvic || 0);
-            if (pvicDiff !== 0) return pvicDiff;
+            const cumulDiff = (cumulativeScores[b.id] || 0) - (cumulativeScores[a.id] || 0);
+            if (cumulDiff !== 0) return cumulDiff;
             return (a.player_number || 99) - (b.player_number || 99);
           });
           
           const top2 = sortedIndividuals.slice(0, 2);
           finalistIds = top2.map(p => p.id);
           finalistNames = top2.map(p => p.display_name);
-          teamPvic = top2.reduce((sum, p) => sum + (p.pvic || 0), 0);
+          teamCumulative = top2.reduce((sum, p) => sum + (cumulativeScores[p.id] || 0), 0);
           
           console.log(`[next-session-game] LION FALLBACK finalists: ${finalistNames.join(' vs ')}`);
         }
@@ -1103,15 +1130,22 @@ serve(async (req) => {
           message: `🦁 Finale du Cœur du Lion ! ${finalistNames.join(' affronte ')} pour le titre suprême !${usedFallback ? ' (sélection individuelle)' : ''}`,
           payload: {
             finalists: finalistIds.map((id, i) => ({ id, name: finalistNames[i] })),
-            teamPvic,
+            teamCumulative,
             usedFallback,
           },
         });
       }
       
       // =====================================================================
-      // LION GAME STATE INITIALIZATION (previously in start-lion)
+      // SEED PVic 3/0 for Lion duel + LION GAME STATE INITIALIZATION
       // =====================================================================
+      
+      // Helper to parse numeric config values from strings
+      const parseConfigNumber = (val: any, def: number): number => {
+        if (val === null || val === undefined) return def;
+        const parsed = typeof val === "string" ? parseFloat(val) : val;
+        return typeof parsed === "number" && !isNaN(parsed) ? parsed : def;
+      };
       
       // Load adventure config for Lion-specific settings
       let lionConfig: any = null;
@@ -1134,6 +1168,44 @@ serve(async (req) => {
         const playerA = lionFinalists[0];
         const playerB = lionFinalists[1];
         
+        // Fetch cumulative scores for seed calculation (re-fetch since we're in a different scope)
+        const { data: lionScoresData } = await supabase
+          .from("adventure_scores")
+          .select("game_player_id, total_score_value")
+          .eq("session_id", gameId)
+          .in("game_player_id", [playerA.id, playerB.id]);
+        
+        const lionCumulScores: Record<string, number> = {};
+        for (const s of lionScoresData || []) {
+          lionCumulScores[s.game_player_id] = s.total_score_value || 0;
+        }
+        
+        const cumulA = lionCumulScores[playerA.id] || 0;
+        const cumulB = lionCumulScores[playerB.id] || 0;
+        
+        // Best cumulative gets seed 3, other gets 0
+        let seedA = 0;
+        let seedB = 0;
+        if (cumulA > cumulB) {
+          seedA = 3; seedB = 0;
+        } else if (cumulB > cumulA) {
+          seedA = 0; seedB = 3;
+        } else {
+          // Tie: player with smaller player_number gets advantage
+          seedA = (playerA.player_number || 99) < (playerB.player_number || 99) ? 3 : 0;
+          seedB = seedA === 3 ? 0 : 3;
+        }
+        
+        // Store for adventure_scores delta later
+        const adventureCumulativeBefore = { [playerA.id]: cumulA, [playerB.id]: cumulB };
+        const adventureSeedPvic = { [playerA.id]: seedA, [playerB.id]: seedB };
+        
+        console.log(`[next-session-game] LION seed: ${playerA.display_name}=${seedA} (cumul=${cumulA}), ${playerB.display_name}=${seedB} (cumul=${cumulB})`);
+        
+        // Set finalists' pvic to their seed values
+        await supabase.from("game_players").update({ pvic: seedA }).eq("id", playerA.id);
+        await supabase.from("game_players").update({ pvic: seedB }).eq("id", playerB.id);
+        
         // Check if game state already exists (idempotency guard)
         const { data: existingLionState } = await supabase
           .from("lion_game_state")
@@ -1149,33 +1221,24 @@ serve(async (req) => {
             { session_game_id: newSessionGameId, owner_player_id: playerA.id, remaining_cards: initialCards },
             { session_game_id: newSessionGameId, owner_player_id: playerB.id, remaining_cards: initialCards }
           ]);
-          console.log(`[next-session-game] LION hands created for finalists`);
           
-          // Create decks for both players
           await supabase.from("lion_decks").insert([
             { session_game_id: newSessionGameId, owner_player_id: playerA.id, remaining_cards: initialCards },
             { session_game_id: newSessionGameId, owner_player_id: playerB.id, remaining_cards: initialCards }
           ]);
-          console.log(`[next-session-game] LION decks created for finalists`);
           
-          // Draw first dealer card from player A's deck
+          // Draw first dealer card
           const dealerCard = initialCards[Math.floor(Math.random() * initialCards.length)];
-          const remainingDeckA = initialCards.filter(c => c !== dealerCard);
-          
-          // Update deck A after drawing
-          await supabase
-            .from("lion_decks")
-            .update({ remaining_cards: remainingDeckA })
+          await supabase.from("lion_decks")
+            .update({ remaining_cards: initialCards.filter(c => c !== dealerCard) })
             .eq("session_game_id", newSessionGameId)
             .eq("owner_player_id", playerA.id);
           
-          // Create game state with lion_config if available
+          // Create game state with adventure tracking columns
           const autoResolve = lionConfig?.auto_resolve ?? true;
           const timerEnabled = lionConfig?.timer_enabled ?? false;
-          const timerActiveSeconds = lionConfig?.timer_active_seconds ?? 60;
-          const timerGuessSeconds = lionConfig?.timer_guess_seconds ?? 30;
-          
-          console.log(`[next-session-game] LION settings: autoResolve=${autoResolve}, timerEnabled=${timerEnabled}`);
+          const timerActiveSeconds = parseConfigNumber(lionConfig?.timer_active_seconds, 60);
+          const timerGuessSeconds = parseConfigNumber(lionConfig?.timer_guess_seconds, 30);
           
           const { error: stateError } = await supabase.from("lion_game_state").insert({
             game_id: gameId,
@@ -1189,6 +1252,8 @@ serve(async (req) => {
             timer_enabled: timerEnabled,
             timer_active_seconds: timerActiveSeconds,
             timer_guess_seconds: timerGuessSeconds,
+            adventure_cumulative_before: adventureCumulativeBefore,
+            adventure_seed_pvic: adventureSeedPvic,
           });
           
           if (stateError) {

@@ -48,18 +48,24 @@ serve(async (req) => {
       );
     }
 
-    // Get both players
+    // Get both ACTIVE players (finalists only, not spectators)
     const { data: players } = await supabase
       .from('game_players')
       .select('id, display_name, pvic, player_number')
       .eq('game_id', gameState.game_id)
       .eq('is_host', false)
+      .eq('status', 'ACTIVE')  // CRITICAL: Only ACTIVE players, not SPECTATOR
       .is('removed_at', null)
       .order('player_number', { ascending: true });
 
     if (!players || players.length !== 2) {
+      console.error(`[lion-next-turn] Expected 2 ACTIVE players, found ${players?.length || 0}`);
       return new Response(
-        JSON.stringify({ error: 'Could not find both players' }),
+        JSON.stringify({ 
+          error: 'Could not find both ACTIVE players (finalists)',
+          found: players?.length || 0,
+          hint: 'Spectators should have status=SPECTATOR, not ACTIVE'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
