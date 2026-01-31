@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { MJActionsTab } from './MJActionsTab';
 import { MJChatsTab } from './MJChatsTab';
 import { MJRoundHistorySelector } from './MJRoundHistorySelector';
+import { MJPrivateMessaging } from './MJPrivateMessaging';
 
 import { KickPlayerModal } from '@/components/game/KickPlayerModal';
 import { LandscapeModePrompt } from '@/components/mj/LandscapeModePrompt';
@@ -1360,13 +1361,21 @@ export function MJInfectionDashboard({ game, onBack }: MJInfectionDashboardProps
           )}
         </TabsContent>
 
-        <TabsContent value="chat" className="p-4 mt-0">
+        <TabsContent value="chat" className="p-4 mt-0 space-y-4">
           {game.current_session_game_id && (
-            <MJChatsTab
-              gameId={game.id}
-              sessionGameId={game.current_session_game_id}
-              players={players}
-            />
+            <>
+              <MJPrivateMessaging
+                gameId={game.id}
+                sessionGameId={game.current_session_game_id}
+                manche={game.manche_active || 1}
+                players={activePlayers}
+              />
+              <MJChatsTab
+                gameId={game.id}
+                sessionGameId={game.current_session_game_id}
+                players={players}
+              />
+            </>
           )}
         </TabsContent>
       </Tabs>
