@@ -683,8 +683,13 @@ async function computeFinalScores(
           
           if (maxValidatedLevels < minSuccessLevel && potPenaltyAmount > 0) {
             // Apply penalty to adventure pot
+            // IMPORTANT: Use currentAmount if it has been set (> 0 or has been explicitly modified),
+            // otherwise fall back to initialAmount for first penalty application
             const pot = config.adventure_pot || { initialAmount: 0, currentAmount: 0 };
-            const newCurrentAmount = Math.max(0, (pot.currentAmount || pot.initialAmount || 0) - potPenaltyAmount);
+            const baseAmount = (pot.currentAmount !== undefined && pot.currentAmount !== null && pot.currentAmount > 0) 
+              ? pot.currentAmount 
+              : (pot.initialAmount || 0);
+            const newCurrentAmount = Math.max(0, baseAmount - potPenaltyAmount);
             
             // Update config
             const newConfig = {
