@@ -509,6 +509,14 @@ export function InfectionPresentationView({ game: initialGame, onClose }: Infect
           <Badge style={{ backgroundColor: INFECTION_COLORS.bgCard, color: INFECTION_COLORS.textSecondary, borderColor: INFECTION_COLORS.border }} className="border">
             Manche {currentManche}
           </Badge>
+          {/* PVic Details button (only in adventure mode) */}
+          <PresentationPvicDetailsSheet 
+            gameId={game.id}
+            isAdventureMode={game.mode === 'ADVENTURE'}
+            currentGameTypeCode="INFECTION"
+            buttonVariant="ghost"
+            buttonClassName="h-8 px-2"
+          />
           <Button
             variant="ghost"
             size="icon"
