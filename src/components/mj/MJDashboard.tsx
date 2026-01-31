@@ -93,6 +93,8 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
   const [playerCount, setPlayerCount] = useState(0);
   const [isAllBots, setIsAllBots] = useState(false);
   const [totalAdventureSteps, setTotalAdventureSteps] = useState(3);
+  const [adventureSteps, setAdventureSteps] = useState<{ game_type_code: string; step_index: number }[]>([]);
+  const [adventureConfig, setAdventureConfig] = useState<Record<string, any> | null>(null);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [foretRulesOpen, setForetRulesOpen] = useState(false);
   
@@ -166,19 +168,34 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
     }
   }, [game.current_step_index, game.adventure_id, isAdventure]);
 
-  // Fetch adventure total steps
+  // Fetch adventure total steps, adventure steps list, and adventure config
   useEffect(() => {
     if (isAdventure && game.adventure_id) {
-      const fetchSteps = async () => {
-        const { count } = await supabase
+      const fetchAdventureData = async () => {
+        // Fetch steps
+        const { data: stepsData, count } = await supabase
           .from('adventure_steps')
-          .select('*', { count: 'exact', head: true })
-          .eq('adventure_id', game.adventure_id!);
+          .select('game_type_code, step_index', { count: 'exact' })
+          .eq('adventure_id', game.adventure_id!)
+          .order('step_index');
+        
         if (count) setTotalAdventureSteps(count);
+        if (stepsData) setAdventureSteps(stepsData);
+        
+        // Fetch adventure config
+        const { data: configData } = await supabase
+          .from('adventure_game_configs')
+          .select('config')
+          .eq('game_id', game.id)
+          .single();
+        
+        if (configData?.config) {
+          setAdventureConfig(configData.config as Record<string, any>);
+        }
       };
-      fetchSteps();
+      fetchAdventureData();
     }
-  }, [game.adventure_id, isAdventure]);
+  }, [game.adventure_id, game.id, isAdventure]);
 
   // Fetch adventure cumulative scores - grouped by team (mates)
   // For RIVIERES: Calculate simulated PVic based on validated_levels and jetons in real-time
@@ -884,29 +901,43 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
             showTitle={true}
           />
           
-          {/* Adventure Token Transition Rules */}
+          {/* Adventure Token Transition Rules - Dynamic based on config */}
           <div className="pt-3 border-t border-border/50">
             <div className="flex items-center gap-2 mb-2">
               <Coins className="h-4 w-4 text-amber-400" />
               <span className="text-sm font-medium text-muted-foreground">Règles de Transition (Jetons)</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div className={`p-2 rounded-lg border ${game.selected_game_type_code === 'RIVIERES' ? 'bg-primary/20 border-primary/50' : 'bg-secondary/30 border-border/30'}`}>
-                <div className="font-medium text-blue-400">🌊 Rivières</div>
-                <div className="text-muted-foreground">Début: <span className="font-mono font-bold text-foreground">100💎</span></div>
-              </div>
-              <div className={`p-2 rounded-lg border ${game.selected_game_type_code === 'FORET' ? 'bg-primary/20 border-primary/50' : 'bg-secondary/30 border-border/30'}`}>
-                <div className="font-medium text-green-400">🌲 Forêt</div>
-                <div className="text-muted-foreground">Début: <span className="font-mono font-bold text-foreground">50💎</span></div>
-              </div>
-              <div className={`p-2 rounded-lg border ${game.selected_game_type_code === 'SHERIFF' ? 'bg-primary/20 border-primary/50' : 'bg-secondary/30 border-border/30'}`}>
-                <div className="font-medium text-amber-400">🤠 Shérif</div>
-                <div className="text-muted-foreground">Début: <span className="font-mono font-bold text-foreground">0💎</span></div>
-              </div>
-              <div className={`p-2 rounded-lg border ${game.selected_game_type_code === 'INFECTION' ? 'bg-primary/20 border-primary/50' : 'bg-secondary/30 border-border/30'}`}>
-                <div className="font-medium text-purple-400">🦠 Infection</div>
-                <div className="text-muted-foreground">Hérite: <span className="font-mono font-bold text-foreground">du Shérif</span></div>
-              </div>
+              {adventureSteps.map((step) => {
+                const isCurrentStep = step.game_type_code === game.selected_game_type_code;
+                const tokenPolicy = adventureConfig?.token_policies?.[step.game_type_code];
+                const tokenDisplay = tokenPolicy 
+                  ? (tokenPolicy.mode === 'INHERIT' ? 'Hérite' : `${tokenPolicy.fixedValue}💎`)
+                  : (step.game_type_code === 'INFECTION' || step.game_type_code === 'LION' ? 'Hérite' : '?');
+                
+                const gameInfo: Record<string, { emoji: string; colorClass: string; label: string }> = {
+                  RIVIERES: { emoji: '🌊', colorClass: 'text-blue-400', label: 'Rivières' },
+                  FORET: { emoji: '🌲', colorClass: 'text-green-400', label: 'Forêt' },
+                  SHERIFF: { emoji: '🤠', colorClass: 'text-amber-400', label: 'Shérif' },
+                  INFECTION: { emoji: '🦠', colorClass: 'text-purple-400', label: 'Infection' },
+                  LION: { emoji: '🦁', colorClass: 'text-rose-400', label: 'Lion' },
+                };
+                
+                const info = gameInfo[step.game_type_code] || { emoji: '🎮', colorClass: 'text-muted-foreground', label: step.game_type_code };
+                
+                return (
+                  <div 
+                    key={step.game_type_code}
+                    className={`p-2 rounded-lg border ${isCurrentStep ? 'bg-primary/20 border-primary/50' : 'bg-secondary/30 border-border/30'}`}
+                  >
+                    <div className={`font-medium ${info.colorClass}`}>{info.emoji} {info.label}</div>
+                    <div className="text-muted-foreground">
+                      {tokenPolicy?.mode === 'INHERIT' ? 'Hérite: ' : 'Début: '}
+                      <span className="font-mono font-bold text-foreground">{tokenDisplay}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <div className="mt-2 text-xs text-muted-foreground/70">
               💡 Clan Royaux: +50% bonus sur les jetons de départ
@@ -915,7 +946,7 @@ export function MJDashboard({ game: initialGame, onBack }: MJDashboardProps) {
           
           {/* Adventure Transition Guide - Detailed initialization info */}
           <div className="pt-3 border-t border-border/50">
-            <AdventureTransitionGuide />
+            <AdventureTransitionGuide config={adventureConfig} adventureSteps={adventureSteps} />
           </div>
           
           {/* Cumulative PVic Ranking - Team based with podium toggle */}
