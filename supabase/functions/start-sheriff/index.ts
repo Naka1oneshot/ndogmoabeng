@@ -93,17 +93,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Get active players
+    // Get active players (ALWAYS exclude host)
     const { data: players, error: playersError } = await supabase
       .from('game_players')
       .select('id, player_number, jetons, pvic, clan')
       .eq('game_id', gameId)
       .eq('status', 'ACTIVE')
       .eq('is_host', false)
+      .is('removed_at', null)
       .not('player_number', 'is', null)
       .order('player_number');
 
     if (playersError) throw playersError;
+    
+    console.log(`[start-sheriff] Players found: ${players?.length || 0} (excluding host)`);
 
     if (!players || players.length < 2) {
       return new Response(

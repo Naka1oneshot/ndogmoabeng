@@ -106,13 +106,17 @@ serve(async (req) => {
       // Get current game type to handle game-specific score saving
       const currentGameTypeCode = game.selected_game_type_code;
       
-      // Get players for score saving
+      // Get players for score saving (ALWAYS exclude host)
       const { data: players } = await supabase
         .from("game_players")
         .select("id, player_number, recompenses, pvic, jetons")
         .eq("game_id", gameId)
         .eq("status", "ACTIVE")
+        .eq("is_host", false)
+        .is("removed_at", null)
         .not("player_number", "is", null);
+      
+      console.log(`[next-session-game] Score saving: ${players?.length || 0} players (excluding host)`);
 
       // SHERIFF: Save adventure_scores based on sheriff_player_choices victory_points_delta
       // Sheriff's resolution function updates game_players.pvic but may not always save to adventure_scores
@@ -223,13 +227,17 @@ serve(async (req) => {
     if (stepError || !nextStep) {
       console.log(`[next-session-game] No more steps found, adventure complete`);
       
-      // Save final adventure scores before ending
+      // Save final adventure scores before ending (exclude host)
       const { data: finalPlayers } = await supabase
         .from("game_players")
         .select("id, player_number, recompenses, pvic")
         .eq("game_id", gameId)
         .eq("status", "ACTIVE")
+        .eq("is_host", false)
+        .is("removed_at", null)
         .not("player_number", "is", null);
+      
+      console.log(`[next-session-game] Adventure complete: ${finalPlayers?.length || 0} players (excluding host)`);
 
       console.log(`[next-session-game] Adventure complete - scores already saved by game resolution`);
       
@@ -371,13 +379,18 @@ serve(async (req) => {
       })
       .eq("id", gameId);
 
-    // Get players for updates
+    // Get players for updates (ALWAYS exclude host and removed players)
     const { data: players } = await supabase
       .from("game_players")
       .select("id, player_number, jetons, clan, pvic, mate_num, display_name, status")
       .eq("game_id", gameId)
       .eq("status", "ACTIVE")
+      .eq("is_host", false)
+      .is("removed_at", null)
       .not("player_number", "is", null);
+    
+    const playerCount = players?.length || 0;
+    console.log(`[next-session-game] Players for ${gameTypeCode} init: ${playerCount} (excluding host)`);
 
     // =====================================================================
     // UPDATE PLAYER TOKENS based on policy
@@ -1057,31 +1070,54 @@ serve(async (req) => {
         let finalistIds: string[] = [];
         let finalistNames: string[] = [];
         let teamCumulative = 0;
-        let usedFallback = false;
         
+        // STRICT: Only accept complete teams (2 players with valid mate_num)
+        // NO FALLBACK to "top 2 individuals"
         if (sortedTeams.length > 0) {
           // Normal case: use top complete team
           const winningTeam = sortedTeams[0];
           finalistIds = winningTeam.players.map(p => p.id);
           finalistNames = winningTeam.players.map(p => p.display_name);
           teamCumulative = winningTeam.totalCumulative;
-        } else {
-          // FALLBACK: No complete teams - take top 2 individuals by cumulative score
-          console.log(`[next-session-game] LION FALLBACK: No complete teams, selecting top 2 individuals by adventure_scores`);
-          usedFallback = true;
           
-          const sortedIndividuals = [...players].sort((a, b) => {
-            const cumulDiff = (cumulativeScores[b.id] || 0) - (cumulativeScores[a.id] || 0);
-            if (cumulDiff !== 0) return cumulDiff;
-            return (a.player_number || 99) - (b.player_number || 99);
+          console.log(`[next-session-game] ✅ LION winning team selected: ${finalistNames.join(' & ')} with cumulative ${teamCumulative}`);
+          console.log(`[next-session-game] LION finalists IDs: ${finalistIds.join(', ')}`);
+          console.log(`[next-session-game] LION NO FALLBACK possible - only complete teams allowed`);
+        } else {
+          // ERROR: No complete teams - cannot proceed
+          console.error(`[next-session-game] ❌ LION ERROR: No complete team found (mate_num pairs required)`);
+          
+          // Log error event for MJ
+          await supabase.from("session_events").insert({
+            game_id: gameId,
+            session_game_id: newSessionGameId,
+            audience: "MJ",
+            type: "ERROR",
+            message: `🦁 Impossible de lancer Lion : aucune équipe complète détectée (mate_num). Vérifiez que les joueurs ont des binômes valides (1-2, 3-4, etc.)`,
+            payload: {
+              playerCount: players.length,
+              teams: Object.values(teamScores).map(t => ({
+                teamKey: t.minPlayerNum,
+                playerCount: t.players.length,
+                players: t.players.map(p => p.display_name)
+              }))
+            },
           });
           
-          const top2 = sortedIndividuals.slice(0, 2);
-          finalistIds = top2.map(p => p.id);
-          finalistNames = top2.map(p => p.display_name);
-          teamCumulative = top2.reduce((sum, p) => sum + (cumulativeScores[p.id] || 0), 0);
-          
-          console.log(`[next-session-game] LION FALLBACK finalists: ${finalistNames.join(' vs ')}`);
+          return new Response(
+            JSON.stringify({ 
+              error: `Impossible de lancer Lion : aucune équipe complète détectée (mate_num).`,
+              details: { 
+                playerCount: players.length, 
+                completeTeams: 0,
+                teamsFound: Object.values(teamScores).map(t => ({
+                  teamKey: t.minPlayerNum,
+                  playerCount: t.players.length
+                }))
+              }
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
         
         // Verify we have exactly 2 finalists
@@ -1127,11 +1163,10 @@ serve(async (req) => {
           session_game_id: newSessionGameId,
           audience: "ALL",
           type: "LION_FINALISTS",
-          message: `🦁 Finale du Cœur du Lion ! ${finalistNames.join(' affronte ')} pour le titre suprême !${usedFallback ? ' (sélection individuelle)' : ''}`,
+          message: `🦁 Finale du Cœur du Lion ! ${finalistNames.join(' affronte ')} pour le titre suprême !`,
           payload: {
             finalists: finalistIds.map((id, i) => ({ id, name: finalistNames[i] })),
             teamCumulative,
-            usedFallback,
           },
         });
       }
