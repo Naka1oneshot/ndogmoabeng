@@ -23,6 +23,7 @@ interface Player {
   has_antibodies: boolean;
   clan: string | null;
   is_bot: boolean;
+  is_host: boolean;
 }
 
 interface InfectionInput {
@@ -691,9 +692,16 @@ Deno.serve(async (req) => {
       })
       .sort((a, b) => a.player_number - b.player_number);
 
-    // Get original circle order (all players sorted by number)
-    const allPlayersSorted = [...players].sort((a, b) => a.player_number - b.player_number);
+    // Get original circle order (all ACTIVE players sorted by number, excluding host and null player_numbers)
+    const allPlayersSorted = [...players]
+      .filter(p => !p.is_host && p.player_number !== null && p.player_number !== undefined)
+      .sort((a, b) => a.player_number - b.player_number);
     const allNums = allPlayersSorted.map(p => p.player_number);
+    
+    addLog('STEP_8_CIRCLE', { 
+      allNums,
+      playerCount: allNums.length 
+    });
 
     // Global limit: max 2 new infections per round
     const MAX_NEW_INFECTIONS_PER_ROUND = 2;
