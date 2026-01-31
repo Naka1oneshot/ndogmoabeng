@@ -14,6 +14,7 @@ import {
 } from './LionTheme';
 import { LionRulesOverlay } from './rules/LionRulesOverlay';
 import { LionScoringSettings } from './LionScoringSettings';
+import { LionBotSettings } from './LionBotSettings';
 import { 
   Loader2, 
   RefreshCw, 
@@ -536,6 +537,19 @@ export function MJLionDashboard({ game, onPresentationMode }: MJLionDashboardPro
                 scoringEqualWrong={gameState.scoring_equal_wrong ?? 10}
                 onUpdate={refetch}
                 disabled={gameState.turn_index > 1}
+              />
+            </div>
+
+            {/* Bot Settings */}
+            <div className="mb-6">
+              <LionBotSettings
+                gameStateId={gameState.id}
+                sessionGameId={sessionGameId!}
+                botEnabled={gameState.bot_enabled ?? false}
+                botActiveStrategy={gameState.bot_active_strategy ?? 'random'}
+                botGuessStrategy={gameState.bot_guess_strategy ?? 'smart'}
+                botDelayMs={gameState.bot_delay_ms ?? 1500}
+                onUpdate={refetch}
               />
             </div>
 

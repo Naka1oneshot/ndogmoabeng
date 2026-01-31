@@ -18,6 +18,11 @@ export interface LionGameState {
   scoring_equal_correct: number;
   scoring_equal_wrong: number;
   scoring_use_diff: boolean;
+  // Bot settings
+  bot_enabled: boolean;
+  bot_active_strategy: string;
+  bot_guess_strategy: string;
+  bot_delay_ms: number;
 }
 
 export interface LionTurn {
