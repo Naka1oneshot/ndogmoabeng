@@ -252,7 +252,14 @@ serve(async (req) => {
       monstersQuery,
       supabase.from('monster_catalog').select('*'),
       inventoryQuery,
-      supabase.from('game_players').select('*').eq('game_id', gameId).eq('status', 'ACTIVE'),
+      supabase
+        .from('game_players')
+        .select('*')
+        .eq('game_id', gameId)
+        .eq('status', 'ACTIVE')
+        .eq('is_host', false)
+        .is('removed_at', null)
+        .not('player_number', 'is', null),
     ]);
 
     if (!positions || positions.length === 0) {
