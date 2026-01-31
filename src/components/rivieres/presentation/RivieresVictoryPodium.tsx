@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import confetti from 'canvas-confetti';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
+import { WinnerPrizeBadge } from '@/components/shared/WinnerPrizeBadge';
 
 interface RankedPlayer {
   id: string;
@@ -47,9 +48,11 @@ interface RivieresVictoryPodiumProps {
   allDecisions: HistoricalDecision[];
   players: Player[];
   onClose: () => void;
+  /** Adventure pot amount to display for the winner (only shown if provided and > 0) */
+  adventurePotAmount?: number | null;
 }
 
-export function RivieresVictoryPodium({ ranking, levelHistory, allDecisions, players, onClose }: RivieresVictoryPodiumProps) {
+export function RivieresVictoryPodium({ ranking, levelHistory, allDecisions, players, onClose, adventurePotAmount }: RivieresVictoryPodiumProps) {
   // Animation states for reveal
   const [revealedRanks, setRevealedRanks] = useState<number[]>([]);
   const [showStats, setShowStats] = useState(false);
@@ -319,6 +322,10 @@ export function RivieresVictoryPodium({ ranking, levelHistory, allDecisions, pla
                     <span className="text-[#4ADE80] font-medium">{top3[0].jetons}💎</span>
                   </div>
                   <span className="text-lg md:text-3xl font-bold text-[#D4AF37]">{top3[0].score_value}pts</span>
+                  {/* Adventure pot prize for winner */}
+                  {adventurePotAmount && adventurePotAmount > 0 && (
+                    <WinnerPrizeBadge amount={adventurePotAmount} size="sm" className="mt-1" />
+                  )}
                   <div className="h-20 w-16 md:h-32 md:w-28 bg-[#D4AF37] rounded-t-lg flex items-center justify-center mt-1 md:mt-2">
                     <span className="text-3xl md:text-5xl">🥇</span>
                   </div>

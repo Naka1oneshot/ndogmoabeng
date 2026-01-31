@@ -14,6 +14,8 @@ import { LionFinalBattleAnimation } from './LionFinalBattleAnimation';
 import { Loader2, RefreshCw, BookOpen, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logoNdogmoabeng from '@/assets/logo-ndogmoabeng.png';
+import { useAdventurePotPrize } from '@/hooks/useAdventurePotPrize';
+import { WinnerPrizeBadge } from '@/components/shared/WinnerPrizeBadge';
 
 interface LionPresentationViewProps {
   game: {
@@ -55,6 +57,9 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
     getPlayerById,
     getDealerCardsPlayed
   } = useLionGameState(sessionGameId || undefined);
+
+  // Check if this is the final game of an adventure and get pot amount
+  const { potAmount, isFinalGame } = useAdventurePotPrize(game.id, sessionGameId);
 
   // Track turn changes and animate
   useEffect(() => {
@@ -191,9 +196,14 @@ export function LionPresentationView({ game, onClose }: LionPresentationViewProp
               className="mx-auto mb-6 ring-4 ring-amber-400"
             />
             
-            <h1 className="text-5xl font-bold text-amber-300 mb-6 lion-text-glow">
+            <h1 className="text-5xl font-bold text-amber-300 mb-4 lion-text-glow">
               {winner?.display_name} Triomphe !
             </h1>
+            
+            {/* Adventure pot prize for winner */}
+            {isFinalGame && potAmount && potAmount > 0 && (
+              <WinnerPrizeBadge amount={potAmount} size="lg" className="mb-6" />
+            )}
             
             <div className="flex items-center justify-center gap-8 mb-4">
               <div className="text-center">

@@ -22,6 +22,7 @@ import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdvent
 import { RivieresAutoCountdownOverlay } from '../RivieresAutoCountdownOverlay';
 import { RivieresRulesOverlay } from '../rules/RivieresRulesOverlay';
 import { PresentationPvicDetailsSheet } from '@/components/presentation/PresentationPvicDetailsSheet';
+import { useAdventurePotPrize } from '@/hooks/useAdventurePotPrize';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 

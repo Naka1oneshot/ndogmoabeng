@@ -23,6 +23,7 @@ import { AdventureCinematicOverlay } from '@/components/adventure/AdventureCinem
 import { useAdventureCinematic, getSequenceForGameType } from '@/hooks/useAdventureCinematic';
 import { ForetRulesOverlay } from '../rules/ForetRulesOverlay';
 import { PresentationPvicDetailsSheet } from '@/components/presentation/PresentationPvicDetailsSheet';
+import { useAdventurePotPrize } from '@/hooks/useAdventurePotPrize';
 
 const LA_CARTE_TROUVEE_ID = 'a1b2c3d4-5678-9012-3456-789012345678';
 
@@ -176,7 +177,14 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
 
   // Check if this is ANY adventure mode (not just "La carte trouvée")
   const isAdventureMode = initialGame.mode === 'ADVENTURE';
-  const isLaCarteTrouvee = isAdventureMode && 
+  
+  // Check if this is the final game of an adventure and get pot amount
+  const { potAmount: adventurePotAmount, isFinalGame: isAdventureFinalGame } = useAdventurePotPrize(
+    initialGame.id, 
+    initialGame.current_session_game_id
+  );
+  
+  const isLaCarteTrouvee = isAdventureMode &&
     (initialGame as any).adventure_id === LA_CARTE_TROUVEE_ID;
 
   console.log('[FORET][PRESENTATION] Adventure check:', {
@@ -951,6 +959,7 @@ export function ForetPresentationView({ game: initialGame, onClose }: Presentati
         rankings={playerRankings}
         gameStats={buildGameStats()}
         isIntermediatePodium={podiumType === 'intermediate'}
+        adventurePotAmount={isAdventureFinalGame ? adventurePotAmount : null}
       />
     );
   }
