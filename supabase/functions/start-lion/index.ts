@@ -110,6 +110,7 @@ serve(async (req) => {
 
     // Get players - in ADVENTURE mode, only get ACTIVE players (the 2 finalists)
     // In standalone mode, get all non-host, non-removed players
+    // ALWAYS exclude host (is_host=false) and removed players
     let playersQuery = supabase
       .from('game_players')
       .select('id, display_name, player_number, user_id, pvic, status')
@@ -123,6 +124,8 @@ serve(async (req) => {
     }
 
     const { data: players, error: playersError } = await playersQuery.order('joined_at', { ascending: true });
+    
+    console.log(`[start-lion] Players found: ${players?.length || 0} (is_host=false, removed_at=null${isAdventure ? ', status=ACTIVE' : ''})`);
 
     if (playersError || !players) {
       return new Response(
