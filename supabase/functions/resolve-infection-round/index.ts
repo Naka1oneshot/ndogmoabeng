@@ -898,10 +898,10 @@ Deno.serve(async (req) => {
       publicEvents.push(`🦠 VICTOIRE PV! Le virus a triomphé - tous les non-PV sont morts!`);
     }
     // All remaining non-PV are protected (immune or antibodies) - PV wins by attrition
-    else if (remainingNonPV.filter(p => !p.immune_permanent && !p.has_antibodies).length === 0) {
+    else if (remainingNonPV.length > 0 && remainingNonPV.filter(p => !p.immune_permanent && !p.has_antibodies).length === 0) {
       gameEnded = true;
       winner = 'PV';
-      publicEvents.push(`🦠 VICTOIRE PV! Le virus a triomphé!`);
+      publicEvents.push(`🦠 VICTOIRE PV! Tous les survivants non-PV sont immunisés - le virus ne peut plus se propager mais le PV a survécu!`);
     }
 
     addLog('STEP_9_END_CHECK', { 
