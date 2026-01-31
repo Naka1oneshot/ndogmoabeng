@@ -4076,6 +4076,21 @@ export type Database = {
         Args: { p_display_name: string; p_user_id?: string }
         Returns: string
       }
+      get_adventure_finalists_scores: {
+        Args: { p_game_id: string; p_user_id: string }
+        Returns: {
+          adventure_game_id: string
+          adventure_name: string
+          finalist_1_id: string
+          finalist_1_name: string
+          finalist_1_score_total: number
+          finalist_2_id: string
+          finalist_2_name: string
+          finalist_2_score_total: number
+          winner_name: string
+          winner_player_id: string
+        }[]
+      }
       get_event_confirmed_count: {
         Args: { p_event_id: string }
         Returns: number

@@ -61,6 +61,7 @@ import { LoginHistorySection } from '@/components/profile/LoginHistorySection';
 import { SessionManagementSection } from '@/components/profile/SessionManagementSection';
 import { ActiveGamesSection } from '@/components/profile/ActiveGamesSection';
 import { ClanAffinitySection } from '@/components/profile/ClanAffinitySection';
+import { AdventureResultsSection } from '@/components/profile/AdventureResultsSection';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -464,6 +465,9 @@ export default function Profile() {
 
         {/* Game History Section */}
         <GameHistorySection />
+
+        {/* Adventure Results Section */}
+        <AdventureResultsSection />
 
         {/* Friends Section */}
         <FriendsSection />

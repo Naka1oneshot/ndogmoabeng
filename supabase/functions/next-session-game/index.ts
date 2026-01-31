@@ -290,9 +290,67 @@ serve(async (req) => {
     }
 
     // =====================================================================
-    // DETERMINE TOKEN POLICY (priority: config > step policy > game_type default)
+    // VALIDATE MINIMUM PLAYERS REQUIREMENT
     // =====================================================================
     const gameTypeCode = nextStep.game_type_code;
+    
+    // Fetch min_players from game_types
+    const { data: gameTypeInfo } = await supabase
+      .from("game_types")
+      .select("min_players, default_starting_tokens")
+      .eq("code", gameTypeCode)
+      .single();
+    
+    const minPlayersRequired = gameTypeInfo?.min_players || 2;
+    
+    // Count eligible players (exclude host, removed, and only ACTIVE for most games)
+    // For LION, we also need complete teams, handled separately in LION init
+    const { data: eligiblePlayers, error: eligibleError } = await supabase
+      .from("game_players")
+      .select("id, player_number, status")
+      .eq("game_id", gameId)
+      .eq("is_host", false)
+      .is("removed_at", null)
+      .eq("status", "ACTIVE")
+      .not("player_number", "is", null);
+    
+    const eligibleCount = eligiblePlayers?.length || 0;
+    
+    console.log(`[next-session-game] Min players check: ${gameTypeCode} requires ${minPlayersRequired}, found ${eligibleCount} ACTIVE players`);
+    
+    if (eligibleCount < minPlayersRequired) {
+      console.error(`[next-session-game] ❌ Not enough players: ${eligibleCount} < ${minPlayersRequired}`);
+      
+      // Log error event for MJ
+      await supabase.from("session_events").insert({
+        game_id: gameId,
+        audience: "MJ",
+        type: "ERROR",
+        message: `⚠️ Impossible de lancer ${gameTypeCode} : ${eligibleCount} joueurs actifs, minimum requis ${minPlayersRequired}`,
+        payload: {
+          gameTypeCode,
+          eligibleCount,
+          minPlayersRequired,
+          error: "INSUFFICIENT_PLAYERS"
+        },
+      });
+      
+      return new Response(
+        JSON.stringify({
+          error: `Pas assez de joueurs pour ${gameTypeCode}`,
+          details: {
+            currentPlayers: eligibleCount,
+            minRequired: minPlayersRequired,
+            gameType: gameTypeCode
+          }
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // =====================================================================
+    // DETERMINE TOKEN POLICY (priority: config > step policy > game_type default)
+    // =====================================================================
     let newStartingTokens: number;
     let tokenPolicyUsed: string = "default";
     
