@@ -1109,6 +1109,131 @@ serve(async (req) => {
         });
       }
       
+      // =====================================================================
+      // LION GAME STATE INITIALIZATION (previously in start-lion)
+      // =====================================================================
+      
+      // Load adventure config for Lion-specific settings
+      let lionConfig: any = null;
+      if (adventureConfig?.lion_config) {
+        lionConfig = adventureConfig.lion_config;
+        console.log('[next-session-game] LION config loaded from adventure:', lionConfig);
+      }
+      
+      // Get the 2 finalists (players we just set to ACTIVE)
+      const { data: lionFinalists } = await supabase
+        .from("game_players")
+        .select("id, display_name, player_number, user_id, pvic, status")
+        .eq("game_id", gameId)
+        .eq("status", "ACTIVE")
+        .eq("is_host", false)
+        .is("removed_at", null)
+        .order("joined_at", { ascending: true });
+      
+      if (lionFinalists && lionFinalists.length === 2) {
+        const playerA = lionFinalists[0];
+        const playerB = lionFinalists[1];
+        
+        // Check if game state already exists (idempotency guard)
+        const { data: existingLionState } = await supabase
+          .from("lion_game_state")
+          .select("id")
+          .eq("session_game_id", newSessionGameId)
+          .maybeSingle();
+        
+        if (!existingLionState) {
+          // Create hands for both players
+          const initialCards = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+          
+          await supabase.from("lion_hands").insert([
+            { session_game_id: newSessionGameId, owner_player_id: playerA.id, remaining_cards: initialCards },
+            { session_game_id: newSessionGameId, owner_player_id: playerB.id, remaining_cards: initialCards }
+          ]);
+          console.log(`[next-session-game] LION hands created for finalists`);
+          
+          // Create decks for both players
+          await supabase.from("lion_decks").insert([
+            { session_game_id: newSessionGameId, owner_player_id: playerA.id, remaining_cards: initialCards },
+            { session_game_id: newSessionGameId, owner_player_id: playerB.id, remaining_cards: initialCards }
+          ]);
+          console.log(`[next-session-game] LION decks created for finalists`);
+          
+          // Draw first dealer card from player A's deck
+          const dealerCard = initialCards[Math.floor(Math.random() * initialCards.length)];
+          const remainingDeckA = initialCards.filter(c => c !== dealerCard);
+          
+          // Update deck A after drawing
+          await supabase
+            .from("lion_decks")
+            .update({ remaining_cards: remainingDeckA })
+            .eq("session_game_id", newSessionGameId)
+            .eq("owner_player_id", playerA.id);
+          
+          // Create game state with lion_config if available
+          const autoResolve = lionConfig?.auto_resolve ?? true;
+          const timerEnabled = lionConfig?.timer_enabled ?? false;
+          const timerActiveSeconds = lionConfig?.timer_active_seconds ?? 60;
+          const timerGuessSeconds = lionConfig?.timer_guess_seconds ?? 30;
+          
+          console.log(`[next-session-game] LION settings: autoResolve=${autoResolve}, timerEnabled=${timerEnabled}`);
+          
+          const { error: stateError } = await supabase.from("lion_game_state").insert({
+            game_id: gameId,
+            session_game_id: newSessionGameId,
+            status: "RUNNING",
+            turn_index: 1,
+            sudden_pair_index: 0,
+            active_player_id: playerA.id,
+            guesser_player_id: playerB.id,
+            auto_resolve: autoResolve,
+            timer_enabled: timerEnabled,
+            timer_active_seconds: timerActiveSeconds,
+            timer_guess_seconds: timerGuessSeconds,
+          });
+          
+          if (stateError) {
+            console.error("[next-session-game] LION state error:", stateError);
+          } else {
+            console.log(`[next-session-game] LION game_state created`);
+          }
+          
+          // Create first turn
+          const { error: turnError } = await supabase.from("lion_turns").insert({
+            session_game_id: newSessionGameId,
+            turn_index: 1,
+            is_sudden_death: false,
+            sudden_pair_index: 0,
+            dealer_owner_player_id: playerA.id,
+            dealer_card: dealerCard,
+            active_player_id: playerA.id,
+            guesser_player_id: playerB.id
+          });
+          
+          if (turnError) {
+            console.error("[next-session-game] LION first turn error:", turnError);
+          } else {
+            console.log(`[next-session-game] LION first turn created with dealer card ${dealerCard}`);
+          }
+          
+          // Publish start event
+          await supabase.from("game_events").insert({
+            game_id: gameId,
+            session_game_id: newSessionGameId,
+            event_type: "LION_START",
+            message: `🦁 Le CŒUR du Lion commence ! ${playerA.display_name} joue en premier.`,
+            visibility: "PUBLIC",
+            manche: 1,
+            phase: "LION_TURN"
+          });
+          
+          console.log(`[next-session-game] LION full initialization complete: ${playerA.display_name} vs ${playerB.display_name}`);
+        } else {
+          console.log(`[next-session-game] LION state already exists, skipping initialization`);
+        }
+      } else {
+        console.error(`[next-session-game] LION ERROR: Expected 2 ACTIVE finalists, found ${lionFinalists?.length || 0}`);
+      }
+      
       // Update phases
       await supabase
         .from("session_games")
@@ -1120,7 +1245,7 @@ serve(async (req) => {
         .update({ phase: 'LION_TURN' })
         .eq("id", gameId);
       
-      console.log(`[next-session-game] LION initialization complete`);
+      console.log(`[next-session-game] LION phase updates complete`);
     } else {
       console.log(`[next-session-game] Skipping special init for ${gameTypeCode}`);
     }
