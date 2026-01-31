@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
     // Update game status
     const { error: gameError } = await supabase
       .from('games')
-      .update({ status: 'IN_GAME', phase: 'PHASE1_CHOICES' })
+      .update({ status: 'IN_GAME', phase: 'CHOICES' })
       .eq('id', gameId);
 
     if (gameError) throw gameError;
