@@ -1645,13 +1645,17 @@ serve(async (req) => {
         // =========================================================================
         console.log('[resolve-combat] Saving adventure_scores for Forêt session...');
         
-        // Get updated player data with current recompenses
+        // Get updated player data with current recompenses (exclude host and removed players)
         const { data: adventurePlayers } = await supabase
           .from('game_players')
           .select('id, player_number, recompenses, pvic')
           .eq('game_id', gameId)
           .eq('status', 'ACTIVE')
+          .eq('is_host', false)
+          .is('removed_at', null)
           .not('player_number', 'is', null);
+        
+        console.log(`[resolve-combat] Adventure players for scores: ${adventurePlayers?.length || 0} (excluding host)`);
         
         if (adventurePlayers && sessionGameId) {
           for (const player of adventurePlayers) {

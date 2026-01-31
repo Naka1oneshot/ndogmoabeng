@@ -11,6 +11,7 @@ const GAME_TYPE_NAMES: Record<string, string> = {
   FORET: 'Forêt',
   SHERIFF: 'Shérif',
   INFECTION: 'Infection',
+  LION: 'Lion',
 };
 
 interface PvicBreakdown {
@@ -81,7 +82,7 @@ export function PvicBreakdownTooltip({
             }).filter(item => item.value !== 0);
 
             // Sort by adventure order
-            const order = ['Rivières', 'Forêt', 'Shérif', 'Infection'];
+            const order = ['Rivières', 'Forêt', 'Shérif', 'Infection', 'Lion'];
             breakdownList.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
             
             setBreakdown(breakdownList);
