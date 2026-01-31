@@ -299,9 +299,17 @@ serve(async (req) => {
     // Check adventure config first
     const tokenPolicyFromConfig = adventureConfig?.token_policies?.[gameTypeCode];
     
+    // Helper to parse fixedValue that might be a string from UI
+    const parseFixedValue = (val: any): number | null => {
+      if (val === null || val === undefined) return null;
+      const parsed = typeof val === "string" ? parseFloat(val) : val;
+      return typeof parsed === "number" && !isNaN(parsed) ? parsed : null;
+    };
+    
     if (tokenPolicyFromConfig) {
-      if (tokenPolicyFromConfig.mode === "FIXED" && typeof tokenPolicyFromConfig.fixedValue === "number") {
-        newStartingTokens = tokenPolicyFromConfig.fixedValue;
+      const fixedVal = parseFixedValue(tokenPolicyFromConfig.fixedValue);
+      if (tokenPolicyFromConfig.mode === "FIXED" && fixedVal !== null) {
+        newStartingTokens = fixedVal;
         tokenPolicyUsed = "config_fixed";
         console.log(`[next-session-game] Using config FIXED tokens for ${gameTypeCode}: ${newStartingTokens}`);
       } else if (tokenPolicyFromConfig.mode === "INHERIT") {

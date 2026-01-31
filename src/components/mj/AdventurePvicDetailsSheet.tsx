@@ -11,8 +11,11 @@ const GAME_TYPE_INFO: Record<string, { name: string; emoji: string; color: strin
   FORET: { name: 'Forêt', emoji: '🌲', color: 'text-green-400' },
   SHERIFF: { name: 'Shérif', emoji: '🤠', color: 'text-amber-400' },
   INFECTION: { name: 'Infection', emoji: '🦠', color: 'text-purple-400' },
-  LION: { name: 'Lion', emoji: '🦁', color: 'text-orange-400' },
+  LION: { name: 'Lion', emoji: '🦁', color: 'text-rose-400' },
 };
+
+// Stable column order for adventure games
+const GAME_ORDER = ['RIVIERES', 'FORET', 'SHERIFF', 'INFECTION', 'LION'];
 
 interface PvicBreakdown {
   [sessionGameId: string]: number;
@@ -58,18 +61,39 @@ export function AdventurePvicDetailsSheet({
   const fetchAllBreakdowns = async () => {
     setLoading(true);
     try {
-      // Fetch all players
+      // Fetch all players (ACTIVE + SPECTATOR, excluding host and removed)
       const { data: players } = await supabase
         .from('game_players')
         .select('id, display_name, player_number, pvic, recompenses')
         .eq('game_id', gameId)
-        .eq('status', 'ACTIVE')
+        .in('status', ['ACTIVE', 'SPECTATOR'])
         .eq('is_host', false)
+        .is('removed_at', null)
         .order('player_number');
 
       if (!players) {
         setPlayerBreakdowns([]);
         return;
+      }
+
+      // Fetch all session_games for this adventure to build stable columns
+      const { data: sessionGames } = await supabase
+        .from('session_games')
+        .select('id, game_type_code, step_index')
+        .eq('session_id', gameId)
+        .order('step_index', { ascending: true });
+
+      // Build stable game types from session_games (ordered by step_index)
+      const stableGameTypes: string[] = [];
+      const sessionGameIdByType: Record<string, string[]> = {};
+      for (const sg of sessionGames || []) {
+        if (!stableGameTypes.includes(sg.game_type_code)) {
+          stableGameTypes.push(sg.game_type_code);
+        }
+        if (!sessionGameIdByType[sg.game_type_code]) {
+          sessionGameIdByType[sg.game_type_code] = [];
+        }
+        sessionGameIdByType[sg.game_type_code].push(sg.id);
       }
 
       // Fetch all adventure_scores for this game
@@ -78,66 +102,40 @@ export function AdventurePvicDetailsSheet({
         .select('game_player_id, total_score_value, breakdown')
         .eq('session_id', gameId);
 
-      // Get all session_game_ids from breakdowns to resolve names
-      const allSessionGameIds = new Set<string>();
-      scores?.forEach(score => {
-        if (score.breakdown) {
-          const breakdownObj = score.breakdown as PvicBreakdown;
-          Object.keys(breakdownObj).forEach(id => allSessionGameIds.add(id));
-        }
-      });
-
-      // Fetch session_games to get game_type_code
-      let sessionGameMap = new Map<string, { game_type_code: string; step_index: number }>();
-      if (allSessionGameIds.size > 0) {
-        const { data: sessionGames } = await supabase
-          .from('session_games')
-          .select('id, game_type_code, step_index')
-          .in('id', Array.from(allSessionGameIds));
-
-        if (sessionGames) {
-          sessionGameMap = new Map(sessionGames.map(sg => [sg.id, { 
-            game_type_code: sg.game_type_code, 
-            step_index: sg.step_index 
-          }]));
-        }
-      }
-
-      // Build player breakdowns
+      // Build player breakdowns using stable game types from session_games
       const scoresMap = new Map(scores?.map(s => [s.game_player_id, s]) || []);
-      const uniqueGameTypes = new Set<string>();
 
       const breakdowns: PlayerBreakdown[] = players.map(player => {
         const scoreData = scoresMap.get(player.id);
         const breakdown: PlayerBreakdown['breakdown'] = [];
+        const breakdownObj = (scoreData?.breakdown as PvicBreakdown) || {};
         
-        if (scoreData?.breakdown) {
-          const breakdownObj = scoreData.breakdown as PvicBreakdown;
+        // Build breakdown for each stable game type (including 0 values)
+        for (const gameType of stableGameTypes) {
+          const sessionGameIds = sessionGameIdByType[gameType] || [];
+          // Sum all session game scores for this game type
+          let typeTotal = 0;
+          for (const sgId of sessionGameIds) {
+            typeTotal += breakdownObj[sgId] ?? 0;
+          }
           
-          // Convert breakdown to readable format
-          Object.entries(breakdownObj).forEach(([sessionGameId, value]) => {
-            const sgInfo = sessionGameMap.get(sessionGameId);
-            if (sgInfo && value !== 0) {
-              const gameInfo = GAME_TYPE_INFO[sgInfo.game_type_code] || { 
-                name: sgInfo.game_type_code, 
-                emoji: '🎮', 
-                color: 'text-muted-foreground' 
-              };
-              breakdown.push({
-                gameType: sgInfo.game_type_code,
-                gameName: gameInfo.name,
-                emoji: gameInfo.emoji,
-                color: gameInfo.color,
-                value,
-              });
-              uniqueGameTypes.add(sgInfo.game_type_code);
-            }
+          const gameInfo = GAME_TYPE_INFO[gameType] || { 
+            name: gameType, 
+            emoji: '🎮', 
+            color: 'text-muted-foreground' 
+          };
+          
+          breakdown.push({
+            gameType,
+            gameName: gameInfo.name,
+            emoji: gameInfo.emoji,
+            color: gameInfo.color,
+            value: typeTotal,
           });
-
-          // Sort by adventure order
-          const order = ['RIVIERES', 'FORET', 'SHERIFF', 'INFECTION', 'LION'];
-          breakdown.sort((a, b) => order.indexOf(a.gameType) - order.indexOf(b.gameType));
         }
+
+        // Sort by adventure order
+        breakdown.sort((a, b) => GAME_ORDER.indexOf(a.gameType) - GAME_ORDER.indexOf(b.gameType));
 
         // Current game estimate (recompenses for current session)
         const currentGameEstimate = player.recompenses || 0;
@@ -156,9 +154,9 @@ export function AdventurePvicDetailsSheet({
       // Sort by total score descending
       breakdowns.sort((a, b) => b.totalScore - a.totalScore);
 
-      // Set game types in order
-      const order = ['RIVIERES', 'FORET', 'SHERIFF', 'INFECTION', 'LION'];
-      setGameTypes(order.filter(gt => uniqueGameTypes.has(gt)));
+      // Use stable game types from session_games (sorted by GAME_ORDER)
+      const orderedTypes = stableGameTypes.sort((a, b) => GAME_ORDER.indexOf(a) - GAME_ORDER.indexOf(b));
+      setGameTypes(orderedTypes);
       setPlayerBreakdowns(breakdowns);
     } catch (error) {
       console.error('Error fetching PVic breakdowns:', error);

@@ -99,7 +99,11 @@ serve(async (req) => {
       .from("game_players")
       .select("id, display_name, player_number, clan, jetons")
       .eq("game_id", state.game_id)
-      .eq("status", "ACTIVE");
+      .eq("status", "ACTIVE")
+      .eq("is_host", false)
+      .is("removed_at", null);
+
+    console.log(`[rivieres-resolve-level] Players for resolution: ${players?.length || 0} (excluding host)`);
 
     const playerMap = new Map(players?.map(p => [p.id, p]) || []);
     const statsMap = new Map(allPlayerStats?.map(s => [s.player_id, s]) || []);
@@ -568,7 +572,11 @@ async function computeFinalScores(
     .from("game_players")
     .select("id, display_name, player_number, jetons")
     .eq("game_id", state.game_id)
-    .eq("status", "ACTIVE");
+    .eq("status", "ACTIVE")
+    .eq("is_host", false)
+    .is("removed_at", null);
+
+  console.log(`[rivieres] computeFinalScores: ${players?.length || 0} players (excluding host)`);
 
   const playerMap = new Map<string, PlayerInfo>(players?.map((p: PlayerInfo) => [p.id, p]) || []);
 
