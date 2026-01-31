@@ -308,15 +308,33 @@ export default function MJAdventureDashboard() {
     setSaving(true);
 
     try {
+      // Synchronize currentAmount with initialAmount when saving in LOBBY
+      // This ensures Sheriff gets the correct pot value
+      const configToSave = game.status === 'LOBBY'
+        ? {
+            ...config,
+            adventure_pot: {
+              ...config.adventure_pot,
+              currentAmount: config.adventure_pot.initialAmount,
+            },
+          }
+        : config;
+
       const { error } = await supabase
         .from('adventure_game_configs')
         .upsert({
           game_id: gameId,
           adventure_id: game.adventure_id,
-          config: config as unknown as Json,
+          config: configToSave as unknown as Json,
         });
 
       if (error) throw error;
+      
+      // Update local state to reflect the sync
+      if (game.status === 'LOBBY') {
+        setConfig(configToSave);
+      }
+      
       toast.success('Configuration sauvegardée');
     } catch (error) {
       console.error('Error saving config:', error);
@@ -732,7 +750,14 @@ export default function MJAdventureDashboard() {
                     <Label>Montant initial</Label>
                     <NumberInput
                       value={config.adventure_pot.initialAmount}
-                      onChange={(value) => updateConfig('adventure_pot', { initialAmount: value })}
+                      onChange={(value) => {
+                        // When changing initialAmount in LOBBY, also sync currentAmount
+                        if (game.status === 'LOBBY') {
+                          updateConfig('adventure_pot', { initialAmount: value, currentAmount: value });
+                        } else {
+                          updateConfig('adventure_pot', { initialAmount: value });
+                        }
+                      }}
                       min={0}
                       className="mt-1"
                     />
@@ -741,11 +766,16 @@ export default function MJAdventureDashboard() {
                     <Label>Montant actuel</Label>
                     <div className="mt-1 h-10 flex items-center px-3 rounded-md border bg-muted/50 text-muted-foreground">
                       {config.adventure_pot.currentAmount}
+                      {game.status === 'LOBBY' && config.adventure_pot.currentAmount !== config.adventure_pot.initialAmount && (
+                        <span className="ml-2 text-xs text-amber-500">(sera synchronisé au démarrage)</span>
+                      )}
                     </div>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Au démarrage de l'aventure, le montant actuel sera égal au montant initial.
+                  {game.status === 'LOBBY' 
+                    ? 'Au démarrage et lors de chaque sauvegarde, le montant actuel sera synchronisé avec le montant initial.'
+                    : 'Le montant actuel reflète les pénalités appliquées pendant l\'aventure.'}
                 </p>
               </CardContent>
             </Card>
