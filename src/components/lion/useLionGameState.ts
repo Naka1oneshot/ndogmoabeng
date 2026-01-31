@@ -109,12 +109,13 @@ export function useLionGameState(sessionGameId: string | undefined, playerId?: s
 
         setAllTurns((allTurnsData || []) as LionTurn[]);
 
-        // Fetch players with avatar
+        // Fetch ACTIVE players for Lion (the 2 finalists only)
         const { data: playersData } = await supabase
           .from('game_players')
-          .select('id, display_name, player_number, pvic, user_id')
+          .select('id, display_name, player_number, pvic, user_id, status')
           .eq('game_id', stateData.game_id)
           .eq('is_host', false)
+          .eq('status', 'ACTIVE')
           .is('removed_at', null)
           .order('player_number');
 
@@ -207,9 +208,10 @@ export function useLionGameState(sessionGameId: string | undefined, playerId?: s
     return players.find(p => p.id === id);
   }, [players]);
 
-  // Get player A and B
-  const playerA = players.find(p => p.player_number === 1);
-  const playerB = players.find(p => p.player_number === 2);
+  // Get player A and B - for LION, these are the 2 finalists (sorted by player_number)
+  // In adventure mode, finalists may have any player_number
+  const playerA = players.length >= 1 ? players[0] : undefined;
+  const playerB = players.length >= 2 ? players[1] : undefined;
 
   // Get dealer cards played by a specific player (cards from their dealer deck)
   const getDealerCardsPlayed = useCallback((playerId: string) => {
