@@ -28,6 +28,8 @@ interface Game {
   manche_active: number | null;
   current_session_game_id: string | null;
   selected_game_type_code: string | null;
+  mode?: string;
+  adventure_id?: string | null;
 }
 
 interface Player {
@@ -108,7 +110,8 @@ export function SheriffPresentationView({ game: initialGame, onClose }: SheriffP
   const [currentDuelForAnimation, setCurrentDuelForAnimation] = useState<Duel | null>(null);
   const [showVictoryPodium, setShowVictoryPodium] = useState(false);
   const [showRulesOverlay, setShowRulesOverlay] = useState(false);
-  const [isAdventureMode, setIsAdventureMode] = useState(false);
+  // Initialize isAdventureMode directly from props to avoid race condition
+  const [isAdventureMode, setIsAdventureMode] = useState(initialGame.mode === 'ADVENTURE');
   
   // Track previous state for animations
   const prevPhaseRef = useRef<string | null>(null);
