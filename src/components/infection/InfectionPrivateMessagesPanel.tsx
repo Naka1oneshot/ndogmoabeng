@@ -91,6 +91,8 @@ export function InfectionPrivateMessagesPanel({
         return <Shield className="h-4 w-4 text-[#2AB3A6]" />;
       case 'INFECTION_STATUS':
         return <Syringe className="h-4 w-4 text-[#B00020]" />;
+      case 'MJ_PRIVATE_MESSAGE':
+        return <Mail className="h-4 w-4 text-[#D4AF37]" />;
       default:
         return <Mail className="h-4 w-4 text-[#9CA3AF]" />;
     }
@@ -106,6 +108,8 @@ export function InfectionPrivateMessagesPanel({
         return '#2AB3A6';
       case 'INFECTION_STATUS':
         return '#B00020';
+      case 'MJ_PRIVATE_MESSAGE':
+        return '#D4AF37';
       default:
         return '#9CA3AF';
     }
