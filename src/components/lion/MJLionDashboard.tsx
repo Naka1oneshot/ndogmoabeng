@@ -549,6 +549,11 @@ export function MJLionDashboard({ game, onPresentationMode }: MJLionDashboardPro
                 botActiveStrategy={gameState.bot_active_strategy ?? 'random'}
                 botGuessStrategy={gameState.bot_guess_strategy ?? 'smart'}
                 botDelayMs={gameState.bot_delay_ms ?? 1500}
+                currentTurnIndex={gameState.turn_index}
+                gameStatus={gameState.status}
+                bothPlayersAreBots={
+                  (playerA?.user_id === null) && (playerB?.user_id === null)
+                }
                 onUpdate={refetch}
               />
             </div>

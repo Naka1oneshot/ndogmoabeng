@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, Loader2, Play } from 'lucide-react';
+import { Bot, Loader2, Play, FastForward, Square } from 'lucide-react';
 
 interface LionBotSettingsProps {
   gameStateId: string;
@@ -16,6 +16,9 @@ interface LionBotSettingsProps {
   botActiveStrategy: string;
   botGuessStrategy: string;
   botDelayMs: number;
+  currentTurnIndex: number;
+  gameStatus: string;
+  bothPlayersAreBots: boolean;
   onUpdate: () => void;
   disabled?: boolean;
 }
@@ -27,12 +30,17 @@ export function LionBotSettings({
   botActiveStrategy,
   botGuessStrategy,
   botDelayMs,
+  currentTurnIndex,
+  gameStatus,
+  bothPlayersAreBots,
   onUpdate,
   disabled = false
 }: LionBotSettingsProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+  const stopSimulationRef = useRef(false);
 
   const handleUpdate = async (updates: Record<string, unknown>) => {
     setSaving(true);
@@ -87,6 +95,116 @@ export function LionBotSettings({
       setTriggering(false);
     }
   };
+
+  const handleSimulateAll = async () => {
+    if (!bothPlayersAreBots) return;
+
+    setSimulating(true);
+    stopSimulationRef.current = false;
+
+    toast({
+      title: '🤖 Simulation démarrée',
+      description: 'Exécution automatique jusqu\'au tour 20...',
+    });
+
+    try {
+      let continueSimulation = true;
+      let loopCount = 0;
+      const maxLoops = 100; // Safety limit
+
+      while (continueSimulation && loopCount < maxLoops) {
+        if (stopSimulationRef.current) {
+          toast({
+            title: '⏹️ Simulation arrêtée',
+            description: `Arrêt manuel au tour en cours`,
+          });
+          break;
+        }
+
+        // Fetch current state
+        const { data: currentState } = await supabase
+          .from('lion_game_state')
+          .select('status, turn_index')
+          .eq('id', gameStateId)
+          .single();
+
+        if (!currentState) break;
+
+        // Stop conditions: game finished or turn > 20
+        if (currentState.status === 'FINISHED' || currentState.turn_index > 20) {
+          continueSimulation = false;
+          toast({
+            title: '✅ Simulation terminée',
+            description: currentState.status === 'FINISHED' 
+              ? 'La partie est terminée !' 
+              : `Arrêt au tour ${currentState.turn_index}`,
+          });
+          break;
+        }
+
+        // Execute bot decisions
+        const botResponse = await supabase.functions.invoke('lion-bot-decisions', {
+          body: { session_game_id: sessionGameId }
+        });
+
+        if (botResponse.error) throw botResponse.error;
+
+        // Small delay to allow DB updates
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Check if turn needs resolution
+        const { data: turnData } = await supabase
+          .from('lion_turns')
+          .select('active_locked, guess_locked, resolved')
+          .eq('session_game_id', sessionGameId)
+          .eq('turn_index', currentState.turn_index)
+          .maybeSingle();
+
+        if (turnData && turnData.active_locked && turnData.guess_locked && !turnData.resolved) {
+          // Resolve turn
+          await supabase.functions.invoke('lion-resolve-turn', {
+            body: { session_game_id: sessionGameId }
+          });
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
+        // Check if we need to advance to next turn
+        const { data: updatedTurn } = await supabase
+          .from('lion_turns')
+          .select('resolved')
+          .eq('session_game_id', sessionGameId)
+          .eq('turn_index', currentState.turn_index)
+          .maybeSingle();
+
+        if (updatedTurn?.resolved) {
+          await supabase.functions.invoke('lion-next-turn', {
+            body: { session_game_id: sessionGameId }
+          });
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
+        loopCount++;
+        onUpdate();
+      }
+    } catch (err) {
+      console.error('Simulation error:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Erreur pendant la simulation',
+        variant: 'destructive'
+      });
+    } finally {
+      setSimulating(false);
+      stopSimulationRef.current = false;
+      onUpdate();
+    }
+  };
+
+  const handleStopSimulation = () => {
+    stopSimulationRef.current = true;
+  };
+
+  const canSimulate = bothPlayersAreBots && botEnabled && gameStatus !== 'FINISHED' && currentTurnIndex <= 20;
 
   return (
     <Card className="bg-amber-900/40 border-amber-700">
@@ -178,7 +296,7 @@ export function LionBotSettings({
             {/* Manual Trigger */}
             <Button
               onClick={handleTriggerBot}
-              disabled={triggering}
+              disabled={triggering || simulating}
               className="w-full lion-btn-primary"
             >
               {triggering ? (
@@ -188,6 +306,35 @@ export function LionBotSettings({
               )}
               Déclencher les bots maintenant
             </Button>
+
+            {/* Simulate All - Only for 2 bots */}
+            {bothPlayersAreBots && (
+              <div className="pt-2 border-t border-amber-700/50">
+                <p className="text-amber-400 text-xs mb-2">
+                  Les 2 joueurs sont des bots - Simulation rapide disponible
+                </p>
+                {simulating ? (
+                  <Button
+                    onClick={handleStopSimulation}
+                    variant="destructive"
+                    className="w-full"
+                  >
+                    <Square className="h-4 w-4 mr-2" />
+                    Arrêter la simulation
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSimulateAll}
+                    disabled={!canSimulate}
+                    variant="secondary"
+                    className="w-full bg-amber-700 hover:bg-amber-600 text-amber-100"
+                  >
+                    <FastForward className="h-4 w-4 mr-2" />
+                    Simuler tous les tours (→ T20)
+                  </Button>
+                )}
+              </div>
+            )}
           </>
         )}
       </CardContent>
